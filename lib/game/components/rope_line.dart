@@ -1,10 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 
-/// Preview: hook → cargo. After attach: follows rigid rope bar, or winch → cargo if using distance fallback.
+/// Preview: hook → cargo. When attached: winch → cargo with Bézier slack under [RopeJoint] max length.
 class RopeLine extends Component {
   RopeLine({
     required this.ship,
@@ -20,29 +22,24 @@ class RopeLine extends Component {
   final bool Function() attached;
   final RopePhysicsCoupling? Function() getCoupling;
 
+  static const double _slackDipScale = 0.85;
+
   @override
   void render(Canvas canvas) {
     final p = progress();
     if (p <= 0.01) return;
 
-    final coupling = getCoupling();
-    final seg = coupling?.ropeSegment;
-
-    // Rigid rope is a real [BodyComponent] — do not draw this stroke on top of it (it looked like “fake line only”).
-    if (attached() && coupling?.isTethered == true && seg != null) {
-      return;
-    }
+    final winch = ship.body.worldPoint(Vector2(0, ShipBody.rearLocalY));
+    final cargoCenter = cargo.body.worldCenter;
 
     final Vector2 a;
     final Vector2 b;
-    if (attached() && coupling?.isTethered == true) {
-      // DistanceJoint: same anchors as physics (winch → cargo).
-      a = ship.body.worldPoint(Vector2(0, ShipBody.rearLocalY));
-      b = cargo.body.worldCenter;
+    if (attached()) {
+      a = winch;
+      b = cargoCenter;
     } else {
-      // Preview only (not physics): nose hook → cargo range hint.
       a = ship.body.worldPoint(ShipBody.hookLocal);
-      b = cargo.body.worldCenter;
+      b = cargoCenter;
     }
 
     final baseAlpha = p * (attached() ? 1.0 : 0.55);
@@ -51,6 +48,35 @@ class RopeLine extends Component {
       ..strokeWidth = attached() ? 0.06 : 0.045
       ..style = PaintingStyle.stroke;
 
-    canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+    final coupling = getCoupling();
+    final maxLen = coupling?.tetherLengthMeters;
+    final chord = b - a;
+    final chordLen = chord.length;
+    if (chordLen < 1e-4) return;
+
+    if (!attached() || coupling?.isTethered != true || maxLen == null) {
+      canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      return;
+    }
+
+    final slack = (maxLen - chordLen).clamp(0.0, maxLen);
+    if (slack < 0.008) {
+      canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      return;
+    }
+
+    final dir = chord / chordLen;
+    var perp = Vector2(-dir.y, dir.x);
+    if (perp.y < 0) {
+      perp = -perp;
+    }
+    final dip = slack * _slackDipScale;
+    final mid = (a + b) * 0.5;
+    final c = mid + perp * dip;
+
+    final path = ui.Path()
+      ..moveTo(a.x, a.y)
+      ..quadraticBezierTo(c.x, c.y, b.x, b.y);
+    canvas.drawPath(path, paint);
   }
 }

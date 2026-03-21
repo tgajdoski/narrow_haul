@@ -10,10 +10,14 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   CargoAttachment({
     required this.ship,
     required this.cargo,
+    required this.ropeMaxLengthMeters,
   });
 
   final ShipBody ship;
   final CargoBody cargo;
+
+  /// Design max tow length from level ([LevelData.ropeMaxLength]).
+  final double ropeMaxLengthMeters;
 
   /// Rope UI fades in while ship–cargo centers are within this range.
   static const double approachDistanceMeters = 2.5;
@@ -88,6 +92,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
       final coupling = RopePhysicsCoupling(
         ship: ship,
         cargo: cargo,
+        ropeMaxLengthMeters: ropeMaxLengthMeters,
       );
       await add(coupling);
       if (!coupling.isTethered) return;

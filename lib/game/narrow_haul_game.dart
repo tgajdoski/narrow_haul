@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/text.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/cargo_attachment.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
@@ -12,13 +13,14 @@ import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/tiled_level_loader.dart';
+import 'package:narrow_haul/game/physics_constants.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
 class NarrowHaulGame extends Forge2DGame {
   NarrowHaulGame()
     : super(
-        gravity: Vector2(0, 1.375),
+        gravity: narrowHaulGravity(),
         zoom: 28,
       );
 
@@ -43,6 +45,10 @@ class NarrowHaulGame extends Forge2DGame {
 
   TextComponent? _hudText;
   HudTouchControls? _hudControls;
+
+  int _towRotateStallFrames = 0;
+  int _towThrustStallFrames = 0;
+  double _prevLinSpeed = 0;
 
   @override
   Color backgroundColor() => const Color(0xFF050816);
@@ -146,6 +152,7 @@ class NarrowHaulGame extends Forge2DGame {
     cargoLink = CargoAttachment(
       ship: shipBody,
       cargo: cargoBody,
+      ropeMaxLengthMeters: data.ropeMaxLength,
     );
 
     await world.add(shipBody);
@@ -243,10 +250,40 @@ class NarrowHaulGame extends Forge2DGame {
       if (rotateRightHeld) rot += 1;
       s.setInput(rotate: rot, thrust: thrustHeld);
       final tow = cargoAttachment?.attached == true;
+
+      if (kDebugMode && tow) {
+        final wTarget = rot.abs() * ShipBody.rotationSpeedRadPerSec;
+        if (rot.abs() > 0.01 && s.body.angularVelocity.abs() < wTarget * 0.2) {
+          _towRotateStallFrames++;
+        } else {
+          _towRotateStallFrames = 0;
+        }
+        final lin = s.body.linearVelocity.length;
+        if (thrustHeld && s.fuel > 0) {
+          if ((lin - _prevLinSpeed).abs() < 0.004 && lin < 0.35) {
+            _towThrustStallFrames++;
+          } else {
+            _towThrustStallFrames = 0;
+          }
+        } else {
+          _towThrustStallFrames = 0;
+        }
+        _prevLinSpeed = lin;
+      } else {
+        _towRotateStallFrames = 0;
+        _towThrustStallFrames = 0;
+        _prevLinSpeed = s.body.linearVelocity.length;
+      }
+
+      final dbg = kDebugMode && tow
+          ? '${_towRotateStallFrames > 22 ? ' rot?' : ''}'
+                '${_towThrustStallFrames > 40 ? ' thrust?' : ''}'
+          : '';
+
       _hudText?.text = tow
           ? 'Level ${levelIndex + 1}/${levelPaths.length}  '
                 'Fuel ${s.fuel.toStringAsFixed(0)}  '
-                'TOWING — physics link active — land ship + cargo on green'
+                'TOWING — RopeJoint — land ship + cargo on green$dbg'
           : 'Level ${levelIndex + 1}/${levelPaths.length}  '
                 'Fuel ${s.fuel.toStringAsFixed(0)}  '
                 'Approach: faded line = range hint only — get close to engage tow';

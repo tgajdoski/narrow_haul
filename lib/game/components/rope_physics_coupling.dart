@@ -1,33 +1,35 @@
-import 'dart:math' as math;
-
 import 'package:flame/components.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
-import 'package:narrow_haul/game/components/rope_segment_body.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 
-/// Winch ↔ rope bar ↔ cargo ([RevoluteJoint]s), or [DistanceJoint] winch ↔ cargo if the span is too short.
+/// Winch ↔ cargo using [RopeJoint] (max length), or [DistanceJoint] if span is very short.
 class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   RopePhysicsCoupling({
     required this.ship,
     required this.cargo,
+    required this.ropeMaxLengthMeters,
   });
 
   final ShipBody ship;
   final CargoBody cargo;
 
-  RopeSegmentBody? _rope;
-  Joint? _jointShipRope;
-  Joint? _jointRopeCargo;
+  /// Level design cap ([LevelData.ropeMaxLength]); tow length at attach is `min(dist, this)`.
+  final double ropeMaxLengthMeters;
+
+  Joint? _ropeJoint;
   Joint? _distanceJoint;
 
-  RopeSegmentBody? get ropeSegment => _rope;
+  /// [RopeJoint.maxLength] or [DistanceJoint]'s fixed length after attach.
+  double? _tetherLengthMeters;
 
-  /// True once any tow joint exists (rigid bar or distance fallback).
-  bool get isTethered =>
-      _jointShipRope != null ||
-      _jointRopeCargo != null ||
-      _distanceJoint != null;
+  double? get tetherLengthMeters => _tetherLengthMeters;
+
+  /// True once ship–cargo tow joint exists.
+  bool get isTethered => _ropeJoint != null || _distanceJoint != null;
+
+  /// Slightly above Forge2D linearSlop (~0.005) so [RopeJointDef.maxLength] is valid.
+  static const double _minRopeMaxLength = 0.0125;
 
   @override
   Future<void> onLoad() async {
@@ -39,56 +41,39 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
     final dist = delta.length;
     if (dist < 0.04) return;
 
-    // Too short for a stable rigid bar — fixed-length distance constraint (still physics tow).
+    // Very short: fixed distance keeps stability (same as prior bar fallback).
     if (dist < 0.12) {
       final def = DistanceJointDef<Body, Body>()..collideConnected = false;
       def.initialize(ship.body, cargo.body, anchorShip, anchorCargo);
       _distanceJoint = DistanceJoint(def);
+      _tetherLengthMeters = def.length;
       game.world.createJoint(_distanceJoint!);
       return;
     }
 
-    final angle = math.atan2(delta.y, delta.x);
-    final halfLen = dist * 0.5;
-    final mid = (anchorShip + anchorCargo) * 0.5;
-
-    final rope = RopeSegmentBody(
-      center: mid,
-      angle: angle,
-      halfLength: halfLen,
-    );
-    _rope = rope;
-    await game.world.add(rope);
-
-    final j1 = RevoluteJointDef<Body, Body>()
-      ..collideConnected = false
-      ..initialize(ship.body, rope.body, anchorShip);
-    _jointShipRope = RevoluteJoint(j1);
-    game.world.createJoint(_jointShipRope!);
-
-    final j2 = RevoluteJointDef<Body, Body>()
-      ..collideConnected = false
-      ..initialize(rope.body, cargo.body, anchorCargo);
-    _jointRopeCargo = RevoluteJoint(j2);
-    game.world.createJoint(_jointRopeCargo!);
+    final maxLength = dist.clamp(_minRopeMaxLength, ropeMaxLengthMeters);
+    final def = RopeJointDef<Body, Body>()..collideConnected = false;
+    def.bodyA = ship.body;
+    def.bodyB = cargo.body;
+    def.localAnchorA.setFrom(ship.body.localPoint(anchorShip));
+    def.localAnchorB.setFrom(cargo.body.localPoint(anchorCargo));
+    def.maxLength = maxLength;
+    _ropeJoint = RopeJoint(def);
+    _tetherLengthMeters = maxLength;
+    game.world.createJoint(_ropeJoint!);
   }
 
   @override
   void onRemove() {
-    if (_jointShipRope != null) {
-      game.world.destroyJoint(_jointShipRope!);
-      _jointShipRope = null;
-    }
-    if (_jointRopeCargo != null) {
-      game.world.destroyJoint(_jointRopeCargo!);
-      _jointRopeCargo = null;
+    if (_ropeJoint != null) {
+      game.world.destroyJoint(_ropeJoint!);
+      _ropeJoint = null;
     }
     if (_distanceJoint != null) {
       game.world.destroyJoint(_distanceJoint!);
       _distanceJoint = null;
     }
-    _rope?.removeFromParent();
-    _rope = null;
+    _tetherLengthMeters = null;
     super.onRemove();
   }
 }
