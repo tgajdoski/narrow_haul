@@ -31,8 +31,22 @@ class CargoBody extends BodyComponent {
         friction: 0.45,
         restitution: 0.08,
         filter: filterCargo(),
+        userData: const CargoTag(),
       ),
     );
     return body;
+  }
+
+  @override
+  void renderCircle(Canvas canvas, Offset center, double radius) {
+    super.renderCircle(canvas, center, radius);
+    canvas.drawCircle(
+      center,
+      radius + 0.018,
+      Paint()
+        ..color = const Color(0xFF5C3D2E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.035,
+    );
   }
 }

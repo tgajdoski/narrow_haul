@@ -6,7 +6,7 @@ import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_segment_body.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 
-/// Ship ↔ rope segment ↔ cargo with [RevoluteJoint]s. Rope length is fixed at attach (rigid bar).
+/// Winch ↔ rope bar ↔ cargo ([RevoluteJoint]s), or [DistanceJoint] winch ↔ cargo if the span is too short.
 class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   RopePhysicsCoupling({
     required this.ship,
@@ -19,8 +19,15 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   RopeSegmentBody? _rope;
   Joint? _jointShipRope;
   Joint? _jointRopeCargo;
+  Joint? _distanceJoint;
 
   RopeSegmentBody? get ropeSegment => _rope;
+
+  /// True once any tow joint exists (rigid bar or distance fallback).
+  bool get isTethered =>
+      _jointShipRope != null ||
+      _jointRopeCargo != null ||
+      _distanceJoint != null;
 
   @override
   Future<void> onLoad() async {
@@ -30,7 +37,16 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
     final anchorCargo = cargo.body.worldCenter;
     final delta = anchorCargo - anchorShip;
     final dist = delta.length;
-    if (dist < 0.08) return;
+    if (dist < 0.04) return;
+
+    // Too short for a stable rigid bar — fixed-length distance constraint (still physics tow).
+    if (dist < 0.12) {
+      final def = DistanceJointDef<Body, Body>()..collideConnected = false;
+      def.initialize(ship.body, cargo.body, anchorShip, anchorCargo);
+      _distanceJoint = DistanceJoint(def);
+      game.world.createJoint(_distanceJoint!);
+      return;
+    }
 
     final angle = math.atan2(delta.y, delta.x);
     final halfLen = dist * 0.5;
@@ -66,6 +82,10 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
     if (_jointRopeCargo != null) {
       game.world.destroyJoint(_jointRopeCargo!);
       _jointRopeCargo = null;
+    }
+    if (_distanceJoint != null) {
+      game.world.destroyJoint(_distanceJoint!);
+      _distanceJoint = null;
     }
     _rope?.removeFromParent();
     _rope = null;

@@ -33,6 +33,7 @@ class NarrowHaulGame extends Forge2DGame {
 
   ShipBody? ship;
   CargoBody? cargo;
+  CargoAttachment? cargoAttachment;
 
   bool rotateLeftHeld = false;
   bool rotateRightHeld = false;
@@ -156,6 +157,7 @@ class NarrowHaulGame extends Forge2DGame {
 
     ship = shipBody;
     cargo = cargoBody;
+    cargoAttachment = cargoLink;
 
     final landing = DualLandingZone(
       padCenter: data.goalCenter,
@@ -186,6 +188,7 @@ class NarrowHaulGame extends Forge2DGame {
     _levelEntities.clear();
     ship = null;
     cargo = null;
+    cargoAttachment = null;
   }
 
   void _onShipHitWall() {
@@ -239,10 +242,14 @@ class NarrowHaulGame extends Forge2DGame {
       if (rotateLeftHeld) rot -= 1;
       if (rotateRightHeld) rot += 1;
       s.setInput(rotate: rot, thrust: thrustHeld);
-      _hudText?.text =
-          'Level ${levelIndex + 1}/${levelPaths.length}  '
-          'Fuel ${s.fuel.toStringAsFixed(0)}  '
-          'Nose hook touches cargo to tow — land both on green';
+      final tow = cargoAttachment?.attached == true;
+      _hudText?.text = tow
+          ? 'Level ${levelIndex + 1}/${levelPaths.length}  '
+                'Fuel ${s.fuel.toStringAsFixed(0)}  '
+                'TOWING — physics link active — land ship + cargo on green'
+          : 'Level ${levelIndex + 1}/${levelPaths.length}  '
+                'Fuel ${s.fuel.toStringAsFixed(0)}  '
+                'Approach: faded line = range hint only — get close to engage tow';
     }
   }
 }

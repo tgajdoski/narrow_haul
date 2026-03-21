@@ -1,4 +1,5 @@
 import 'package:flame_forge2d/flame_forge2d.dart';
+import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 
 /// Thin dynamic bar: local +X runs ship → cargo; ship end at (−halfLength, 0), cargo at (+halfLength, 0).
@@ -7,12 +8,15 @@ class RopeSegmentBody extends BodyComponent {
     required Vector2 center,
     required double angle,
     required this.halfLength,
-    this.halfThickness = 0.045,
+    this.halfThickness = 0.075,
   }) : _center = center,
        _angle = angle,
        super(
-         renderBody: false,
-         priority: -450,
+         renderBody: true,
+         priority: -420,
+         paint: Paint()
+           ..color = const Color(0xFF94D2BD).withValues(alpha: 0.95)
+           ..style = PaintingStyle.fill,
        );
 
   final Vector2 _center;

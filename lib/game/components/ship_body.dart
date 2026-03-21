@@ -24,6 +24,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// Local +Y anchor at engine bell (rope + plume).
   static const double rearLocalY = 0.26;
 
+  /// Nose hook sensor (same as [CircleShape] in [createBody]).
+  static final Vector2 hookLocal = Vector2(0, -0.24);
+  static const double hookRadius = 0.14;
+
   /// Seconds to complete one full 360° while holding ⟲ or ⟳ at full input.
   static const double secondsPerFullRotation = 4.0;
 
@@ -90,8 +94,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     b.createFixture(
       FixtureDef(
         CircleShape(
-          radius: 0.14,
-          position: Vector2(0, -0.24),
+          radius: hookRadius,
+          position: hookLocal,
         ),
         isSensor: true,
         userData: const HookTag(),

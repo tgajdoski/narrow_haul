@@ -5,7 +5,7 @@ import 'package:narrow_haul/game/components/rope_line.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 
-/// Rope preview near cargo, then hook contact → [RopePhysicsCoupling] (ship–rope–cargo).
+/// Rope preview near cargo, then [RopePhysicsCoupling] (tow). Attach uses hook proximity or ship–cargo distance.
 class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   CargoAttachment({
     required this.ship,
@@ -15,14 +15,18 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   final ShipBody ship;
   final CargoBody cargo;
 
-  /// ~3.5× approximate hull length — rope UI only appears inside this range.
+  /// Rope UI fades in while ship–cargo centers are within this range.
   static const double approachDistanceMeters = 2.5;
 
-  /// Seconds to fade rope in from 0 → 1 while in range (not yet hooked).
   static const double ropeRevealDuration = 1.15;
 
-  /// Minimum rope visibility (0–1) before a hook contact can attach.
-  static const double minRevealToAttach = 0.35;
+  static const double minRevealToAttach = 0.05;
+
+  /// Nose hook can “grab” within this radius of cargo center.
+  static const double hookCatchExtraMeters = 0.35;
+
+  /// If hull centers are this close (m), attach even if the hook circle misses (gameplay-friendly).
+  static const double attachCenterDistanceMax = 1.2;
 
   bool attached = false;
   double ropeRevealProgress = 0;
@@ -49,15 +53,28 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     super.update(dt);
     if (attached) return;
 
-    final d = (ship.body.position - cargo.body.position).length;
-    if (d < approachDistanceMeters) {
+    final centerDist = (ship.body.position - cargo.body.position).length;
+    if (centerDist < approachDistanceMeters) {
       ropeRevealProgress = (ropeRevealProgress + dt / ropeRevealDuration).clamp(0.0, 1.0);
     } else {
       ropeRevealProgress = (ropeRevealProgress - dt * 0.55).clamp(0.0, 1.0);
     }
+
+    if (_attaching) return;
+    if (ropeRevealProgress < minRevealToAttach) return;
+
+    final hookWorld = ship.body.worldPoint(ShipBody.hookLocal);
+    final cargoCenter = cargo.body.worldCenter;
+    final hookToCargo = (hookWorld - cargoCenter).length;
+    final catchRadius = ShipBody.hookRadius + CargoBody.radius + hookCatchExtraMeters;
+
+    final hookOk = hookToCargo <= catchRadius;
+    final centerOk = centerDist <= attachCenterDistanceMax;
+    if (hookOk || centerOk) {
+      _attach();
+    }
   }
 
-  /// Called from [ShipBody] when the hook sensor touches cargo.
   void onHookCargoTouch() {
     if (attached || _attaching) return;
     if (ropeRevealProgress < minRevealToAttach) return;
@@ -65,6 +82,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   }
 
   Future<void> _attach() async {
+    if (attached || _attaching) return;
     _attaching = true;
     try {
       final coupling = RopePhysicsCoupling(
@@ -72,7 +90,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
         cargo: cargo,
       );
       await add(coupling);
-      if (coupling.ropeSegment == null) return;
+      if (!coupling.isTethered) return;
 
       _coupling = coupling;
       attached = true;

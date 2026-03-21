@@ -4,7 +4,7 @@ import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 
-/// Preview line before attach; after attach, follows the physics rope segment endpoints.
+/// Preview: hook → cargo. After attach: follows rigid rope bar, or winch → cargo if using distance fallback.
 class RopeLine extends Component {
   RopeLine({
     required this.ship,
@@ -12,7 +12,7 @@ class RopeLine extends Component {
     required this.progress,
     required this.attached,
     required this.getCoupling,
-  }) : super(priority: -400);
+  }) : super(priority: -380);
 
   final ShipBody ship;
   final CargoBody cargo;
@@ -25,18 +25,27 @@ class RopeLine extends Component {
     final p = progress();
     if (p <= 0.01) return;
 
-    final seg = getCoupling()?.ropeSegment;
+    final coupling = getCoupling();
+    final seg = coupling?.ropeSegment;
+
+    // Rigid rope is a real [BodyComponent] — do not draw this stroke on top of it (it looked like “fake line only”).
+    if (attached() && coupling?.isTethered == true && seg != null) {
+      return;
+    }
+
     final Vector2 a;
     final Vector2 b;
-    if (attached() && seg != null) {
-      a = seg.endShipWorld;
-      b = seg.endCargoWorld;
-    } else {
+    if (attached() && coupling?.isTethered == true) {
+      // DistanceJoint: same anchors as physics (winch → cargo).
       a = ship.body.worldPoint(Vector2(0, ShipBody.rearLocalY));
+      b = cargo.body.worldCenter;
+    } else {
+      // Preview only (not physics): nose hook → cargo range hint.
+      a = ship.body.worldPoint(ShipBody.hookLocal);
       b = cargo.body.worldCenter;
     }
 
-    final baseAlpha = p * (attached() ? 1.0 : 0.68);
+    final baseAlpha = p * (attached() ? 1.0 : 0.55);
     final paint = Paint()
       ..color = Color.fromARGB((baseAlpha * 230).round().clamp(0, 255), 148, 210, 189)
       ..strokeWidth = attached() ? 0.06 : 0.045

@@ -9,7 +9,7 @@
  </objectgroup>
  <objectgroup id="2" name="markers">
   <object id="5" name="ship" x="112" y="200" width="64" height="64"/>
-  <object id="6" name="cargo_zone" x="420" y="96" width="520" height="260"/>
+  <object id="6" name="cargo_zone" x="184" y="208" width="200" height="120"/>
   <object id="7" name="goal" x="1320" y="72" width="320" height="96"/>
  </objectgroup>
 </map>
