@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="24">
+ <objectgroup id="1" name="walls">
+  <object id="1" x="0" y="0" width="1792" height="32"/>
+  <object id="2" x="0" y="416" width="1792" height="32"/>
+  <object id="3" x="0" y="0" width="48" height="448"/>
+  <object id="4" x="1744" y="0" width="48" height="448"/>
+  <object id="9" x="560" y="160" width="480" height="28"/>
+  <object id="10" x="560" y="300" width="480" height="28"/>
+ </objectgroup>
+ <objectgroup id="2" name="markers">
+  <object id="5" name="ship" x="128" y="208" width="64" height="64"/>
+  <object id="6" name="cargo_zone" x="440" y="88" width="500" height="280"/>
+  <object id="7" name="goal" x="1300" y="68" width="340" height="104"/>
+ </objectgroup>
+</map>
