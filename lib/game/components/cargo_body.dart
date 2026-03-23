@@ -29,9 +29,9 @@ class CargoBody extends BodyComponent {
     } catch (_) {}
   }
 
-  // Sprite drawn slightly larger than the physics circle so the art
-  // fills the collision boundary comfortably.
-  static const double _spriteHalf = radius + 0.06; // ≈ 0.20 m half-size
+  // Sprite drawn at 3× the physics radius so cargo is clearly visible.
+  // The collision circle stays at [radius] = 0.14 m.
+  static const double _spriteHalf = (radius + 0.06) * 3.0; // ≈ 0.60 m half-size
 
   @override
   void render(Canvas canvas) {

@@ -74,11 +74,15 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     } catch (_) {}
   }
 
-  // Ship sprite covers nose (0, −0.34) to rear (0, 0.26) in local space.
-  // The rect is sized with a small margin so the sprite edge aligns with
-  // the physics hull, and centred slightly above the body origin which
-  // coincides with the geometric centroid of the triangle (y ≈ 0.06).
-  static const _spriteRect = Rect.fromLTRB(-0.23, -0.37, 0.23, 0.29);
+  // Sprite is drawn at 3× the physics hull dimensions so the ship is clearly
+  // visible on-screen. The hitbox remains at the original physics size.
+  static const double _visualScale = 3.0;
+  static const _spriteRect = Rect.fromLTRB(
+    -0.23 * _visualScale, // left
+    -0.37 * _visualScale, // top  (nose)
+     0.23 * _visualScale, // right
+     0.29 * _visualScale, // bottom (rear)
+  );
 
   @override
   void render(Canvas canvas) {

@@ -161,38 +161,33 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     }
   }
 
+  /// Resting position hint: show the full joystick (base + centred knob)
+  /// at a fixed bottom-left location so the player always sees it.
   void _drawHint(Canvas canvas) {
-    final textPaint = Paint()..color = const Color(0x2200B4D8);
-    canvas.drawCircle(Offset(size.x * 0.25, size.y - 44), 40, textPaint);
-    canvas.drawCircle(
-      Offset(size.x * 0.25, size.y - 44),
-      40,
-      Paint()
-        ..color = const Color(0x3300B4D8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-    _drawArrow(canvas, Offset(size.x * 0.25 - 16, size.y - 44), isLeft: true);
-    _drawArrow(canvas, Offset(size.x * 0.25 + 16, size.y - 44), isLeft: false);
-  }
+    final cx = size.x * 0.22;
+    final cy = size.y - _baseOuterRadius - 16;
 
-  void _drawArrow(Canvas canvas, Offset pos, {required bool isLeft}) {
-    final paint = Paint()
-      ..color = const Color(0x4400B4D8)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final path = Path();
-    if (isLeft) {
-      path.moveTo(pos.dx + 6, pos.dy - 6);
-      path.lineTo(pos.dx, pos.dy);
-      path.lineTo(pos.dx + 6, pos.dy + 6);
+    if (_baseSprite != null) {
+      final d = _baseOuterRadius * 2;
+      _baseSprite!.render(
+        canvas,
+        position: Vector2(cx - _baseOuterRadius, cy - _baseOuterRadius),
+        size: Vector2(d, d),
+      );
     } else {
-      path.moveTo(pos.dx - 6, pos.dy - 6);
-      path.lineTo(pos.dx, pos.dy);
-      path.lineTo(pos.dx - 6, pos.dy + 6);
+      _drawFallbackBase(canvas, Vector2(cx, cy));
     }
-    canvas.drawPath(path, paint);
+
+    if (_knobSprite != null) {
+      final kd = _knobRadius * 2;
+      _knobSprite!.render(
+        canvas,
+        position: Vector2(cx - _knobRadius, cy - _knobRadius),
+        size: Vector2(kd, kd),
+      );
+    } else {
+      _drawFallbackKnob(canvas, Vector2(cx, cy));
+    }
   }
 
   void _drawJoystick(Canvas canvas) {

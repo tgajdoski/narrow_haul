@@ -1,5 +1,130 @@
 # Narrow Haul — Changelog
 
+## v1.2.0 — Sprite Integration & Parallax Background
+
+All game-object and HUD sprites are now wired in, replacing the placeholder
+Canvas-drawn primitives. A three-layer parallax background system is live.
+
+---
+
+### Asset Infrastructure
+
+**`pubspec.yaml`**
+- Added `- assets/` to the `flutter.assets` list so all PNG files in the root
+  assets folder are bundled (previously only `assets/tiles/` was registered).
+
+**`lib/main.dart`** + **`lib/game/narrow_haul_game.dart`**
+- `Flame.images.prefix = 'assets/'` set in `main()` (global Flame cache).
+- `images.prefix = 'assets/'` set in `NarrowHaulGame.onLoad()` (game-local cache).
+- Both are required because `Sprite.load()` uses the global cache and
+  `gameRef.images` uses the game-local cache.
+
+---
+
+### HUD Sprites — `lib/game/components/hud_touch_controls.dart`
+
+| Asset | Size | How used |
+|---|---|---|
+| `joystick_base.png` | 256×256 px | Base ring drawn at touch-down point; **also shown at fixed resting position** when idle |
+| `joystick_knob.png` | 128×128 px | Moving thumb pad; shown centred on base when idle |
+| `thrust_idle.png` | 256×256 px | Full thrust button sprite when not pressed |
+| `thrust_press.png` | 256×256 px | Swaps in on hold |
+| `fuel_bar.png` | 320×48 px | Rendered as the outer frame; dynamic fill drawn on top with 5 px inset |
+
+**Joystick idle state changed**: `_drawHint()` now renders `joystick_base.png` +
+centred `joystick_knob.png` at a fixed bottom-left position so the control is
+always visible, not just during a drag. Canvas arrows/circles are the fallback.
+
+**Fuel bar enlarged**: bar dimensions updated to 220×26 px (was 120×8 px) to
+match the sprite's proportions and be legible on device.
+
+All sprite loads are wrapped in `try/catch`; the original Canvas drawing is kept
+as a silent fallback if an asset is missing.
+
+---
+
+### Engine Exhaust Animation — `lib/game/components/thrust_plume.dart`
+
+- Loads `exhaust.png` (256×128 px, 4 frames of 64×128 px each) via
+  `Flame.images.load()`.
+- Animates at **12 fps** (stepTime = 0.08 s), cycling through all 4 frames.
+- **Y-flip applied in render**: the source sprite has the bright core at the
+  bottom (flames pointing upward). A `canvas.translate / canvas.scale(1, -1)`
+  transform flips the image so the core sits at the engine bell and the flame
+  tips extend away from the ship.
+- Falls back silently to the procedural 3-layer cone + particle-spark rendering
+  if the asset is unavailable.
+
+---
+
+### Ship Sprite — `lib/game/components/ship_body.dart`
+
+- Loads `ship.png` (128×128 px) in `onLoad()`.
+- `renderBody = false` on successful load (hides physics triangle).
+- Sprite is drawn at **3× the physics hull dimensions** (`_visualScale = 3.0`):
+  - Visual rect: `±0.69 m` wide × `1.11 + 0.87 m` tall (≈ 38×55 px at zoom 28)
+  - Physics hitbox unchanged at `±0.21 m` wide × `0.60 m` tall
+- Falls back to the physics triangle if the asset fails to load.
+
+---
+
+### Cargo Sprite — `lib/game/components/cargo_body.dart`
+
+- Loads `cargo.png` (64×64 px) in `onLoad()`.
+- `renderBody = false` on successful load.
+- Sprite drawn at **3× the physics radius**: `_spriteHalf = 0.60 m` (≈ 34 px
+  diameter at zoom 28); physics circle stays at `radius = 0.14 m`.
+- `renderCircle` override kept for the fallback path (`renderBody = true`).
+
+---
+
+### Landing Pad Sprite — `lib/game/components/world_dromes.dart`
+
+- `LandingStripVisual` loads `landing.png` (256×64 px) in `onLoad()`.
+- When loaded, replaces the solid dark-green `RectangleComponent` background
+  with the sprite texture (stretched to the pad's world-space dimensions).
+- Animated pulsing fill, chevron stripes, and corner blinking lights are still
+  drawn on top of the sprite each frame.
+- Falls back to the solid fill if the asset is missing.
+
+---
+
+### Parallax Background — `lib/game/components/parallax_background.dart` (NEW)
+
+Three-layer scrolling background driven by the camera's world position.
+
+| Layer | File | X speed | Y speed | Opacity |
+|---|---|---|---|---|
+| Far | `far.png` (1920×1080) | 4 % of cam | 2 % of cam | 50 % |
+| Mid | `mid.png` (1920×1080) | 15 % of cam | 7 % of cam | 72 % |
+| Near | `near.png` (1920×1080) | 38 % of cam | 18 % of cam | 92 % |
+
+**Technical notes:**
+- Component added to the game directly (`game.add()`) at `priority = −9999`,
+  **not** to `camera.viewport`. This ensures it renders before the
+  `CameraComponent` and therefore behind the game world and all HUD elements.
+- Images are tiled in both X and Y to cover any level size.
+- Each tile is drawn **+1 px** wider/taller than its slot to eliminate hairline
+  seams caused by sub-pixel rounding during scroll.
+- `size = game.size` is set eagerly in `onLoad()` (not waiting for
+  `onGameResize`) so `PositionComponent`'s bounding-box clip doesn't suppress
+  rendering on the first frame.
+- Speed constants at the top of the file can be tuned without recompiling.
+
+---
+
+### Bug Fixes
+
+| Issue | Fix |
+|---|---|
+| Background rendered over ship/cargo | Moved from `camera.viewport.add()` to `game.add()` |
+| Background invisible on first frame | Set `size = game.size` in `onLoad()` before image loading |
+| Visible tiling grid seams | 1 px tile overlap + `FilterQuality.low` |
+| Ship/cargo barely visible | 3× visual scale (hitbox unchanged) |
+| Joystick only shown while dragging | `_drawHint()` shows full joystick sprite at fixed resting position |
+
+---
+
 ## v1.1.0 — Roadmap Implementation
 
 All 12 planned items from the Narrow Haul roadmap have been implemented.
@@ -483,8 +608,11 @@ assets/
 
 ### Immediate — no native platform setup required
 - Drop audio files into `assets/audio/` → sound activates automatically
-- Generate ship/cargo/HUD sprites using the prompts above, then load with `Sprite.load()`
-- Add parallax star background using Flame's `ParallaxComponent`
+- ~~Generate ship/cargo/HUD sprites~~ ✅ **Done in v1.2.0**
+- ~~Add parallax background~~ ✅ **Done in v1.2.0**
+- Fix `exhaust.png` black background → re-export with transparent PNG alpha channel
+- Tune `_visualScale` in `ship_body.dart` / `cargo_body.dart` if sizes need adjustment
+- Tune parallax speed constants in `parallax_background.dart` for feel
 
 ### Short-term — requires native platform configuration
 - Configure `google_mobile_ads` with app IDs from AdMob (Android + iOS)
@@ -492,7 +620,7 @@ assets/
 - Replace stubs in `MonetizationService` with real SDK calls
 
 ### Medium-term
-- Tile-based terrain rendering (swap rectangles for textured tiles via `FlameForge2D`)
 - Online leaderboard for daily challenges (Firebase or Supabase)
 - Game Center / Play Games Services for cloud achievements
 - Push notifications for daily challenge reminders
+- App icon and launch screen with game branding

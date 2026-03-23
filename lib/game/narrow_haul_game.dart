@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/components/cargo_attachment.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/dual_landing_zone.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
+import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
@@ -106,6 +107,11 @@ class NarrowHaulGame extends Forge2DGame {
 
     camera.viewfinder.anchor = Anchor.center;
     camera.viewfinder.zoom = _baseZoom;
+
+    // Parallax background — added to the game (not the viewport) at priority
+    // −9999 so it renders before the CameraComponent and therefore behind
+    // the world, tile layers, and all HUD elements.
+    add(ParallaxBackground());
 
     _fuelGauge = FuelGaugeHud();
     camera.viewport.add(_fuelGauge!);
