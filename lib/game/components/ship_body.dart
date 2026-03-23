@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
+import 'package:flame/flame.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
@@ -12,12 +14,18 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     required Vector2 initialPosition,
     required this.onWallHit,
     this.onHookTouchesCargo,
+    this.fuelDrainMultiplier = 1.0,
   }) : _initialPosition = initialPosition,
        super(
          paint: Paint()..color = const Color(0xFF00B4D8),
        );
 
+  /// Multiplier applied to fuel drain rate (daily challenge modifier).
+  final double fuelDrainMultiplier;
+
   final Vector2 _initialPosition;
+
+  ui.Image? _shipImage;
   final void Function() onWallHit;
   final void Function()? onHookTouchesCargo;
 
@@ -60,6 +68,30 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     await super.onLoad();
     body.userData = this;
     await add(ThrustPlume(isThrusting: () => isThrusting));
+    try {
+      _shipImage = await Flame.images.load('ship.png');
+      renderBody = false;
+    } catch (_) {}
+  }
+
+  // Ship sprite covers nose (0, −0.34) to rear (0, 0.26) in local space.
+  // The rect is sized with a small margin so the sprite edge aligns with
+  // the physics hull, and centred slightly above the body origin which
+  // coincides with the geometric centroid of the triangle (y ≈ 0.06).
+  static const _spriteRect = Rect.fromLTRB(-0.23, -0.37, 0.23, 0.29);
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas); // no-op when renderBody = false
+    final img = _shipImage;
+    if (img != null) {
+      canvas.drawImageRect(
+        img,
+        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        _spriteRect,
+        Paint(),
+      );
+    }
   }
 
   @override
@@ -119,7 +151,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     }
 
     if (_thrustInput && fuel > 0) {
-      fuel -= fuelDrainPerSecond * dt;
+      fuel -= fuelDrainPerSecond * fuelDrainMultiplier * dt;
       if (fuel < 0) fuel = 0;
       final dir = body.worldVector(Vector2(0, -1))..scale(thrustForce);
       body.applyForce(dir);

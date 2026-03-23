@@ -11,7 +11,11 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     required this.ship,
     required this.cargo,
     required this.ropeMaxLengthMeters,
+    this.onAttached,
   });
+
+  /// Called once when the rope successfully attaches to cargo.
+  final void Function()? onAttached;
 
   final ShipBody ship;
   final CargoBody cargo;
@@ -100,6 +104,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
       _coupling = coupling;
       attached = true;
       ropeRevealProgress = 1.0;
+      onAttached?.call();
     } finally {
       _attaching = false;
     }

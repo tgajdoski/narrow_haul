@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flame/flame.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
@@ -14,6 +17,35 @@ class CargoBody extends BodyComponent {
 
   /// Smaller than ship hull (~0.68 m tall).
   static const double radius = 0.14;
+
+  ui.Image? _cargoImage;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    try {
+      _cargoImage = await Flame.images.load('cargo.png');
+      renderBody = false;
+    } catch (_) {}
+  }
+
+  // Sprite drawn slightly larger than the physics circle so the art
+  // fills the collision boundary comfortably.
+  static const double _spriteHalf = radius + 0.06; // ≈ 0.20 m half-size
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas); // no-op when renderBody = false
+    final img = _cargoImage;
+    if (img != null) {
+      canvas.drawImageRect(
+        img,
+        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        Rect.fromCenter(center: Offset.zero, width: _spriteHalf * 2, height: _spriteHalf * 2),
+        Paint(),
+      );
+    }
+  }
 
   @override
   Body createBody() {
@@ -39,6 +71,7 @@ class CargoBody extends BodyComponent {
 
   @override
   void renderCircle(Canvas canvas, Offset center, double radius) {
+    // Only reached when renderBody = true (sprite failed to load — fallback).
     super.renderCircle(canvas, center, radius);
     canvas.drawCircle(
       center,
