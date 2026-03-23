@@ -20,40 +20,43 @@ void main() {
         ),
       ),
       home: Scaffold(
-        body: GameWidget(
-          game: game,
-          overlayBuilderMap: {
-            'menu': (context, game) {
-              final g = game as NarrowHaulGame;
-              return _MenuOverlay(
-                onPlay: () => g.beginPlay(),
-              );
+        backgroundColor: const Color(0xFF050816),
+        body: ClipRect(
+          child: GameWidget(
+            game: game,
+            overlayBuilderMap: {
+              'menu': (context, game) {
+                final g = game as NarrowHaulGame;
+                return _MenuOverlay(
+                  onPlay: () => g.beginPlay(),
+                );
+              },
+              'gameOver': (context, game) {
+                final g = game as NarrowHaulGame;
+                return _EndOverlay(
+                  title: 'Hull breach',
+                  subtitle: 'The ship touched the terrain.',
+                  primaryLabel: 'Retry',
+                  onPrimary: g.restartLevel,
+                  secondaryLabel: 'Menu',
+                  onSecondary: g.backToMenu,
+                );
+              },
+              'levelComplete': (context, game) {
+                final g = game as NarrowHaulGame;
+                return _EndOverlay(
+                  title: 'Mission complete',
+                  subtitle: 'Cargo and ship on the landing pad. Level ${g.levelIndex + 1} cleared.',
+                  primaryLabel: g.levelIndex < NarrowHaulGame.levelPaths.length - 1
+                      ? 'Next level'
+                      : 'Replay',
+                  onPrimary: g.nextLevel,
+                  secondaryLabel: 'Menu',
+                  onSecondary: g.backToMenu,
+                );
+              },
             },
-            'gameOver': (context, game) {
-              final g = game as NarrowHaulGame;
-              return _EndOverlay(
-                title: 'Hull breach',
-                subtitle: 'The ship touched the terrain.',
-                primaryLabel: 'Retry',
-                onPrimary: g.restartLevel,
-                secondaryLabel: 'Menu',
-                onSecondary: g.backToMenu,
-              );
-            },
-            'levelComplete': (context, game) {
-              final g = game as NarrowHaulGame;
-              return _EndOverlay(
-                title: 'Mission complete',
-                subtitle: 'Cargo and ship on the landing pad. Level ${g.levelIndex + 1} cleared.',
-                primaryLabel: g.levelIndex < NarrowHaulGame.levelPaths.length - 1
-                    ? 'Next level'
-                    : 'Replay',
-                onPrimary: g.nextLevel,
-                secondaryLabel: 'Menu',
-                onSecondary: g.backToMenu,
-              );
-            },
-          },
+          ),
         ),
       ),
     ),
@@ -86,7 +89,7 @@ class _MenuOverlay extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Landscape mode. Left: ⟲ ⟳ rotate. Right: THRUST. '
+                  'Landscape mode. Left: rotate pad. Right: THRUST. '
                   'Pick up cargo (orange zone), then land both the cargo and the ship on the green pad.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(

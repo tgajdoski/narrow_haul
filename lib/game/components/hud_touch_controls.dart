@@ -6,13 +6,11 @@ import 'package:flutter/material.dart';
 /// On-screen controls for landscape: left = rotate, right = thrust.
 class HudTouchControls extends PositionComponent {
   HudTouchControls({
-    required this.onRotateLeft,
-    required this.onRotateRight,
+    required this.onRotateAxis,
     required this.onThrust,
   }) : super(priority: 5000);
 
-  final void Function(bool pressed) onRotateLeft;
-  final void Function(bool pressed) onRotateRight;
+  final void Function(double axis) onRotateAxis;
   final void Function(bool pressed) onThrust;
 
   @override
@@ -48,19 +46,10 @@ class HudTouchControls extends PositionComponent {
     final bottom = size.y - 24 - btn;
 
     add(
-      HoldableButton(
+      RotatePad(
         position: Vector2(20, bottom),
-        size: Vector2.all(btn),
-        label: '⟲',
-        onChanged: onRotateLeft,
-      ),
-    );
-    add(
-      HoldableButton(
-        position: Vector2(20 + btn + gap, bottom),
-        size: Vector2.all(btn),
-        label: '⟳',
-        onChanged: onRotateRight,
+        size: Vector2(btn * 2 + gap, btn),
+        onAxisChanged: onRotateAxis,
       ),
     );
 
@@ -73,6 +62,98 @@ class HudTouchControls extends PositionComponent {
         onChanged: onThrust,
       ),
     );
+  }
+}
+
+class RotatePad extends PositionComponent with DragCallbacks, TapCallbacks {
+  RotatePad({
+    required super.position,
+    required super.size,
+    required this.onAxisChanged,
+  }) : super(anchor: Anchor.topLeft);
+
+  final void Function(double axis) onAxisChanged;
+
+  static const _deadzone = 0.08;
+  double _axis = 0;
+
+  void _emitAxis(double next) {
+    final clamped = next.clamp(-1.0, 1.0);
+    final withDeadzone = clamped.abs() < _deadzone ? 0.0 : clamped;
+    if ((withDeadzone - _axis).abs() < 0.0001) return;
+    _axis = withDeadzone;
+    onAxisChanged(_axis);
+  }
+
+  double _axisFromLocalX(double x) {
+    final t = (x / size.x).clamp(0.0, 1.0);
+    return t * 2 - 1;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      const Radius.circular(12),
+    );
+    canvas.drawRRect(r, Paint()..color = const Color(0x551B263B));
+    canvas.drawRRect(
+      r,
+      Paint()
+        ..color = const Color(0xCC00B4D8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    final center = size / 2;
+    canvas.drawLine(
+      Offset(center.x, 8),
+      Offset(center.x, size.y - 8),
+      Paint()
+        ..color = const Color(0x66FFFFFF)
+        ..strokeWidth = 2,
+    );
+
+    final knobX = center.x + _axis * (size.x * 0.35);
+    canvas.drawCircle(
+      Offset(knobX, center.y),
+      size.y * 0.27,
+      Paint()..color = const Color(0xDD00B4D8),
+    );
+    super.render(canvas);
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) => _emitAxis(_axisFromLocalX(event.localPosition.x));
+
+  @override
+  void onTapUp(TapUpEvent event) => _emitAxis(0);
+
+  @override
+  void onTapCancel(TapCancelEvent event) => _emitAxis(0);
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _emitAxis(_axisFromLocalX(event.localPosition.x));
+  }
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+    _emitAxis(_axisFromLocalX(event.localEndPosition.x));
+  }
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    _emitAxis(0);
+  }
+
+  @override
+  void onDragCancel(DragCancelEvent event) {
+    super.onDragCancel(event);
+    _emitAxis(0);
   }
 }
 
@@ -113,11 +194,11 @@ class HoldableButton extends PositionComponent with TapCallbacks {
       Rect.fromLTWH(0, 0, size.x, size.y),
       const Radius.circular(10),
     );
-    canvas.drawRRect(r, Paint()..color = const Color(0xCC1B263B));
+    canvas.drawRRect(r, Paint()..color = const Color(0x551B263B));
     canvas.drawRRect(
       r,
       Paint()
-        ..color = const Color(0xFF00B4D8)
+        ..color = const Color(0xCC00B4D8)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );

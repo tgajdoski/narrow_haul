@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/text.dart';
@@ -18,10 +20,12 @@ import 'package:narrow_haul/game/physics_constants.dart';
 enum RunState { menu, playing, gameOver, won }
 
 class NarrowHaulGame extends Forge2DGame {
+  static const double _baseZoom = 28;
+
   NarrowHaulGame()
     : super(
         gravity: narrowHaulGravity(),
-        zoom: 28,
+        zoom: _baseZoom,
       );
 
   static const levelPaths = [
@@ -37,14 +41,14 @@ class NarrowHaulGame extends Forge2DGame {
   CargoBody? cargo;
   CargoAttachment? cargoAttachment;
 
-  bool rotateLeftHeld = false;
-  bool rotateRightHeld = false;
+  double rotateAxis = 0;
   bool thrustHeld = false;
 
   final List<Component> _levelEntities = [];
 
   TextComponent? _hudText;
   HudTouchControls? _hudControls;
+  Vector2? _currentWorldSize;
 
   int _towRotateStallFrames = 0;
   int _towThrustStallFrames = 0;
@@ -57,7 +61,7 @@ class NarrowHaulGame extends Forge2DGame {
   Future<void> onLoad() async {
     await super.onLoad();
     camera.viewfinder.anchor = Anchor.center;
-    camera.viewfinder.zoom = 28;
+    camera.viewfinder.zoom = _baseZoom;
 
     _hudText = TextComponent(
       text: '',
@@ -73,8 +77,7 @@ class NarrowHaulGame extends Forge2DGame {
     camera.viewport.add(_hudText!);
 
     _hudControls = HudTouchControls(
-      onRotateLeft: (v) => rotateLeftHeld = v,
-      onRotateRight: (v) => rotateRightHeld = v,
+      onRotateAxis: (v) => rotateAxis = v,
       onThrust: (v) => thrustHeld = v,
     );
     _hudControls!.size = camera.viewport.size;
@@ -88,10 +91,16 @@ class NarrowHaulGame extends Forge2DGame {
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
     _hudControls?.size = camera.viewport.size;
+    final worldSize = _currentWorldSize;
+    if (worldSize != null) {
+      _applyContainedCamera(worldSize);
+      _applyCameraBounds(worldSize);
+    }
   }
 
   Future<void> beginPlay() async {
     overlays.remove('menu');
+    _resetInputState();
     runState = RunState.playing;
     resumeEngine();
     await loadCurrentLevel();
@@ -175,16 +184,57 @@ class NarrowHaulGame extends Forge2DGame {
     await world.add(landing);
     _levelEntities.add(landing);
 
-    camera.follow(shipBody, maxSpeed: 85, snap: true);
+    _currentWorldSize = data.worldSize;
+    _applyContainedCamera(data.worldSize);
+    _applyCameraBounds(data.worldSize);
+    camera.stop();
+    _snapCameraToShip();
+  }
+
+  void _applyContainedCamera(Vector2 worldSize) {
+    final viewportSize = camera.viewport.size;
+    if (viewportSize.x <= 0 || viewportSize.y <= 0) {
+      return;
+    }
+    // Keep normal gameplay zoom, only zoom in when required to avoid world bleed.
+    final minZoomX = viewportSize.x / worldSize.x;
+    final minZoomY = viewportSize.y / worldSize.y;
+    final minContainZoom = math.max(minZoomX, minZoomY) * 1.01;
+    camera.viewfinder.zoom = math.max(_baseZoom, minContainZoom);
+  }
+
+  void _applyCameraBounds(Vector2 worldSize) {
     camera.setBounds(
-      Rectangle.fromLTWH(
-        0,
-        0,
-        data.worldSize.x,
-        data.worldSize.y,
-      ),
+      Rectangle.fromLTWH(0, 0, worldSize.x, worldSize.y),
       considerViewport: true,
     );
+  }
+
+  void _snapCameraToShip() {
+    final s = ship;
+    final worldSize = _currentWorldSize;
+    if (s == null || worldSize == null) return;
+    camera.viewfinder.position = _clampedCameraTarget(s.body.position, worldSize);
+  }
+
+  Vector2 _clampedCameraTarget(Vector2 desired, Vector2 worldSize) {
+    final viewportSize = camera.viewport.size;
+    final zoom = camera.viewfinder.zoom;
+    if (viewportSize.x <= 0 || viewportSize.y <= 0 || zoom <= 0) {
+      return desired;
+    }
+
+    final halfViewW = (viewportSize.x / zoom) / 2;
+    final halfViewH = (viewportSize.y / zoom) / 2;
+
+    final minX = halfViewW;
+    final maxX = worldSize.x - halfViewW;
+    final minY = halfViewH;
+    final maxY = worldSize.y - halfViewH;
+
+    final x = minX > maxX ? worldSize.x / 2 : desired.x.clamp(minX, maxX);
+    final y = minY > maxY ? worldSize.y / 2 : desired.y.clamp(minY, maxY);
+    return Vector2(x.toDouble(), y.toDouble());
   }
 
   void _clearLevel() {
@@ -196,10 +246,18 @@ class NarrowHaulGame extends Forge2DGame {
     ship = null;
     cargo = null;
     cargoAttachment = null;
+    _currentWorldSize = null;
+    _resetInputState();
+  }
+
+  void _resetInputState() {
+    rotateAxis = 0;
+    thrustHeld = false;
   }
 
   void _onShipHitWall() {
     if (runState != RunState.playing) return;
+    _resetInputState();
     runState = RunState.gameOver;
     pauseEngine();
     overlays.add('gameOver');
@@ -207,6 +265,7 @@ class NarrowHaulGame extends Forge2DGame {
 
   void _onGoalReached() {
     if (runState != RunState.playing) return;
+    _resetInputState();
     runState = RunState.won;
     pauseEngine();
     overlays.add('levelComplete');
@@ -214,6 +273,7 @@ class NarrowHaulGame extends Forge2DGame {
 
   void restartLevel() {
     overlays.remove('gameOver');
+    _resetInputState();
     runState = RunState.playing;
     resumeEngine();
     loadCurrentLevel();
@@ -221,6 +281,7 @@ class NarrowHaulGame extends Forge2DGame {
 
   Future<void> nextLevel() async {
     overlays.remove('levelComplete');
+    _resetInputState();
     if (levelIndex < levelPaths.length - 1) {
       levelIndex++;
     } else {
@@ -234,6 +295,7 @@ class NarrowHaulGame extends Forge2DGame {
   void backToMenu() {
     overlays.remove('gameOver');
     overlays.remove('levelComplete');
+    _resetInputState();
     _clearLevel();
     runState = RunState.menu;
     pauseEngine();
@@ -245,9 +307,14 @@ class NarrowHaulGame extends Forge2DGame {
     super.update(dt);
     final s = ship;
     if (s != null && runState == RunState.playing) {
-      var rot = 0.0;
-      if (rotateLeftHeld) rot -= 1;
-      if (rotateRightHeld) rot += 1;
+      final worldSize = _currentWorldSize;
+      if (worldSize != null) {
+        final target = _clampedCameraTarget(s.body.position, worldSize);
+        final current = camera.viewfinder.position;
+        camera.viewfinder.position = current + (target - current) * 0.18;
+      }
+
+      final rot = rotateAxis;
       s.setInput(rotate: rot, thrust: thrustHeld);
       final tow = cargoAttachment?.attached == true;
 
