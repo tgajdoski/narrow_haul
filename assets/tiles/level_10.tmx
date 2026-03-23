@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="24">
+<!-- 
+  Level 10 Challenge: 
+  L-shaped diagonal vertical traversal. Combines horizontal movement with steep descents.
+  The player must manage momentum carefully when dropping down.
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="1792" height="32"/>
-  <object id="2" x="0" y="416" width="1792" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="1760" y="0" width="32" height="448"/>
-  <object id="5" x="400" y="176" width="32" height="240"/>
-  <object id="6" x="800" y="32" width="32" height="248"/>
-  <object id="7" x="1200" y="176" width="32" height="240"/>
+  <object id="1" x="0" y="0" width="960" height="32"/>
+  <object id="2" x="0" y="928" width="960" height="32"/>
+  <object id="3" x="0" y="0" width="32" height="960"/>
+  <object id="4" x="928" y="0" width="32" height="960"/>
+  
+  <object id="5" x="0" y="480" width="640" height="448"/>
+  <object id="6" x="832" y="32" width="96" height="500"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
-  <object id="8" name="ship" x="96" y="96" width="64" height="64"/>
-  <object id="9" name="cargo_zone" x="168" y="80" width="180" height="120"/>
-  <object id="10" name="goal" x="1350" y="68" width="280" height="96"/>
+  <object id="7" name="ship" x="96" y="96" width="64" height="64"/>
+  <object id="8" name="cargo_zone" x="200" y="96" width="200" height="128"/>
+  <object id="9" name="goal" x="700" y="750" width="200" height="128"/>
  </objectgroup>
 </map>

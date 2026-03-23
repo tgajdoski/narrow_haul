@@ -95,7 +95,7 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
   );
 
   final dist = (ship - cargoSpawn).length;
-  final ropeMaxLength = dist + 6;
+  final ropeMaxLength = (dist + 6) * 2;
 
   return LevelData(
     walls: walls,

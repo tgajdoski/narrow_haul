@@ -1,23 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="72" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="40">
+<!-- 
+  Level 20 Challenge: 
+  The final exam. A massive 60x40 map. The cargo is entombed in a central pocket with only one tight entrance.
+  The player must thread the needle to reach the cargo, pull it out through the same gap, 
+  and navigate an obstacle-laden path to a tiny 64x64 landing pad in the far corner.
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="60" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="13">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="2304" height="32"/>
-  <object id="2" x="0" y="416" width="2304" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="2272" y="0" width="32" height="448"/>
-  <object id="5" x="400" y="32" width="200" height="176"/>
-  <object id="6" x="400" y="304" width="200" height="112"/>
-  <object id="7" x="620" y="32" width="480" height="192"/>
-  <object id="8" x="1100" y="192" width="32" height="224"/>
-  <object id="9" x="1300" y="32" width="32" height="248"/>
-  <object id="10" x="1500" y="32" width="200" height="196"/>
-  <object id="11" x="1500" y="316" width="200" height="100"/>
-  <object id="12" x="1700" y="32" width="400" height="176"/>
-  <object id="13" x="1700" y="304" width="400" height="112"/>
+  <object id="1" x="0" y="0" width="1920" height="32"/>
+  <object id="2" x="0" y="1248" width="1920" height="32"/>
+  <object id="3" x="0" y="0" width="32" height="1280"/>
+  <object id="4" x="1888" y="0" width="32" height="1280"/>
+  
+  <object id="5" x="0" y="300" width="1400" height="64"/>
+  <object id="6" x="1400" y="32" width="64" height="800"/>
+  <object id="7" x="400" y="800" width="400" height="64"/>
+  <object id="8" x="1000" y="800" width="920" height="64"/>
+  <object id="9" x="400" y="364" width="64" height="436"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
-  <object id="14" name="ship" x="96" y="192" width="64" height="64"/>
-  <object id="15" name="cargo_zone" x="168" y="176" width="200" height="100"/>
-  <object id="16" name="goal" x="2100" y="64" width="128" height="80"/>
+  <object id="10" name="ship" x="100" y="100" width="64" height="64"/>
+  <object id="11" name="cargo_zone" x="800" y="600" width="200" height="150"/>
+  <object id="12" name="goal" x="1700" y="1100" width="64" height="64"/>
  </objectgroup>
 </map>

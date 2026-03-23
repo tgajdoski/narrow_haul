@@ -1,20 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="32">
+<!-- 
+  Level 16 Challenge: 
+  The ultimate precision test. A very long, narrow corridor with minor stalactites to dodge.
+  The goal is tiny (64x64), barely wide enough for the ship and cargo. Absolute horizontal flight is required.
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="50" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="12">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="1792" height="32"/>
-  <object id="2" x="0" y="416" width="1792" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="1760" y="0" width="32" height="448"/>
-  <object id="5" x="280" y="32" width="160" height="168"/>
-  <object id="6" x="280" y="296" width="160" height="120"/>
-  <object id="7" x="620" y="32" width="160" height="192"/>
-  <object id="8" x="620" y="320" width="160" height="96"/>
-  <object id="9" x="960" y="32" width="160" height="168"/>
-  <object id="10" x="960" y="296" width="160" height="120"/>
+  <object id="1" x="0" y="0" width="1600" height="32"/>
+  <object id="2" x="0" y="608" width="1600" height="32"/>
+  <object id="3" x="0" y="0" width="32" height="640"/>
+  <object id="4" x="1568" y="0" width="32" height="640"/>
+  
+  <object id="5" x="0" y="32" width="1600" height="224"/>
+  <object id="6" x="0" y="384" width="1600" height="224"/>
+  <object id="7" x="500" y="256" width="32" height="64"/>
+  <object id="8" x="900" y="320" width="32" height="64"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
-  <object id="11" name="ship" x="96" y="208" width="64" height="64"/>
-  <object id="12" name="cargo_zone" x="168" y="192" width="80" height="100"/>
-  <object id="13" name="goal" x="1220" y="68" width="420" height="96"/>
+  <object id="9" name="ship" x="96" y="288" width="64" height="64"/>
+  <object id="10" name="cargo_zone" x="200" y="288" width="150" height="64"/>
+  <object id="11" name="goal" x="1400" y="288" width="64" height="64"/>
  </objectgroup>
 </map>

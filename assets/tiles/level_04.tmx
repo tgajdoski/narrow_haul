@@ -1,15 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="20">
+<!-- 
+  Level 4 Challenge: 
+  Introduces a large central obstacle blocking the direct path to the landing pad. 
+  The player must learn to wall-hug the narrow 128px corridors either above or below the pillar. 
+  Managing the 6m rope slack without snagging the cargo on the obstacle's corners is the main difficulty here. 
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="9">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="1792" height="32"/>
-  <object id="2" x="0" y="416" width="1792" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="1760" y="0" width="32" height="448"/>
-  <object id="5" x="560" y="32" width="32" height="256"/>
+  <!-- Ceiling -->
+  <object id="1" x="0" y="0" width="1280" height="32"/>
+  <!-- Floor (y = 20*32 - 32 = 608) -->
+  <object id="2" x="0" y="608" width="1280" height="32"/>
+  <!-- Left Wall -->
+  <object id="3" x="0" y="0" width="32" height="640"/>
+  <!-- Right Wall (x = 40*32 - 32 = 1248) -->
+  <object id="4" x="1248" y="0" width="32" height="640"/>
+  
+  <!-- Single central obstacle forcing wall-hugging -->
+  <!-- Leaves a 128px gap at the top (y: 32 to 160) and bottom (y: 480 to 608) -->
+  <object id="5" x="608" y="160" width="64" height="320"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
+  <!-- Ship spawn (always 64x64) -->
   <object id="6" name="ship" x="96" y="288" width="64" height="64"/>
-  <object id="7" name="cargo_zone" x="168" y="256" width="200" height="128"/>
-  <object id="8" name="goal" x="1300" y="68" width="320" height="96"/>
+  <!-- Cargo spawn zone -->
+  <object id="7" name="cargo_zone" x="200" y="256" width="200" height="128"/>
+  <!-- Goal landing pad -->
+  <object id="8" name="goal" x="960" y="256" width="200" height="128"/>
  </objectgroup>
 </map>

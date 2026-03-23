@@ -30,11 +30,11 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   final void Function()? onHookTouchesCargo;
 
   /// Local +Y anchor at engine bell (rope + plume).
-  static const double rearLocalY = 0.26;
+  static const double rearLocalY = 0.39;
 
   /// Nose hook sensor (same as [CircleShape] in [createBody]).
-  static final Vector2 hookLocal = Vector2(0, -0.24);
-  static const double hookRadius = 0.14;
+  static final Vector2 hookLocal = Vector2(0, -0.36);
+  static const double hookRadius = 0.21;
 
   /// Seconds to complete one full 360° while holding ⟲ or ⟳ at full input.
   static const double secondsPerFullRotation = 4.0;
@@ -76,7 +76,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   // Sprite is drawn at 3× the physics hull dimensions so the ship is clearly
   // visible on-screen. The hitbox remains at the original physics size.
-  static const double _visualScale = 3.0;
+  static const double _visualScale = 4.5;
   static const _spriteRect = Rect.fromLTRB(
     -0.23 * _visualScale, // left
     -0.37 * _visualScale, // top  (nose)
@@ -101,9 +101,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   @override
   Body createBody() {
     final vertices = [
-      Vector2(0, -0.34),
-      Vector2(-0.21, rearLocalY),
-      Vector2(0.21, rearLocalY),
+      Vector2(0, -0.51),
+      Vector2(-0.315, rearLocalY),
+      Vector2(0.315, rearLocalY),
     ];
     final shape = PolygonShape()..set(vertices);
 

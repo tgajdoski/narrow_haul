@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="22">
+<!-- 
+  Level 6 Challenge: 
+  A single large obstacle from the floor forces the player to fly high into a narrow gap near the ceiling.
+  The player must wall-hug the ceiling to avoid dragging the cargo into the obstacle on the ascent.
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="1792" height="32"/>
-  <object id="2" x="0" y="416" width="1792" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="1760" y="0" width="32" height="448"/>
-  <object id="5" x="480" y="32" width="32" height="236"/>
-  <object id="6" x="960" y="196" width="32" height="220"/>
+  <object id="1" x="0" y="0" width="1280" height="32"/>
+  <object id="2" x="0" y="608" width="1280" height="32"/>
+  <object id="3" x="0" y="0" width="32" height="640"/>
+  <object id="4" x="1248" y="0" width="32" height="640"/>
+  
+  <!-- Floor obstacle extending upwards -->
+  <object id="5" x="512" y="160" width="256" height="448"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
-  <object id="7" name="ship" x="96" y="192" width="64" height="64"/>
-  <object id="8" name="cargo_zone" x="168" y="180" width="200" height="120"/>
-  <object id="9" name="goal" x="1300" y="68" width="320" height="96"/>
+  <object id="6" name="ship" x="96" y="400" width="64" height="64"/>
+  <object id="7" name="cargo_zone" x="192" y="400" width="200" height="128"/>
+  <object id="8" name="goal" x="960" y="400" width="200" height="128"/>
  </objectgroup>
 </map>

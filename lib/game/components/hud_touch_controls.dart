@@ -272,7 +272,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
 // Thrust Button
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ThrustButton extends PositionComponent with DragCallbacks {
+class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
   _ThrustButton({
     required Vector2 center,
     required this.radius,
@@ -306,10 +306,7 @@ class _ThrustButton extends PositionComponent with DragCallbacks {
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
-    if (_pointerId != null) return;
-    _pointerId = event.pointerId;
-    _pressed = true;
-    onChanged(true);
+    _press(event.pointerId);
   }
 
   @override
@@ -326,7 +323,35 @@ class _ThrustButton extends PositionComponent with DragCallbacks {
     _release();
   }
 
+  @override
+  void onTapDown(TapDownEvent event) {
+    super.onTapDown(event);
+    _press(null);
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    super.onTapUp(event);
+    if (_pointerId != null && event.pointerId != _pointerId) return;
+    _release();
+  }
+
+  @override
+  void onTapCancel(TapCancelEvent event) {
+    super.onTapCancel(event);
+    if (_pointerId != null && event.pointerId != _pointerId) return;
+    _release();
+  }
+
+  void _press(int? pointerId) {
+    if (_pressed) return;
+    _pointerId = pointerId;
+    _pressed = true;
+    onChanged(true);
+  }
+
   void _release() {
+    if (!_pressed) return;
     _pointerId = null;
     _pressed = false;
     onChanged(false);

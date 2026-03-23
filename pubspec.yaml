@@ -66,6 +66,7 @@ flutter:
 
   assets:
     - assets/
+    - assets/audio/
     - assets/tiles/
 
   # An image asset can refer to one or more resolution-specific "variants", see

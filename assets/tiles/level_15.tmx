@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="56" height="14" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="24">
+<!-- 
+  Level 15 Challenge: 
+  A vertical shaft that rapidly transitions into a narrow horizontal tunnel leading to a 96px goal pad.
+  The player must arrest their vertical fall perfectly before turning 90 degrees to enter the tunnel.
+-->
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
  <objectgroup id="1" name="walls">
-  <object id="1" x="0" y="0" width="1792" height="32"/>
-  <object id="2" x="0" y="416" width="1792" height="32"/>
-  <object id="3" x="0" y="0" width="32" height="448"/>
-  <object id="4" x="1760" y="0" width="32" height="448"/>
-  <object id="5" x="500" y="32" width="700" height="208"/>
-  <object id="6" x="500" y="328" width="700" height="88"/>
+  <object id="1" x="0" y="0" width="960" height="32"/>
+  <object id="2" x="0" y="1248" width="960" height="32"/>
+  <object id="3" x="0" y="0" width="32" height="1280"/>
+  <object id="4" x="928" y="0" width="32" height="1280"/>
+  
+  <object id="5" x="0" y="384" width="700" height="864"/>
+  <object id="6" x="850" y="32" width="78" height="900"/>
  </objectgroup>
  <objectgroup id="2" name="markers">
-  <object id="7" name="ship" x="96" y="200" width="64" height="64"/>
-  <object id="8" name="cargo_zone" x="168" y="180" width="200" height="100"/>
-  <object id="9" name="goal" x="1350" y="64" width="280" height="96"/>
+  <object id="7" name="ship" x="100" y="100" width="64" height="64"/>
+  <object id="8" name="cargo_zone" x="200" y="100" width="200" height="128"/>
+  <object id="9" name="goal" x="750" y="1100" width="96" height="64"/>
  </objectgroup>
 </map>

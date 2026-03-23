@@ -15,8 +15,8 @@ class CargoBody extends BodyComponent {
 
   final Vector2 _initialPosition;
 
-  /// Smaller than ship hull (~0.68 m tall).
-  static const double radius = 0.14;
+  /// Smaller than ship hull (~33% reduced from prior 0.14 m).
+  static const double radius = 0.14 * (2.0 / 3.0);
 
   ui.Image? _cargoImage;
 
@@ -29,9 +29,8 @@ class CargoBody extends BodyComponent {
     } catch (_) {}
   }
 
-  // Sprite drawn at 3× the physics radius so cargo is clearly visible.
-  // The collision circle stays at [radius] = 0.14 m.
-  static const double _spriteHalf = (radius + 0.06) * 3.0; // ≈ 0.60 m half-size
+  // Sprite drawn with a proportional padding around the collision circle.
+  static const double _spriteHalf = (radius + 0.04) * 3.0;
 
   @override
   void render(Canvas canvas) {
