@@ -11,8 +11,8 @@
   <object id="3" x="0" y="0" width="32" height="960"/>
   <object id="4" x="1568" y="0" width="32" height="960"/>
   
-  <object id="5" x="400" y="32" width="64" height="700"/>
-  <object id="6" x="1100" y="32" width="64" height="700"/>
+  <object id="5" x="400" y="32" width="64" height="600"/>
+  <object id="6" x="1100" y="32" width="64" height="600"/>
   <object id="7" x="400" y="732" width="700" height="196"/>
  </objectgroup>
  <objectgroup id="2" name="markers">

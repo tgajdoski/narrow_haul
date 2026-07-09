@@ -12,7 +12,7 @@
   <object id="3" x="0" y="0" width="32" height="1280"/>
   <object id="4" x="1888" y="0" width="32" height="1280"/>
   
-  <object id="5" x="0" y="300" width="1400" height="64"/>
+  <object id="5" x="0" y="300" width="1300" height="64"/>
   <object id="6" x="1400" y="32" width="64" height="800"/>
   <object id="7" x="400" y="800" width="400" height="64"/>
   <object id="8" x="1000" y="800" width="920" height="64"/>
