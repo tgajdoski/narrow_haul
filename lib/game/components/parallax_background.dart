@@ -25,8 +25,11 @@ class ParallaxBackground extends PositionComponent with HasGameReference<Forge2D
   static const _speedX = [0.04, 0.15, 0.38];
   static const _speedY = [0.02, 0.07, 0.18];
 
-  // Opacity tint per layer — far layers are dimmer to simulate depth haze.
-  static const _alphas = [0.50, 0.72, 0.92];
+  /// World-theme tint, modulate-blended onto the shared layer sprites.
+  Color tint = Colors.white;
+
+  /// Opacity per layer — far layers are dimmer to simulate depth haze.
+  List<double> alphas = const [0.50, 0.72, 0.92];
 
   final List<ui.Image?> _images = [null, null, null]; // ui.Image from dart:ui
 
@@ -60,7 +63,8 @@ class ParallaxBackground extends PositionComponent with HasGameReference<Forge2D
     for (int i = 0; i < _images.length; i++) {
       final img = _images[i];
       if (img == null) continue;
-      _drawLayer(canvas, img, camPos, zoom, _speedX[i], _speedY[i], _alphas[i]);
+      _drawLayer(canvas, img, camPos, zoom, _speedX[i], _speedY[i],
+          i < alphas.length ? alphas[i] : 0.9);
     }
   }
 
@@ -97,6 +101,9 @@ class ParallaxBackground extends PositionComponent with HasGameReference<Forge2D
     final paint = Paint()
       ..color = Color.fromARGB((alpha * 255).round(), 255, 255, 255)
       ..filterQuality = FilterQuality.low;
+    if (tint != Colors.white) {
+      paint.colorFilter = ColorFilter.mode(tint, BlendMode.modulate);
+    }
     final srcRect = ui.Rect.fromLTWH(0, 0, iw, ih);
 
     // Tile to cover the entire viewport.  Starting one tile early handles

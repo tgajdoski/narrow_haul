@@ -1,0 +1,76 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/level/cave/cave_builder.dart';
+import 'package:narrow_haul/game/level/cave/level_validator.dart';
+import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/specs/world_alien.dart';
+import 'package:narrow_haul/game/level/specs/world_ice.dart';
+import 'package:narrow_haul/game/level/specs/world_lava.dart';
+import 'package:narrow_haul/game/level/specs/world_mine.dart';
+
+void main() {
+  final allCaveDefs = <CaveLevelDef>[
+    ...alienLevels.whereType<CaveLevelDef>(),
+    ...mineLevels.whereType<CaveLevelDef>(),
+    ...iceLevels.whereType<CaveLevelDef>(),
+    ...lavaLevels.whereType<CaveLevelDef>(),
+  ];
+
+  test('all four worlds have 8 levels with unique ids', () {
+    expect(allCaveDefs.length, 32);
+    final ids = allCaveDefs.map((d) => d.spec.id).toSet();
+    expect(ids.length, 32, reason: 'duplicate level ids');
+  });
+
+  group('playability', () {
+    for (final def in allCaveDefs) {
+      test(def.spec.id, () {
+        final issues = validateCaveSpec(def.spec);
+        expect(issues, isEmpty,
+            reason: '${def.spec.id} failed:\n  ${issues.join('\n  ')}');
+      });
+    }
+  });
+
+  group('builder invariants', () {
+    test('deterministic — same spec builds identical loops', () {
+      final spec = (alienLevels.first as CaveLevelDef).spec;
+      clearCaveCache();
+      final a = buildCave(spec);
+      clearCaveCache();
+      final b = buildCave(spec);
+      expect(a.loops.length, b.loops.length);
+      for (int i = 0; i < a.loops.length; i++) {
+        expect(a.loops[i].length, b.loops[i].length);
+        for (int j = 0; j < a.loops[i].length; j++) {
+          expect(a.loops[i][j].x, b.loops[i][j].x);
+          expect(a.loops[i][j].y, b.loops[i][j].y);
+        }
+      }
+    });
+
+    test('all loops are closed polygons with sane vertex counts', () {
+      for (final def in allCaveDefs) {
+        final cave = buildCave(def.spec);
+        expect(cave.loops, isNotEmpty, reason: '${def.spec.id} has no terrain');
+        for (final loop in cave.loops) {
+          expect(loop.length, greaterThanOrEqualTo(4),
+              reason: '${def.spec.id} degenerate loop');
+          expect(loop.length, lessThan(4000),
+              reason: '${def.spec.id} unsimplified loop (${loop.length} pts)');
+        }
+      }
+    });
+
+    test('build time stays within budget', () {
+      clearCaveCache();
+      final sw = Stopwatch()..start();
+      for (final def in allCaveDefs) {
+        buildCave(def.spec);
+      }
+      sw.stop();
+      final perLevelMs = sw.elapsedMilliseconds / allCaveDefs.length;
+      expect(perLevelMs, lessThan(250),
+          reason: 'avg cave build ${perLevelMs.toStringAsFixed(0)} ms/level');
+    });
+  });
+}

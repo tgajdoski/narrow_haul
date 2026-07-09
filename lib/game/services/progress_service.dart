@@ -15,47 +15,42 @@ class ProgressService {
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _instance = ProgressService._(prefs);
+    await _instance!._migrateToV2();
   }
 
-  // ── Stars (0–3) ─────────────────────────────────────────────────────────
-
-  int getStars(int levelIndex) => _prefs.getInt('stars_$levelIndex') ?? 0;
-
-  Future<void> saveStars(int levelIndex, int stars) async {
-    if (stars > getStars(levelIndex)) {
-      await _prefs.setInt('stars_$levelIndex', stars);
+  /// One-time migration from index-keyed progress (`stars_0`…) to stable
+  /// string save ids. The first 10 TMX levels became the trimmed tutorial;
+  /// progress on dropped levels 11-20 is orphaned intentionally.
+  Future<void> _migrateToV2() async {
+    if (_prefs.getBool('save_v2') ?? false) return;
+    for (int i = 0; i < 10; i++) {
+      final saveId = 'tut_${(i + 1).toString().padLeft(2, '0')}';
+      final stars = _prefs.getInt('stars_$i');
+      if (stars != null) await _prefs.setInt('stars2_$saveId', stars);
+      final time = _prefs.getDouble('time_$i');
+      if (time != null) await _prefs.setDouble('time2_$saveId', time);
     }
+    await _prefs.setBool('save_v2', true);
   }
 
-  int getTotalStars(int totalLevels) {
-    int total = 0;
-    for (int i = 0; i < totalLevels; i++) {
-      total += getStars(i);
-    }
-    return total;
-  }
+  // ── Stars (0–3), keyed by stable level saveId ────────────────────────────
 
-  // ── Level unlock ─────────────────────────────────────────────────────────
+  int getStarsById(String saveId) => _prefs.getInt('stars2_$saveId') ?? 0;
 
-  bool isUnlocked(int levelIndex) {
-    if (levelIndex == 0) return true;
-    return _prefs.getBool('unlocked_$levelIndex') ?? false;
-  }
-
-  Future<void> unlockLevel(int levelIndex) async {
-    if (!isUnlocked(levelIndex)) {
-      await _prefs.setBool('unlocked_$levelIndex', true);
+  Future<void> saveStarsById(String saveId, int stars) async {
+    if (stars > getStarsById(saveId)) {
+      await _prefs.setInt('stars2_$saveId', stars);
     }
   }
 
   // ── Best time ────────────────────────────────────────────────────────────
 
-  double? getBestTime(int levelIndex) => _prefs.getDouble('time_$levelIndex');
+  double? getBestTimeById(String saveId) => _prefs.getDouble('time2_$saveId');
 
-  Future<void> saveBestTime(int levelIndex, double seconds) async {
-    final current = getBestTime(levelIndex);
+  Future<void> saveBestTimeById(String saveId, double seconds) async {
+    final current = getBestTimeById(saveId);
     if (current == null || seconds < current) {
-      await _prefs.setDouble('time_$levelIndex', seconds);
+      await _prefs.setDouble('time2_$saveId', seconds);
     }
   }
 
@@ -78,6 +73,45 @@ class ProgressService {
     return true;
   }
 
+  // ── Stats & Currencies ───────────────────────────────────────────────────
+
+  double getTotalFuelSpent() => _prefs.getDouble('total_fuel_spent') ?? 0.0;
+
+  Future<void> addFuelSpent(double amount) async {
+    final current = getTotalFuelSpent();
+    await _prefs.setDouble('total_fuel_spent', current + amount);
+  }
+
+  int getCosmeticCurrency() => _prefs.getInt('cosmetic_currency') ?? 0;
+
+  Future<void> addCosmeticCurrency(int amount) async {
+    final current = getCosmeticCurrency();
+    await _prefs.setInt('cosmetic_currency', current + amount);
+  }
+
+  Future<void> spendCosmeticCurrency(int amount) async {
+    final current = getCosmeticCurrency();
+    if (current >= amount) {
+      await _prefs.setInt('cosmetic_currency', current - amount);
+    }
+  }
+
+  // ── Cosmetics ────────────────────────────────────────────────────────────
+
+  bool isCosmeticUnlocked(String id) => _prefs.getBool('cosmetic_unlocked_$id') ?? false;
+
+  Future<void> unlockCosmetic(String id) async {
+    await _prefs.setBool('cosmetic_unlocked_$id', true);
+  }
+
+  String getEquippedCosmetic(String category, String defaultId) {
+    return _prefs.getString('equipped_cosmetic_$category') ?? defaultId;
+  }
+
+  Future<void> equipCosmetic(String category, String id) async {
+    await _prefs.setString('equipped_cosmetic_$category', id);
+  }
+
   // ── Daily challenge ──────────────────────────────────────────────────────
 
   String _todayKey() {
@@ -90,5 +124,14 @@ class ProgressService {
 
   Future<void> markDailyChallengeComplete() async {
     await _prefs.setBool('daily_${_todayKey()}', true);
+  }
+
+  double? getDailyBestTime() => _prefs.getDouble('daily_time_${_todayKey()}');
+
+  Future<void> saveDailyBestTime(double seconds) async {
+    final current = getDailyBestTime();
+    if (current == null || seconds < current) {
+      await _prefs.setDouble('daily_time_${_todayKey()}', seconds);
+    }
   }
 }

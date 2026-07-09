@@ -1,9 +1,11 @@
+import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_line.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/services/achievement_service.dart';
 
 /// Rope preview near cargo, then [RopePhysicsCoupling] (tow). Attach uses hook proximity or ship–cargo distance.
 class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
@@ -42,6 +44,10 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   RopePhysicsCoupling? _coupling;
   bool _attaching = false;
 
+  double _accumulatedAngle = 0;
+  double? _lastAngle;
+  bool _swingerUnlocked = false;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -59,7 +65,28 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   @override
   void update(double dt) {
     super.update(dt);
-    if (attached) return;
+    if (attached) {
+      if (!_swingerUnlocked) {
+        final diff = cargo.body.position - ship.body.position;
+        final angle = math.atan2(diff.y, diff.x);
+        if (_lastAngle != null) {
+          var delta = angle - _lastAngle!;
+          while (delta > math.pi) {
+            delta -= 2 * math.pi;
+          }
+          while (delta < -math.pi) {
+            delta += 2 * math.pi;
+          }
+          _accumulatedAngle += delta;
+          if (_accumulatedAngle.abs() >= 2 * math.pi) {
+            _swingerUnlocked = true;
+            AchievementService.unlock(AchievementIds.cargoSwinger);
+          }
+        }
+        _lastAngle = angle;
+      }
+      return;
+    }
 
     final centerDist = (ship.body.position - cargo.body.position).length;
     if (centerDist < approachDistanceMeters) {

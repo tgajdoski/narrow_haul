@@ -8,12 +8,16 @@ class HelipadVisual extends RectangleComponent {
   HelipadVisual({
     required Vector2 center,
     required Vector2 sizeMeters,
+    Color base = const Color(0xFF415A77),
+    this.accent = const Color(0xFF94D2BD),
   }) : super(
          position: center - sizeMeters / 2,
          size: sizeMeters,
-         paint: Paint()..color = const Color(0xFF415A77).withValues(alpha: 0.5),
+         paint: Paint()..color = base.withValues(alpha: 0.5),
          priority: -1500,
        );
+
+  final Color accent;
 
   @override
   void render(Canvas canvas) {
@@ -26,7 +30,7 @@ class HelipadVisual extends RectangleComponent {
         const Radius.circular(0.1),
       ),
       Paint()
-        ..color = const Color(0xFF94D2BD)
+        ..color = accent
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.06,
     );
@@ -48,7 +52,7 @@ class HelipadVisual extends RectangleComponent {
     canvas.drawLine(Offset(midX - 0.3, midY), Offset(midX + 0.3, midY), hPaint);
 
     // Corner dots
-    final dotPaint = Paint()..color = const Color(0x6694D2BD);
+    final dotPaint = Paint()..color = accent.withValues(alpha: 0.4);
     for (final dx in [-1.0, 1.0]) {
       for (final dy in [-1.0, 1.0]) {
         canvas.drawCircle(

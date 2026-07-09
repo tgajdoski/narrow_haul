@@ -1,5 +1,86 @@
 # Narrow Haul — Changelog
 
+## v2.0.0 — Worlds Update: Organic Caves
+
+The rectangle era is over. 32 hand-crafted organic cave levels across 4 themed worlds, on top of a trimmed 10-level tutorial — 42 missions total.
+
+---
+
+### Cave Terrain Engine (no external level editor)
+- New `lib/game/level/cave/` pipeline: levels are const Dart data (`LevelSpec`) — tunnel splines with per-point widths, ellipse chambers, spawn/goal/cargo anchors.
+- Terrain is carved from a signed distance field (smooth-min unions for organic fillets), roughened with seeded fbm noise for the "ant nest cut vertically" look, traced with marching squares, and smoothed (Chaikin + Douglas-Peucker).
+- **Fully deterministic:** every level's shape is a pure function of its spec and its explicit `seed` — identical on every run and device. Nothing is randomized at spawn.
+- Physics: one static body with `ChainShape.createLoop` fixtures per contour (`CaveTerrain`); rendering: even-odd filled path with themed rock palette, edge strokes, and seeded mineral speckles.
+- Hot-reload authoring: builder cache clears each load in debug; `dart run tool/preview_levels.dart [id]` prints ASCII cave maps + playability issues.
+
+### Four Themed Worlds (8 levels each)
+- **Xenar Caverns** (alien; violet rock, teal accents) — pure flying: curves, chambers, squeezes, a loop, chimneys.
+- **Rustshaft Mines** (mine; warm browns) — machinery: rotating bars, pendulums, sliding crushers.
+- **Glacier Deep** (ice; pale blues) — wall friction ≈ 0.03 everywhere, plus icicle pendulums and ice blocks.
+- **Ember Core** (lava; dark reds) — modifier gauntlet: heavy gravity, fuel scarcity, dead-weight cargo, everything combined in the 56 m finale.
+- `ThemeSpec` drives backdrop color, rock palette, parallax tint/alpha (shared PNGs, modulate-blended), helipad colors, and level-select accents.
+
+### Moving Obstacles
+- `RotatingBar` (constant angular velocity), `Pendulum` and `SlidingBlock` (kinematic, velocity-tracked along analytic paths — frame-rate-proof and deterministic).
+- All kill the ship on contact like terrain; cargo gets physically batted.
+
+### Per-Level Physics Modifiers
+- `LevelModifiers`: `gravityMul`, `fuelDrainMul`, `cargoDensityMul`, `wallFriction` — compose multiplicatively with daily-challenge modifiers.
+- `CargoBody` gained `densityMul` (heavy-cargo levels up to 2.5×).
+
+### Worlds Progression & Economy
+- `LevelRegistry` replaces `levelPaths`: 5 worlds, star-gated (0/8/22/40/60 total stars); within a world, each completion unlocks the next level. Unlocks are computed from stars, not stored.
+- Newly earned stars pay cosmetic coins scaled by world (5→20 per star), feeding the Garage.
+- Level select regrouped by world: themed header chips with lock/star-gate status, per-world path colors, and modifier badge glyphs (▼ gravity, ⛽ fuel, ⚓ heavy cargo, ❄ ice) on nodes.
+- Per-level star thresholds moved onto `LevelDef.stars` (fuel fractions + time limit).
+
+### Save Format v2
+- Progress keyed by stable string `saveId` (`stars2_tut_01`, `time2_alien_03`, …) instead of level index; one-time automatic migration preserves tutorial progress. Tutorial trimmed from 20 TMX levels to the 10 best.
+
+### Playability Proven by CI
+- `test/cave_level_validation_test.dart`: every cave level is validated — spawn/goal/cargo in open pockets, ship-clearance flood-fill reachability spawn→cargo→goal, cargo rest-point within attach range, obstacle sweeps clear of anchors, build determinism, and a per-level build-time budget.
+
+---
+
+## v1.3.0 — Gamification Update
+
+A major update to persistence, progression, and player expression.
+
+---
+
+### Strict Star Logic & Fuel Tracking
+- **Lifetime Stat:** `total_fuel_spent` added to `ProgressService`. Fuel used in every run (including deaths) is recorded to local storage.
+- **Star Math Overhaul:** `NarrowHaulGame._calculateStars()` now uses percentage of max fuel and base time limits.
+  - 1 Star: Reached the goal (any fuel).
+  - 2 Stars: >40% fuel remaining.
+  - 3 Stars: >70% fuel remaining **and** under the level's specific time limit.
+
+### World Map Level Select
+- Replaced the basic GridView with a custom-painted `_WorldMap` in `lib/main.dart`.
+- The 20 levels are now drawn as circular nodes across a sine-wave path using a `CustomPainter` (`_MapPathPainter`).
+- Fully horizontal scrolling using `SingleChildScrollView` and `Stack`.
+
+### Daily Challenge Upgrades
+- Added `saveDailyBestTime` to track the fastest daily clear.
+- Completing the challenge for the first time each day rewards **50 Cosmetic Coins**.
+- The main menu "Daily ✓" button now shows your local best completion time underneath it.
+
+### "Cargo Swinger" Achievement
+- Added to `AchievementIds`.
+- Logic implemented in `lib/game/components/cargo_attachment.dart` using `math.atan2` to track continuous relative angle delta between the ship and cargo.
+- Unlocks when the player swings the cargo 360 degrees without dropping it.
+
+### Cosmetics System & Garage UI
+- Added `lib/game/services/cosmetics_service.dart`.
+- Three customization categories: Ships, Ropes, Plumes.
+- **Dynamic In-Engine Rendering:** No new asset sheets were needed.
+  - `ShipBody`: Uses `BlendMode.srcATop` on the base sprite to tint neon magenta, stealth black, or gold.
+  - `ThrustPlume`: Uses `BlendMode.hue` or `HSVColor` swaps to render red, green, or animated rainbow engine fire.
+  - `RopeLine`: Uses multiple overlapping `Canvas.drawPath` strokes with blur masks to draw segmented "chains" and glowing "energy beams".
+- Added a **Garage (Skins)** menu to spend the coins earned in Daily Challenges.
+
+---
+
 ## v1.2.0 — Sprite Integration & Parallax Background
 
 All game-object and HUD sprites are now wired in, replacing the placeholder

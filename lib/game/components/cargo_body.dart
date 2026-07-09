@@ -7,13 +7,16 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 class CargoBody extends BodyComponent {
-  CargoBody({required Vector2 initialPosition})
+  CargoBody({required Vector2 initialPosition, this.densityMul = 1.0})
     : _initialPosition = initialPosition,
       super(
         paint: Paint()..color = const Color(0xFFE07A5F),
       );
 
   final Vector2 _initialPosition;
+
+  /// Heavy-cargo level modifier (multiplies the base density of 2.0).
+  final double densityMul;
 
   /// Smaller than ship hull (~33% reduced from prior 0.14 m).
   static const double radius = 0.14 * (2.0 / 3.0);
@@ -58,7 +61,7 @@ class CargoBody extends BodyComponent {
     body.createFixture(
       FixtureDef(
         CircleShape()..radius = radius,
-        density: 2.0,
+        density: 2.0 * densityMul,
         friction: 0.45,
         restitution: 0.08,
         filter: filterCargo(),

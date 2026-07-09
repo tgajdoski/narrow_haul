@@ -83,10 +83,6 @@ class AudioService {
         (_) {},
         onError: (Object e, StackTrace _) => _log('failed to pause thrust loop', e),
       );
-      player?.seek(Duration.zero).then<void>(
-        (_) {},
-        onError: (Object e, StackTrace _) => _log('failed to seek thrust loop', e),
-      );
       return;
     }
     try {

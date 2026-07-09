@@ -6,6 +6,7 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 /// Rocket with rear thrust along local −Y (nose at −Y). [onWallHit] from contacts.
@@ -89,11 +90,21 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     super.render(canvas); // no-op when renderBody = false
     final img = _shipImage;
     if (img != null) {
+      final skinId = CosmeticsService.getEquippedId(CosmeticsService.catShip);
+      final paint = Paint();
+      if (skinId == 'ship_neon') {
+        paint.colorFilter = const ColorFilter.mode(Color(0x88FF00FF), BlendMode.srcATop);
+      } else if (skinId == 'ship_stealth') {
+        paint.colorFilter = const ColorFilter.mode(Color(0xCC000000), BlendMode.srcATop);
+      } else if (skinId == 'ship_gold') {
+        paint.colorFilter = const ColorFilter.mode(Color(0xAAFFD700), BlendMode.srcATop);
+      }
+      
       canvas.drawImageRect(
         img,
         Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
         _spriteRect,
-        Paint(),
+        paint,
       );
     }
   }

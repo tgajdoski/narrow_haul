@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 
 /// Preview: hook → cargo. When attached: winch → cargo with Bézier slack under [RopeJoint] max length.
 class RopeLine extends Component {
@@ -43,10 +44,23 @@ class RopeLine extends Component {
     }
 
     final baseAlpha = p * (attached() ? 1.0 : 0.55);
+    final alphaInt = (baseAlpha * 230).round().clamp(0, 255);
+    final ropeId = CosmeticsService.getEquippedId(CosmeticsService.catRope);
+
     final paint = Paint()
-      ..color = Color.fromARGB((baseAlpha * 230).round().clamp(0, 255), 148, 210, 189)
-      ..strokeWidth = attached() ? 0.06 : 0.045
       ..style = PaintingStyle.stroke;
+
+    if (ropeId == 'rope_energy') {
+      paint.color = Color.fromARGB(alphaInt, 50, 255, 255);
+      paint.strokeWidth = attached() ? 0.08 : 0.05;
+      paint.maskFilter = const MaskFilter.blur(BlurStyle.solid, 0.05);
+    } else if (ropeId == 'rope_chain') {
+      paint.color = Color.fromARGB(alphaInt, 180, 180, 180);
+      paint.strokeWidth = attached() ? 0.09 : 0.06;
+    } else {
+      paint.color = Color.fromARGB(alphaInt, 148, 210, 189);
+      paint.strokeWidth = attached() ? 0.06 : 0.045;
+    }
 
     final coupling = getCoupling();
     final maxLen = coupling?.tetherLengthMeters;
@@ -54,14 +68,36 @@ class RopeLine extends Component {
     final chordLen = chord.length;
     if (chordLen < 1e-4) return;
 
+    void drawRope(Canvas c, ui.Path p) {
+      if (ropeId == 'rope_energy') {
+        final corePaint = Paint()
+          ..color = Colors.white.withValues(alpha: baseAlpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = paint.strokeWidth * 0.4;
+        c.drawPath(p, paint);
+        c.drawPath(p, corePaint);
+      } else if (ropeId == 'rope_chain') {
+        c.drawPath(p, paint);
+        final chainPaint = Paint()
+          ..color = Color.fromARGB(alphaInt, 60, 60, 60)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = paint.strokeWidth * 0.4;
+        c.drawPath(p, chainPaint);
+      } else {
+        c.drawPath(p, paint);
+      }
+    }
+
     if (!attached() || coupling?.isTethered != true || maxLen == null) {
-      canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      final p = ui.Path()..moveTo(a.x, a.y)..lineTo(b.x, b.y);
+      drawRope(canvas, p);
       return;
     }
 
     final slack = (maxLen - chordLen).clamp(0.0, maxLen);
     if (slack < 0.008) {
-      canvas.drawLine(Offset(a.x, a.y), Offset(b.x, b.y), paint);
+      final p = ui.Path()..moveTo(a.x, a.y)..lineTo(b.x, b.y);
+      drawRope(canvas, p);
       return;
     }
 
@@ -72,11 +108,11 @@ class RopeLine extends Component {
     }
     final dip = slack * _slackDipScale;
     final mid = (a + b) * 0.5;
-    final c = mid + perp * dip;
+    final cNode = mid + perp * dip;
 
     final path = ui.Path()
       ..moveTo(a.x, a.y)
-      ..quadraticBezierTo(c.x, c.y, b.x, b.y);
-    canvas.drawPath(path, paint);
+      ..quadraticBezierTo(cNode.x, cNode.y, b.x, b.y);
+    drawRope(canvas, path);
   }
 }

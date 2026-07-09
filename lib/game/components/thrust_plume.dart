@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 
 /// Animated engine plume in the ship's local space (rear along +Y).
 ///
@@ -73,6 +74,17 @@ class ThrustPlume extends Component {
       _flameHalfWidth * 2,
       _flameHeight,
     );
+    
+    final plumeId = CosmeticsService.getEquippedId(CosmeticsService.catPlume);
+    final paint = Paint();
+    if (plumeId == 'plume_green') {
+      paint.colorFilter = const ColorFilter.mode(Color(0xFF00FF00), BlendMode.hue);
+    } else if (plumeId == 'plume_red') {
+      paint.colorFilter = const ColorFilter.mode(Color(0xFFFF0000), BlendMode.hue);
+    } else if (plumeId == 'plume_rainbow') {
+      final hue = (_time * 200) % 360;
+      paint.colorFilter = ColorFilter.mode(HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor(), BlendMode.hue);
+    }
 
     // The source sprite has the core at the bottom and tips pointing upward.
     // Flip vertically so the core appears at the engine bell (flameStartY)
@@ -80,27 +92,47 @@ class ThrustPlume extends Component {
     canvas.save();
     canvas.translate(0, _flameStartY + _flameHeight);
     canvas.scale(1.0, -1.0);
-    canvas.drawImageRect(_exhaustImage!, srcRect, dstRect, Paint());
+    canvas.drawImageRect(_exhaustImage!, srcRect, dstRect, paint);
     canvas.restore();
   }
 
   void _renderProcedural(Canvas canvas) {
     final base = _flameStartY;
     final flicker = 0.85 + math.sin(_time * 28) * 0.15;
+    
+    final plumeId = CosmeticsService.getEquippedId(CosmeticsService.catPlume);
+    Color coreC = _coreColor;
+    Color midC = _midColor;
+    Color outerC = _outerColor;
+    
+    if (plumeId == 'plume_green') {
+      coreC = const Color(0xFFCCFFCC);
+      midC = const Color(0xFF00AA00);
+      outerC = const Color(0xFF004400);
+    } else if (plumeId == 'plume_red') {
+      coreC = const Color(0xFFFFCCCC);
+      midC = const Color(0xFFAA0000);
+      outerC = const Color(0xFF440000);
+    } else if (plumeId == 'plume_rainbow') {
+      final hue = (_time * 200) % 360;
+      coreC = HSVColor.fromAHSV(1.0, hue, 0.2, 1.0).toColor();
+      midC = HSVColor.fromAHSV(1.0, hue, 0.8, 1.0).toColor();
+      outerC = HSVColor.fromAHSV(1.0, hue, 1.0, 0.8).toColor();
+    }
 
     // Outer glow bloom
     canvas.drawCircle(
       Offset(0, base + 0.05),
       0.22 * flicker,
       Paint()
-        ..color = const Color(0x33FF6B00)
+        ..color = outerC.withValues(alpha: 0.2)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.12),
     );
 
     // Flame cone (3 layers)
     final lengths = [0.40 * flicker, 0.28 * flicker, 0.18 * flicker];
     final widths = [0.12, 0.09, 0.06];
-    final colors = [_outerColor, _midColor, _coreColor];
+    final colors = [outerC, midC, coreC];
     final opacities = [180, 220, 255];
 
     for (int layer = 0; layer < 3; layer++) {
@@ -143,7 +175,7 @@ class ThrustPlume extends Component {
       canvas.drawCircle(
         Offset(ox, oy),
         r,
-        Paint()..color = Color.lerp(_coreColor, _outerColor, t)!.withValues(alpha: (1 - t) * 0.9),
+        Paint()..color = Color.lerp(coreC, outerC, t)!.withValues(alpha: (1 - t) * 0.9),
       );
     }
   }

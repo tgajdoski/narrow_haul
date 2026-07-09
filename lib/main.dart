@@ -4,8 +4,12 @@ import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
+import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 
 void main() async {
@@ -52,6 +56,9 @@ class _NarrowHaulApp extends StatelessWidget {
               'achievements': (context, game) {
                 return const _AchievementsOverlay();
               },
+              'cosmetics': (context, game) {
+                return const _CosmeticsOverlay();
+              },
               'gameOver': (context, game) {
                 final g = game as NarrowHaulGame;
                 return _EndOverlay(
@@ -86,9 +93,10 @@ class _MenuOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = ProgressService.instance;
-    final totalStars = progress.getTotalStars(NarrowHaulGame.levelPaths.length);
-    final maxStars = NarrowHaulGame.levelPaths.length * 3;
+    final totalStars = LevelRegistry.totalStars();
+    final maxStars = LevelRegistry.totalLevels * 3;
     final challengeComplete = progress.isDailyChallengeComplete();
+    final dailyBestTime = progress.getDailyBestTime();
 
     return ColoredBox(
       color: const Color(0xDD050816),
@@ -173,35 +181,64 @@ class _MenuOverlay extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: challengeComplete ? null : () => game.beginChallenge(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           side: BorderSide(
                             color: challengeComplete
                                 ? const Color(0x334ADE80)
                                 : const Color(0x55FFD166),
                           ),
                         ),
-                        child: Text(
-                          challengeComplete ? 'Daily ✓' : 'Daily Challenge',
-                          style: TextStyle(
-                            color: challengeComplete
-                                ? const Color(0xFF4ADE80)
-                                : const Color(0xFFFFD166),
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              challengeComplete ? 'Daily ✓' : 'Daily Challenge',
+                              style: TextStyle(
+                                color: challengeComplete
+                                    ? const Color(0xFF4ADE80)
+                                    : const Color(0xFFFFD166),
+                              ),
+                            ),
+                            if (challengeComplete && dailyBestTime != null)
+                              Text(
+                                _formatTime(dailyBestTime),
+                                style: const TextStyle(
+                                  color: Color(0xAA4ADE80),
+                                  fontSize: 10,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () {
-                    game.overlays.remove('menu');
-                    game.overlays.add('achievements');
-                  },
-                  child: const Text(
-                    'Achievements',
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        game.overlays.remove('menu');
+                        game.overlays.add('achievements');
+                      },
+                      child: const Text(
+                        'Achievements',
+                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ),
+                    const Text('·', style: TextStyle(color: Colors.white24)),
+                    TextButton(
+                      onPressed: () {
+                        game.overlays.remove('menu');
+                        game.overlays.add('cosmetics');
+                      },
+                      child: const Text(
+                        'Garage (Skins)',
+                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -218,6 +255,14 @@ class _MenuOverlay extends StatelessWidget {
       ),
     );
   }
+  String _formatTime(double seconds) {
+    if (seconds >= 60) {
+      final m = (seconds ~/ 60);
+      final s = (seconds % 60).toStringAsFixed(0).padLeft(2, '0');
+      return '${m}m${s}s';
+    }
+    return '${seconds.toStringAsFixed(1)}s';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,8 +275,7 @@ class _LevelSelectOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = ProgressService.instance;
-    final total = NarrowHaulGame.levelPaths.length;
+    final total = LevelRegistry.totalLevels;
 
     return ColoredBox(
       color: const Color(0xEE050816),
@@ -261,7 +305,7 @@ class _LevelSelectOverlay extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '${progress.getTotalStars(total)} / ${total * 3} ★',
+                    '${LevelRegistry.totalStars()} / ${total * 3} ★',
                     style: const TextStyle(
                       color: Color(0xFFFFD166),
                       fontWeight: FontWeight.w700,
@@ -273,30 +317,7 @@ class _LevelSelectOverlay extends StatelessWidget {
             ),
             const Divider(color: Color(0x2200B4D8), height: 1),
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1,
-                ),
-                itemCount: total,
-                itemBuilder: (context, index) {
-                  final unlocked = progress.isUnlocked(index);
-                  final stars = progress.getStars(index);
-                  final bestTime = progress.getBestTime(index);
-                  return _LevelCell(
-                    levelIndex: index,
-                    unlocked: unlocked,
-                    stars: stars,
-                    bestTime: bestTime,
-                    onTap: unlocked
-                        ? () => game.startLevel(index)
-                        : null,
-                  );
-                },
-              ),
+              child: _WorldMap(game: game),
             ),
           ],
         ),
@@ -305,70 +326,256 @@ class _LevelSelectOverlay extends StatelessWidget {
   }
 }
 
-class _LevelCell extends StatelessWidget {
-  const _LevelCell({
-    required this.levelIndex,
+class _WorldMap extends StatelessWidget {
+  const _WorldMap({required this.game});
+  final NarrowHaulGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = ProgressService.instance;
+    final totalStars = LevelRegistry.totalStars();
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final h = constraints.maxHeight;
+      const nodeSpacing = 150.0;
+      const headerW = 130.0;
+
+      // Layout: [world header][node node ...][world header][...]
+      final worldPaths = <List<Offset>>[];
+      final headerXs = <double>[];
+      final nodePositions = <Offset>[];
+      double x = 40;
+      int flat = 0;
+      for (final world in LevelRegistry.worlds) {
+        headerXs.add(x);
+        x += headerW;
+        final points = <Offset>[];
+        for (int i = 0; i < world.levels.length; i++) {
+          final y = (h / 2) + (h * 0.28) * math.sin(flat * 1.3);
+          points.add(Offset(x + 45, y));
+          nodePositions.add(Offset(x + 45, y));
+          x += nodeSpacing;
+          flat++;
+        }
+        worldPaths.add(points);
+      }
+      final w = x + 60;
+
+      final flatDefs = LevelRegistry.flat;
+
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: SizedBox(
+          width: w,
+          height: h,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CustomPaint(
+                size: Size(w, h),
+                painter: _MapPathPainter(
+                  worldPaths: worldPaths,
+                  colors: [
+                    for (final world in LevelRegistry.worlds)
+                      (gameThemes[world.themeId] ?? tutorialTheme).uiAccent,
+                  ],
+                ),
+              ),
+              for (int wi = 0; wi < LevelRegistry.worlds.length; wi++)
+                Positioned(
+                  left: headerXs[wi],
+                  top: 0,
+                  bottom: 0,
+                  child: _WorldHeader(
+                    world: LevelRegistry.worlds[wi],
+                    unlocked: totalStars >= LevelRegistry.worlds[wi].starsRequired,
+                    totalStars: totalStars,
+                  ),
+                ),
+              for (int i = 0; i < flatDefs.length; i++)
+                Positioned(
+                  left: nodePositions[i].dx - 45,
+                  top: nodePositions[i].dy - 45,
+                  child: SizedBox(
+                    width: 90,
+                    height: 90,
+                    child: _MapNode(
+                      def: flatDefs[i],
+                      label: '${LevelRegistry.worldOf(i).$2 + 1}',
+                      unlocked: LevelRegistry.isLevelUnlocked(i),
+                      stars: progress.getStarsById(flatDefs[i].saveId),
+                      bestTime: progress.getBestTimeById(flatDefs[i].saveId),
+                      onTap: LevelRegistry.isLevelUnlocked(i)
+                          ? () => game.startLevel(i)
+                          : null,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _WorldHeader extends StatelessWidget {
+  const _WorldHeader({
+    required this.world,
+    required this.unlocked,
+    required this.totalStars,
+  });
+
+  final WorldDef world;
+  final bool unlocked;
+  final int totalStars;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = (gameThemes[world.themeId] ?? tutorialTheme).uiAccent;
+    return SizedBox(
+      width: 120,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: unlocked ? accent.withValues(alpha: 0.6) : const Color(0x331B263B),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  world.name.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: unlocked ? accent : Colors.white24,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (unlocked)
+                  Text(
+                    '${world.levels.length} missions',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  )
+                else ...[
+                  const Icon(Icons.lock_outline, size: 16, color: Colors.white24),
+                  Text(
+                    '$totalStars / ${world.starsRequired} ★',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapPathPainter extends CustomPainter {
+  _MapPathPainter({required this.worldPaths, required this.colors});
+  final List<List<Offset>> worldPaths;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int wi = 0; wi < worldPaths.length; wi++) {
+      final points = worldPaths[wi];
+      if (points.isEmpty) continue;
+      final paint = Paint()
+        ..color = colors[wi].withValues(alpha: 0.35)
+        ..strokeWidth = 4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      final path = Path();
+      path.moveTo(points.first.dx, points.first.dy);
+      for (int i = 1; i < points.length; i++) {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MapPathPainter old) => false;
+}
+
+class _MapNode extends StatelessWidget {
+  const _MapNode({
+    required this.def,
+    required this.label,
     required this.unlocked,
     required this.stars,
     required this.bestTime,
     required this.onTap,
   });
 
-  final int levelIndex;
+  final LevelDef def;
+  final String label;
   final bool unlocked;
   final int stars;
   final double? bestTime;
   final VoidCallback? onTap;
 
-  static const _zones = [
-    ('Tutorial', Color(0xFF00B4D8)),
-    ('Beginner', Color(0xFF4ADE80)),
-    ('Intermediate', Color(0xFFFFD166)),
-    ('Advanced', Color(0xFFFF6B35)),
-    ('Expert', Color(0xFFE07A5F)),
-  ];
-
-  Color get _zoneColor {
-    if (levelIndex < 3) return _zones[0].$2;
-    if (levelIndex < 7) return _zones[1].$2;
-    if (levelIndex < 12) return _zones[2].$2;
-    if (levelIndex < 16) return _zones[3].$2;
-    return _zones[4].$2;
+  /// Compact glyphs for the level's physics modifiers.
+  String get _badges {
+    final m = def.modifiers;
+    final b = StringBuffer();
+    if (m.gravityMul > 1) b.write('▼');
+    if (m.gravityMul < 1) b.write('▲');
+    if (m.fuelDrainMul > 1) b.write('⛽');
+    if (m.cargoDensityMul > 1) b.write('⚓');
+    if (m.wallFriction != null) b.write('❄');
+    return b.toString();
   }
 
   @override
   Widget build(BuildContext context) {
+    final accent = (gameThemes[def.themeId] ?? tutorialTheme).uiAccent;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedOpacity(
-        opacity: unlocked ? 1.0 : 0.38,
+        opacity: unlocked ? 1.0 : 0.4,
         duration: const Duration(milliseconds: 200),
         child: Container(
           decoration: BoxDecoration(
+            shape: BoxShape.circle,
             color: const Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: unlocked
-                  ? _zoneColor.withValues(alpha: stars > 0 ? 0.6 : 0.25)
-                  : const Color(0x221B263B),
-              width: stars == 3 ? 2 : 1,
+                  ? accent.withValues(alpha: stars > 0 ? 0.8 : 0.3)
+                  : const Color(0x331B263B),
+              width: stars == 3 ? 3 : 2,
             ),
+            boxShadow: unlocked && stars > 0
+                ? [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 10)]
+                : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (!unlocked)
-                const Icon(Icons.lock_outline, size: 18, color: Colors.white24)
+                const Icon(Icons.lock_outline, size: 22, color: Colors.white24)
               else ...[
                 Text(
-                  '${levelIndex + 1}',
+                  label,
                   style: TextStyle(
-                    color: _zoneColor,
-                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    fontWeight: FontWeight.w900,
                     fontSize: 18,
                   ),
                 ),
-                const SizedBox(height: 3),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(3, (i) => Padding(
@@ -376,16 +583,22 @@ class _LevelCell extends StatelessWidget {
                     child: _StarIcon(filled: i < stars, size: 8),
                   )),
                 ),
-                if (bestTime != null) ...[
-                  const SizedBox(height: 2),
+                if (_badges.isNotEmpty)
+                  Text(
+                    _badges,
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.8),
+                      fontSize: 9,
+                    ),
+                  ),
+                if (bestTime != null)
                   Text(
                     _formatTime(bestTime!),
                     style: const TextStyle(
-                      color: Colors.white24,
-                      fontSize: 8,
+                      color: Colors.white38,
+                      fontSize: 9,
                     ),
                   ),
-                ],
               ],
             ],
           ),
@@ -534,7 +747,7 @@ class _LevelCompleteOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final stars = game.lastLevelStars;
     final time = game.lastLevelTimeSeconds;
-    final isLastLevel = game.levelIndex >= NarrowHaulGame.levelPaths.length - 1;
+    final isLastLevel = game.levelIndex >= LevelRegistry.totalLevels - 1;
     final isChallengeMode = game.isChallengeMode;
 
     return ColoredBox(
@@ -562,7 +775,7 @@ class _LevelCompleteOverlay extends StatelessWidget {
                   Text(
                     isChallengeMode
                         ? game.activeChallengeConfig?.modifierDesc ?? ''
-                        : 'Mission ${game.levelIndex + 1} cleared.',
+                        : '"${game.currentLevelDef.name}" cleared.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white54, fontSize: 13),
                   ),
@@ -776,4 +989,201 @@ class _StarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StarPainter old) => old.filled != filled;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cosmetics
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CosmeticsOverlay extends StatefulWidget {
+  const _CosmeticsOverlay();
+
+  @override
+  State<_CosmeticsOverlay> createState() => _CosmeticsOverlayState();
+}
+
+class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
+  String _selectedCategory = CosmeticsService.catShip;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = ProgressService.instance.getCosmeticCurrency();
+    final items = CosmeticsService.all.where((e) => e.category == _selectedCategory).toList();
+
+    return ColoredBox(
+      color: const Color(0xEE050816),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  Builder(builder: (ctx) => IconButton(
+                    onPressed: () {
+                      final game = ctx
+                          .findAncestorWidgetOfExactType<GameWidget>()
+                          ?.game as NarrowHaulGame?;
+                      game?.overlays.remove('cosmetics');
+                      game?.overlays.add('menu');
+                    },
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    color: Colors.white70,
+                  )),
+                  const SizedBox(width: 8),
+                  Text(
+                    'GARAGE',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 3,
+                      color: const Color(0xFFE07A5F),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '💰 $currency',
+                    style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Color(0x22E07A5F), height: 1),
+            // Category Tabs
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _Tab(
+                  label: 'Ships',
+                  selected: _selectedCategory == CosmeticsService.catShip,
+                  onTap: () => setState(() => _selectedCategory = CosmeticsService.catShip),
+                ),
+                _Tab(
+                  label: 'Ropes',
+                  selected: _selectedCategory == CosmeticsService.catRope,
+                  onTap: () => setState(() => _selectedCategory = CosmeticsService.catRope),
+                ),
+                _Tab(
+                  label: 'Plumes',
+                  selected: _selectedCategory == CosmeticsService.catPlume,
+                  onTap: () => setState(() => _selectedCategory = CosmeticsService.catPlume),
+                ),
+              ],
+            ),
+            const Divider(color: Color(0x22FFFFFF), height: 1),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: items.length,
+                itemBuilder: (context, i) {
+                  final item = items[i];
+                  final unlocked = CosmeticsService.isUnlocked(item);
+                  final equipped = CosmeticsService.getEquippedId(item.category) == item.id;
+                  return _CosmeticTile(
+                    item: item,
+                    unlocked: unlocked,
+                    equipped: equipped,
+                    onTap: () async {
+                      if (equipped) return;
+                      if (unlocked) {
+                        await CosmeticsService.equip(item);
+                        setState(() {});
+                      } else {
+                        final success = await CosmeticsService.unlock(item);
+                        if (success) {
+                          await CosmeticsService.equip(item);
+                          setState(() {});
+                        }
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  const _Tab({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? const Color(0xFFE07A5F) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.white54,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CosmeticTile extends StatelessWidget {
+  const _CosmeticTile({required this.item, required this.unlocked, required this.equipped, required this.onTap});
+  final CosmeticItem item;
+  final bool unlocked;
+  final bool equipped;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: equipped ? const Color(0xFF1B263B) : const Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: equipped ? const Color(0xFFE07A5F) : const Color(0x151B263B),
+            width: equipped ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(item.icon, style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.name,
+                style: TextStyle(
+                  color: unlocked ? Colors.white : Colors.white54,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            if (equipped)
+              const Text('EQUIPPED', style: TextStyle(color: Color(0xFFE07A5F), fontSize: 11, fontWeight: FontWeight.bold))
+            else if (unlocked)
+              const Text('EQUIP', style: TextStyle(color: Colors.white54, fontSize: 11))
+            else
+              Text('💰 ${item.cost}', style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 13, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
 }

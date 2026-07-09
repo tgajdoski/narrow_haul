@@ -1,9 +1,15 @@
 import 'package:forge2d/forge2d.dart';
+import 'package:narrow_haul/game/level/cave/geom.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/theme_spec.dart';
 
-/// Parsed level: static walls, spawns, landing pad, optional cargo zone (meters).
+/// Parsed level: static geometry, spawns, landing pad, theme and modifiers
+/// (meters). Rectangle walls come from TMX tutorial levels; [caveLoops] come
+/// from organic cave specs — exactly one of the two is non-empty.
 class LevelData {
   const LevelData({
     required this.walls,
+    this.caveLoops = const <List<Pt>>[],
     required this.shipSpawn,
     required this.cargoSpawn,
     required this.goalCenter,
@@ -13,9 +19,16 @@ class LevelData {
     required this.ropeMaxLength,
     required this.cargoZoneCenter,
     required this.cargoZoneSize,
+    this.theme = tutorialTheme,
+    this.modifiers = const LevelModifiers(),
+    this.obstacles = const <ObstacleSpec>[],
   });
 
   final List<WallRect> walls;
+
+  /// Closed cave contour loops (meters) for organic levels.
+  final List<List<Pt>> caveLoops;
+
   final Vector2 shipSpawn;
   final Vector2 cargoSpawn;
   final Vector2 goalCenter;
@@ -31,6 +44,10 @@ class LevelData {
   /// Cargo pickup zone (for dashed outline).
   final Vector2 cargoZoneCenter;
   final Vector2 cargoZoneSize;
+
+  final ThemeSpec theme;
+  final LevelModifiers modifiers;
+  final List<ObstacleSpec> obstacles;
 }
 
 class WallRect {

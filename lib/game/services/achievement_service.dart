@@ -10,6 +10,7 @@ class AchievementIds {
   static const level10 = 'level_10';
   static const level20 = 'level_20';
   static const dailyPilot = 'daily_pilot';
+  static const cargoSwinger = 'cargo_swinger';
 }
 
 class AchievementMeta {
@@ -74,6 +75,12 @@ class AchievementService {
       title: 'Daily Pilot',
       description: 'Complete a daily challenge.',
       icon: '📅',
+    ),
+    AchievementMeta(
+      id: AchievementIds.cargoSwinger,
+      title: 'Cargo Swinger',
+      description: 'Attach rope and swing cargo 360° before landing.',
+      icon: '🔄',
     ),
   ];
 
