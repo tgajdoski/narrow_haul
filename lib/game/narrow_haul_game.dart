@@ -1540,6 +1540,13 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       return null;
     }
     final attached = cargoAttachment?.attached == true;
+    // Second mission, waiting on the pad: how stars are earned, before the
+    // first flight that's scored on them. The live target sits under the
+    // fuel bar during flight.
+    if (levelIndex == 1 && ship?.launched == false) {
+      return 'Stars: ★ deliver · ★★ save fuel · ★★★ save more fuel and beat '
+          'the clock. Targets show under the fuel bar';
+    }
     final steerSide = _hudControls?.leftHanded == true ? 'right' : 'left';
     final thrustSide = _hudControls?.leftHanded == true ? 'left' : 'right';
     if (_thrustUsed < 0.6) {

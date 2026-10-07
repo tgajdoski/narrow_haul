@@ -79,11 +79,11 @@ What's left:
 - [ ] **Profile on a cheap Android phone.**
 
 ### Game design
-- [x] **Done:** a hint banner explains each unfamiliar ship until its type rating is earned. Still open: teach the star rules up front. Was: Skate self-levelling and Vector hover assist are only described in the Logbook. Also teach the star rules up front.
+- [x] **Done:** a hint banner explains each unfamiliar ship until its type rating is earned. Star rules are now taught too: tut_02 shows them while the ship waits on the pad. Was: Skate self-levelling and Vector hover assist are only described in the Logbook. Also teach the star rules up front.
 - [x] **Done:** a canister hint shows until the first canister is collected (tutorial: folded into the hook step). Was: no hint explained fuel canisters, which appear from tut_01. Pickups also reuse `attach.mp3`.
 - [ ] **"Perfect Pilot" needs 3★ on redoubt_02 and redoubt_04**, which the bot can't fly. Confirm it's humanly possible during the playtest.
 - [ ] **"Fuel Miser" (≥ 90% fuel left) is nearly impossible on normal days.** The bot's lightest run burns 13% (×1.3 ≈ 17% for a player), so it probably needs the "Fuel Rich" daily. That's acceptable, but make sure it's intended. The "≥ 80% fuel" contract is in the same territory.
-- [ ] **Coins have nothing to buy after about the Ice world.** The shop has 8 items for 1,180 coins total, and players earn ≥ 2,750 from first stars. Add more items or other coin sinks.
+- [x] **Done:** a premium Garage tier: 6 world liveries (200–450), Cryo and Plasma plumes (300/400), Neon Line rope (350). The shop now costs 4,180 coins in total, against ≈ 4,000 from stars and ranks plus dailies. Was: coins had nothing to buy after about the Ice world. The shop has 8 items for 1,180 coins total, and players earn ≥ 2,750 from first stars. Add more items or other coin sinks.
 
 ## 3. Store submission — remaining steps
 

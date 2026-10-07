@@ -50,8 +50,11 @@ class RopeLine extends Component {
     final paint = Paint()
       ..style = PaintingStyle.stroke;
 
-    if (ropeId == 'rope_energy') {
-      paint.color = Color.fromARGB(alphaInt, 50, 255, 255);
+    final glowing = ropeId == 'rope_energy' || ropeId == 'rope_neon';
+    if (glowing) {
+      paint.color = ropeId == 'rope_neon'
+          ? Color.fromARGB(alphaInt, 255, 64, 160)
+          : Color.fromARGB(alphaInt, 50, 255, 255);
       paint.strokeWidth = attached() ? 0.08 : 0.05;
       paint.maskFilter = const MaskFilter.blur(BlurStyle.solid, 0.05);
     } else if (ropeId == 'rope_chain') {
@@ -72,7 +75,7 @@ class RopeLine extends Component {
     if (chordLen < 1e-4) return;
 
     void drawRope(Canvas c, ui.Path p) {
-      if (ropeId == 'rope_energy') {
+      if (glowing) {
         final corePaint = Paint()
           ..color = Colors.white.withValues(alpha: baseAlpha)
           ..style = PaintingStyle.stroke

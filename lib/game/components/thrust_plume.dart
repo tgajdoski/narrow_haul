@@ -85,6 +85,10 @@ class ThrustPlume extends Component {
     } else if (plumeId == 'plume_rainbow') {
       final hue = (_time * 200) % 360;
       paint.colorFilter = ColorFilter.mode(HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor(), BlendMode.hue);
+    } else if (plumeId == 'plume_cryo') {
+      paint.colorFilter = const ColorFilter.mode(Color(0xFF00E5FF), BlendMode.hue);
+    } else if (plumeId == 'plume_plasma') {
+      paint.colorFilter = const ColorFilter.mode(Color(0xFFD500F9), BlendMode.hue);
     } else if (plumeId == 'plume_afterburner') {
       paint.colorFilter = const ColorFilter.mode(Color(0xFFFF8C00), BlendMode.hue);
     } else if (plumeId == 'plume_aurora') {
@@ -124,6 +128,14 @@ class ThrustPlume extends Component {
       coreC = HSVColor.fromAHSV(1.0, hue, 0.2, 1.0).toColor();
       midC = HSVColor.fromAHSV(1.0, hue, 0.8, 1.0).toColor();
       outerC = HSVColor.fromAHSV(1.0, hue, 1.0, 0.8).toColor();
+    } else if (plumeId == 'plume_cryo') {
+      coreC = const Color(0xFFE0FFFF);
+      midC = const Color(0xFF00B8D4);
+      outerC = const Color(0xFF004D60);
+    } else if (plumeId == 'plume_plasma') {
+      coreC = const Color(0xFFF8E1FF);
+      midC = const Color(0xFFD500F9);
+      outerC = const Color(0xFF4A148C);
     } else if (plumeId == 'plume_afterburner') {
       coreC = const Color(0xFFE0F2FF);
       midC = const Color(0xFFFF9F1C);

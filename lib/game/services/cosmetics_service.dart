@@ -43,12 +43,21 @@ class CosmeticsService {
     CosmeticItem(id: 'ship_gold', name: 'Golden Hauler', category: catShip, cost: 300, icon: '🏆'),
     CosmeticItem(id: 'ship_carbon', name: 'Carbon', category: catShip, cost: 0, icon: '🛩️', rankRequired: 4),
     CosmeticItem(id: 'ship_gold_trim', name: 'Captain\'s Gold Trim', category: catShip, cost: 0, icon: '🎖️', rankRequired: 6),
+    // World liveries: the premium tier, priced to match each world's payouts
+    // so the Garage stays a goal through the late game.
+    CosmeticItem(id: 'ship_xenar', name: 'Xenar Crystal', category: catShip, cost: 200, icon: '💠'),
+    CosmeticItem(id: 'ship_rust', name: 'Rustshaft', category: catShip, cost: 250, icon: '⛏️'),
+    CosmeticItem(id: 'ship_glacier', name: 'Glacier', category: catShip, cost: 300, icon: '🧊'),
+    CosmeticItem(id: 'ship_ember', name: 'Ember', category: catShip, cost: 350, icon: '🌋'),
+    CosmeticItem(id: 'ship_orbit', name: 'Outer Ring', category: catShip, cost: 400, icon: '🪐'),
+    CosmeticItem(id: 'ship_redoubt', name: 'Redoubt Olive', category: catShip, cost: 450, icon: '🎯'),
     CosmeticItem(id: kSupporterSkinId, name: 'Supporter Livery', category: catShip, cost: 0, icon: '💎', supporterOnly: true),
 
     // Ropes
     CosmeticItem(id: 'rope_cable', name: 'Cable', category: catRope, cost: 0, icon: '🪢'),
     CosmeticItem(id: 'rope_chain', name: 'Chain', category: catRope, cost: 80, icon: '🔗'),
     CosmeticItem(id: 'rope_energy', name: 'Energy Beam', category: catRope, cost: 200, icon: '⚡'),
+    CosmeticItem(id: 'rope_neon', name: 'Neon Line', category: catRope, cost: 350, icon: '💗'),
     CosmeticItem(id: 'rope_braided', name: 'Braided Gold', category: catRope, cost: 0, icon: '🧶', rankRequired: 3),
 
     // Plumes
@@ -56,6 +65,8 @@ class CosmeticsService {
     CosmeticItem(id: 'plume_green', name: 'Toxic Green', category: catPlume, cost: 50, icon: '🧪'),
     CosmeticItem(id: 'plume_red', name: 'Crimson Red', category: catPlume, cost: 50, icon: '🧨'),
     CosmeticItem(id: 'plume_rainbow', name: 'Rainbow', category: catPlume, cost: 250, icon: '🌈'),
+    CosmeticItem(id: 'plume_cryo', name: 'Cryo', category: catPlume, cost: 300, icon: '❄️'),
+    CosmeticItem(id: 'plume_plasma', name: 'Plasma', category: catPlume, cost: 400, icon: '🔮'),
     CosmeticItem(id: 'plume_afterburner', name: 'Afterburner', category: catPlume, cost: 0, icon: '💥', rankRequired: 5),
     CosmeticItem(id: 'plume_aurora', name: 'Aurora', category: catPlume, cost: 0, icon: '🌌', rankRequired: 9),
   ];

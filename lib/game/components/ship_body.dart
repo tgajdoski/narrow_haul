@@ -162,6 +162,22 @@ class ShipBody extends BodyComponent with ContactCallbacks {
      0.29 * _visualScale * spec.hullScale, // bottom (rear)
   );
 
+  /// Garage liveries: a tint over the ship's own art (srcATop).
+  static const Map<String, Color> _skinTints = {
+    'ship_neon': Color(0x88FF00FF),
+    'ship_stealth': Color(0xCC000000),
+    'ship_gold': Color(0xAAFFD700),
+    'ship_carbon': Color(0x99404855),
+    'ship_gold_trim': Color(0x55FFD166),
+    kSupporterSkinId: Color(0x7733D6C9),
+    'ship_xenar': Color(0x7700E5A0),
+    'ship_rust': Color(0x88B5651D),
+    'ship_glacier': Color(0x77BDEBFF),
+    'ship_ember': Color(0x88FF5A1F),
+    'ship_orbit': Color(0x777B61FF),
+    'ship_redoubt': Color(0x88556B2F),
+  };
+
   @override
   void render(Canvas canvas) {
     if (_wrecked) return;
@@ -170,18 +186,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     if (img != null) {
       final skinId = CosmeticsService.getEquippedId(CosmeticsService.catShip);
       final paint = Paint();
-      if (skinId == 'ship_neon') {
-        paint.colorFilter = const ColorFilter.mode(Color(0x88FF00FF), BlendMode.srcATop);
-      } else if (skinId == 'ship_stealth') {
-        paint.colorFilter = const ColorFilter.mode(Color(0xCC000000), BlendMode.srcATop);
-      } else if (skinId == 'ship_gold') {
-        paint.colorFilter = const ColorFilter.mode(Color(0xAAFFD700), BlendMode.srcATop);
-      } else if (skinId == 'ship_carbon') {
-        paint.colorFilter = const ColorFilter.mode(Color(0x99404855), BlendMode.srcATop);
-      } else if (skinId == 'ship_gold_trim') {
-        paint.colorFilter = const ColorFilter.mode(Color(0x55FFD166), BlendMode.srcATop);
-      } else if (skinId == kSupporterSkinId) {
-        paint.colorFilter = const ColorFilter.mode(Color(0x7733D6C9), BlendMode.srcATop);
+      final skinTint = _skinTints[skinId];
+      if (skinTint != null) {
+        paint.colorFilter = ColorFilter.mode(skinTint, BlendMode.srcATop);
       } else if (_usingFallbackArt && spec.tint != null) {
         // Placeholder livery until the ship's own sprite exists.
         paint.colorFilter = ColorFilter.mode(Color(spec.tint!), BlendMode.srcATop);
