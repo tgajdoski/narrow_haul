@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_text.dart';
 
 /// On-screen controls for landscape play.
 ///
@@ -530,6 +531,8 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
 class _FireButton extends _ThrustButton {
   _FireButton({required super.center, required super.radius, required super.onChanged});
 
+  final _label = HudText();
+
   bool get pressed => _pressed;
 
   @override
@@ -562,8 +565,8 @@ class _FireButton extends _ThrustButton {
     for (final d in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
       canvas.drawLine(c + d * (r * 0.35), c + d * r, line);
     }
-    final tp = TextPainter(
-      text: TextSpan(
+    final tp = _label.layout(
+      TextSpan(
         text: 'FIRE',
         style: TextStyle(
           color: Colors.white.withValues(alpha: _pressed ? 0.95 : 0.7),
@@ -572,8 +575,7 @@ class _FireButton extends _ThrustButton {
           letterSpacing: 1.2,
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     tp.paint(canvas, Offset(radius - tp.width / 2, radius + r + 2));
   }
 }
@@ -759,6 +761,9 @@ class FuelGaugeHud extends PositionComponent {
 class LevelInfoHud extends PositionComponent {
   LevelInfoHud() : super(priority: 4900);
 
+  final _lineText = HudText();
+  final _labelText = HudText();
+
   String levelLabel = '';
   int stars = 0;
 
@@ -774,8 +779,8 @@ class LevelInfoHud extends PositionComponent {
   void render(Canvas canvas) {
     if (levelLabel.isEmpty) return;
 
-    final tp = TextPainter(
-      text: TextSpan(
+    final tp = _labelText.layout(
+      TextSpan(
         text: levelLabel,
         style: const TextStyle(
           color: Color(0xE6FFFFFF),
@@ -784,8 +789,7 @@ class LevelInfoHud extends PositionComponent {
           shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     const left = 12.0;
     const top = 40.0;
     tp.paint(canvas, const Offset(left, top));
@@ -802,8 +806,8 @@ class LevelInfoHud extends PositionComponent {
     }
 
     final (targetStars, hint, color) = _target();
-    final line = TextPainter(
-      text: TextSpan(
+    final line = _lineText.layout(
+      TextSpan(
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -820,8 +824,7 @@ class LevelInfoHud extends PositionComponent {
           TextSpan(text: '  $hint', style: TextStyle(color: color.withValues(alpha: 0.85))),
         ],
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     line.paint(canvas, Offset(left, top + tp.height + 3));
   }
 
@@ -869,6 +872,8 @@ class LevelInfoHud extends PositionComponent {
 /// whose gravity differs from normal, so standard levels stay uncluttered.
 class GravityIndicatorHud extends PositionComponent {
   GravityIndicatorHud() : super(priority: 4900);
+
+  final _gText = HudText();
 
   bool show = false;
 
@@ -929,8 +934,8 @@ class GravityIndicatorHud extends PositionComponent {
       );
     }
 
-    final tp = TextPainter(
-      text: TextSpan(
+    final tp = _gText.layout(
+      TextSpan(
         text: '${g.toStringAsFixed(g < 0.95 || g > 1.05 ? 1 : 0)}g',
         style: const TextStyle(
           color: Color(0xE6FFFFFF),
@@ -939,8 +944,7 @@ class GravityIndicatorHud extends PositionComponent {
           shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     tp.paint(canvas, Offset(_cx + _r + 5, _cy - tp.height / 2));
   }
 }

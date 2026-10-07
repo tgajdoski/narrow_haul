@@ -34,7 +34,15 @@ class CaveTerrain extends BodyComponent {
   late final Paint _edgePaint;
   late final Paint _highlightPaint;
   Paint? _glowPaint;
+  ui.Image? _glowImage;
+  Rect _glowRect = Rect.zero;
+  late final Paint _speckPaint;
   final List<(Offset, double)> _specks = [];
+
+  /// Resolution of the pre-rendered edge glow. The glow is a wide blur, so a
+  /// coarse bitmap scaled up looks the same as the vector version.
+  static const double _glowPxPerMeter = 16;
+  static final Paint _glowBlit = Paint()..filterQuality = FilterQuality.medium;
 
   @override
   Future<void> onLoad() async {
@@ -72,7 +80,9 @@ class CaveTerrain extends BodyComponent {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.35
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.25);
+      _glowImage = _rasterizeGlow(_glowPaint!);
     }
+    _speckPaint = Paint()..color = theme.rockHighlight;
 
     // Sparse seeded mineral speckles — only for the flat look; a texture
     // carries its own detail. Computed once (Path.contains is not cheap).
@@ -86,6 +96,34 @@ class CaveTerrain extends BodyComponent {
       }
     }
     await super.onLoad();
+  }
+
+  /// Draws the blurred edge glow once into a small bitmap: a per-frame blur
+  /// mask filter is the most expensive thing in the scene on weak GPUs.
+  ui.Image _rasterizeGlow(Paint glow) {
+    _glowRect = Rect.fromLTWH(-1, -1, worldSize.x + 2, worldSize.y + 2);
+    const k = _glowPxPerMeter;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..scale(k)
+      ..translate(-_glowRect.left, -_glowRect.top);
+    for (final p in _edgePaths) {
+      canvas.drawPath(p, glow);
+    }
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(
+      (_glowRect.width * k).ceil(),
+      (_glowRect.height * k).ceil(),
+    );
+    picture.dispose();
+    return image;
+  }
+
+  @override
+  void onRemove() {
+    _glowImage?.dispose();
+    _glowImage = null;
+    super.onRemove();
   }
 
   /// The even-odd rock region (solid where true); shared with decor placement.
@@ -127,18 +165,22 @@ class CaveTerrain extends BodyComponent {
   void render(Canvas canvas) {
     canvas.drawPath(_rockPath, _rockPaint);
 
-    final glow = _glowPaint;
+    final glowImage = _glowImage;
+    if (glowImage != null) {
+      canvas.drawImageRect(
+        glowImage,
+        Rect.fromLTWH(0, 0, glowImage.width.toDouble(), glowImage.height.toDouble()),
+        _glowRect,
+        _glowBlit,
+      );
+    }
     for (final p in _edgePaths) {
-      if (glow != null) canvas.drawPath(p, glow);
       canvas.drawPath(p, _edgePaint);
       canvas.drawPath(p, _highlightPaint);
     }
 
-    if (_specks.isNotEmpty) {
-      final speckPaint = Paint()..color = theme.rockHighlight;
-      for (final (c, r) in _specks) {
-        canvas.drawCircle(c, r, speckPaint);
-      }
+    for (final (c, r) in _specks) {
+      canvas.drawCircle(c, r, _speckPaint);
     }
   }
 }

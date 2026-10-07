@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
@@ -361,14 +362,23 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   Future<void> beginChallenge() async {
     overlays.remove('menu');
     isChallengeMode = true;
+    final levels = [
+      for (var i = 0; i < LevelRegistry.totalLevels; i++)
+        if (LevelRegistry.isLevelUnlocked(i)) i,
+    ];
+    // Test Flight ship options run the full validator per ship (up to a few
+    // hundred ms on a phone): do it on a background isolate, and only then.
+    final (dailyLevel, testFlight) = DailyChallengeConfig.peekToday(levels);
+    final shipIds = testFlight
+        ? await Isolate.run(
+            () => [
+              for (final s in LevelRegistry.testFlightOptions(dailyLevel)) s.id,
+            ],
+          )
+        : const <String>[];
     activeChallengeConfig = DailyChallengeConfig.forToday(
-      [
-        for (var i = 0; i < LevelRegistry.totalLevels; i++)
-          if (LevelRegistry.isLevelUnlocked(i)) i,
-      ],
-      shipOptions: (i) => [
-        for (final s in LevelRegistry.testFlightOptions(i)) s.id,
-      ],
+      levels,
+      shipOptions: (_) => shipIds,
     );
     levelIndex = activeChallengeConfig!.levelIndex;
     _gravityMultiplier = activeChallengeConfig!.gravityMultiplier;
@@ -431,6 +441,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     currentRoute = await _routeForCurrentLevel();
     // In debug, rebuild caves every load so hot-reloaded spec edits show up.
     if (kDebugMode) clearCaveCache();
+    final def = currentLevelDef;
+    if (def is CaveLevelDef) await prebuildCave(def.spec);
     final data = switch (currentLevelDef) {
       TmxLevelDef def => await loadLevelFromTmx(
         def.assetPath,

@@ -42,10 +42,7 @@ class DailyChallengeConfig {
     List<int> levels, {
     List<String> Function(int levelIndex)? shipOptions,
   }) {
-    final now = DateTime.now();
-    final seed = now.year * 10000 + now.month * 100 + now.day;
-    final rng = Random(seed);
-
+    final rng = _todayRng();
     final levelIndex = levels.isEmpty ? 0 : levels[rng.nextInt(levels.length)];
     var mod = _modifiers[rng.nextInt(_modifiers.length)];
 
@@ -73,6 +70,21 @@ class DailyChallengeConfig {
       gravityMultiplier: mod.$3,
       fuelDrainMultiplier: mod.$4,
     );
+  }
+
+  static Random _todayRng() {
+    final now = DateTime.now();
+    return Random(now.year * 10000 + now.month * 100 + now.day);
+  }
+
+  /// Today's level and whether it's a Test Flight day — same draw as
+  /// [forToday], so the (slow, validator-backed) ship options can be worked
+  /// out first, off the UI thread, and only on the days that need them.
+  static (int levelIndex, bool testFlight) peekToday(List<int> levels) {
+    final rng = _todayRng();
+    final levelIndex = levels.isEmpty ? 0 : levels[rng.nextInt(levels.length)];
+    final mod = _modifiers[rng.nextInt(_modifiers.length)];
+    return (levelIndex, mod.$1 == testFlightName);
   }
 
   String get levelDisplay => 'Mission ${levelIndex + 1}';

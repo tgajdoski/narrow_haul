@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 
 /// Top-center pause button (top-right belongs to the minimap).
@@ -267,6 +268,8 @@ class _Debris {
 class HintHud extends PositionComponent {
   HintHud() : super(priority: 4910);
 
+  final _text = HudText();
+
   String? message;
   String _shown = '';
   double _alpha = 0;
@@ -293,8 +296,8 @@ class HintHud extends PositionComponent {
   @override
   void render(Canvas canvas) {
     if (_alpha <= 0 || _shown.isEmpty) return;
-    final tp = TextPainter(
-      text: TextSpan(
+    final tp = _text.layout(
+      TextSpan(
         text: _shown,
         style: TextStyle(
           color: Colors.white.withValues(alpha: _alpha),
@@ -303,8 +306,8 @@ class HintHud extends PositionComponent {
         ),
       ),
       textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: math.min(420, size.x - 280));
+      maxWidth: math.min(420, size.x - 280),
+    );
     final w = tp.width + 32;
     final h = tp.height + 16;
     // Top-center below the HUD text lines, clear of both thumbs.
@@ -410,6 +413,8 @@ class _Confetti {
 class CombatStatusHud extends PositionComponent {
   CombatStatusHud() : super(priority: 4920);
 
+  final _text = HudText();
+
   /// Seconds left to deliver before the reactor blows; null = no meltdown.
   double? meltdownLeft;
 
@@ -451,8 +456,8 @@ class CombatStatusHud extends PositionComponent {
     } else {
       return;
     }
-    final tp = TextPainter(
-      text: TextSpan(
+    final tp = _text.layout(
+      TextSpan(
         text: text,
         style: TextStyle(
           color: color,
@@ -461,8 +466,7 @@ class CombatStatusHud extends PositionComponent {
           letterSpacing: 1.2,
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     const top = 54.0;
     final w = tp.width + 28;
     final h = tp.height + 12;

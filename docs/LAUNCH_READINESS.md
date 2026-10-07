@@ -74,8 +74,8 @@ What's left:
 - [x] **Done:** the audio and monetization logs are debug-only. Was: `debugPrint` not guarded with `kDebugMode`. The calls in the audio and monetization services also log in release builds.
 
 ### Performance (low-end Android)
-- [ ] **`CaveTerrain.render` redraws the full rock path every frame**, plus a blurred edge glow. Cache it in a `Picture`, or drop the blur on weak devices.
-- [ ] **Caves are built on the UI thread at level load** (the test budget allows up to 250 ms on desktop), and so does the Test Flight validator. Move them to `compute`, or hide them behind the intro.
+- [x] **Done:** the edge glow is pre-rendered once into a small bitmap (no per-frame blur), and the HUD text only re-lays out when it changes (`HudText`). Was: `CaveTerrain.render` redrew the full rock path every frame, plus a blurred edge glow. Cache it in a `Picture`, or drop the blur on weak devices.
+- [x] **Done:** caves (`prebuildCave`) and the Test Flight validator now run on background isolates (`Isolate.run`). Was: caves were built on the UI thread at level load (the test budget allows up to 250 ms on desktop), and so does the Test Flight validator. Move them to `compute`, or hide them behind the intro.
 - [ ] **Profile on a cheap Android phone.**
 
 ### Game design

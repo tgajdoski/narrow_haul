@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -52,6 +53,15 @@ final Map<String, BuiltCave> _cache = {};
 void clearCaveCache() => _cache.clear();
 
 BuiltCave buildCave(LevelSpec spec) => _cache[spec.id] ??= _build(spec);
+
+/// Builds [spec] on a background isolate (unless cached) and caches it, so
+/// the following [buildCave] is instant and a level load doesn't freeze the
+/// UI for the 50–300 ms a build takes on a phone.
+Future<void> prebuildCave(LevelSpec spec) async {
+  if (_cache.containsKey(spec.id)) return;
+  final built = await Isolate.run(() => _build(spec));
+  _cache[spec.id] ??= built;
+}
 
 const double _solid = 10.0;
 const double _sminK = 1.0;
