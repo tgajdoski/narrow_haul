@@ -56,6 +56,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// Auto-level gain (1/s) and max correction as a fraction of turn rate.
   static const double _levelGain = 2.5;
   static const double _levelMaxRate = 0.7;
+
+  /// Fraction of the local pull the hover assist cancels while thrusting.
+  static const double hoverAssistFraction = 0.75;
   double fuel;
 
   double _rotateInput = 0;
@@ -218,6 +221,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       if (fuel < 0) fuel = 0;
       final dir = body.worldVector(Vector2(0, -1))..scale(spec.thrustForce);
       body.applyForce(dir);
+      if (spec.hoverAssist) {
+        // Fly-by-wire: cancel most of the local pull while the engine burns.
+        body.applyForce(localAccel * (-hoverAssistFraction * body.mass));
+      }
     }
   }
 

@@ -12,6 +12,7 @@ import 'package:narrow_haul/game/components/cave_decor.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
 import 'package:narrow_haul/game/components/dual_landing_zone.dart';
 import 'package:narrow_haul/game/components/force_field_system.dart';
+import 'package:narrow_haul/game/components/well_core.dart';
 import 'package:narrow_haul/game/components/flight_hud.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/components/minimap_hud.dart';
@@ -22,6 +23,7 @@ import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/field_sampler.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
@@ -372,6 +374,13 @@ class NarrowHaulGame extends Forge2DGame {
       _levelEntities.add(ambient);
     }
 
+    for (final field in data.fields) {
+      if (field is! GravityWellSpec) continue;
+      final core = WellCore(spec: field, theme: theme);
+      await world.add(core);
+      _levelEntities.add(core);
+    }
+
     for (final spec in data.obstacles) {
       final obstacle = obstacleFromSpec(spec, theme);
       await world.add(obstacle);
@@ -406,6 +415,7 @@ class NarrowHaulGame extends Forge2DGame {
     final cargoBody = CargoBody(
       initialPosition: Vector2.copy(data.cargoSpawn),
       densityMul: mods.cargoDensityMul,
+      clamped: data.cargoClamped,
     );
     cargoLink = CargoAttachment(
       ship: shipBody,

@@ -23,6 +23,7 @@ class LevelData {
     this.modifiers = const LevelModifiers(),
     this.obstacles = const <ObstacleSpec>[],
     this.fields = const <FieldSpec>[],
+    this.cargoClamped = false,
   });
 
   final List<WallRect> walls;
@@ -50,6 +51,7 @@ class LevelData {
   final LevelModifiers modifiers;
   final List<ObstacleSpec> obstacles;
   final List<FieldSpec> fields;
+  final bool cargoClamped;
 }
 
 class WallRect {

@@ -21,6 +21,7 @@ class LevelSpec {
     this.modifiers = const LevelModifiers(),
     this.noise = const NoiseSpec(),
     this.shipId,
+    this.cargoClamped = false,
   });
 
   final String id;
@@ -43,6 +44,10 @@ class LevelSpec {
 
   /// Ship override (see `kShips`); null → the world's default ship.
   final String? shipId;
+
+  /// Cargo lock: the pod is held in place until hooked. Required wherever
+  /// the pull at the cargo isn't calm and downward (zero-g, near wells).
+  final bool cargoClamped;
 }
 
 /// Winding corridor: a Catmull-Rom spline through [points] carved as capsules.

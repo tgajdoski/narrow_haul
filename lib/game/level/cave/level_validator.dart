@@ -20,7 +20,9 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   // main haul path must be comfortably wider.
   final shipClear = -(ship.circumradius + 0.04);
 
-  double f(double x, double y) => cave.fieldAt(x, y);
+  // Well cores are solid rock for every geometric check.
+  final field = _fieldWithCores(cave, spec);
+  double f(double x, double y) => math.max(cave.fieldAt(x, y), _coreField(spec, x, y));
 
   // 1. Anchor openness — calm pockets around pads and cargo.
   if (f(spec.shipSpawn.x, spec.shipSpawn.y) > -1.0) {
@@ -53,7 +55,7 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   // 2. BFS reachability with ship clearance on the sampled grid.
   final nx = cave.nx;
   final ny = cave.ny;
-  bool passable(int i, int j) => cave.field[j * (nx + 1) + i] < shipClear;
+  bool passable(int i, int j) => field[j * (nx + 1) + i] < shipClear;
 
   (int, int) cellOf(Pt p) => (
         (p.x / cave.cell).round().clamp(0, nx),
@@ -111,12 +113,10 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
 
   // 3. Cargo must come to rest close below its spawn, and the rest point
   //    must be approachable (auto-attach needs the ship within ~1.2 m).
-  double? restY;
-  for (double y = spec.cargoSpawn.y; y < spec.cargoSpawn.y + 4.5; y += 0.05) {
-    if (f(spec.cargoSpawn.x, y) >= 0) {
-      restY = y - 0.15;
-      break;
-    }
+  //    A locked pod (cargoClamped) stays exactly at its spawn.
+  double? restY = spec.cargoClamped ? spec.cargoSpawn.y : null;
+  for (double y = spec.cargoSpawn.y; restY == null && y < spec.cargoSpawn.y + 4.5; y += 0.05) {
+    if (f(spec.cargoSpawn.x, y) >= 0) restY = y - 0.15;
   }
   if (restY == null) {
     issues.add('cargo has no floor within 4.5 m below spawn');
@@ -170,13 +170,33 @@ const double kMaxWindFraction = 0.45;
 const double kMaxWindG = 1.0;
 
 /// At spawn, cargo and goal the local pull must point within this angle of
-/// straight down and be at least [kMinAnchorGravity] × base strength.
+/// straight down and be at least [kMinAnchorGravity] × base strength — or be
+/// near-weightless (≤ [kMaxDriftGravity], you just drift). A locked cargo pod
+/// (`cargoClamped`) is exempt: it can't move until hooked.
 const double kMaxAnchorTiltDeg = 25;
 const double kMinAnchorGravity = 0.3;
+const double kMaxDriftGravity = 0.2;
+
+/// Well cores must keep this much open space (m) from spawn, cargo and goal.
+const double kWellCoreClearance = 1.5;
 
 List<String> _fieldIssues(LevelSpec spec, ShipSpec ship) {
   if (spec.fields.isEmpty) return const [];
   final issues = <String>[];
+  for (final w in spec.fields.whereType<GravityWellSpec>()) {
+    for (final (label, p) in [
+      ('ship spawn', spec.shipSpawn),
+      ('cargo', spec.cargoSpawn),
+      ('goal', spec.goal.center),
+    ]) {
+      final gap = math.sqrt(math.pow(p.x - w.center.x, 2) + math.pow(p.y - w.center.y, 2)) -
+          w.coreRadius;
+      if (gap < kWellCoreClearance) {
+        issues.add('WELL: core at (${w.center.x},${w.center.y}) is '
+            '${gap.toStringAsFixed(1)} m from $label (min $kWellCoreClearance)');
+      }
+    }
+  }
   final cargoMass = math.pi * kCargoRadius * kCargoRadius * kCargoDensity *
       spec.modifiers.cargoDensityMul;
   final aLoaded = ship.thrustForce / (ship.mass + cargoMass);
@@ -215,7 +235,10 @@ List<String> _fieldIssues(LevelSpec spec, ShipSpec ship) {
       final a = sampler.accelAt(p.x, p.y, t: maxPeriod * i / 16, cargo: label == 'cargo');
       final mag = math.sqrt(a.x * a.x + a.y * a.y);
       final tilt = mag < 1e-9 ? math.pi : math.acos((a.y / mag).clamp(-1.0, 1.0));
-      if (mag < minG || tilt > maxTilt) {
+      final calmDown = mag >= minG && tilt <= maxTilt;
+      final drifting = mag <= kMaxDriftGravity * kGravityY;
+      final locked = label == 'cargo' && spec.cargoClamped;
+      if (!calmDown && !drifting && !locked) {
         issues.add('FIELD: $label is not calm '
             '(pull ${(mag / kGravityY).toStringAsFixed(2)}g, '
             'tilt ${(tilt * 180 / math.pi).round()}°)');
@@ -262,7 +285,9 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
       List.generate(rows, (_) => List.filled(cols, ' '), growable: false);
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
-      grid[r][c] = cave.fieldAt((c + 0.5) * res, (r + 0.5) * res) < 0 ? '.' : '#';
+      final x = (c + 0.5) * res;
+      final y = (r + 0.5) * res;
+      grid[r][c] = math.max(cave.fieldAt(x, y), _coreField(spec, x, y)) < 0 ? '.' : '#';
     }
   }
   void mark(Pt p, String ch) {
@@ -350,14 +375,15 @@ class FlightReport {
 
 /// Impulse-based flight estimate. Holding a steady course against a pull `a`
 /// needs thrust impulse `m·|a|·t` no matter how the pilot flies it, so the
-/// fuel floor is ∫|a|/a_thrust dt along the route at cruise speed, scaled by
-/// an overhead for turns and corrections. Null if no route exists.
+/// fuel floor is ∫|a + drag|/a_thrust dt along the route at cruise speed,
+/// scaled by an overhead for turns and corrections. Null if no route exists.
 FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   final cave = buildCave(spec);
   final nx = cave.nx;
   final ny = cave.ny;
   final stride = nx + 1;
   final clear = -(ship.circumradius + 0.04);
+  final field = _fieldWithCores(cave, spec);
 
   final sampler = FieldSampler(
     fields: spec.fields,
@@ -374,7 +400,7 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   List<int>? route(Pt from, Pt to, double tolerance) {
     final parent = Int32List(stride * (ny + 1))..fillRange(0, stride * (ny + 1), -2);
     final start = key(from);
-    if (cave.field[start] >= clear) return null;
+    if (field[start] >= clear) return null;
     final tc = (to.x / cave.cell, to.y / cave.cell);
     final tol = tolerance / cave.cell;
     parent[start] = -1;
@@ -397,9 +423,9 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
         final j2 = j + dj;
         if (i2 < 0 || j2 < 0 || i2 > nx || j2 > ny) continue;
         final k2 = j2 * stride + i2;
-        if (parent[k2] != -2 || cave.field[k2] >= clear) continue;
+        if (parent[k2] != -2 || field[k2] >= clear) continue;
         if (di != 0 && dj != 0 &&
-            (cave.field[j * stride + i2] >= clear || cave.field[j2 * stride + i] >= clear)) {
+            (field[j * stride + i2] >= clear || field[j2 * stride + i] >= clear)) {
           continue;
         }
         parent[k2] = k;
@@ -432,7 +458,10 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
       final a = sampler.accelAt((k % stride) * cave.cell, (k ~/ stride) * cave.cell);
       final pull = math.sqrt(a.x * a.x + a.y * a.y);
       maxPull = math.max(maxPull, pull);
-      burn += pull / aThrust * ds / _cruiseSpeed;
+      // Holding cruise speed also fights the hull's linear drag (c·v), which
+      // is what costs fuel in zero-g.
+      final drag = ship.linearDamping * _cruiseSpeed;
+      burn += math.sqrt(pull * pull + drag * drag) / aThrust * ds / _cruiseSpeed;
       length += ds;
     }
   }
@@ -455,3 +484,28 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
 }
 
 const _dirs8 = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
+
+/// Signed distance into the nearest well core (positive inside = solid).
+double _coreField(LevelSpec spec, double x, double y) {
+  var best = double.negativeInfinity;
+  for (final f in spec.fields) {
+    if (f is! GravityWellSpec) continue;
+    final d = math.sqrt((x - f.center.x) * (x - f.center.x) + (y - f.center.y) * (y - f.center.y));
+    best = math.max(best, f.coreRadius - d);
+  }
+  return best;
+}
+
+/// The cave's sampled field with well cores unioned in as solid rock.
+Float32List _fieldWithCores(BuiltCave cave, LevelSpec spec) {
+  if (!spec.fields.any((f) => f is GravityWellSpec)) return cave.field;
+  final out = Float32List.fromList(cave.field);
+  final stride = cave.nx + 1;
+  for (int j = 0; j <= cave.ny; j++) {
+    for (int i = 0; i <= cave.nx; i++) {
+      final c = _coreField(spec, i * cave.cell, j * cave.cell);
+      if (c > out[j * stride + i]) out[j * stride + i] = c;
+    }
+  }
+  return out;
+}

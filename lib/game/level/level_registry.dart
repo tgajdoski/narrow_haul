@@ -7,6 +7,7 @@ import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
+import 'package:narrow_haul/game/level/specs/world_orbit.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -69,6 +70,15 @@ abstract final class LevelRegistry {
       rewardPerStar: 20,
       levels: lavaLevels,
       defaultShipId: lavaShipId,
+    ),
+    WorldDef(
+      id: 'orbit',
+      name: 'Outer Ring',
+      themeId: 'orbit',
+      starsRequired: 80,
+      rewardPerStar: 25,
+      levels: orbitLevels,
+      defaultShipId: orbitShipId,
     ),
   ];
 
@@ -148,5 +158,6 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
     modifiers: spec.modifiers,
     obstacles: spec.obstacles,
     fields: spec.fields,
+    cargoClamped: spec.cargoClamped,
   );
 }

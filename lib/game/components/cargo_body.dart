@@ -7,7 +7,11 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 class CargoBody extends BodyComponent {
-  CargoBody({required Vector2 initialPosition, this.densityMul = 1.0})
+  CargoBody({
+    required Vector2 initialPosition,
+    this.densityMul = 1.0,
+    this.clamped = false,
+  })
     : _initialPosition = initialPosition,
       super(
         paint: Paint()..color = const Color(0xFFE07A5F),
@@ -17,6 +21,17 @@ class CargoBody extends BodyComponent {
 
   /// Heavy-cargo level modifier (multiplies the base density of 2.0).
   final double densityMul;
+
+  /// Cargo lock: held in place (kinematic) until hooked, so zero-g or a
+  /// nearby well can't carry it off before the pilot arrives.
+  final bool clamped;
+
+  /// Frees a clamped pod to the physics world (called on attach).
+  void release() {
+    if (body.bodyType == BodyType.dynamic) return;
+    body.setType(BodyType.dynamic);
+    body.setAwake(true);
+  }
 
   /// Smaller than ship hull (~33% reduced from prior 0.14 m).
   static const double radius = kCargoRadius;
@@ -53,7 +68,7 @@ class CargoBody extends BodyComponent {
   Body createBody() {
     final def = BodyDef()
       ..position = _initialPosition
-      ..type = BodyType.dynamic
+      ..type = clamped ? BodyType.kinematic : BodyType.dynamic
       ..angularDamping = 0.6
       ..linearDamping = 0.05;
     final body = world.createBody(def);

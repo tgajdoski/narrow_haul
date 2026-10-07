@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
+import 'package:narrow_haul/game/level/specs/world_orbit.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main(List<String> args) {
@@ -17,6 +18,7 @@ void main(List<String> args) {
       (mineLevels, mineShipId),
       (iceLevels, iceShipId),
       (lavaLevels, lavaShipId),
+      (orbitLevels, orbitShipId),
     ])
       for (final def in levels.whereType<CaveLevelDef>()) (def, def.shipId ?? shipId),
   ];

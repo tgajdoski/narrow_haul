@@ -133,11 +133,56 @@ void main() {
       expect(issues.any((i) => i.startsWith('FIELD: cargo')), isTrue, reason: '$issues');
     });
 
-    test('zero-g at the goal is rejected', () {
+    test('sideways pull at the goal is rejected', () {
       final issues = validateCaveSpec(course(const [
-        GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 0, gy: 0),
+        GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 1, gy: 0),
       ]));
       expect(issues.any((i) => i.startsWith('FIELD: goal')), isTrue, reason: '$issues');
+    });
+
+    test('zero-g at the goal is fine — you drift in', () {
+      expect(
+        validateCaveSpec(course(const [
+          GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 0, gy: 0),
+        ])),
+        isEmpty,
+      );
+    });
+
+    test('well core too close to the cargo is rejected', () {
+      final issues = validateCaveSpec(course(const [
+        GravityWellSpec(Pt(18.8, 13), strength: 1, coreRadius: 0.6),
+      ]));
+      expect(issues.any((i) => i.startsWith('WELL')), isTrue, reason: '$issues');
+    });
+
+    test('well pulling on free cargo needs the cargo lock', () {
+      LevelSpec withWell({required bool clamped}) => LevelSpec(
+            id: 'test_well',
+            seed: 1,
+            name: 'Test',
+            themeId: 'ice',
+            worldW: 34,
+            worldH: 20,
+            tunnels: const [
+              TunnelSpec([Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)], width: 2.0),
+              TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
+            ],
+            chambers: const [
+              ChamberSpec(Pt(5, 9), 2.4),
+              ChamberSpec(Pt(17, 13), 1.8),
+              ChamberSpec(Pt(29, 9), 2.4),
+            ],
+            fields: const [GravityWellSpec(Pt(21, 13), strength: 20, coreRadius: 0.8)],
+            cargoClamped: clamped,
+            shipSpawn: const Pt(5, 9),
+            cargoSpawn: const Pt(17, 13),
+            goal: const GoalSpec(Pt(29, 10.2)),
+          );
+      final free = validateCaveSpec(withWell(clamped: false));
+      expect(free.any((i) => i.startsWith('FIELD: cargo')), isTrue, reason: '$free');
+      final locked = validateCaveSpec(withWell(clamped: true));
+      expect(locked.where((i) => i.startsWith('FIELD: cargo')), isEmpty, reason: '$locked');
     });
   });
 }

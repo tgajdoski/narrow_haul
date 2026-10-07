@@ -120,6 +120,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     if (attached || _attaching) return;
     _attaching = true;
     try {
+      cargo.release(); // a locked pod comes free once hooked
       final coupling = RopePhysicsCoupling(
         ship: ship,
         cargo: cargo,

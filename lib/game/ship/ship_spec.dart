@@ -143,11 +143,28 @@ const kSkate = ShipSpec(
   blurb: 'Stabilised. Rights itself when you let go.',
 );
 
+/// Modern fly-by-wire hauler for zero-g and gravity wells: while the engine
+/// burns, its computer cancels most of the local pull, so the ship goes where
+/// it points. Lighter engine to compensate.
+const kVector = ShipSpec(
+  id: 'vector',
+  name: 'Vector',
+  sprite: 'ship_vector.png',
+  thrustForce: 4.4,
+  secondsPerFullRotation: 3.6,
+  maxFuel: 110,
+  linearDamping: 0.35,
+  hoverAssist: true,
+  tint: 0x66C8A8FF,
+  blurb: 'Fly-by-wire. Cancels gravity while thrusting.',
+);
+
 const Map<String, ShipSpec> kShips = {
   'kestrel': kKestrel,
   'hopper': kHopper,
   'mule': kMule,
   'skate': kSkate,
+  'vector': kVector,
 };
 
 ShipSpec shipById(String? id) => kShips[id] ?? kKestrel;

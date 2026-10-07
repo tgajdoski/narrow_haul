@@ -140,10 +140,29 @@ const lavaTheme = ThemeSpec(
   ambient: AmbientKind.embers,
 );
 
+const orbitTheme = ThemeSpec(
+  id: 'orbit',
+  name: 'Outer Ring',
+  backdropColor: Color(0xFF05060F),
+  rockFill: Color(0xFF2A2F45),
+  rockEdge: Color(0xFF0E1020),
+  rockHighlight: Color(0x4499B4FF),
+  parallaxTint: Color(0xFF8C9EFF),
+  parallaxAlphas: [0.30, 0.50, 0.75],
+  padBase: Color(0xFF34395A),
+  padAccent: Color(0xFF80DEEA),
+  uiAccent: Color(0xFF8C9EFF),
+  decorTip: Color(0xFF80DEEA),
+  edgeGlow: Color(0x5580DEEA),
+  ambient: AmbientKind.dust,
+  decorDensity: 0.8,
+);
+
 const Map<String, ThemeSpec> gameThemes = {
   'tutorial': tutorialTheme,
   'alien': alienTheme,
   'mine': mineTheme,
   'ice': iceTheme,
   'lava': lavaTheme,
+  'orbit': orbitTheme,
 };
