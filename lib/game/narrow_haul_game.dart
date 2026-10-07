@@ -1517,7 +1517,16 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0) {
       return 'Tap FIRE to knock out turrets — each shot costs fuel';
     }
-    if (!_tutorialHints) return null;
+    final pickupHint = _pickupHint();
+    if (!_tutorialHints) {
+      // First seconds of a flight: what the unfamiliar ship does, then the
+      // canisters (until the pilot has collected one, ever).
+      final shipHint = _shipHint();
+      final t = elapsedSeconds;
+      if (shipHint != null && t < 7) return shipHint;
+      if (pickupHint != null && t < (shipHint != null ? 14 : 7)) return pickupHint;
+      return null;
+    }
     final attached = cargoAttachment?.attached == true;
     final steerSide = _hudControls?.leftHanded == true ? 'right' : 'left';
     final thrustSide = _hudControls?.leftHanded == true ? 'left' : 'right';
@@ -1528,9 +1537,29 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       return 'Drag on the $steerSide side to rotate the ship';
     }
     if (!attached) {
-      return 'Fly close to the cargo — the rope hooks on by itself';
+      return pickupHint != null
+          ? 'Fly close to the cargo to hook it — fuel canisters top up your tank'
+          : 'Fly close to the cargo — the rope hooks on by itself';
     }
     return 'Bring ship and cargo down onto the green pad';
+  }
+
+  /// Flying a ship before its type rating is earned (its rating level, or a
+  /// Test Flight daily): one line on how it handles.
+  String? _shipHint() {
+    final spec = ship?.spec;
+    if (spec == null || demoMode || spec.id == kKestrel.id) return null;
+    if (LevelRegistry.hasTypeRating(spec.id)) return null;
+    return '${spec.name}: ${spec.blurb}';
+  }
+
+  /// Until the first canister ever is collected, on levels that have one.
+  String? _pickupHint() {
+    if (demoMode || (currentLevel?.pickups.isEmpty ?? true)) return null;
+    if (ProgressService.instance.getStat(ProgressService.statFuelCells) > 0) {
+      return null;
+    }
+    return 'Fly through a fuel canister to top up your tank';
   }
 
   // ── Pause & settings ──────────────────────────────────────────────────────

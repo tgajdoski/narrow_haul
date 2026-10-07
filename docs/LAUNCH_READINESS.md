@@ -35,7 +35,7 @@ What's left:
 | B2 ✅ | iOS | **Done:** `UIRequiresFullScreen = true` added; confirm on the first TestFlight upload. Was: iPad allows landscape only and `UIRequiresFullScreen` isn't set. The upload may be rejected (ITMS-90474), or the iPad window becomes freely resizable. Add `UIRequiresFullScreen = true` and confirm with a TestFlight upload. | `ios/Runner/Info.plist:65-69` |
 | B3 ✅ | Gameplay | **Done:** the daily now picks only unlocked levels (`test/daily_challenge_test.dart`). Was: the Daily Challenge picks from **all** 60 levels (`rng.nextInt(totalLevels)`), so a day-one player can get a Redoubt turret level or a zero-g Orbit level. Limit it to unlocked levels. | `lib/game/services/daily_challenge.dart:48` |
 | B4 ✅ | Listing | **Done:** "Seven worlds" / "7 WORLDS" and an accurate ads line. Was: the listing says "Six worlds" / "60 HAND-BUILT LEVELS IN 6 WORLDS" but lists 7, and the game has 7. "light, optional ads" isn't true for interstitials. | `art_src/store/listing_en.md:21,32,50` |
-| B5 | Naming | "Talon" is still a placeholder (memory note), but it appears in the listing and in "Talon Type Rating". Pick the final name before the listing goes live, researching a real-world term as was done for the ranks. | `ship_spec.dart`, `listing_en.md:42` |
+| B5 ✅ | Naming | **Kept:** "Talon" is a real aircraft name (T-38 Talon), like Kestrel. Was: "Talon" is still a placeholder (memory note), but it appears in the listing and in "Talon Type Rating". Pick the final name before the listing goes live, researching a real-world term as was done for the ranks. | `ship_spec.dart`, `listing_en.md:42` |
 | B6 | Playtest | Ships, gravity/fields, defences and the route guide have **never been played by a human**. A release-build pass is mandatory (see §5). | — |
 | B7 ✅ (code) | Ads / COPPA | **Done in code:** `maxAdContentRating: pg`. Still to do in the consoles: audience 13+ and a matching age rating. Was: there's no `RequestConfiguration` and no `maxAdContentRating` anywhere in `lib/`. Set the Play target audience to 13+ and match the iOS age rating. If any under-13 audience is selected, child-directed ad settings become mandatory. | `monetization_service.dart:244,307` |
 
@@ -79,8 +79,8 @@ What's left:
 - [ ] **Profile on a cheap Android phone.**
 
 ### Game design
-- [ ] **Explain new ship behaviour in flight.** Skate self-levelling and Vector hover assist are only described in the Logbook. Also teach the star rules up front.
-- [ ] **No hint explains fuel canisters**, which appear from tut_01. Pickups also reuse `attach.mp3`.
+- [x] **Done:** a hint banner explains each unfamiliar ship until its type rating is earned. Still open: teach the star rules up front. Was: Skate self-levelling and Vector hover assist are only described in the Logbook. Also teach the star rules up front.
+- [x] **Done:** a canister hint shows until the first canister is collected (tutorial: folded into the hook step). Was: no hint explained fuel canisters, which appear from tut_01. Pickups also reuse `attach.mp3`.
 - [ ] **"Perfect Pilot" needs 3★ on redoubt_02 and redoubt_04**, which the bot can't fly. Confirm it's humanly possible during the playtest.
 - [ ] **"Fuel Miser" (≥ 90% fuel left) is nearly impossible on normal days.** The bot's lightest run burns 13% (×1.3 ≈ 17% for a player), so it probably needs the "Fuel Rich" daily. That's acceptable, but make sure it's intended. The "≥ 80% fuel" contract is in the same territory.
 - [ ] **Coins have nothing to buy after about the Ice world.** The shop has 8 items for 1,180 coins total, and players earn ≥ 2,750 from first stars. Add more items or other coin sinks.
@@ -156,7 +156,7 @@ Use a **release or profile build**: debug builds run at 0.7× gravity. Alternati
 2. ~~Phone UX: safe areas, back button, text scale. Then licenses, privacy/support links and Reset progress.~~ Done.
 3. ~~Error handling.~~ Done. Crash-reporting service: waiting on your choice.
 4. Human playtest and tuning (§5). Re-export the routes of any edited level (`LEVELS=<id> EXPORT_ROUTES=true`).
-5. Final Talon name.
+5. ~~Final Talon name.~~ Kept "Talon".
 6. TestFlight and Play closed testing.
 7. Video, IAP screenshots and store declarations.
 8. Submit.
