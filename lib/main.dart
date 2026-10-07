@@ -1,10 +1,14 @@
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:narrow_haul/firebase_options.dart';
 import 'package:narrow_haul/game/components/rank_insignia.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
@@ -27,6 +31,7 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorReporter.install();
+  await _initCrashReporting();
   // The bundled title font's licence, shown in Settings → Licenses.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(
@@ -51,6 +56,28 @@ void main() async {
   runApp(_NarrowHaulApp(game: game));
   // After runApp: the UMP consent form needs a live UI. Never blocks play.
   MonetizationService.instance.init();
+}
+
+/// Firebase Crashlytics (Android / iOS only): native crashes are captured by
+/// the SDK, Dart errors arrive through [ErrorReporter.sink]. Collection is off
+/// in debug builds so development runs don't fill the dashboard.
+Future<void> _initCrashReporting() async {
+  if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    final crashlytics = FirebaseCrashlytics.instance;
+    await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+    ErrorReporter.sink = (error, stack, context) => crashlytics.recordError(
+      error,
+      stack,
+      reason: context,
+      fatal: context == 'uncaught',
+    );
+  } catch (e, st) {
+    ErrorReporter.report(e, st, context: 'crash reporting init');
+  }
 }
 
 /// Dark theme; display/headline/title styles use the bundled RussoOne face

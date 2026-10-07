@@ -51,7 +51,7 @@ What's left:
 - [ ] **Android 16 large screens.** targetSdk 36 ignores `sensorLandscape` on screens ≥ 600 dp. Test on tablets and foldables, or add the `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out.
 
 ### Stability and observability
-- [x] **Done:** global error handlers. `ErrorReporter.install()` routes `FlutterError.onError` and `PlatformDispatcher.onError` to `ErrorReporter.report`. Still open: **a crash-reporting service** to plug into `ErrorReporter.sink`. Was: no global error handlers and no crash reporting. Add Crashlytics or Sentry; otherwise Dart errors in release builds are invisible. Update the privacy page and Data safety form to match.
+- [x] **Done:** global error handlers. `ErrorReporter.install()` routes `FlutterError.onError` and `PlatformDispatcher.onError` to `ErrorReporter.report`. **Crashlytics is wired up:** Firebase project `narrow-haul`, `lib/firebase_options.dart`, Android/iOS only, collection off in debug builds. It plugs into `ErrorReporter.sink`, and the privacy policy has a new section 5 (the website must be redeployed). Was: no global error handlers and no crash reporting. Add Crashlytics or Sentry; otherwise Dart errors in release builds are invisible. Update the privacy page and Data safety form to match.
 - [x] **Done:** the save migrations are guarded and a failure gets reported. Was: `main()` awaited `ProgressService.init()` and `CareerService.migrateIfNeeded()` without try/catch (`lib/main.dart:29-30`). A corrupt prefs file hangs the splash screen.
 - [x] **Done:** a level that fails to load is reported and drops back to the menu.
 - [x] **Done:** prefs reads are type-safe; stars are clamped to 0–3, coins and XP to ≥ 0. (A `save_version` int is optional until a migration needs it.) Was: saves weren't type-safe on read. Clamp stars to 0–3 and keep currency and XP ≥ 0. Add an integer `save_version` instead of one-off flags.
@@ -92,15 +92,18 @@ What's left:
 - [ ] App Preview video: record on the iPhone in release mode, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`).
 - [ ] IAP review screenshots for both products, taken with a sandbox account. Submit the IAPs together with 1.0.
 - [ ] App Privacy questionnaire (AdMob: identifiers, usage, diagnostics, third-party ads, tracking), age rating and copyright.
+  - Add Crashlytics: **Diagnostics → Crash data** (+ Other diagnostic data). Purpose: App functionality. Not linked to the user's identity, not used for tracking.
 
 **Play Console**
 - [ ] App content: Ads = yes, Data safety, Advertising ID, IARC rating, target audience 13+ (see B7).
+  - Data safety, for Crashlytics: **App info and performance → Crash logs + Diagnostics**: collected, not shared (Google is a service provider), purpose App functionality / Analytics, encrypted in transit.
 - [ ] Upload a new AAB with the build number bumped (currently `1.0.0+2`). It now includes the canisters and the route guide.
 - [ ] YouTube promo video URL.
 - [ ] Closed testing: personal developer accounts created after Nov 2023 need 12 testers for 14 days before production. Check whether this applies.
 
 **After publishing**
 - [ ] Link each store listing in AdMob → App settings. Real ads only serve after that.
+- [ ] Redeploy the website (`website/deploy.sh`) so the privacy policy includes Crashlytics. Do this before submitting.
 - [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`. Without them, a zafrk deploy deletes the privacy and support pages the stores link to.
 
 ## 4. Nice to have / post-launch

@@ -90,6 +90,7 @@ Three collaborating files:
 | `AudioService` | Wraps `flame_audio`. Silent fallback if audio files are missing. Audio files go in `assets/audio/`. |
 | `CosmeticsService` | Categories: `catShip`, `catRope`, `catPlume`. `isUnlocked`, `equip`, `unlock` (costs cosmetic currency). |
 | `DailyChallengeService` | `DailyChallengeConfig.forToday(totalLevels, shipOptions:)` — deterministic gravity/fuel modifiers from date, or a "Test Flight" day flying another ship (`shipId`). Candidates come from `LevelRegistry.testFlightOptions`: smaller-or-equal hull, and on cave levels each must pass the full validator (TMX: ≥ 90% of the native ship's `deltaV`); none → standard run. |
+| `ErrorReporter` | `install()` in `main()` routes `FlutterError.onError` / `PlatformDispatcher.onError` here; `report(e, st, context:)` for caught-but-unexpected errors. `sink` forwards to Firebase Crashlytics (project `narrow-haul`, `lib/firebase_options.dart` from `flutterfire configure`; Android/iOS only, collection off in debug). Firebase needs iOS ≥ 15.0. |
 | `MonetizationService` | AdMob (`google_mobile_ads`, UMP consent) + `in_app_purchase`. Fail-safe wrapper; see Monetization below. |
 
 ### Monetization

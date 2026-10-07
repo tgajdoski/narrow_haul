@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224961403512",
+    "project_id": "narrow-haul",
+    "storage_bucket": "narrow-haul.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224961403512:android:a26a1910569ab77121eb8d",
+        "android_client_info": {
+          "package_name": "com.zafrk.narrowhaul"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2bufCJCdlkfy41ayIkxgQmLBuaejEWW8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
