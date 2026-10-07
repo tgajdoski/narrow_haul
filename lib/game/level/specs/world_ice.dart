@@ -161,6 +161,9 @@ final List<LevelDef> iceLevels = [
         // Cold air pours down the flue in slow surges.
         WindZoneSpec(Pt(7.5, 18), halfW: 2.5, halfH: 4.5, ax: 0, ay: 0.3, gustAmp: 0.4, gustPeriod: 5),
       ],
+      pickups: [
+        FuelCellSpec(Pt(6.4, 16.5), amount: 15),
+      ],
       shipSpawn: Pt(7, 28),
       cargoSpawn: Pt(14, 15.2),
       goal: GoalSpec(Pt(24, 13.2)),
@@ -190,6 +193,10 @@ final List<LevelDef> iceLevels = [
       ],
       obstacles: [
         SlidingBlockSpec(Pt(22, 8), Pt(22, 17), halfW: 0.55, halfH: 0.6, periodSec: 3.4),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(18.4, 13.7), amount: 35),
+        FuelCellSpec(Pt(21.4, 12.9), amount: 5),
       ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(12, 17),
@@ -256,6 +263,9 @@ final List<LevelDef> iceLevels = [
         // Blizzard: a gusting headwind across the whole zigzag.
         WindZoneSpec(Pt(22.5, 13.5), halfW: 13.5, halfH: 6.5, ax: -0.3, ay: 0, gustAmp: 0.6, gustPeriod: 3.5),
       ],
+      pickups: [
+        FuelCellSpec(Pt(24.6, 18.8), amount: 30),
+      ],
       shipSpawn: Pt(5, 14),
       cargoSpawn: Pt(25, 22.5),
       goal: GoalSpec(Pt(40, 15.2)),
@@ -298,6 +308,11 @@ final List<LevelDef> iceLevels = [
       fields: [
         // Gusty updraft through the narrow neck before the crusher.
         WindZoneSpec(Pt(31, 14.5), halfW: 4, halfH: 3.5, ax: 0, ay: -0.3, gustAmp: 0.5, gustPeriod: 3),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(17.3, 21.5), amount: 30),
+        FuelCellSpec(Pt(14.9, 17.8), amount: 10),
+        FuelCellSpec(Pt(18.6, 18.7), amount: 15),
       ],
       shipSpawn: Pt(5, 16),
       cargoSpawn: Pt(17, 24),

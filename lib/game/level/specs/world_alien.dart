@@ -56,6 +56,9 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(17, 15), 1.8),
         ChamberSpec(Pt(29, 11), 2.4),
       ],
+      pickups: [
+        FuelCellSpec(Pt(18.8, 13), amount: 10),
+      ],
       shipSpawn: Pt(5, 11),
       cargoSpawn: Pt(17, 15),
       goal: GoalSpec(Pt(29, 12.2)),
@@ -82,6 +85,10 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(5, 12), 2.4),
         ChamberSpec(Pt(18, 17.5), 1.7),
         ChamberSpec(Pt(31, 12), 2.4),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(15.8, 16.2), amount: 15),
+        FuelCellSpec(Pt(22.8, 13), amount: 15),
       ],
       shipSpawn: Pt(5, 12),
       cargoSpawn: Pt(18, 17.5),
@@ -113,6 +120,9 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(26, 13), 2.8),
         ChamberSpec(Pt(32, 12), 2.4),
       ],
+      pickups: [
+        FuelCellSpec(Pt(13.4, 10.7), amount: 5),
+      ],
       shipSpawn: Pt(5, 12),
       cargoSpawn: Pt(26, 13.5),
       goal: GoalSpec(Pt(32, 13.2)),
@@ -140,6 +150,10 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(21, 16), 1.7),
         ChamberSpec(Pt(15, 29), 2.4),
       ],
+      pickups: [
+        FuelCellSpec(Pt(18.3, 16.1), amount: 15),
+        FuelCellSpec(Pt(15.4, 16.8), amount: 5),
+      ],
       shipSpawn: Pt(15, 5),
       cargoSpawn: Pt(21, 16),
       goal: GoalSpec(Pt(15, 30.2)),
@@ -166,6 +180,9 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(5, 13), 2.4),
         ChamberSpec(Pt(19, 5), 1.7),
         ChamberSpec(Pt(34, 13), 2.4),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(17, 6.6), amount: 10),
       ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(19, 5),
@@ -198,6 +215,9 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(20, 22), 1.8),
         ChamberSpec(Pt(34, 14), 2.4),
       ],
+      pickups: [
+        FuelCellSpec(Pt(22.4, 21.2), amount: 10),
+      ],
       shipSpawn: Pt(6, 14),
       cargoSpawn: Pt(20, 22.4),
       goal: GoalSpec(Pt(34, 15.2)),
@@ -228,6 +248,10 @@ final List<LevelDef> alienLevels = [
       fields: [
         // Zero-g pocket across the top: momentum carries you.
         GravityZoneSpec(Pt(14, 6.5), halfW: 4, halfH: 2.5, gx: 0, gy: 0, feather: 1.2),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(10, 7.1), amount: 15),
+        FuelCellSpec(Pt(21.4, 15.4), amount: 15),
       ],
       shipSpawn: Pt(6, 26),
       cargoSpawn: Pt(24, 15.4),
@@ -265,6 +289,9 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(24, 16), 2.2),
         ChamberSpec(Pt(34, 10), 2.4),
         ChamberSpec(Pt(41, 18), 2.4),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(16.2, 14.6), amount: 10),
       ],
       shipSpawn: Pt(5, 15),
       cargoSpawn: Pt(24, 16.6),

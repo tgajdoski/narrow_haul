@@ -2,11 +2,15 @@ import 'dart:math';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:forge2d/forge2d.dart';
+import 'package:narrow_haul/game/level/cave/geom.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:tiled/tiled.dart';
 
-/// Loads [LevelData] from a Tiled `.tmx` with `walls`, `markers` (ship, goal, cargo_zone).
+/// Loads [LevelData] from a Tiled `.tmx` with `walls`, `markers` (ship, goal,
+/// cargo_zone, and optional `fuel` canisters — float property `amount`,
+/// default 25 units).
 /// Cargo position is randomized inside `cargo_zone` each load.
 Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) async {
   final xml = await rootBundle.loadString(assetPath);
@@ -14,6 +18,7 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
 
   const ppm = pixelsPerMeter;
   final walls = <WallRect>[];
+  final pickups = <PickupSpec>[];
   Vector2? ship;
   double? goalX;
   double? goalY;
@@ -52,6 +57,9 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
           goalY = (obj.y + obj.height / 2) / ppm;
           goalW = obj.width / 2 / ppm;
           goalH = obj.height / 2 / ppm;
+        } else if (name == 'fuel') {
+          final amount = obj.properties.getValue<double>('amount') ?? 25;
+          pickups.add(FuelCellSpec(Pt(cx, cy), amount: amount));
         } else if (name == 'cargo_zone' && obj.width > 0 && obj.height > 0) {
           czLeft = obj.x / ppm;
           czTop = obj.y / ppm;
@@ -108,5 +116,6 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
     ropeMaxLength: ropeMaxLength,
     cargoZoneCenter: cargoZoneCenter,
     cargoZoneSize: cargoZoneSize,
+    pickups: pickups,
   );
 }

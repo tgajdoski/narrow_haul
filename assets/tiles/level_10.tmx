@@ -4,7 +4,7 @@
   L-shaped diagonal vertical traversal. Combines horizontal movement with steep descents.
   The player must manage momentum carefully when dropping down.
 -->
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="11">
  <objectgroup id="1" name="walls">
   <object id="1" x="0" y="0" width="960" height="32"/>
   <object id="2" x="0" y="928" width="960" height="32"/>
@@ -18,5 +18,11 @@
   <object id="7" name="ship" x="96" y="96" width="64" height="64"/>
   <object id="8" name="cargo_zone" x="200" y="96" width="200" height="128"/>
   <object id="9" name="goal" x="700" y="750" width="200" height="128"/>
+  <object id="10" name="fuel" x="362" y="426">
+   <properties>
+    <property name="amount" type="float" value="10"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
 </map>

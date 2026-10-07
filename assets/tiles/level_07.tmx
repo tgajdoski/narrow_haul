@@ -4,7 +4,7 @@
   Two offsetting obstacles create an S-curve that requires precise wall-hugging first low, then high.
   Managing the tow rope through the S-curve without snagging either corner is the main test here.
 -->
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="12">
  <objectgroup id="1" name="walls">
   <object id="1" x="0" y="0" width="1280" height="32"/>
   <object id="2" x="0" y="608" width="1280" height="32"/>
@@ -18,5 +18,17 @@
   <object id="7" name="ship" x="96" y="288" width="64" height="64"/>
   <object id="8" name="cargo_zone" x="160" y="256" width="200" height="128"/>
   <object id="9" name="goal" x="1000" y="256" width="200" height="128"/>
+  <object id="10" name="fuel" x="294" y="499">
+   <properties>
+    <property name="amount" type="float" value="15"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="11" name="fuel" x="496" y="474">
+   <properties>
+    <property name="amount" type="float" value="5"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
 </map>

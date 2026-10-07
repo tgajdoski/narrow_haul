@@ -5,7 +5,7 @@
   Because the cargo and goal are located high up, the player must manage the vertical ascent carefully on the other side.
   The 6m rope slack makes the cargo prone to snagging on the bottom-right corner of the obstacle during the climb, requiring the player to take a wide, wall-hugging path along the floor and right wall.
 -->
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="9">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
  <objectgroup id="1" name="walls">
   <!-- Ceiling -->
   <object id="1" x="0" y="0" width="1280" height="32"/>
@@ -27,5 +27,11 @@
   <object id="7" name="cargo_zone" x="192" y="128" width="256" height="128"/>
   <!-- Goal landing pad -->
   <object id="8" name="goal" x="960" y="128" width="256" height="128"/>
+  <object id="9" name="fuel" x="618" y="531">
+   <properties>
+    <property name="amount" type="float" value="20"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
 </map>

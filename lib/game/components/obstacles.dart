@@ -1,10 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/combat.dart';
 import 'package:narrow_haul/game/components/defences.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/cave/obstacle_paths.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -67,13 +66,12 @@ class Pendulum extends BodyComponent {
   final ThemeSpec theme;
   double _t = 0;
 
+  /// Seconds since spawn (the path's clock).
+  double get time => _t;
+
   Vector2 _bobAt(double t) {
-    final theta =
-        spec.amplitudeRad * math.cos(2 * math.pi * t / spec.periodSec + spec.phase);
-    return Vector2(
-      spec.pivot.x + spec.length * math.sin(theta),
-      spec.pivot.y + spec.length * math.cos(theta),
-    );
+    final p = pendulumBobAt(spec, t);
+    return Vector2(p.x, p.y);
   }
 
   @override
@@ -138,12 +136,12 @@ class SlidingBlock extends BodyComponent {
   final ThemeSpec theme;
   double _t = 0;
 
+  /// Seconds since spawn (the path's clock).
+  double get time => _t;
+
   Vector2 _posAt(double t) {
-    final s = 0.5 - 0.5 * math.cos(2 * math.pi * (t / spec.periodSec + spec.phase));
-    return Vector2(
-      spec.from.x + (spec.to.x - spec.from.x) * s,
-      spec.from.y + (spec.to.y - spec.from.y) * s,
-    );
+    final p = slidingBlockAt(spec, t);
+    return Vector2(p.x, p.y);
   }
 
   @override

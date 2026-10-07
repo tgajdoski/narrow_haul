@@ -4,7 +4,7 @@
   Introduces vertical traversal. A tall level where the player must descend through zig-zagging platforms.
   Gravity will cause the player to build up speed, requiring constant thrusting to slow down, bleeding fuel.
 -->
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="20" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="20" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="11">
  <objectgroup id="1" name="walls">
   <object id="1" x="0" y="0" width="640" height="32"/>
   <object id="2" x="0" y="1248" width="640" height="32"/>
@@ -19,5 +19,11 @@
   <object id="7" name="ship" x="96" y="96" width="64" height="64"/>
   <object id="8" name="cargo_zone" x="200" y="96" width="200" height="128"/>
   <object id="9" name="goal" x="200" y="1088" width="240" height="160"/>
+  <object id="10" name="fuel" x="480" y="371">
+   <properties>
+    <property name="amount" type="float" value="15"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
 </map>

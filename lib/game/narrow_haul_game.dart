@@ -115,6 +115,11 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   bool thrustHeld = false;
   bool fireHeld = false;
 
+  /// Test-only: load levels without obstacles and defences, to measure the
+  /// pure flight cost of a route (autopilot "clean run").
+  @visibleForTesting
+  bool debugSkipHazards = false;
+
   // ── Combat (turrets, reactor, fuel cells) ────────────────────────────────
   CombatStatusHud? _combatHud;
 
@@ -450,7 +455,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       _levelEntities.add(core);
     }
 
-    for (final spec in data.obstacles) {
+    for (final spec in debugSkipHazards ? const <ObstacleSpec>[] : data.obstacles) {
       final obstacle = obstacleFromSpec(spec, theme, this);
       await world.add(obstacle);
       _levelEntities.add(obstacle);
@@ -773,6 +778,14 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     final stars = _calculateStars(fuelLeft, elapsed);
     lastLevelStars = stars;
     lastLevelTimeSeconds = elapsed;
+    // Calibration line for the autopilot report (test/autopilot): a real
+    // pilot's fuel/time next to the bot's.
+    if (kDebugMode) {
+      debugPrint('RUN ${currentLevelDef.saveId} ship=${ship?.spec.id} '
+          'fuelLeft=${(lastLevelFuelFraction * 100).toStringAsFixed(1)}% '
+          'time=${elapsed.toStringAsFixed(1)}s stars=$stars'
+          '${continuedThisRun ? ' (continued)' : ''}');
+    }
 
     final progress = ProgressService.instance;
     final xpBefore = progress.getXp();

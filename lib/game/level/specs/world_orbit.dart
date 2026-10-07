@@ -54,6 +54,9 @@ final List<LevelDef> orbitLevels = [
         ChamberSpec(Pt(18, 16.5), 1.7),
         ChamberSpec(Pt(31, 11), 2.4),
       ],
+      pickups: [
+        FuelCellSpec(Pt(18.7, 14), amount: 10),
+      ],
       shipSpawn: Pt(5, 11),
       cargoSpawn: Pt(18, 16.5),
       goal: GoalSpec(Pt(31, 12.2)),

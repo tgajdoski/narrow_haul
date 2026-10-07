@@ -5,7 +5,7 @@
   The player must learn to wall-hug the narrow 128px corridors either above or below the pillar. 
   Managing the 6m rope slack without snagging the cargo on the obstacle's corners is the main difficulty here. 
 -->
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="9">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="40" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="10">
  <objectgroup id="1" name="walls">
   <!-- Ceiling -->
   <object id="1" x="0" y="0" width="1280" height="32"/>
@@ -27,5 +27,11 @@
   <object id="7" name="cargo_zone" x="200" y="256" width="200" height="128"/>
   <!-- Goal landing pad -->
   <object id="8" name="goal" x="960" y="256" width="200" height="128"/>
+  <object id="9" name="fuel" x="326" y="557">
+   <properties>
+    <property name="amount" type="float" value="15"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
 </map>

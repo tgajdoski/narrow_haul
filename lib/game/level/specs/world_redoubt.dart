@@ -66,6 +66,9 @@ final List<LevelDef> redoubtLevels = [
         TurretSpec(Pt(17, 9.3), facing: kFaceDown, range: 8),
         TurretSpec(Pt(25, 9.0), facing: kFaceDown, range: 8, phase: 1.1),
       ],
+      pickups: [
+        FuelCellSpec(Pt(17.2, 12), amount: 35),
+      ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(21, 18.4),
       goal: GoalSpec(Pt(36, 10.2)),
@@ -104,6 +107,8 @@ final List<LevelDef> redoubtLevels = [
       pickups: [
         FuelCellSpec(Pt(19, 5.5)),
         FuelCellSpec(Pt(33, 16.5)),
+        FuelCellSpec(Pt(26.3, 16.8), amount: 30),
+        FuelCellSpec(Pt(30.8, 12.1), amount: 30),
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(26, 19.4),
@@ -140,6 +145,10 @@ final List<LevelDef> redoubtLevels = [
       ],
       pickups: [
         FuelCellSpec(Pt(18, 13.5)),
+        FuelCellSpec(Pt(14.3, 11), amount: 20),
+        FuelCellSpec(Pt(12.6, 10.6), amount: 15),
+        FuelCellSpec(Pt(22.9, 19.8), amount: 10),
+        FuelCellSpec(Pt(23, 16.8), amount: 5),
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(22.5, 22.4),
@@ -176,6 +185,9 @@ final List<LevelDef> redoubtLevels = [
       ],
       pickups: [
         FuelCellSpec(Pt(21, 12)),
+        FuelCellSpec(Pt(21.5, 20.3), amount: 15),
+        FuelCellSpec(Pt(23.1, 16.2), amount: 10),
+        FuelCellSpec(Pt(28.4, 25.4), amount: 10),
       ],
       shipSpawn: Pt(5, 8),
       cargoSpawn: Pt(28, 27.9),
@@ -214,6 +226,9 @@ final List<LevelDef> redoubtLevels = [
       ],
       pickups: [
         FuelCellSpec(Pt(36.5, 14.5)),
+        FuelCellSpec(Pt(24.6, 14.3), amount: 45),
+        FuelCellSpec(Pt(13.7, 11.4), amount: 10),
+        FuelCellSpec(Pt(25.5, 17.2), amount: 5),
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(26, 20.4),

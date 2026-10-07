@@ -185,6 +185,9 @@ final List<LevelDef> mineLevels = [
       obstacles: [
         SlidingBlockSpec(Pt(9.5, 17), Pt(14.5, 17), halfW: 0.6, halfH: 0.5, periodSec: 4.0),
       ],
+      pickups: [
+        FuelCellSpec(Pt(12.3, 17.7), amount: 15),
+      ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(12, 20.4),
       goal: GoalSpec(Pt(33, 14.2)),
@@ -252,6 +255,9 @@ final List<LevelDef> mineLevels = [
         PendulumSpec(Pt(17, 13.5), length: 2.4, amplitudeRad: 0.8, periodSec: 2.4),
         PendulumSpec(Pt(29, 13.5), length: 2.4, amplitudeRad: 0.8, periodSec: 2.4, phase: 1.57),
       ],
+      pickups: [
+        FuelCellSpec(Pt(15.5, 17.1), amount: 10),
+      ],
       shipSpawn: Pt(5, 15),
       cargoSpawn: Pt(26.5, 7),
       goal: GoalSpec(Pt(39, 16.2)),
@@ -289,6 +295,9 @@ final List<LevelDef> mineLevels = [
       obstacles: [
         RotatingBarSpec(Pt(23, 14), halfLength: 1.7, radPerSec: 1.0),
         SlidingBlockSpec(Pt(40, 10.5), Pt(40, 16.5), halfW: 0.55, halfH: 0.7, periodSec: 3.0),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(15.8, 18.9), amount: 10),
       ],
       shipSpawn: Pt(5, 15),
       cargoSpawn: Pt(12, 21.4),

@@ -236,6 +236,9 @@ final List<LevelDef> lavaLevels = [
         RotatingBarSpec(Pt(23, 13), halfLength: 1.6, radPerSec: 1.3),
         SlidingBlockSpec(Pt(39, 11.5), Pt(39, 18.5), halfW: 0.55, halfH: 0.7, periodSec: 3.0),
       ],
+      pickups: [
+        FuelCellSpec(Pt(13.2, 21.1), amount: 20),
+      ],
       shipSpawn: Pt(5, 15),
       cargoSpawn: Pt(11, 22.4),
       goal: GoalSpec(Pt(44, 17.2)),
@@ -277,6 +280,11 @@ final List<LevelDef> lavaLevels = [
         RotatingBarSpec(Pt(23, 13), halfLength: 1.6, radPerSec: 1.1),
         PendulumSpec(Pt(31, 19.8), length: 2.4, amplitudeRad: 0.85, periodSec: 2.5),
         SlidingBlockSpec(Pt(46, 12.5), Pt(46, 20.5), halfW: 0.55, halfH: 0.75, periodSec: 3.0),
+      ],
+      pickups: [
+        FuelCellSpec(Pt(17.4, 23.8), amount: 35),
+        FuelCellSpec(Pt(10.4, 13.1), amount: 10),
+        FuelCellSpec(Pt(18.9, 19.4), amount: 10),
       ],
       shipSpawn: Pt(5, 17),
       cargoSpawn: Pt(17, 26.4),

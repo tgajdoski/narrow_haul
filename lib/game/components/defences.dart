@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/combat/aim.dart';
 import 'package:narrow_haul/game/components/combat.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/cave/route_planner.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -29,7 +30,7 @@ class Turret extends BodyComponent implements Shootable {
   final CombatHost host;
   final math.Random _rng;
 
-  static const double domeRadius = 0.5;
+  static const double domeRadius = kTurretDomeRadius;
   static const double barrelLength = 0.6;
 
   /// Max barrel slew (rad/s) — fast pilots can outrun the aim.

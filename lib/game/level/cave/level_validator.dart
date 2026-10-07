@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/cave/route_planner.dart';
 import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
@@ -21,8 +22,8 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   final shipClear = -(ship.circumradius + 0.04);
 
   // Well cores are solid rock for every geometric check.
-  final field = _fieldWithCores(cave, spec);
-  double f(double x, double y) => math.max(cave.fieldAt(x, y), _coreField(spec, x, y));
+  final field = caveFieldWithCores(cave, spec);
+  double f(double x, double y) => math.max(cave.fieldAt(x, y), wellCoreField(spec, x, y));
 
   // 1. Anchor openness — calm pockets around pads and cargo.
   if (f(spec.shipSpawn.x, spec.shipSpawn.y) > -1.0) {
@@ -371,7 +372,7 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
     for (int c = 0; c < cols; c++) {
       final x = (c + 0.5) * res;
       final y = (r + 0.5) * res;
-      grid[r][c] = math.max(cave.fieldAt(x, y), _coreField(spec, x, y)) < 0 ? '.' : '#';
+      grid[r][c] = math.max(cave.fieldAt(x, y), wellCoreField(spec, x, y)) < 0 ? '.' : '#';
     }
   }
   void mark(Pt p, String ch) {
@@ -435,6 +436,10 @@ const double kMinLiftRatio = 2.0;
 /// Estimated burn for a clean run must leave a comfortable reserve.
 const double kMaxFuelFraction = 0.6;
 
+/// A fuel canister this close to the estimated route counts as collected
+/// on the way (`FuelCell.pickupRadius` plus a little steering).
+const double kOnRoutePickupRadius = 1.2;
+
 /// Assumed average cruise speed (m/s) and a maneuvering overhead on top of the
 /// impulse floor. Calibrated so existing hand-tuned levels sit well inside.
 const double _cruiseSpeed = 2.5;
@@ -455,7 +460,8 @@ class FlightReport {
   /// Thrust acceleration (with cargo) ÷ strongest pull on the route.
   final double liftRatio;
 
-  /// Estimated fraction of the tank burned on a clean run.
+  /// Estimated fraction of the tank burned on a clean run, net of fuel
+  /// canisters picked up along the route.
   final double fuelFraction;
 
   /// Strongest local acceleration on the route (m/s², release gravity).
@@ -482,7 +488,7 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   final ny = cave.ny;
   final stride = nx + 1;
   final clear = -(ship.circumradius + 0.04);
-  final field = _fieldWithCores(cave, spec);
+  final field = caveFieldWithCores(cave, spec);
 
   final sampler = FieldSampler(
     fields: spec.fields,
@@ -548,9 +554,27 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   var burn = 0.0; // seconds of full thrust
   var maxPull = 0.0;
   var length = 0.0;
+  // Canisters on the route refill what has been burned so far (the tank
+  // caps the rest), in burn-seconds.
+  final drainPerSec = ship.fuelDrainPerSecond * spec.modifiers.fuelDrainMul;
+  final pending = [
+    for (final p in spec.pickups)
+      if (p is FuelCellSpec) p,
+  ];
+  var credit = 0.0;
   for (final (path, aThrust) in [(toCargo, aEmpty), (toGoal, aLoaded)]) {
     for (var n = 1; n < path.length; n++) {
       final k = path[n];
+      final px = (k % stride) * cave.cell;
+      final py = (k ~/ stride) * cave.cell;
+      pending.removeWhere((c) {
+        final dx = c.pos.x - px;
+        final dy = c.pos.y - py;
+        if (dx * dx + dy * dy > kOnRoutePickupRadius * kOnRoutePickupRadius) return false;
+        final used = burn * _maneuverOverhead - credit;
+        credit += math.min(c.amount / drainPerSec, math.max(0.0, used));
+        return true;
+      });
       final diagonal = (k % stride) != (path[n - 1] % stride) &&
           (k ~/ stride) != (path[n - 1] ~/ stride);
       final ds = diagonal ? cave.cell * math.sqrt2 : cave.cell;
@@ -577,7 +601,7 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   return FlightReport(
     pathLength: length,
     liftRatio: liftRatio,
-    fuelFraction: burn * _maneuverOverhead / burnSeconds,
+    fuelFraction: (burn * _maneuverOverhead - credit) / burnSeconds,
     maxPull: maxPull,
     towRoute: [
       for (final k in toGoal) Pt((k % stride) * cave.cell, (k ~/ stride) * cave.cell),
@@ -587,27 +611,3 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
 
 const _dirs8 = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
 
-/// Signed distance into the nearest well core (positive inside = solid).
-double _coreField(LevelSpec spec, double x, double y) {
-  var best = double.negativeInfinity;
-  for (final f in spec.fields) {
-    if (f is! GravityWellSpec) continue;
-    final d = math.sqrt((x - f.center.x) * (x - f.center.x) + (y - f.center.y) * (y - f.center.y));
-    best = math.max(best, f.coreRadius - d);
-  }
-  return best;
-}
-
-/// The cave's sampled field with well cores unioned in as solid rock.
-Float32List _fieldWithCores(BuiltCave cave, LevelSpec spec) {
-  if (!spec.fields.any((f) => f is GravityWellSpec)) return cave.field;
-  final out = Float32List.fromList(cave.field);
-  final stride = cave.nx + 1;
-  for (int j = 0; j <= cave.ny; j++) {
-    for (int i = 0; i <= cave.nx; i++) {
-      final c = _coreField(spec, i * cave.cell, j * cave.cell);
-      if (c > out[j * stride + i]) out[j * stride + i] = c;
-    }
-  }
-  return out;
-}
