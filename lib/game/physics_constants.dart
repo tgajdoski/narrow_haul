@@ -14,8 +14,12 @@ const double kDebugGravityScale = 0.7;
 /// Set false to use full gravity while debugging other systems.
 const bool kDebugReduceGravity = true;
 
+/// Store screenshot/video capture (`--dart-define=STORE_CAPTURE=true`):
+/// debug builds look and fly like release — full gravity, no debug buttons.
+const bool kStoreCapture = bool.fromEnvironment('STORE_CAPTURE');
+
 /// "1 g" for this build (m/s²): [kGravityY], debug-reduced when enabled.
-double baseGravityY() => kDebugMode && kDebugReduceGravity
+double baseGravityY() => kDebugMode && kDebugReduceGravity && !kStoreCapture
     ? kGravityY * kDebugGravityScale
     : kGravityY;
 

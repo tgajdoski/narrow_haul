@@ -1,0 +1,14 @@
+# Launch screen: game backdrop colour + ship mark, so there's no white flash.
+#   dart run flutter_native_splash:create
+# The tool reformats AndroidManifest.xml and drops
+# android:screenOrientation="sensorLandscape"; restore it afterwards
+# (git checkout android/app/src/main/AndroidManifest.xml). It also re-indents
+# ios/Runner/Info.plist; keep only the UIStatusBarHidden keys.
+flutter_native_splash:
+  color: "#0B132B"
+  image: art_src/icon/splash_logo.png
+  android_12:
+    color: "#0B132B"
+    image: art_src/icon/splash_logo.png
+  fullscreen: true
+  web: false

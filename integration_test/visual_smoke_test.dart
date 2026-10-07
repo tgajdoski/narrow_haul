@@ -3,10 +3,8 @@
 //   flutter test integration_test/visual_smoke_test.dart -d macos
 // Screenshots go to the app's temp dir (path printed as SHOTS_DIR=...).
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flame/game.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
@@ -14,6 +12,8 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'capture_helpers.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -26,23 +26,9 @@ void main() {
     // ignore: avoid_print
     print('SHOTS_DIR=${dir.path}');
 
-    Future<void> wait(double seconds) async {
-      final end = DateTime.now().add(Duration(milliseconds: (seconds * 1000).round()));
-      while (DateTime.now().isBefore(end)) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-    }
-
-    Future<void> shot(String name) async {
-      await tester.pump();
-      final view = tester.binding.renderViews.first;
-      final layer = view.debugLayer! as OffsetLayer;
-      // Layer space is physical pixels; capture the whole surface at 1x.
-      final dpr = view.flutterView.devicePixelRatio;
-      final img = await layer.toImage(Offset.zero & (view.size * dpr), pixelRatio: 1 / dpr);
-      final png = await img.toByteData(format: ui.ImageByteFormat.png);
-      File('${dir.path}/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-    }
+    final cap = Capture(tester, dir);
+    final wait = cap.wait;
+    Future<void> shot(String name) => cap.shot(name);
 
     app.main();
     await wait(3);

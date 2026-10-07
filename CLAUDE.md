@@ -161,6 +161,17 @@ In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% and the HUD sh
 - **Versions:** bump the build number in `pubspec.yaml` (`1.0.0+N`) for every store upload; Play never reuses a version code, even from discarded drafts.
 - `flutter build appbundle --release` → `build/app/outputs/bundle/release/app-release.aab` for Play Internal testing.
 
+## Store assets
+
+Sources live in `art_src/` (not bundled), and the scripts live in `tool/store/`. The Python scripts need Pillow. **`art_src/store/README.md` is the upload checklist:** what's ready, what's pending, and which file goes where in App Store Connect and Play Console.
+- **App icon:** `tool/store/make_icon.py` composites `assets/ship.png` and a drawn cargo pod into `art_src/icon/*.png`: the full icon, adaptive bg/fg/mono layers, iOS dark/tinted variants, `splash_logo.png` and `play_icon_512.png`. Then `dart run flutter_launcher_icons` (`flutter_launcher_icons.yaml`) writes the iOS, Android (adaptive + themed) and macOS icons. The tool adds a 16% inset to the adaptive foreground, so the fg art fills ~86% of its canvas. It also sets `ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon` in `project.pbxproj`; change that back to `YES`. AI-art prompts are in `art_src/store/PROMPTS.md`.
+- **Launch screen:** `dart run flutter_native_splash:create` (`flutter_native_splash.yaml`, backdrop `#0B132B`). It rewrites `AndroidManifest.xml` and drops `screenOrientation="sensorLandscape"`, so restore the manifest afterwards.
+- **Screenshots:** `tool/store/capture_screenshots.sh` runs `integration_test/store_screenshots_test.dart` with `--dart-define=STORE_CAPTURE=true` (`kStoreCapture` in `physics_constants.dart`: full gravity and no debug buttons in debug builds). The test seeds a played-in save, poses each level's ship mid-tunnel with the pod in tow using `FlightReport.towRoute`, and renders each target at its device's logical size into `art_src/store/screenshots/{ios_69,play_1080}` (macOS) and `ios_ipad13` (iPad simulator). The iPad layout doesn't fit a laptop screen. `Capture.shot` renders the full-size repaint boundary, because a surface larger than the window is letterboxed at the root layer.
+- **Feature graphic:** `tool/store/make_feature.py` → `art_src/store/feature_graphic_1024x500.png`.
+- **Videos:** record on a phone in release mode, then `tool/store/make_videos.sh <raw.mov> [start] [len]` (needs ffmpeg) produces the App Preview (1920×886, 1600×1200), YouTube 1080p, poster and web loop.
+- **Store texts:** `art_src/store/listing_en.md`, checked against the character limits.
+- **macOS window size:** the macOS window size doesn't limit captures; `Capture.shot` handles that, so don't resize the macOS window for it.
+
 ## Website
 
 `website/index.html` is the game's public site (home, `/support`, `/privacy`; one self-contained page, sprites inlined) served at https://zafrk.com/narrow-haul/. Contact/developer/date live in the `SITE` object at the top of its script. `website/deploy.sh` uploads it to the shared zafrk.com S3 bucket under each route's key (the CloudFront S3 origin has no index documents) and invalidates `/narrow-haul*`. The zafrk site's own `deploy.sh` must exclude `narrow-haul` and `narrow-haul/*` from its `sync --delete`. Store listings: privacy URL `…/narrow-haul/privacy`, support URL `…/narrow-haul/support`, developer website `https://zafrk.com` (its `app-ads.txt` already lists the AdMob publisher).

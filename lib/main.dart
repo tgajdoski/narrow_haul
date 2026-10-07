@@ -11,6 +11,7 @@ import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -2251,7 +2252,7 @@ class _PilotLogbookOverlayState extends State<_PilotLogbookOverlay> {
                     ),
                   ),
                   const Spacer(),
-                  if (kDebugMode)
+                  if (kDebugMode && !kStoreCapture)
                     TextButton(
                       onPressed: () async {
                         await progress.addXp(1000);

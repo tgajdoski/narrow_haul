@@ -446,6 +446,7 @@ class FlightReport {
     required this.liftRatio,
     required this.fuelFraction,
     required this.maxPull,
+    this.towRoute = const [],
   });
 
   /// Meters flown spawn → cargo → goal along the shortest clear route.
@@ -459,6 +460,10 @@ class FlightReport {
 
   /// Strongest local acceleration on the route (m/s², release gravity).
   final double maxPull;
+
+  /// The loaded leg (cargo pickup → goal) as clear points in meters; used to
+  /// pose the ship for store screenshots.
+  final List<Pt> towRoute;
 
   @override
   String toString() => 'path ${pathLength.toStringAsFixed(1)} m, '
@@ -574,6 +579,9 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
     liftRatio: liftRatio,
     fuelFraction: burn * _maneuverOverhead / burnSeconds,
     maxPull: maxPull,
+    towRoute: [
+      for (final k in toGoal) Pt((k % stride) * cave.cell, (k ~/ stride) * cave.cell),
+    ],
   );
 }
 

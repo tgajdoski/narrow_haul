@@ -1,0 +1,21 @@
+# App icons for every platform. Source art: art_src/icon/ (built by
+# tool/store/make_icon.py, or from AI art via tool/store/prepare_icon.py).
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "art_src/icon/icon_1024.png"
+
+  android: "ic_launcher"
+  min_sdk_android: 21
+  adaptive_icon_background: "art_src/icon/icon_bg_1024.png"
+  adaptive_icon_foreground: "art_src/icon/icon_fg_1024.png"
+  adaptive_icon_monochrome: "art_src/icon/icon_mono_1024.png"
+
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#0B132B"
+  image_path_ios_dark_transparent: "art_src/icon/icon_dark_1024.png"
+  image_path_ios_tinted_grayscale: "art_src/icon/icon_tinted_1024.png"
+
+  macos:
+    generate: true
+    image_path: "art_src/icon/icon_1024.png"
