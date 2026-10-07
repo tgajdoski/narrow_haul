@@ -30,7 +30,7 @@ class RopeLine extends Component {
     final p = progress();
     if (p <= 0.01) return;
 
-    final winch = ship.body.worldPoint(Vector2(0, ShipBody.rearLocalY));
+    final winch = ship.body.worldPoint(Vector2(0, ship.rearLocalY));
     final cargoCenter = cargo.body.worldCenter;
 
     final Vector2 a;
@@ -39,7 +39,7 @@ class RopeLine extends Component {
       a = winch;
       b = cargoCenter;
     } else {
-      a = ship.body.worldPoint(ShipBody.hookLocal);
+      a = ship.body.worldPoint(ship.hookLocal);
       b = cargoCenter;
     }
 

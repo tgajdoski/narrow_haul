@@ -13,12 +13,16 @@ const double kDebugGravityScale = 0.7;
 /// Set false to use full gravity while debugging other systems.
 const bool kDebugReduceGravity = true;
 
-Vector2 narrowHaulGravity() {
-  final y = kDebugMode && kDebugReduceGravity
-      ? kGravityY * kDebugGravityScale
-      : kGravityY;
-  return Vector2(0, y);
-}
+/// "1 g" for this build (m/s²): [kGravityY], debug-reduced when enabled.
+double baseGravityY() => kDebugMode && kDebugReduceGravity
+    ? kGravityY * kDebugGravityScale
+    : kGravityY;
+
+/// Combined (daily challenge × level) gravity multiplier is clamped to this so
+/// stacked modifiers can never make a level unflyable.
+const double kMaxGravityMul = 2.5;
+
+Vector2 narrowHaulGravity() => Vector2(0, baseGravityY());
 
 const int categoryWall = 0x0001;
 const int categoryShip = 0x0002;

@@ -22,6 +22,7 @@ class LevelData {
     this.theme = tutorialTheme,
     this.modifiers = const LevelModifiers(),
     this.obstacles = const <ObstacleSpec>[],
+    this.fields = const <FieldSpec>[],
   });
 
   final List<WallRect> walls;
@@ -48,6 +49,7 @@ class LevelData {
   final ThemeSpec theme;
   final LevelModifiers modifiers;
   final List<ObstacleSpec> obstacles;
+  final List<FieldSpec> fields;
 }
 
 class WallRect {

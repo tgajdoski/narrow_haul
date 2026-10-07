@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
-import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 
 /// Animated engine plume in the ship's local space (rear along +Y).
@@ -16,9 +15,12 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 /// A Y-flip is applied so the core sits at the engine bell and the
 /// tips extend away from the ship.
 class ThrustPlume extends Component {
-  ThrustPlume({required this.isThrusting});
+  ThrustPlume({required this.isThrusting, required this.flameStartY});
 
   final bool Function() isThrusting;
+
+  /// Local Y of the engine bell on the parent ship (meters).
+  final double flameStartY;
   final math.Random _rng = math.Random();
   double _time = 0;
 
@@ -30,7 +32,6 @@ class ThrustPlume extends Component {
   static const double _stepTime = 0.08; // ~12 fps
 
   // Flame dimensions in world-space meters
-  static const double _flameStartY = ShipBody.rearLocalY; // 0.26m
   static const double _flameHeight = 0.44;
   static const double _flameHalfWidth = 0.12;
 
@@ -95,14 +96,14 @@ class ThrustPlume extends Component {
     // Flip vertically so the core appears at the engine bell (flameStartY)
     // and the tips extend downward (increasing Y = away from ship).
     canvas.save();
-    canvas.translate(0, _flameStartY + _flameHeight);
+    canvas.translate(0, flameStartY + _flameHeight);
     canvas.scale(1.0, -1.0);
     canvas.drawImageRect(_exhaustImage!, srcRect, dstRect, paint);
     canvas.restore();
   }
 
   void _renderProcedural(Canvas canvas) {
-    final base = _flameStartY;
+    final base = flameStartY;
     final flicker = 0.85 + math.sin(_time * 28) * 0.15;
     
     final plumeId = CosmeticsService.getEquippedId(CosmeticsService.catPlume);

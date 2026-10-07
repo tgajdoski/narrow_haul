@@ -4,16 +4,18 @@ import 'dart:collection';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 /// Pure-Dart playability checks shared by `flutter test` and the authoring
-/// preview tool. Empty result = level is provably completable geometry.
-List<String> validateCaveSpec(LevelSpec spec) {
+/// preview tool. Empty result = level is provably completable geometry for
+/// [ship] (the ship the level is actually flown with).
+List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   final issues = <String>[];
   final cave = buildCave(spec);
 
-  // Ship needs ~0.42 m clearance (triangle circumradius 0.51, half-width
-  // 0.315); the main haul path must be comfortably wider.
-  const shipClear = -0.55;
+  // Ship needs its hull circumradius (Kestrel 0.51) plus a small margin; the
+  // main haul path must be comfortably wider.
+  final shipClear = -(ship.circumradius + 0.04);
 
   double f(double x, double y) => cave.fieldAt(x, y);
 

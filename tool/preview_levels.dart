@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main(List<String> args) {
   final all = <CaveLevelDef>[
@@ -22,7 +23,9 @@ void main(List<String> args) {
     final spec = def.spec;
     final requested = args.isEmpty || args.contains(spec.id);
     if (!requested) continue;
-    final issues = validateCaveSpec(spec);
+    // Level override only — world default ships live in LevelRegistry,
+    // which needs Flutter; `flutter test` validates the resolved ship.
+    final issues = validateCaveSpec(spec, ship: shipById(spec.shipId));
     if (issues.isEmpty && args.isEmpty) {
       print('OK   ${spec.id}');
       continue;

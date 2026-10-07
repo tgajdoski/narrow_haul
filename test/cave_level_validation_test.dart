@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
@@ -15,6 +17,12 @@ void main() {
     ...lavaLevels.whereType<CaveLevelDef>(),
   ];
 
+  // Validate each level against the ship it is actually flown with.
+  ShipSpec shipOf(CaveLevelDef def) {
+    final world = LevelRegistry.worlds.firstWhere((w) => w.levels.contains(def));
+    return shipById(def.shipId ?? world.defaultShipId);
+  }
+
   test('all four worlds have 8 levels with unique ids', () {
     expect(allCaveDefs.length, 32);
     final ids = allCaveDefs.map((d) => d.spec.id).toSet();
@@ -24,7 +32,7 @@ void main() {
   group('playability', () {
     for (final def in allCaveDefs) {
       test(def.spec.id, () {
-        final issues = validateCaveSpec(def.spec);
+        final issues = validateCaveSpec(def.spec, ship: shipOf(def));
         expect(issues, isEmpty,
             reason: '${def.spec.id} failed:\n  ${issues.join('\n  ')}');
       });

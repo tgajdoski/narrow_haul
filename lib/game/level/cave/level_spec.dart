@@ -17,8 +17,10 @@ class LevelSpec {
     required this.cargoSpawn,
     required this.goal,
     this.obstacles = const <ObstacleSpec>[],
+    this.fields = const <FieldSpec>[],
     this.modifiers = const LevelModifiers(),
     this.noise = const NoiseSpec(),
+    this.shipId,
   });
 
   final String id;
@@ -33,8 +35,14 @@ class LevelSpec {
   final Pt cargoSpawn;
   final GoalSpec goal;
   final List<ObstacleSpec> obstacles;
+
+  /// Gravity zones, wind and gravity wells (see [FieldSpec]).
+  final List<FieldSpec> fields;
   final LevelModifiers modifiers;
   final NoiseSpec noise;
+
+  /// Ship override (see `kShips`); null → the world's default ship.
+  final String? shipId;
 }
 
 /// Winding corridor: a Catmull-Rom spline through [points] carved as capsules.
@@ -163,4 +171,84 @@ class SlidingBlockSpec extends ObstacleSpec {
   final double halfH;
   final double periodSec;
   final double phase;
+}
+
+// ── Force fields (extra acceleration on ship + cargo) ─────────────────────
+//
+// All strengths are in "g units": multiples of the base gravity constant
+// (kGravityY, already debug/daily-challenge scaled at runtime), so a field
+// keeps its feel relative to normal gravity. +Y points down.
+
+enum FieldShape { rect, ellipse }
+
+sealed class FieldSpec {
+  const FieldSpec();
+}
+
+/// Region whose gravity is *replaced* by ([gx], [gy]) g. (0, 0) = zero-g
+/// pocket; (1, 0) = pull to the right. Inside the shape the zone ramps in
+/// over [feather] meters from its edge, so crossing it never jolts.
+/// Overlapping zones apply in list order (later wins).
+class GravityZoneSpec extends FieldSpec {
+  const GravityZoneSpec(
+    this.center, {
+    this.shape = FieldShape.rect,
+    required this.halfW,
+    required this.halfH,
+    required this.gx,
+    required this.gy,
+    this.feather = 1.0,
+  });
+  final Pt center;
+  final FieldShape shape;
+  final double halfW;
+  final double halfH;
+  final double gx;
+  final double gy;
+  final double feather;
+}
+
+/// Wind / current *added* on top of gravity: ([ax], [ay]) g, optionally
+/// gusting by ±[gustAmp] (fraction) over [gustPeriod] seconds. Cargo feels
+/// [cargoFactor] of it (tiny cargo vs. big hull).
+class WindZoneSpec extends FieldSpec {
+  const WindZoneSpec(
+    this.center, {
+    this.shape = FieldShape.rect,
+    required this.halfW,
+    required this.halfH,
+    required this.ax,
+    required this.ay,
+    this.feather = 1.0,
+    this.gustAmp = 0,
+    this.gustPeriod = 4,
+    this.cargoFactor = 1.0,
+  });
+  final Pt center;
+  final FieldShape shape;
+  final double halfW;
+  final double halfH;
+  final double ax;
+  final double ay;
+  final double feather;
+  final double gustAmp;
+  final double gustPeriod;
+  final double cargoFactor;
+}
+
+/// Point attractor: pull = [strength] / (r² + [softening]²) g toward
+/// [center], capped at [maxG]. The solid core ([coreRadius]) is terrain.
+class GravityWellSpec extends FieldSpec {
+  const GravityWellSpec(
+    this.center, {
+    required this.strength,
+    this.softening = 1.5,
+    this.coreRadius = 0.8,
+    this.maxG = 3.0,
+  });
+  final Pt center;
+  final double strength;
+  final double softening;
+  final double coreRadius;
+  final double maxG;
 }

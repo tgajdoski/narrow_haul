@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 /// Authoritative list of worlds and levels. Ordering is stable; progress is
 /// keyed by [LevelDef.saveId] so future insertions never corrupt saves.
@@ -76,6 +77,12 @@ abstract final class LevelRegistry {
   static LevelDef defAt(int flatIndex) => flat[flatIndex];
 
   /// The world containing [flatIndex] plus the level's index within it.
+  /// Ship flown on a level: its own override, else its world's default.
+  static ShipSpec shipFor(int flatIndex) {
+    final (world, indexInWorld) = worldOf(flatIndex);
+    return shipById(world.levels[indexInWorld].shipId ?? world.defaultShipId);
+  }
+
   static (WorldDef, int) worldOf(int flatIndex) {
     int offset = 0;
     for (final w in worlds) {
@@ -132,5 +139,6 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
     theme: gameThemes[spec.themeId] ?? tutorialTheme,
     modifiers: spec.modifiers,
     obstacles: spec.obstacles,
+    fields: spec.fields,
   );
 }

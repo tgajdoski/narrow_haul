@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/flame.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 /// Rocket with rear thrust along local −Y (nose at −Y). [onWallHit] from contacts.
@@ -16,13 +16,18 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     required this.onWallHit,
     this.onHookTouchesCargo,
     this.fuelDrainMultiplier = 1.0,
+    this.spec = kKestrel,
   }) : _initialPosition = initialPosition,
+       fuel = spec.maxFuel,
        super(
          paint: Paint()..color = const Color(0xFF00B4D8),
        );
 
   /// Multiplier applied to fuel drain rate (daily challenge modifier).
   final double fuelDrainMultiplier;
+
+  /// Flight characteristics (hull, engine, tank). Chosen by the level.
+  final ShipSpec spec;
 
   final Vector2 _initialPosition;
 
@@ -31,28 +36,17 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   final void Function()? onHookTouchesCargo;
 
   /// Local +Y anchor at engine bell (rope + plume).
-  static const double rearLocalY = 0.39;
+  double get rearLocalY => spec.rearLocalY;
 
   /// Nose hook sensor (same as [CircleShape] in [createBody]).
-  static final Vector2 hookLocal = Vector2(0, -0.36);
-  static const double hookRadius = 0.21;
-
-  /// Seconds to complete one full 360° while holding ⟲ or ⟳ at full input.
-  static const double secondsPerFullRotation = 4.0;
-
-  /// rad/s = 2π / secondsPerFullRotation (e.g. 4s → π/2 rad/s).
-  static double get rotationSpeedRadPerSec =>
-      (math.pi * 2) / secondsPerFullRotation;
-
-  /// Main engine strength (N). ~30% of prior 17 for lighter thrust.
-  static const double thrustForce = 5.1;
+  Vector2 get hookLocal => Vector2(0, spec.hookLocalY);
+  double get hookRadius => spec.hookRadius;
 
   /// Extra spin decay per second when no rotate input (release feels like “stop”).
   static const double releaseSpinDecay = 22;
 
-  static const double maxFuel = 100;
-  double fuel = maxFuel;
-  static const double fuelDrainPerSecond = 12;
+  double get maxFuel => spec.maxFuel;
+  double fuel;
 
   double _rotateInput = 0;
   bool _thrustInput = false;
@@ -86,9 +80,12 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   Future<void> onLoad() async {
     await super.onLoad();
     body.userData = this;
-    await add(ThrustPlume(isThrusting: () => isThrusting));
+    await add(ThrustPlume(
+      isThrusting: () => isThrusting,
+      flameStartY: rearLocalY,
+    ));
     try {
-      _shipImage = await Flame.images.load('ship.png');
+      _shipImage = await Flame.images.load(spec.sprite);
       renderBody = false;
     } catch (_) {}
   }
@@ -96,11 +93,11 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   // Sprite is drawn at 3× the physics hull dimensions so the ship is clearly
   // visible on-screen. The hitbox remains at the original physics size.
   static const double _visualScale = 4.5;
-  static const _spriteRect = Rect.fromLTRB(
-    -0.23 * _visualScale, // left
-    -0.37 * _visualScale, // top  (nose)
-     0.23 * _visualScale, // right
-     0.29 * _visualScale, // bottom (rear)
+  late final Rect _spriteRect = Rect.fromLTRB(
+    -0.23 * _visualScale * spec.hullScale, // left
+    -0.37 * _visualScale * spec.hullScale, // top  (nose)
+     0.23 * _visualScale * spec.hullScale, // right
+     0.29 * _visualScale * spec.hullScale, // bottom (rear)
   );
 
   @override
@@ -135,9 +132,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   @override
   Body createBody() {
     final vertices = [
-      Vector2(0, -0.51),
-      Vector2(-0.315, rearLocalY),
-      Vector2(0.315, rearLocalY),
+      Vector2(0, spec.noseLocalY),
+      Vector2(-spec.rearHalfWidth, rearLocalY),
+      Vector2(spec.rearHalfWidth, rearLocalY),
     ];
     final shape = PolygonShape()..set(vertices);
 
@@ -145,16 +142,16 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       ..position = _initialPosition
       ..type = BodyType.dynamic
       // Rotation rate is set directly in [update]; keep 0 so we hit exactly
-      // [secondsPerFullRotation] per turn without fighting damping.
+      // [ShipSpec.secondsPerFullRotation] per turn without fighting damping.
       ..angularDamping = 0
-      ..linearDamping = 0.22
+      ..linearDamping = spec.linearDamping
       ..gravityScale = Vector2.zero();
 
     final b = world.createBody(def);
     b.createFixture(
       FixtureDef(
         shape,
-        density: 1.15,
+        density: spec.density,
         friction: 0.2,
         restitution: 0.05,
         filter: filterShip(),
@@ -186,13 +183,13 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       body.angularVelocity *= 1.0 - t;
     } else {
       // Constant turn rate: 360° in [secondsPerFullRotation] at |input| == 1.
-      body.angularVelocity = _rotateInput * rotationSpeedRadPerSec;
+      body.angularVelocity = _rotateInput * spec.rotationSpeedRadPerSec;
     }
 
     if (_thrustInput && fuel > 0) {
-      fuel -= fuelDrainPerSecond * fuelDrainMultiplier * dt;
+      fuel -= spec.fuelDrainPerSecond * fuelDrainMultiplier * dt;
       if (fuel < 0) fuel = 0;
-      final dir = body.worldVector(Vector2(0, -1))..scale(thrustForce);
+      final dir = body.worldVector(Vector2(0, -1))..scale(spec.thrustForce);
       body.applyForce(dir);
     }
   }

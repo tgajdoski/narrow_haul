@@ -98,10 +98,10 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     if (_attaching) return;
     if (ropeRevealProgress < minRevealToAttach) return;
 
-    final hookWorld = ship.body.worldPoint(ShipBody.hookLocal);
+    final hookWorld = ship.body.worldPoint(ship.hookLocal);
     final cargoCenter = cargo.body.worldCenter;
     final hookToCargo = (hookWorld - cargoCenter).length;
-    final catchRadius = ShipBody.hookRadius + CargoBody.radius + hookCatchExtraMeters;
+    final catchRadius = ship.hookRadius + CargoBody.radius + hookCatchExtraMeters;
 
     final hookOk = hookToCargo <= catchRadius;
     final centerOk = centerDist <= attachCenterDistanceMax;

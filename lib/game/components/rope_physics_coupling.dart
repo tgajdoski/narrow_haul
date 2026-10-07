@@ -35,7 +35,7 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final anchorShip = ship.body.worldPoint(Vector2(0, ShipBody.rearLocalY));
+    final anchorShip = ship.body.worldPoint(Vector2(0, ship.rearLocalY));
     final anchorCargo = cargo.body.worldCenter;
     final delta = anchorCargo - anchorShip;
     final dist = delta.length;

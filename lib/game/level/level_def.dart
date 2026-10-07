@@ -8,6 +8,7 @@ sealed class LevelDef {
     required this.name,
     required this.themeId,
     this.stars = const StarSpec(),
+    this.shipId,
   });
 
   /// Stable progress key — survives reordering/insertion of levels.
@@ -15,6 +16,9 @@ sealed class LevelDef {
   final String name;
   final String themeId;
   final StarSpec stars;
+
+  /// Ship flown on this level; null → the world's [WorldDef.defaultShipId].
+  final String? shipId;
 
   LevelModifiers get modifiers;
 }
@@ -26,6 +30,7 @@ class TmxLevelDef extends LevelDef {
     required this.assetPath,
     super.themeId = 'tutorial',
     super.stars,
+    super.shipId,
   });
 
   final String assetPath;
@@ -36,7 +41,12 @@ class TmxLevelDef extends LevelDef {
 
 class CaveLevelDef extends LevelDef {
   CaveLevelDef({required this.spec, super.stars})
-      : super(saveId: spec.id, name: spec.name, themeId: spec.themeId);
+      : super(
+          saveId: spec.id,
+          name: spec.name,
+          themeId: spec.themeId,
+          shipId: spec.shipId,
+        );
 
   final LevelSpec spec;
 
@@ -53,6 +63,7 @@ class WorldDef {
     required this.starsRequired,
     required this.rewardPerStar,
     required this.levels,
+    this.defaultShipId = 'kestrel',
   });
 
   final String id;
@@ -65,4 +76,7 @@ class WorldDef {
   /// Cosmetic currency granted per newly earned star in this world.
   final int rewardPerStar;
   final List<LevelDef> levels;
+
+  /// Ship for levels that don't name one ([LevelDef.shipId]).
+  final String defaultShipId;
 }

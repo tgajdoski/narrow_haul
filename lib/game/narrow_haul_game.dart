@@ -11,6 +11,7 @@ import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/cave_decor.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
 import 'package:narrow_haul/game/components/dual_landing_zone.dart';
+import 'package:narrow_haul/game/components/force_field_system.dart';
 import 'package:narrow_haul/game/components/flight_hud.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/components/minimap_hud.dart';
@@ -20,6 +21,7 @@ import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
+import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
@@ -34,6 +36,7 @@ import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
@@ -71,6 +74,9 @@ class NarrowHaulGame extends Forge2DGame {
   LevelDef get currentLevelDef => LevelRegistry.defAt(levelIndex);
 
   ShipBody? ship;
+
+  /// Tank size of the active ship (fuel fractions for stars/HUD).
+  double get _shipMaxFuel => ship?.maxFuel ?? kKestrel.maxFuel;
   CargoBody? cargo;
   CargoAttachment? cargoAttachment;
 
@@ -277,10 +283,9 @@ class NarrowHaulGame extends Forge2DGame {
     final mods = data.modifiers;
 
     // Gravity: base (debug-reduced) × daily challenge × level modifier.
-    final baseY = kDebugMode && kDebugReduceGravity
-        ? kGravityY * kDebugGravityScale
-        : kGravityY;
-    world.gravity = Vector2(0, baseY * _gravityMultiplier * mods.gravityMul);
+    final g0 = baseGravityY() * _gravityMultiplier;
+    final gravityMul = mods.gravityMul.clamp(0.0, kMaxGravityMul / _gravityMultiplier);
+    world.gravity = Vector2(0, g0 * gravityMul);
 
     // Optional per-world art (assets/themes/<id>/); missing files fall back
     // to the flat palette look.
@@ -378,11 +383,13 @@ class NarrowHaulGame extends Forge2DGame {
     _levelEntities.add(landingStrip);
 
     late final CargoAttachment cargoLink;
+    final shipSpec = LevelRegistry.shipFor(levelIndex);
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: _onShipHitWall,
       onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
+      spec: shipSpec,
     );
     final cargoBody = CargoBody(
       initialPosition: Vector2.copy(data.cargoSpawn),
@@ -391,7 +398,7 @@ class NarrowHaulGame extends Forge2DGame {
     cargoLink = CargoAttachment(
       ship: shipBody,
       cargo: cargoBody,
-      ropeMaxLengthMeters: data.ropeMaxLength,
+      ropeMaxLengthMeters: data.ropeMaxLength * shipSpec.ropeLengthMul,
       onAttached: () {
         AudioService.playAttach();
         Haptics.light();
@@ -408,6 +415,16 @@ class NarrowHaulGame extends Forge2DGame {
     ship = shipBody;
     cargo = cargoBody;
     cargoAttachment = cargoLink;
+
+    if (data.fields.isNotEmpty) {
+      final forces = ForceFieldSystem(
+        sampler: FieldSampler(fields: data.fields, g0: g0, gravityMul: gravityMul),
+        ship: shipBody,
+        cargo: cargoBody,
+      );
+      await world.add(forces);
+      _levelEntities.add(forces);
+    }
 
     final landing = DualLandingZone(
       padCenter: data.goalCenter,
@@ -619,7 +636,7 @@ class NarrowHaulGame extends Forge2DGame {
     _winTimer = _winDelay;
     _winReady = false;
     final fuelLeft = ship?.fuel ?? 0.0;
-    lastLevelFuelFraction = fuelLeft / ShipBody.maxFuel;
+    lastLevelFuelFraction = fuelLeft / _shipMaxFuel;
 
     _recordSpentFuel();
     _recordPlaytime();
@@ -706,7 +723,7 @@ class NarrowHaulGame extends Forge2DGame {
         worldIndex: worldIndex,
         challenge: isChallengeMode,
         clean: !_currentLevelRetried,
-        fuelFraction: fuelLeft / ShipBody.maxFuel,
+        fuelFraction: fuelLeft / _shipMaxFuel,
         seconds: elapsed,
         newStars: earnedStars,
         personalBest: personalBest,
@@ -770,7 +787,7 @@ class NarrowHaulGame extends Forge2DGame {
   }
 
   int _calculateStars(double fuelRemaining, double timeSeconds) {
-    final pct = fuelRemaining / ShipBody.maxFuel;
+    final pct = fuelRemaining / _shipMaxFuel;
     final spec = currentLevelDef.stars;
     if (pct >= spec.star3Fuel && timeSeconds <= spec.star3Time) return 3;
     if (pct >= spec.star2Fuel) return 2;
@@ -787,7 +804,7 @@ class NarrowHaulGame extends Forge2DGame {
     final progress = ProgressService.instance;
     final candidates = <String>[AchievementIds.firstHaul];
 
-    if (fuelRemaining >= 90) candidates.add(AchievementIds.fuelMiser);
+    if (fuelRemaining >= 0.9 * _shipMaxFuel) candidates.add(AchievementIds.fuelMiser);
     if (timeSeconds < 30) candidates.add(AchievementIds.speedHauler);
 
     final streak = progress.getNoRetryStreak();
@@ -871,10 +888,10 @@ class NarrowHaulGame extends Forge2DGame {
 
   void _recordSpentFuel() {
     if (ship != null) {
-      final spent = ShipBody.maxFuel - ship!.fuel;
+      final spent = ship!.maxFuel - ship!.fuel;
       if (spent > 0) {
         ProgressService.instance.addFuelSpent(spent);
-        ship!.fuel = ShipBody.maxFuel; // prevent double counting
+        ship!.fuel = ship!.maxFuel; // prevent double counting
       }
     }
   }
@@ -1026,11 +1043,11 @@ class NarrowHaulGame extends Forge2DGame {
       final tow = cargoAttachment?.attached == true;
 
       // Update fuel gauge
-      _fuelGauge?.fuelFraction = s.fuel / ShipBody.maxFuel;
+      _fuelGauge?.fuelFraction = s.fuel / s.maxFuel;
       _fuelGauge?.towing = tow;
       _levelInfoHud
         ?..elapsed = elapsedSeconds
-        ..fuelFraction = s.fuel / ShipBody.maxFuel;
+        ..fuelFraction = s.fuel / s.maxFuel;
     }
   }
 }
