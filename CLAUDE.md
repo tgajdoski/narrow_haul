@@ -146,6 +146,7 @@ In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% and the HUD sh
 ## Asset Notes
 
 - All sprites live at `assets/` root (not `assets/images/`). The path prefix is set once in `main()`.
+- Ship sprites `ship_<id>.png` must be 256×256 RGBA framed like `ship.png` (hull inside x 58–198, bottom-aligned to the nozzle line at y 181 — the plume starts there). AI-generated art often has a *painted* checkerboard instead of transparency: run `python art_src/ships/fix_ships.py <src.png> <out.png> assets/ship.png` (needs Pillow) to strip it, crop and frame. 1024 px sources live in `art_src/ships/` (not bundled).
 - `exhaust.png` may have a black background (not transparent) — flag this if visual artifacts appear.
 - Audio files (`thrust_loop.mp3`, `attach.mp3`, `crash.mp3`, `land.mp3`, `star.mp3`) belong in `assets/audio/`; `AudioService` silently skips missing files.
 - `rope_segment_body.dart` exists but is unused (multi-segment rope system, not active).
