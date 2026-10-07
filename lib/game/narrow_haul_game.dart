@@ -75,6 +75,13 @@ class NarrowHaulGame extends Forge2DGame {
 
   ShipBody? ship;
 
+  /// Intro-card line naming the ship and any non-standard gravity, so a
+  /// changed ship or pull is never a surprise.
+  static String _flightNote(ShipSpec ship, double gravityG) {
+    final g = (gravityG - 1).abs() > 0.01 ? ' · ${gravityG.toStringAsFixed(2)}g' : '';
+    return '${ship.name}$g';
+  }
+
   /// Tank size of the active ship (fuel fractions for stars/HUD).
   double get _shipMaxFuel => ship?.maxFuel ?? kKestrel.maxFuel;
   CargoBody? cargo;
@@ -109,6 +116,8 @@ class NarrowHaulGame extends Forge2DGame {
   // ── HUD refs ─────────────────────────────────────────────────────────────
   HudTouchControls? _hudControls;
   FuelGaugeHud? _fuelGauge;
+  GravityIndicatorHud? _gravityHud;
+  ForceFieldSystem? _forces;
   LevelInfoHud? _levelInfoHud;
   MinimapHud? _minimap;
   PauseButtonHud? _pauseButton;
@@ -162,6 +171,9 @@ class NarrowHaulGame extends Forge2DGame {
 
     _fuelGauge = FuelGaugeHud();
     camera.viewport.add(_fuelGauge!);
+
+    _gravityHud = GravityIndicatorHud();
+    camera.viewport.add(_gravityHud!);
 
     _levelInfoHud = LevelInfoHud();
     camera.viewport.add(_levelInfoHud!);
@@ -416,8 +428,9 @@ class NarrowHaulGame extends Forge2DGame {
     cargo = cargoBody;
     cargoAttachment = cargoLink;
 
+    _forces = null;
     if (data.fields.isNotEmpty) {
-      final forces = ForceFieldSystem(
+      final forces = _forces = ForceFieldSystem(
         sampler: FieldSampler(fields: data.fields, g0: g0, gravityMul: gravityMul),
         ship: shipBody,
         cargo: cargoBody,
@@ -425,6 +438,9 @@ class NarrowHaulGame extends Forge2DGame {
       await world.add(forces);
       _levelEntities.add(forces);
     }
+    _gravityHud
+      ?..show = data.fields.isNotEmpty || (g0 * gravityMul - baseGravityY()).abs() > 1e-6
+      ..accent = theme.uiAccent;
 
     final landing = DualLandingZone(
       padCenter: data.goalCenter,
@@ -468,6 +484,7 @@ class NarrowHaulGame extends Forge2DGame {
           ? 'Daily Challenge · ${activeChallengeConfig?.modifierName ?? ''}'
           : '${levelWorld.name} · ${indexInWorld + 1}/${levelWorld.levels.length}',
       accent: theme.uiAccent,
+      note: _flightNote(shipSpec, g0 * gravityMul / baseGravityY()),
     );
   }
 
@@ -1045,6 +1062,9 @@ class NarrowHaulGame extends Forge2DGame {
       // Update fuel gauge
       _fuelGauge?.fuelFraction = s.fuel / s.maxFuel;
       _fuelGauge?.towing = tow;
+      _gravityHud?.accelG
+        ?..setFrom(_forces?.shipAccel ?? world.gravity)
+        ..scale(1 / baseGravityY());
       _levelInfoHud
         ?..elapsed = elapsedSeconds
         ..fuelFraction = s.fuel / s.maxFuel;

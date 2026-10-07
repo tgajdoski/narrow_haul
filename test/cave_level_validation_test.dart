@@ -23,10 +23,11 @@ void main() {
     return shipById(def.shipId ?? world.defaultShipId);
   }
 
-  test('all four worlds have 8 levels with unique ids', () {
-    expect(allCaveDefs.length, 32);
+  test('cave worlds: 8 missions each (+ type ratings), unique ids', () {
+    final ratings = allCaveDefs.where((d) => d.spec.id.startsWith('rating_'));
+    expect(allCaveDefs.length - ratings.length, 32);
     final ids = allCaveDefs.map((d) => d.spec.id).toSet();
-    expect(ids.length, 32, reason: 'duplicate level ids');
+    expect(ids.length, allCaveDefs.length, reason: 'duplicate level ids');
   });
 
   group('playability', () {

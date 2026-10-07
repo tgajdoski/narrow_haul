@@ -760,3 +760,84 @@ class LevelInfoHud extends PositionComponent {
     canvas.drawPath(path, Paint()..color = color);
   }
 }
+
+/// Local gravity readout next to the fuel gauge: an arrow pointing where the
+/// ship is being pulled (length ∝ strength) plus "0.6g". Shown only on levels
+/// whose gravity differs from normal, so standard levels stay uncluttered.
+class GravityIndicatorHud extends PositionComponent {
+  GravityIndicatorHud() : super(priority: 4900);
+
+  bool show = false;
+
+  /// Local acceleration at the ship in g (+Y down).
+  final Vector2 accelG = Vector2(0, 1);
+
+  /// Theme accent for the arrow.
+  Color accent = const Color(0xFF00B4D8);
+
+  static const double _cx = 258;
+  static const double _cy = 21;
+  static const double _r = 15;
+
+  @override
+  void render(Canvas canvas) {
+    if (!show) return;
+    const center = Offset(_cx, _cy);
+    canvas.drawCircle(center, _r, Paint()..color = const Color(0xAA0D1B2A));
+    canvas.drawCircle(
+      center,
+      _r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = accent.withValues(alpha: 0.6),
+    );
+
+    final g = accelG.length;
+    if (g < 0.03) {
+      // Zero-g: a hollow dot instead of an arrow.
+      canvas.drawCircle(
+        center,
+        3,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = accent,
+      );
+    } else {
+      final len = (_r - 3) * (0.35 + 0.65 * (g / 2.5).clamp(0.0, 1.0));
+      final dir = Offset(accelG.x / g, accelG.y / g);
+      final tip = center + dir * len;
+      final tail = center - dir * (len * 0.6);
+      final paint = Paint()
+        ..color = accent
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(tail, tip, paint);
+      final side = Offset(-dir.dy, dir.dx) * 3.5;
+      final back = tip - dir * 5;
+      canvas.drawPath(
+        Path()
+          ..moveTo(tip.dx, tip.dy)
+          ..lineTo(back.dx + side.dx, back.dy + side.dy)
+          ..lineTo(back.dx - side.dx, back.dy - side.dy)
+          ..close(),
+        Paint()..color = accent,
+      );
+    }
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '${g.toStringAsFixed(g < 0.95 || g > 1.05 ? 1 : 0)}g',
+        style: const TextStyle(
+          color: Color(0xE6FFFFFF),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(_cx + _r + 5, _cy - tp.height / 2));
+  }
+}

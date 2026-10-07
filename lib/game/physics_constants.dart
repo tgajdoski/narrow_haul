@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:forge2d/forge2d.dart';
+import 'package:narrow_haul/game/physics_core.dart';
+
+export 'package:narrow_haul/game/physics_core.dart';
 
 /// One Forge2D world unit = 1 meter; Tiled maps use [pixelsPerMeter] px = 1 m.
 const double pixelsPerMeter = 32;
 
-/// Base downward gravity (m/s² style scale in Forge2D units).
-const double kGravityY = 1.375;
 
 /// Temporary tuning: in debug, multiply gravity by this (~0.7 ⇒ ~30% lower).
 const double kDebugGravityScale = 0.7;
@@ -17,10 +18,6 @@ const bool kDebugReduceGravity = true;
 double baseGravityY() => kDebugMode && kDebugReduceGravity
     ? kGravityY * kDebugGravityScale
     : kGravityY;
-
-/// Combined (daily challenge × level) gravity multiplier is clamped to this so
-/// stacked modifiers can never make a level unflyable.
-const double kMaxGravityMul = 2.5;
 
 Vector2 narrowHaulGravity() => Vector2(0, baseGravityY());
 

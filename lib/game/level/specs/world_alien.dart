@@ -2,8 +2,39 @@ import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 
+/// Ship flown in this world unless a level overrides it: the light Hopper scout for the low-gravity caverns.
+const alienShipId = 'hopper';
+
 /// World 1 — Xenar Caverns. Pure flying skill: curves, chambers, squeezes.
 final List<LevelDef> alienLevels = [
+  // Type rating: first flight in the Hopper — quick turns, short hops.
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 50),
+    spec: const LevelSpec(
+      id: 'rating_hopper',
+      seed: 190,
+      name: 'Hopper Type Rating',
+      themeId: 'alien',
+      worldW: 30,
+      worldH: 20,
+      modifiers: LevelModifiers(gravityMul: 0.8),
+      tunnels: [
+        TunnelSpec(
+          [Pt(5, 9), Pt(10, 7), Pt(15, 9), Pt(20, 7), Pt(25, 9)],
+          width: 2.0,
+        ),
+        TunnelSpec([Pt(15, 9), Pt(15, 12.5)], width: 1.5),
+      ],
+      chambers: [
+        ChamberSpec(Pt(5, 9), 2.4),
+        ChamberSpec(Pt(15, 13), 1.8),
+        ChamberSpec(Pt(25, 9), 2.4),
+      ],
+      shipSpawn: Pt(5, 9),
+      cargoSpawn: Pt(15, 13),
+      goal: GoalSpec(Pt(25, 10.2)),
+    ),
+  ),
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.65, star2Fuel: 0.35, star3Time: 55),
     spec: const LevelSpec(
@@ -13,6 +44,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 34,
       worldH: 22,
+      modifiers: LevelModifiers(gravityMul: 0.85),
       tunnels: [
         TunnelSpec(
           [Pt(5, 11), Pt(10, 8), Pt(14, 10), Pt(17, 14), Pt(21, 9), Pt(25, 9), Pt(29, 11)],
@@ -38,6 +70,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 36,
       worldH: 24,
+      modifiers: LevelModifiers(gravityMul: 0.8),
       tunnels: [
         TunnelSpec(
           [Pt(5, 12), Pt(9, 8), Pt(13, 16), Pt(18, 7), Pt(23, 16), Pt(27, 8), Pt(31, 12)],
@@ -64,6 +97,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 38,
       worldH: 24,
+      modifiers: LevelModifiers(gravityMul: 0.75),
       noise: NoiseSpec(amplitude: 0.25),
       tunnels: [
         TunnelSpec([Pt(5, 12), Pt(10, 11), Pt(14, 10)], width: 1.8),
@@ -93,6 +127,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 30,
       worldH: 34,
+      modifiers: LevelModifiers(gravityMul: 0.7),
       tunnels: [
         TunnelSpec(
           [Pt(15, 5), Pt(10, 10), Pt(18, 15), Pt(9, 21), Pt(15, 26), Pt(15, 29)],
@@ -119,6 +154,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 40,
       worldH: 26,
+      modifiers: LevelModifiers(gravityMul: 0.65),
       tunnels: [
         TunnelSpec(
           [Pt(5, 13), Pt(11, 10), Pt(17, 12), Pt(23, 9), Pt(29, 12), Pt(34, 13)],
@@ -145,6 +181,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 40,
       worldH: 28,
+      modifiers: LevelModifiers(gravityMul: 0.6),
       tunnels: [
         TunnelSpec(
           [
@@ -175,6 +212,7 @@ final List<LevelDef> alienLevels = [
       themeId: 'alien',
       worldW: 36,
       worldH: 32,
+      modifiers: LevelModifiers(gravityMul: 0.55),
       tunnels: [
         TunnelSpec([Pt(6, 26), Pt(7, 20), Pt(6, 13), Pt(8, 7)], width: 1.4),
         TunnelSpec([Pt(8, 7), Pt(14, 6), Pt(20, 7)], width: 1.5),
@@ -202,7 +240,7 @@ final List<LevelDef> alienLevels = [
       worldW: 46,
       worldH: 30,
       noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(gravityMul: 0.85),
+      modifiers: LevelModifiers(gravityMul: 0.5),
       tunnels: [
         TunnelSpec(
           [Pt(5, 15), Pt(10, 10), Pt(15, 17), Pt(20, 8), Pt(24, 16)],

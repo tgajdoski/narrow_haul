@@ -2,6 +2,9 @@ import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 
+/// Ship flown in this world unless a level overrides it: the Mule heavy lifter for the heavy-gravity forges.
+const lavaShipId = 'mule';
+
 /// World 4 — Ember Core. The final exam: heavy gravity, thin fuel, dead
 /// weight, machinery — usually several at once.
 final List<LevelDef> lavaLevels = [
@@ -14,7 +17,7 @@ final List<LevelDef> lavaLevels = [
       themeId: 'lava',
       worldW: 38,
       worldH: 24,
-      modifiers: LevelModifiers(gravityMul: 1.25),
+      modifiers: LevelModifiers(gravityMul: 1.4),
       tunnels: [
         TunnelSpec(
           [Pt(5, 12), Pt(11, 9), Pt(17, 13), Pt(23, 9), Pt(29, 12), Pt(32, 12)],
@@ -41,7 +44,7 @@ final List<LevelDef> lavaLevels = [
       themeId: 'lava',
       worldW: 36,
       worldH: 28,
-      modifiers: LevelModifiers(fuelDrainMul: 1.3),
+      modifiers: LevelModifiers(gravityMul: 1.45, fuelDrainMul: 1.3),
       tunnels: [
         TunnelSpec(
           [Pt(6, 23), Pt(9, 17), Pt(7, 11), Pt(12, 7)],
@@ -70,7 +73,7 @@ final List<LevelDef> lavaLevels = [
       themeId: 'lava',
       worldW: 44,
       worldH: 26,
-      modifiers: LevelModifiers(gravityMul: 1.2),
+      modifiers: LevelModifiers(gravityMul: 1.5),
       tunnels: [
         TunnelSpec(
           [Pt(5, 13), Pt(12, 11), Pt(19, 14), Pt(26, 11), Pt(33, 14), Pt(38, 13)],
@@ -104,7 +107,7 @@ final List<LevelDef> lavaLevels = [
       worldW: 40,
       worldH: 26,
       noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(cargoDensityMul: 2.5),
+      modifiers: LevelModifiers(gravityMul: 1.55, cargoDensityMul: 2.5),
       tunnels: [
         TunnelSpec(
           [Pt(5, 13), Pt(12, 15), Pt(19, 11), Pt(24, 15)],
@@ -136,7 +139,7 @@ final List<LevelDef> lavaLevels = [
       themeId: 'lava',
       worldW: 44,
       worldH: 28,
-      modifiers: LevelModifiers(gravityMul: 1.35),
+      modifiers: LevelModifiers(gravityMul: 1.6),
       tunnels: [
         TunnelSpec(
           [Pt(5, 14), Pt(12, 12), Pt(19, 15), Pt(26, 12), Pt(33, 15), Pt(38, 14)],
@@ -167,7 +170,7 @@ final List<LevelDef> lavaLevels = [
       themeId: 'lava',
       worldW: 32,
       worldH: 36,
-      modifiers: LevelModifiers(fuelDrainMul: 1.4),
+      modifiers: LevelModifiers(gravityMul: 1.65, fuelDrainMul: 1.4),
       tunnels: [
         TunnelSpec(
           [Pt(16, 31), Pt(15, 26), Pt(16, 19), Pt(15, 12), Pt(16, 8)],
@@ -199,7 +202,7 @@ final List<LevelDef> lavaLevels = [
       worldW: 48,
       worldH: 30,
       noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(gravityMul: 1.3, fuelDrainMul: 1.2),
+      modifiers: LevelModifiers(gravityMul: 1.7, fuelDrainMul: 1.2),
       tunnels: [
         TunnelSpec(
           [Pt(5, 15), Pt(11, 11), Pt(17, 18), Pt(23, 13)],
@@ -238,7 +241,7 @@ final List<LevelDef> lavaLevels = [
       worldW: 56,
       worldH: 34,
       noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(gravityMul: 1.3, fuelDrainMul: 1.3, cargoDensityMul: 2.0),
+      modifiers: LevelModifiers(gravityMul: 1.7, fuelDrainMul: 1.3, cargoDensityMul: 2.0),
       tunnels: [
         TunnelSpec(
           [Pt(5, 17), Pt(11, 12), Pt(17, 20), Pt(23, 13)],

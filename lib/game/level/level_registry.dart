@@ -41,6 +41,7 @@ abstract final class LevelRegistry {
       starsRequired: 8,
       rewardPerStar: 10,
       levels: alienLevels,
+      defaultShipId: alienShipId,
     ),
     WorldDef(
       id: 'mine',
@@ -49,6 +50,7 @@ abstract final class LevelRegistry {
       starsRequired: 22,
       rewardPerStar: 12,
       levels: mineLevels,
+      defaultShipId: mineShipId,
     ),
     WorldDef(
       id: 'ice',
@@ -57,6 +59,7 @@ abstract final class LevelRegistry {
       starsRequired: 40,
       rewardPerStar: 15,
       levels: iceLevels,
+      defaultShipId: iceShipId,
     ),
     WorldDef(
       id: 'lava',
@@ -65,6 +68,7 @@ abstract final class LevelRegistry {
       starsRequired: 60,
       rewardPerStar: 20,
       levels: lavaLevels,
+      defaultShipId: lavaShipId,
     ),
   ];
 
@@ -110,6 +114,10 @@ abstract final class LevelRegistry {
     final (world, indexInWorld) = worldOf(flatIndex);
     if (!isWorldUnlocked(world)) return false;
     if (indexInWorld == 0) return true;
+    // Already flown → stays open even if a level was inserted before it
+    // (e.g. a new type-rating mission at the start of a world).
+    final self = world.levels[indexInWorld];
+    if (ProgressService.instance.getStarsById(self.saveId) > 0) return true;
     final previous = world.levels[indexInWorld - 1];
     return ProgressService.instance.getStarsById(previous.saveId) > 0;
   }

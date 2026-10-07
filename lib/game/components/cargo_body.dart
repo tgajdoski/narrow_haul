@@ -19,7 +19,7 @@ class CargoBody extends BodyComponent {
   final double densityMul;
 
   /// Smaller than ship hull (~33% reduced from prior 0.14 m).
-  static const double radius = 0.14 * (2.0 / 3.0);
+  static const double radius = kCargoRadius;
 
   ui.Image? _cargoImage;
 
@@ -61,7 +61,7 @@ class CargoBody extends BodyComponent {
     body.createFixture(
       FixtureDef(
         CircleShape()..radius = radius,
-        density: 2.0 * densityMul,
+        density: kCargoDensity * densityMul,
         friction: 0.45,
         restitution: 0.08,
         filter: filterCargo(),

@@ -4,6 +4,9 @@ import 'package:narrow_haul/game/level/level_def.dart';
 
 const _ice = LevelModifiers(wallFriction: 0.03);
 
+/// Ship flown in this world unless a level overrides it: the standard Kestrel.
+const iceShipId = 'kestrel';
+
 /// World 3 — Glacier Deep. Everything is slippery; walls give no grip.
 final List<LevelDef> iceLevels = [
   CaveLevelDef(

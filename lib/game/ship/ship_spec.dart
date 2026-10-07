@@ -20,6 +20,8 @@ class ShipSpec {
     this.ropeLengthMul = 1.0,
     this.autoLevel = false,
     this.hoverAssist = false,
+    this.tint,
+    this.blurb = '',
   });
 
   final String id;
@@ -49,6 +51,12 @@ class ShipSpec {
 
   /// Passive assist: thrust partly cancels the local force field.
   final bool hoverAssist;
+
+  /// ARGB tint over the sprite (placeholder livery until bespoke art lands).
+  final int? tint;
+
+  /// One-line role description for UI.
+  final String blurb;
 
   // ── Hull geometry at scale 1 (meters, nose at −Y) ──────────────────────
   static const double _noseY = -0.51;
@@ -82,10 +90,46 @@ class ShipSpec {
 }
 
 /// Baseline rocket — exactly the pre-ShipSpec constants.
-const kKestrel = ShipSpec(id: 'kestrel', name: 'Kestrel');
+const kKestrel = ShipSpec(
+  id: 'kestrel',
+  name: 'Kestrel',
+  blurb: 'Standard hauler. Balanced and forgiving.',
+);
+
+/// Light, twitchy scout for low-gravity caverns and tight squeezes: small
+/// hull, snappy turns and punchy engine, but a small tank.
+const kHopper = ShipSpec(
+  id: 'hopper',
+  name: 'Hopper',
+  hullScale: 0.8,
+  thrustForce: 3.6,
+  secondsPerFullRotation: 3.0,
+  maxFuel: 60,
+  linearDamping: 0.18,
+  tint: 0x6650FF9A,
+  blurb: 'Light scout. Quick turns, small tank.',
+);
+
+/// Heavy lifter for strong gravity and heavy cargo: big engine and tank,
+/// long winch, but a wide hull that turns slowly.
+const kMule = ShipSpec(
+  id: 'mule',
+  name: 'Mule',
+  hullScale: 1.1,
+  density: 1.3,
+  thrustForce: 8.0,
+  secondsPerFullRotation: 5.5,
+  maxFuel: 150,
+  linearDamping: 0.3,
+  ropeLengthMul: 1.25,
+  tint: 0x66FF9A3C,
+  blurb: 'Heavy lifter. Big engine and tank, slow to turn.',
+);
 
 const Map<String, ShipSpec> kShips = {
   'kestrel': kKestrel,
+  'hopper': kHopper,
+  'mule': kMule,
 };
 
 ShipSpec shipById(String? id) => kShips[id] ?? kKestrel;

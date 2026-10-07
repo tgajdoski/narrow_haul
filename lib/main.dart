@@ -17,6 +17,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -617,12 +618,20 @@ class _WorldHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (unlocked)
+                if (unlocked) ...[
                   Text(
                     '${world.levels.length} missions',
                     style: const TextStyle(color: Colors.white38, fontSize: 10),
-                  )
-                else ...[
+                  ),
+                  Text(
+                    '✈ ${shipById(world.defaultShipId).name}',
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else ...[
                   const Icon(
                     Icons.lock_outline,
                     size: 16,

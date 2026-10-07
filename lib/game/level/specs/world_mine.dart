@@ -2,8 +2,36 @@ import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 
+/// Ship flown in this world unless a level overrides it: the Mule heavy lifter for ore hauls.
+const mineShipId = 'mule';
+
 /// World 2 — Rustshaft Mines. Moving machinery: bars, pendulums, crushers.
 final List<LevelDef> mineLevels = [
+  // Type rating: first flight in the Mule — heavy pod, slow turns, big climb.
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 60),
+    spec: const LevelSpec(
+      id: 'rating_mule',
+      seed: 290,
+      name: 'Mule Type Rating',
+      themeId: 'mine',
+      worldW: 32,
+      worldH: 22,
+      modifiers: LevelModifiers(gravityMul: 1.1, cargoDensityMul: 1.5),
+      tunnels: [
+        TunnelSpec([Pt(5, 7), Pt(10, 8), Pt(14, 11), Pt(16, 15)], width: 2.0),
+        TunnelSpec([Pt(16, 15), Pt(20, 11), Pt(24, 8), Pt(27, 7)], width: 2.0),
+      ],
+      chambers: [
+        ChamberSpec(Pt(5, 7), 2.5),
+        ChamberSpec(Pt(16, 16), 2.0),
+        ChamberSpec(Pt(27, 7), 2.5),
+      ],
+      shipSpawn: Pt(5, 7),
+      cargoSpawn: Pt(16, 16),
+      goal: GoalSpec(Pt(27, 8.2)),
+    ),
+  ),
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 65),
     spec: const LevelSpec(
@@ -13,6 +41,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 36,
       worldH: 24,
+      modifiers: LevelModifiers(gravityMul: 1.1),
       tunnels: [
         TunnelSpec([Pt(5, 12), Pt(11, 10), Pt(17, 12)], width: 1.7),
         TunnelSpec([Pt(17, 12), Pt(24, 11), Pt(31, 12)], width: 1.7),
@@ -41,6 +70,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 40,
       worldH: 24,
+      modifiers: LevelModifiers(gravityMul: 1.1),
       tunnels: [
         TunnelSpec(
           [Pt(5, 12), Pt(12, 11), Pt(20, 12), Pt(28, 11), Pt(35, 12)],
@@ -71,6 +101,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 30,
       worldH: 32,
+      modifiers: LevelModifiers(gravityMul: 1.15),
       tunnels: [
         TunnelSpec(
           [Pt(15, 5), Pt(14, 11), Pt(15, 15), Pt(15, 23), Pt(15, 26)],
@@ -101,6 +132,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 42,
       worldH: 26,
+      modifiers: LevelModifiers(gravityMul: 1.15),
       tunnels: [
         TunnelSpec(
           [Pt(5, 13), Pt(11, 10), Pt(17, 13), Pt(23, 10), Pt(29, 13), Pt(36, 13)],
@@ -133,7 +165,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 40,
       worldH: 26,
-      modifiers: LevelModifiers(cargoDensityMul: 2.2),
+      modifiers: LevelModifiers(gravityMul: 1.2, cargoDensityMul: 2.2),
       tunnels: [
         TunnelSpec(
           [Pt(5, 13), Pt(12, 15), Pt(19, 12), Pt(26, 15), Pt(33, 13)],
@@ -163,6 +195,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 44,
       worldH: 28,
+      modifiers: LevelModifiers(gravityMul: 1.2),
       noise: NoiseSpec(amplitude: 0.24),
       tunnels: [
         TunnelSpec([Pt(5, 14), Pt(12, 12), Pt(18, 14), Pt(21, 14)], width: 1.7),
@@ -196,7 +229,7 @@ final List<LevelDef> mineLevels = [
       themeId: 'mine',
       worldW: 44,
       worldH: 30,
-      modifiers: LevelModifiers(fuelDrainMul: 1.3),
+      modifiers: LevelModifiers(gravityMul: 1.25, fuelDrainMul: 1.3),
       tunnels: [
         TunnelSpec(
           [Pt(5, 15), Pt(11, 10), Pt(17, 19), Pt(23, 10), Pt(29, 19), Pt(35, 12), Pt(39, 15)],
@@ -228,7 +261,7 @@ final List<LevelDef> mineLevels = [
       worldW: 50,
       worldH: 30,
       noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(cargoDensityMul: 1.6),
+      modifiers: LevelModifiers(gravityMul: 1.3, cargoDensityMul: 1.6),
       tunnels: [
         TunnelSpec(
           [Pt(5, 15), Pt(12, 11), Pt(19, 16), Pt(23, 14), Pt(28, 12)],

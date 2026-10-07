@@ -58,9 +58,15 @@ Three collaborating files:
 
 **Validation:** `test/cave_level_validation_test.dart` proves every cave level completable (anchor openness, BFS reachability with ship clearance, cargo rest-point approachability, obstacle sweeps clear of anchors, determinism, build-time budget). Authoring aid: `dart run tool/preview_levels.dart [id]` prints ASCII maps + issues. **Run this after any spec edit.** Common authoring gotcha: a cargo pocket must be a bowl — connect its tunnel at/above the pocket center, never as a slope under the cargo, or the cargo rolls out.
 
+**Flight checks** (`analyzeFlight` in `level_validator.dart`): along the shortest 8-connected route spawn → cargo → goal, *lift* = loaded thrust accel ÷ strongest pull at the heaviest daily gravity (must be ≥ 2.0), and *fuel* = impulse floor ∫|a|/a_thrust dt at 2.5 m/s cruise × 1.3 overhead (must be ≤ 60% of tank). Clearance and both checks use the level's ship. The preview tool prints these per level and warns `⚠ 3★ tight` when the estimate exceeds the 3★ fuel budget.
+
 **Theming:** `ThemeSpec` per world (`lib/game/level/theme_spec.dart`) — backdrop, rock palette, parallax tint/alphas, pad + UI accent colors, edge glow, decor tip color/density, `AmbientKind` particles. Applied in `_spawnLevel`. Optional art in `assets/themes/<id>/` (`rock.png`, `far/mid/near.png`, `decor.png` — spec in `assets/themes/README.md`) is loaded by `ThemeAssets`; every file falls back to the flat look (shared tinted parallax, solid rock, procedural spikes). `CaveDecor` places visual-only stalactites/stalagmites on cave floors/ceilings (seeded, clear of anchors and narrow passages — `test/cave_decor_test.dart`).
 
-**Modifiers:** `LevelModifiers` per level — `gravityMul`, `fuelDrainMul`, `cargoDensityMul`, `wallFriction` (ice ≈ 0.03). They compose multiplicatively with daily-challenge multipliers.
+**Modifiers:** `LevelModifiers` per level — `gravityMul`, `fuelDrainMul`, `cargoDensityMul`, `wallFriction` (ice ≈ 0.03). They compose multiplicatively with daily-challenge multipliers; combined gravity is clamped to `kMaxGravityMul` (2.5). Worlds ramp gravity: Alien 0.85→0.5, Mine 1.1→1.3, Lava 1.4→1.7. The HUD shows a local-gravity arrow (`GravityIndicatorHud`) whenever gravity isn't 1 g.
+
+**Ships** (`lib/game/ship/ship_spec.dart`): `ShipSpec` const data (hull scale, density, thrust, turn rate, tank, drain, damping, winch length, tint, passive-assist flags). The level picks the ship — `LevelSpec.shipId` overrides `WorldDef.defaultShipId`, which comes from a pure-Dart `<world>ShipId` const in each `specs/world_*.dart` file so `dart run` tools can see it. Kestrel (baseline, tutorial/ice), Hopper (light, low-g Alien), Mule (heavy lifter, Mine/Lava). Each new ship gets a `rating_<ship>` type-rating level at the start of its world. A level that already has stars stays unlocked even if a level is inserted before it.
+
+**Force fields** (`FieldSpec` in `level_spec.dart`, strengths in g): `GravityZoneSpec` (replaces gravity in a feathered rect/ellipse — zero-g or sideways), `WindZoneSpec` (additive, optional gusts), `GravityWellSpec` (softened, capped point attractor). `FieldSampler` (pure Dart) is shared by runtime and validator; `ForceFieldSystem` applies only `mass × (local − base)` to ship (after launch) and cargo, so levels without fields are untouched. Physics constants needed by pure-Dart code live in `physics_core.dart`.
 
 **Obstacles** (`lib/game/components/obstacles.dart`): `RotatingBar` (constant angular velocity), `Pendulum` and `SlidingBlock` (kinematic velocity-tracking on analytic paths — never teleported). All carry `WallTag`, so ship contact = crash via existing handling; cargo gets batted physically.
 
@@ -129,9 +135,9 @@ Base zoom `_baseZoom = 28` (px/meter). Follows ship with 18% lerp per frame. Cla
 | `_baseZoom` | `narrow_haul_game.dart` | 28 px/m |
 | `pixelsPerMeter` | `physics_constants.dart` | 32 |
 | `kGravityY` | `physics_constants.dart` | 1.375 m/s² |
-| `thrustForce` | `ship_body.dart` | 5.1 N |
-| `fuelDrainPerSecond` | `ship_body.dart` | 12 units/s |
-| `secondsPerFullRotation` | `ship_body.dart` | 4.0 s |
+| `thrustForce` | `ship_spec.dart` (Kestrel) | 5.1 N |
+| `fuelDrainPerSecond` | `ship_spec.dart` (Kestrel) | 12 units/s |
+| `secondsPerFullRotation` | `ship_spec.dart` (Kestrel) | 4.0 s |
 
 ### Debug Mode
 

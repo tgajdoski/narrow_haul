@@ -62,6 +62,7 @@ class LevelIntroHud extends PositionComponent {
 
   String _title = '';
   String _subtitle = '';
+  String _note = '';
   Color _accent = Colors.white;
   double _t = _duration;
 
@@ -72,9 +73,11 @@ class LevelIntroHud extends PositionComponent {
     required String title,
     required String subtitle,
     required Color accent,
+    String note = '',
   }) {
     _title = title;
     _subtitle = subtitle;
+    _note = note;
     _accent = accent;
     _t = 0;
   }
@@ -140,13 +143,29 @@ class LevelIntroHud extends PositionComponent {
       Offset((size.x - title.width) / 2, cy + sub.height + 2),
     );
     final lineW = math.max(title.width, sub.width) * 0.6;
+    final lineY = cy + sub.height + title.height + 8;
     canvas.drawLine(
-      Offset((size.x - lineW) / 2, cy + sub.height + title.height + 8),
-      Offset((size.x + lineW) / 2, cy + sub.height + title.height + 8),
+      Offset((size.x - lineW) / 2, lineY),
+      Offset((size.x + lineW) / 2, lineY),
       Paint()
         ..color = _accent.withValues(alpha: a * 0.6)
         ..strokeWidth = 2,
     );
+    if (_note.isNotEmpty) {
+      final note = TextPainter(
+        text: TextSpan(
+          text: _note,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: a * 0.75),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.5,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      note.paint(canvas, Offset((size.x - note.width) / 2, lineY + 8));
+    }
   }
 }
 

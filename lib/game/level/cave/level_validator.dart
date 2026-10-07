@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
+import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 /// Pure-Dart playability checks shared by `flutter test` and the authoring
@@ -122,7 +125,24 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
     issues.add('cargo rest point not approachable within attach range');
   }
 
-  // 4. Obstacle sweeps must not sit on the anchors.
+  // 4. Flight physics: lift margin and fuel budget along the haul path.
+  if (reached != null && restY != null) {
+    final flight = analyzeFlight(spec, ship: ship);
+    if (flight == null) {
+      issues.add('no flight path found for physics checks');
+    } else {
+      if (flight.liftRatio < kMinLiftRatio) {
+        issues.add('LIFT: thrust/pull ratio ${flight.liftRatio.toStringAsFixed(2)} '
+            '< $kMinLiftRatio with cargo at heaviest daily gravity');
+      }
+      if (flight.fuelFraction > kMaxFuelFraction) {
+        issues.add('FUEL: estimated burn ${(flight.fuelFraction * 100).round()}% '
+            'of tank > ${(kMaxFuelFraction * 100).round()}%');
+      }
+    }
+  }
+
+  // 5. Obstacle sweeps must not sit on the anchors.
   for (final o in spec.obstacles) {
     final sweep = _obstacleSweepAabb(o);
     for (final (label, p) in [
@@ -194,3 +214,153 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
   mark(spec.goal.center, 'G');
   return grid.map((row) => row.join()).join('\n');
 }
+
+
+// ── Flight physics heuristics ──────────────────────────────────────────────
+
+/// Thrust must beat the strongest pull on the route (ship + cargo, heaviest
+/// daily-challenge gravity) by this factor — below it, flying feels sluggish.
+const double kMinLiftRatio = 2.0;
+
+/// Estimated burn for a clean run must leave a comfortable reserve.
+const double kMaxFuelFraction = 0.6;
+
+/// Assumed average cruise speed (m/s) and a maneuvering overhead on top of the
+/// impulse floor. Calibrated so existing hand-tuned levels sit well inside.
+const double _cruiseSpeed = 2.5;
+const double _maneuverOverhead = 1.3;
+
+class FlightReport {
+  const FlightReport({
+    required this.pathLength,
+    required this.liftRatio,
+    required this.fuelFraction,
+    required this.maxPull,
+  });
+
+  /// Meters flown spawn → cargo → goal along the shortest clear route.
+  final double pathLength;
+
+  /// Thrust acceleration (with cargo) ÷ strongest pull on the route.
+  final double liftRatio;
+
+  /// Estimated fraction of the tank burned on a clean run.
+  final double fuelFraction;
+
+  /// Strongest local acceleration on the route (m/s², release gravity).
+  final double maxPull;
+
+  @override
+  String toString() => 'path ${pathLength.toStringAsFixed(1)} m, '
+      'lift ×${liftRatio.toStringAsFixed(1)}, '
+      'fuel ~${(fuelFraction * 100).round()}%, '
+      'max pull ${maxPull.toStringAsFixed(2)} m/s²';
+}
+
+/// Impulse-based flight estimate. Holding a steady course against a pull `a`
+/// needs thrust impulse `m·|a|·t` no matter how the pilot flies it, so the
+/// fuel floor is ∫|a|/a_thrust dt along the route at cruise speed, scaled by
+/// an overhead for turns and corrections. Null if no route exists.
+FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
+  final cave = buildCave(spec);
+  final nx = cave.nx;
+  final ny = cave.ny;
+  final stride = nx + 1;
+  final clear = -(ship.circumradius + 0.04);
+
+  final sampler = FieldSampler(
+    fields: spec.fields,
+    g0: kGravityY,
+    gravityMul: spec.modifiers.gravityMul,
+  );
+
+  int key(Pt p) =>
+      (p.y / cave.cell).round().clamp(0, ny) * stride +
+      (p.x / cave.cell).round().clamp(0, nx);
+
+  // Fewest-step 8-connected route over clear cells (no corner cutting);
+  // null if [to] is unreachable.
+  List<int>? route(Pt from, Pt to, double tolerance) {
+    final parent = Int32List(stride * (ny + 1))..fillRange(0, stride * (ny + 1), -2);
+    final start = key(from);
+    if (cave.field[start] >= clear) return null;
+    final tc = (to.x / cave.cell, to.y / cave.cell);
+    final tol = tolerance / cave.cell;
+    parent[start] = -1;
+    final q = Queue<int>()..add(start);
+    while (q.isNotEmpty) {
+      final k = q.removeFirst();
+      final i = k % stride;
+      final j = k ~/ stride;
+      final dx = i - tc.$1;
+      final dy = j - tc.$2;
+      if (dx * dx + dy * dy <= tol * tol) {
+        final path = <int>[];
+        for (var c = k; c != -1; c = parent[c]) {
+          path.add(c);
+        }
+        return path.reversed.toList();
+      }
+      for (final (di, dj) in _dirs8) {
+        final i2 = i + di;
+        final j2 = j + dj;
+        if (i2 < 0 || j2 < 0 || i2 > nx || j2 > ny) continue;
+        final k2 = j2 * stride + i2;
+        if (parent[k2] != -2 || cave.field[k2] >= clear) continue;
+        if (di != 0 && dj != 0 &&
+            (cave.field[j * stride + i2] >= clear || cave.field[j2 * stride + i] >= clear)) {
+          continue;
+        }
+        parent[k2] = k;
+        q.add(k2);
+      }
+    }
+    return null;
+  }
+
+  final toCargo = route(spec.shipSpawn, spec.cargoSpawn, 1.15);
+  if (toCargo == null) return null;
+  final last = toCargo.last;
+  final pickup = Pt((last % stride) * cave.cell, (last ~/ stride) * cave.cell);
+  final toGoal = route(pickup, spec.goal.center, 0.8);
+  if (toGoal == null) return null;
+
+  final cargoMass =
+      math.pi * kCargoRadius * kCargoRadius * kCargoDensity * spec.modifiers.cargoDensityMul;
+  final aEmpty = ship.thrustForce / ship.mass;
+  final aLoaded = ship.thrustForce / (ship.mass + cargoMass);
+  var burn = 0.0; // seconds of full thrust
+  var maxPull = 0.0;
+  var length = 0.0;
+  for (final (path, aThrust) in [(toCargo, aEmpty), (toGoal, aLoaded)]) {
+    for (var n = 1; n < path.length; n++) {
+      final k = path[n];
+      final diagonal = (k % stride) != (path[n - 1] % stride) &&
+          (k ~/ stride) != (path[n - 1] ~/ stride);
+      final ds = diagonal ? cave.cell * math.sqrt2 : cave.cell;
+      final a = sampler.accelAt((k % stride) * cave.cell, (k ~/ stride) * cave.cell);
+      final pull = math.sqrt(a.x * a.x + a.y * a.y);
+      maxPull = math.max(maxPull, pull);
+      burn += pull / aThrust * ds / _cruiseSpeed;
+      length += ds;
+    }
+  }
+
+  // Lift at the heaviest daily gravity (clamped like the runtime does).
+  final worstMul = math.min(kMaxChallengeGravityMul * spec.modifiers.gravityMul, kMaxGravityMul) /
+      math.max(spec.modifiers.gravityMul, 1e-9);
+  final worstPull = spec.modifiers.gravityMul == 0
+      ? maxPull * kMaxChallengeGravityMul
+      : maxPull * math.max(worstMul, 1.0);
+  final liftRatio = worstPull <= 1e-9 ? double.infinity : aLoaded / worstPull;
+
+  final burnSeconds = ship.burnSeconds / spec.modifiers.fuelDrainMul;
+  return FlightReport(
+    pathLength: length,
+    liftRatio: liftRatio,
+    fuelFraction: burn * _maneuverOverhead / burnSeconds,
+    maxPull: maxPull,
+  );
+}
+
+const _dirs8 = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
