@@ -23,6 +23,9 @@ class DualLandingZone extends Component {
   bool _shipInside = false;
   bool _fired = false;
 
+  bool get cargoInside => _cargoInside;
+  bool get shipInside => _shipInside;
+
   void _sync() {
     if (_fired) return;
     if (_cargoInside && _shipInside) {

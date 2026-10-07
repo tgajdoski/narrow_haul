@@ -93,6 +93,15 @@ class AudioService {
     _thrustPlayer = null;
   }
 
+  /// Releases the looping thrust player (app shutdown / test teardown).
+  static Future<void> dispose() async {
+    final player = _thrustPlayer;
+    _thrustPlayer = null;
+    _thrustPrewarmed = false;
+    _ready = false;
+    await player?.dispose();
+  }
+
   static void playAttach() {
     if (!_ready || !_enabled) return;
     FlameAudio.play('attach.mp3', volume: 0.8).then<void>(

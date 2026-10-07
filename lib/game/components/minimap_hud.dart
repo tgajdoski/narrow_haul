@@ -81,6 +81,11 @@ class MinimapHud extends PositionComponent
     _relayout();
   }
 
+  /// Re-reads the expanded/collapsed setting (e.g. after the Settings screen).
+  void refreshLayout() {
+    if (isMounted) _relayout();
+  }
+
   void _relayout() {
     final vp = game.camera.viewport.size;
     position = Vector2(vp.x - _margin, _margin);

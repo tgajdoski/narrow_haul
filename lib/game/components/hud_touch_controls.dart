@@ -19,6 +19,15 @@ class HudTouchControls extends PositionComponent {
   final void Function(double axis) onRotateAxis;
   final void Function(bool pressed) onThrust;
 
+  /// Mirror the layout: thrust bottom-left, joystick on the right half.
+  bool get leftHanded => _leftHanded;
+  bool _leftHanded = false;
+  set leftHanded(bool v) {
+    if (v == _leftHanded) return;
+    _leftHanded = v;
+    _relayout(size);
+  }
+
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
 
@@ -44,14 +53,16 @@ class HudTouchControls extends PositionComponent {
 
     _joystick = _FloatingJoystick(
       areaSize: Vector2(sz.x * 0.5, sz.y),
-      position: Vector2.zero(),
+      position: Vector2(_leftHanded ? sz.x * 0.5 : 0, 0),
       onAxisChanged: onRotateAxis,
+      hintFraction: _leftHanded ? 0.78 : 0.22,
     );
 
     const btnRadius = 52.0;
     const margin = 28.0;
+    final btnX = _leftHanded ? margin + btnRadius : sz.x - margin - btnRadius;
     _thrustBtn = _ThrustButton(
-      center: Vector2(sz.x - margin - btnRadius, sz.y - margin - btnRadius),
+      center: Vector2(btnX, sz.y - margin - btnRadius),
       radius: btnRadius,
       onChanged: onThrust,
     );
@@ -70,6 +81,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     required Vector2 areaSize,
     required Vector2 position,
     required this.onAxisChanged,
+    this.hintFraction = 0.22,
   }) : super(
           position: position,
           size: areaSize,
@@ -77,6 +89,9 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
         );
 
   final void Function(double axis) onAxisChanged;
+
+  /// Horizontal position of the idle hint within the joystick area.
+  final double hintFraction;
 
   static const double _maxKnobRadius = 56.0;
   static const double _baseOuterRadius = 68.0;
@@ -164,7 +179,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   /// Resting position hint: show the full joystick (base + centred knob)
   /// at a fixed bottom-left location so the player always sees it.
   void _drawHint(Canvas canvas) {
-    final cx = size.x * 0.22;
+    final cx = size.x * hintFraction;
     final cy = size.y - _baseOuterRadius - 16;
 
     if (_baseSprite != null) {
@@ -471,6 +486,18 @@ class FuelGaugeHud extends PositionComponent {
   double fuelFraction = 1.0;
   bool towing = false;
 
+  /// Fuel fractions needed for 3★ / 2★ — drawn as ticks on the bar.
+  List<double> starMarks = const [];
+
+  static const double lowFuel = 0.15;
+  double _t = 0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+  }
+
   Sprite? _frameSprite;
 
   static const double _barW = 220.0;
@@ -494,6 +521,14 @@ class FuelGaugeHud extends PositionComponent {
         : fuelFraction > 0.15
             ? const Color(0xFFFFD166)
             : const Color(0xFFFF6B35);
+    // Low fuel: the fill blinks so it's noticed in peripheral vision.
+    final low = fuelFraction > 0 && fuelFraction < lowFuel;
+    final blink = low ? 0.35 + 0.65 * (math.sin(_t * 9) * 0.5 + 0.5) : 1.0;
+    final fillPaint = Paint()..color = fillColor.withValues(alpha: blink);
+    final double innerLeft;
+    final double innerW;
+    final double innerTop;
+    final double innerH;
 
     if (_frameSprite != null) {
       // Sprite-based frame
@@ -511,9 +546,13 @@ class FuelGaugeHud extends PositionComponent {
             Rect.fromLTWH(_left + _fillInset, _top + _fillInset, fillW, _barH - _fillInset * 2),
             const Radius.circular(3),
           ),
-          Paint()..color = fillColor,
+          fillPaint,
         );
       }
+      innerLeft = _left + _fillInset;
+      innerW = _barW - _fillInset * 2;
+      innerTop = _top + _fillInset;
+      innerH = _barH - _fillInset * 2;
     } else {
       // Fallback: pure canvas bar
       const barW = 120.0;
@@ -535,9 +574,13 @@ class FuelGaugeHud extends PositionComponent {
             Rect.fromLTWH(left, top, barW * fuelFraction, barH),
             const Radius.circular(4),
           ),
-          Paint()..color = fillColor,
+          fillPaint,
         );
       }
+      innerLeft = left;
+      innerW = barW;
+      innerTop = top;
+      innerH = barH;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -549,6 +592,36 @@ class FuelGaugeHud extends PositionComponent {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
+    }
+
+    // Star thresholds: a tick per mark, lit while fuel is still above it.
+    for (final mark in starMarks) {
+      final x = innerLeft + innerW * mark;
+      final kept = fuelFraction >= mark;
+      canvas.drawLine(
+        Offset(x, innerTop - 2),
+        Offset(x, innerTop + innerH + 2),
+        Paint()
+          ..color = kept ? const Color(0xFFFFD166) : const Color(0x66FFFFFF)
+          ..strokeWidth = 2,
+      );
+    }
+
+    if (low) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: 'LOW FUEL',
+          style: TextStyle(
+            color: const Color(0xFFFF6B35).withValues(alpha: blink),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final x = (_frameSprite != null ? _left + _barW : 12.0 + 120.0) + 24;
+      tp.paint(canvas, Offset(x, innerTop + innerH / 2 - tp.height / 2));
     }
 
     // Tow indicator dot (always code-drawn)
@@ -577,42 +650,94 @@ class FuelGaugeHud extends PositionComponent {
 // Compass / level info strip
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Shows level number + star goal hint at top-right.
+/// Level label + best stars, then a live timer and the best star target
+/// still reachable this flight (fuel and time only ever get worse, so a lost
+/// target never comes back). Sits under the fuel gauge, top-left.
 class LevelInfoHud extends PositionComponent {
   LevelInfoHud() : super(priority: 4900);
 
   String levelLabel = '';
   int stars = 0;
 
+  double elapsed = 0;
+  double fuelFraction = 1;
+  double star3Fuel = 0.7;
+  double star2Fuel = 0.4;
+  double star3Time = 60;
+
+  static const _gold = Color(0xFFFFD166);
+
   @override
   void render(Canvas canvas) {
     if (levelLabel.isEmpty) return;
 
-    final textStyle = const TextStyle(
-      color: Color(0xCCFFFFFF),
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-    );
-
     final tp = TextPainter(
-      text: TextSpan(text: levelLabel, style: textStyle),
+      text: TextSpan(
+        text: levelLabel,
+        style: const TextStyle(
+          color: Color(0xE6FFFFFF),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
+        ),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
+    const left = 12.0;
+    const top = 40.0;
+    tp.paint(canvas, const Offset(left, top));
 
-    tp.paint(canvas, const Offset(12, 26));
-
-    const starY = 26.0;
-    var starX = 12.0 + tp.width + 8;
+    var starX = left + tp.width + 8;
     for (int i = 0; i < 3; i++) {
-      final filled = i < stars;
       _drawStar(
         canvas,
-        Offset(starX + 8, starY + tp.height / 2),
+        Offset(starX + 7, top + tp.height / 2),
         6,
-        filled ? const Color(0xFFFFD166) : const Color(0x3300B4D8),
+        i < stars ? _gold : const Color(0x55FFFFFF),
       );
-      starX += 18;
+      starX += 16;
     }
+
+    final (targetStars, hint, color) = _target();
+    final line = TextPainter(
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          fontFeatures: [FontFeature.tabularFigures()],
+          shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
+        ),
+        children: [
+          TextSpan(
+            text: _fmt(elapsed),
+            style: const TextStyle(color: Color(0xCCFFFFFF)),
+          ),
+          const TextSpan(text: '   '),
+          TextSpan(text: '★' * targetStars, style: TextStyle(color: color)),
+          TextSpan(text: '  $hint', style: TextStyle(color: color.withValues(alpha: 0.85))),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    line.paint(canvas, Offset(left, top + tp.height + 3));
+  }
+
+  (int, String, Color) _target() {
+    final pct3 = (star3Fuel * 100).round();
+    if (fuelFraction >= star3Fuel && elapsed <= star3Time) {
+      final left = (star3Time - elapsed).ceil();
+      return (3, 'keep ≥$pct3% fuel · ${left}s left', _gold);
+    }
+    if (fuelFraction >= star2Fuel) {
+      return (2, 'keep ≥${(star2Fuel * 100).round()}% fuel', const Color(0xFFE0E0E0));
+    }
+    return (1, 'deliver the cargo', const Color(0xFFB0B0B0));
+  }
+
+  static String _fmt(double s) {
+    final m = s ~/ 60;
+    final sec = (s % 60).toStringAsFixed(1).padLeft(4, '0');
+    return '$m:$sec';
   }
 
   void _drawStar(Canvas canvas, Offset center, double size, Color color) {

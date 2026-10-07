@@ -32,6 +32,7 @@ class ParallaxBackground extends PositionComponent with HasGameReference<Forge2D
   List<double> alphas = const [0.50, 0.72, 0.92];
 
   final List<ui.Image?> _images = [null, null, null]; // ui.Image from dart:ui
+  final List<ui.Image?> _shared = [null, null, null];
 
   @override
   Future<void> onLoad() async {
@@ -41,9 +42,26 @@ class ParallaxBackground extends PositionComponent with HasGameReference<Forge2D
     size = game.size;
     for (int i = 0; i < _files.length; i++) {
       try {
-        _images[i] = await Flame.images.load(_files[i]);
+        _shared[i] = await Flame.images.load(_files[i]);
       } catch (_) {}
     }
+    _images.setAll(0, _shared);
+  }
+
+  /// Apply a world's look. With dedicated [far]/[mid]/[near] art those layers
+  /// are drawn untinted (missing ones are skipped); otherwise the shared
+  /// sprites are modulate-tinted with [tint].
+  void applyTheme({
+    required Color tint,
+    required List<double> alphas,
+    ui.Image? far,
+    ui.Image? mid,
+    ui.Image? near,
+  }) {
+    this.alphas = alphas;
+    final custom = far != null || mid != null || near != null;
+    this.tint = custom ? Colors.white : tint;
+    _images.setAll(0, custom ? [far, mid, near] : _shared);
   }
 
   @override

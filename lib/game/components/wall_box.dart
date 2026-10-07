@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/level/theme_assets.dart';
+import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
 
@@ -11,9 +14,31 @@ class WallBox extends BodyComponent {
     required this.wallCenter,
     required this.halfWidth,
     required this.halfHeight,
-  }) : super(
-         paint: Paint()..color = const Color(0xFF1D3461),
-       );
+    this.theme = tutorialTheme,
+    this.assets = ThemeAssets.empty,
+  }) : super(paint: _fillPaint(theme, assets, wallCenter));
+
+  /// Theme fill; with a rock texture, the shader is anchored to the world
+  /// origin (not the box) so adjacent walls tile seamlessly.
+  static Paint _fillPaint(ThemeSpec theme, ThemeAssets assets, Vector2 center) {
+    final paint = Paint()..color = theme.rockFill;
+    final img = assets.rock;
+    if (img == null) return paint;
+    final s = theme.rockTextureMeters / img.width;
+    final m = Matrix4.translationValues(-center.x, -center.y, 0)
+      ..scaleByDouble(s, s, 1, 1);
+    return paint
+      ..shader = ui.ImageShader(
+        img,
+        ui.TileMode.repeated,
+        ui.TileMode.repeated,
+        m.storage,
+      )
+      ..filterQuality = FilterQuality.medium;
+  }
+
+  final ThemeSpec theme;
+  final ThemeAssets assets;
 
   final Vector2 wallCenter;
   final double halfWidth;
@@ -45,6 +70,7 @@ class WallBox extends BodyComponent {
     final rect = Rect.fromCenter(center: Offset.zero, width: w, height: h);
 
     canvas.drawRect(rect, paint);
+    if (assets.rock != null) return;
 
     // Rock detail lines (pseudo texture using seeded noise)
     final seedX = wallCenter.x.round();

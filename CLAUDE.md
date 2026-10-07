@@ -58,7 +58,7 @@ Three collaborating files:
 
 **Validation:** `test/cave_level_validation_test.dart` proves every cave level completable (anchor openness, BFS reachability with ship clearance, cargo rest-point approachability, obstacle sweeps clear of anchors, determinism, build-time budget). Authoring aid: `dart run tool/preview_levels.dart [id]` prints ASCII maps + issues. **Run this after any spec edit.** Common authoring gotcha: a cargo pocket must be a bowl — connect its tunnel at/above the pocket center, never as a slope under the cargo, or the cargo rolls out.
 
-**Theming:** `ThemeSpec` per world (`lib/game/level/theme_spec.dart`) — backdrop, rock palette, parallax tint/alphas, pad + UI accent colors. Applied in `_spawnLevel`; parallax layers are the shared 3 PNGs modulate-tinted per theme.
+**Theming:** `ThemeSpec` per world (`lib/game/level/theme_spec.dart`) — backdrop, rock palette, parallax tint/alphas, pad + UI accent colors, edge glow, decor tip color/density, `AmbientKind` particles. Applied in `_spawnLevel`. Optional art in `assets/themes/<id>/` (`rock.png`, `far/mid/near.png`, `decor.png` — spec in `assets/themes/README.md`) is loaded by `ThemeAssets`; every file falls back to the flat look (shared tinted parallax, solid rock, procedural spikes). `CaveDecor` places visual-only stalactites/stalagmites on cave floors/ceilings (seeded, clear of anchors and narrow passages — `test/cave_decor_test.dart`).
 
 **Modifiers:** `LevelModifiers` per level — `gravityMul`, `fuelDrainMul`, `cargoDensityMul`, `wallFriction` (ice ≈ 0.03). They compose multiplicatively with daily-challenge multipliers.
 
@@ -98,6 +98,12 @@ Three collaborating files:
 | `'levelComplete'` | Both ship + cargo on pad (`RunState.won`); shows XP breakdown + animated rank bar |
 | `'rankUp'` | Pushed on top of levelComplete when the run crossed a rank |
 | `'pilotProfile'` | Pilot Logbook (rank ladder + lifetime stats), from the menu rank card |
+| `'pause'` | HUD pause button (top-center) or app backgrounded mid-flight (`pauseGame`/`resumeGame`; `isPaused`, runState stays `playing`) |
+| `'settings'` | From menu or pause; sound / vibration / left-handed / minimap, persisted in `ProgressService`, applied via `applySettings()` |
+
+`pause`/`settings` live in `lib/ui/pause_settings_overlays.dart`. Crashes play `ExplosionBurst` + camera shake for 0.9 s before `'gameOver'` appears. Level time is `elapsedSeconds` (accumulated game time — pauses don't count). Vibration goes through `Haptics` (`services/haptics.dart`). The ship hovers on its start pad (`gravityScale` zero) until the first input (`ShipBody.launched`), and the level clock starts then. On delivery a `CelebrationBurst` plays ~1.1 s before `'levelComplete'`. `HintHud` shows the landing status (only one of ship/cargo on the pad) and, on tut_01–03 until first clear, onboarding steps. Titles use the bundled `RussoOne` font (`kDisplayFont`, `lib/ui/fonts.dart`) via the theme's display/headline/title styles.
+
+**Visual smoke test:** `flutter test integration_test/visual_smoke_test.dart -d macos` drives menus, levels, pause, crash and the result screen, saving screenshots to the app's sandbox temp dir (printed as `SHOTS_DIR=`). Uses mocked prefs, so it never touches real saves.
 
 All overlays are plain Flutter `StatelessWidget`s registered in `GameWidget.overlayBuilderMap`. They call back into `NarrowHaulGame` methods (`restartLevel`, `backToMenu`, `nextLevel`, `startLevel(i)`).
 

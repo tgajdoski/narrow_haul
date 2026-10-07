@@ -60,9 +60,27 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   void setInput({required double rotate, required bool thrust}) {
     _rotateInput = rotate.clamp(-1.0, 1.0);
     _thrustInput = thrust;
+    if (!_launched && (thrust || rotate.abs() > 0.05)) {
+      _launched = true;
+      body.gravityScale = null; // gravity on from the first input
+    }
   }
 
-  bool get isThrusting => _thrustInput && fuel > 0;
+  /// The ship hovers on its start pad (no gravity) until the first input, so
+  /// reading the intro card or a tutorial hint never ends in a crash.
+  bool get launched => _launched;
+  bool _launched = false;
+
+  bool get isThrusting => _thrustInput && fuel > 0 && !_wrecked;
+
+  bool _wrecked = false;
+
+  /// Crash: hide the hull and kill input; the body keeps simulating so the
+  /// rope/cargo react naturally while the explosion plays.
+  void wreck() {
+    _wrecked = true;
+    setInput(rotate: 0, thrust: false);
+  }
 
   @override
   Future<void> onLoad() async {
@@ -87,6 +105,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   @override
   void render(Canvas canvas) {
+    if (_wrecked) return;
     super.render(canvas); // no-op when renderBody = false
     final img = _shipImage;
     if (img != null) {
@@ -128,7 +147,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       // Rotation rate is set directly in [update]; keep 0 so we hit exactly
       // [secondsPerFullRotation] per turn without fighting damping.
       ..angularDamping = 0
-      ..linearDamping = 0.22;
+      ..linearDamping = 0.22
+      ..gravityScale = Vector2.zero();
 
     final b = world.createBody(def);
     b.createFixture(

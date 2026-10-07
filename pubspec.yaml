@@ -45,6 +45,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -68,6 +70,17 @@ flutter:
     - assets/
     - assets/audio/
     - assets/tiles/
+    - assets/themes/tutorial/
+    - assets/themes/alien/
+    - assets/themes/mine/
+    - assets/themes/ice/
+    - assets/themes/lava/
+
+  # Display face for titles (SIL OFL 1.1 — assets/fonts/OFL.txt).
+  fonts:
+    - family: RussoOne
+      fonts:
+        - asset: assets/fonts/RussoOne-Regular.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

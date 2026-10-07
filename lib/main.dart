@@ -14,6 +14,8 @@ import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/ui/fonts.dart';
+import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 
 void main() async {
@@ -30,6 +32,31 @@ void main() async {
   runApp(_NarrowHaulApp(game: game));
 }
 
+/// Dark theme; display/headline/title styles use the bundled RussoOne face
+/// (titles only — body text stays on the platform font for legibility).
+ThemeData _theme() {
+  final base = ThemeData.dark().copyWith(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color(0xFF00B4D8),
+      brightness: Brightness.dark,
+    ),
+  );
+  TextStyle? display(TextStyle? s) => s?.copyWith(fontFamily: kDisplayFont);
+  final t = base.textTheme;
+  return base.copyWith(
+    textTheme: t.copyWith(
+      displayLarge: display(t.displayLarge),
+      displayMedium: display(t.displayMedium),
+      displaySmall: display(t.displaySmall),
+      headlineLarge: display(t.headlineLarge),
+      headlineMedium: display(t.headlineMedium),
+      headlineSmall: display(t.headlineSmall),
+      titleLarge: display(t.titleLarge),
+      titleMedium: display(t.titleMedium),
+    ),
+  );
+}
+
 class _NarrowHaulApp extends StatelessWidget {
   const _NarrowHaulApp({required this.game});
   final NarrowHaulGame game;
@@ -38,12 +65,7 @@ class _NarrowHaulApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00B4D8),
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: _theme(),
       home: Scaffold(
         backgroundColor: const Color(0xFF050816),
         body: ClipRect(
@@ -85,6 +107,12 @@ class _NarrowHaulApp extends StatelessWidget {
                     'rankUp': (context, game) {
                       final g = game as NarrowHaulGame;
                       return _RankUpOverlay(game: g);
+                    },
+                    'pause': (context, game) {
+                      return PauseOverlay(game: game as NarrowHaulGame);
+                    },
+                    'settings': (context, game) {
+                      return SettingsOverlay(game: game as NarrowHaulGame);
                     },
                     'pilotProfile': (context, game) {
                       final g = game as NarrowHaulGame;
@@ -272,11 +300,24 @@ class _MenuOverlay extends StatelessWidget {
                         style: TextStyle(color: Colors.white38, fontSize: 13),
                       ),
                     ),
+                    const Text('·', style: TextStyle(color: Colors.white24)),
+                    TextButton(
+                      onPressed: () {
+                        game.overlays.remove('menu');
+                        game.overlays.add('settings');
+                      },
+                      child: const Text(
+                        'Settings',
+                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Left side: joystick (rotate)  ·  Right side: thrust',
+                  ProgressService.instance.leftHanded
+                      ? 'Left side: thrust  ·  Right side: joystick (rotate)'
+                      : 'Left side: joystick (rotate)  ·  Right side: thrust',
                   textAlign: TextAlign.center,
                   style: Theme.of(
                     context,
@@ -352,6 +393,15 @@ class _LevelSelectOverlay extends StatelessWidget {
             ),
             const Divider(color: Color(0x2200B4D8), height: 1),
             Expanded(child: _WorldMap(game: game)),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                '▼ heavy gravity   ▲ light gravity   ⛽ fast fuel burn   '
+                '⚓ heavy cargo   ❄ icy walls',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              ),
+            ),
           ],
         ),
       ),
@@ -359,9 +409,52 @@ class _LevelSelectOverlay extends StatelessWidget {
   }
 }
 
-class _WorldMap extends StatelessWidget {
+class _WorldMap extends StatefulWidget {
   const _WorldMap({required this.game});
   final NarrowHaulGame game;
+
+  @override
+  State<_WorldMap> createState() => _WorldMapState();
+}
+
+class _WorldMapState extends State<_WorldMap> {
+  final _scroll = ScrollController();
+  bool _scrolled = false;
+
+  NarrowHaulGame get game => widget.game;
+
+  /// First unlocked level without a star, else the last unlocked one.
+  static int nextLevelIndex() {
+    int lastUnlocked = 0;
+    for (int i = 0; i < LevelRegistry.totalLevels; i++) {
+      if (!LevelRegistry.isLevelUnlocked(i)) continue;
+      lastUnlocked = i;
+      final def = LevelRegistry.defAt(i);
+      if (ProgressService.instance.getStarsById(def.saveId) == 0) return i;
+    }
+    return lastUnlocked;
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Centers the map on [x] once, right after the first layout.
+  void _scrollToOnce(double x, double viewportW) {
+    if (_scrolled) return;
+    _scrolled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      final target = (x - viewportW / 2).clamp(0.0, _scroll.position.maxScrollExtent);
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,8 +489,11 @@ class _WorldMap extends StatelessWidget {
         final w = x + 60;
 
         final flatDefs = LevelRegistry.flat;
+        final next = nextLevelIndex();
+        _scrollToOnce(nodePositions[next].dx, constraints.maxWidth);
 
         return SingleChildScrollView(
+          controller: _scroll,
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           child: SizedBox(
@@ -441,12 +537,33 @@ class _WorldMap extends StatelessWidget {
                         unlocked: LevelRegistry.isLevelUnlocked(i),
                         stars: progress.getStarsById(flatDefs[i].saveId),
                         bestTime: progress.getBestTimeById(flatDefs[i].saveId),
+                        isNext: i == next,
                         onTap: LevelRegistry.isLevelUnlocked(i)
                             ? () => game.startLevel(i)
                             : null,
                       ),
                     ),
                   ),
+                for (int i = 0; i < flatDefs.length; i++)
+                  if (LevelRegistry.isLevelUnlocked(i))
+                    Positioned(
+                      left: nodePositions[i].dx - 70,
+                      top: nodePositions[i].dy + 49,
+                      width: 140,
+                      child: IgnorePointer(
+                        child: Text(
+                          flatDefs[i].name,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: i == next ? Colors.white : Colors.white54,
+                            fontSize: 11,
+                            fontWeight: i == next ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
               ],
             ),
           ),
@@ -561,8 +678,10 @@ class _MapNode extends StatelessWidget {
     required this.stars,
     required this.bestTime,
     required this.onTap,
+    this.isNext = false,
   });
 
+  final bool isNext;
   final LevelDef def;
   final String label;
   final bool unlocked;
@@ -596,11 +715,19 @@ class _MapNode extends StatelessWidget {
             color: const Color(0xFF0D1B2A),
             border: Border.all(
               color: unlocked
-                  ? accent.withValues(alpha: stars > 0 ? 0.8 : 0.3)
+                  ? accent.withValues(alpha: isNext ? 1 : (stars > 0 ? 0.8 : 0.3))
                   : const Color(0x331B263B),
-              width: stars == 3 ? 3 : 2,
+              width: stars == 3 || isNext ? 3 : 2,
             ),
-            boxShadow: unlocked && stars > 0
+            boxShadow: isNext
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.6),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : unlocked && stars > 0
                 ? [
                     BoxShadow(
                       color: accent.withValues(alpha: 0.25),
@@ -861,22 +988,46 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
           style: const TextStyle(color: Colors.white54, fontSize: 13),
         ),
         const SizedBox(height: 16),
-        // Stars
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            3,
-            (i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: _StarIcon(filled: i < stars, size: 28),
-            ),
+        // Stars pop in one after another (earned ones only).
+        AnimatedBuilder(
+          animation: _anim,
+          builder: (context, _) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(3, (i) {
+              final start = 0.05 + i * 0.1;
+              final t = ((_anim.value - start) / 0.18).clamp(0.0, 1.0);
+              final scale = i < stars ? Curves.elasticOut.transform(t) : 1.0;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const _StarIcon(filled: false, size: 30),
+                    if (i < stars)
+                      Transform.scale(
+                        scale: scale,
+                        child: const _StarIcon(filled: true, size: 30),
+                      ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          '$stars / 3 stars  ·  ${_formatTime(time)}',
+          '$stars / 3 stars  ·  ${_formatTime(time)}  ·  '
+          '${(game.lastLevelFuelFraction * 100).round()}% fuel left',
           style: const TextStyle(color: Colors.white38, fontSize: 12),
         ),
+        if (_missedStarHint(game, stars, time) case final hint?) ...[
+          const SizedBox(height: 6),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xCCFFD166), fontSize: 12),
+          ),
+        ],
         if (reward != null && reward.currency > 0) ...[
           const SizedBox(height: 8),
           Text(
@@ -964,6 +1115,20 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
         ),
       ),
     );
+  }
+
+  /// What the next star would have taken — the actionable "why".
+  String? _missedStarHint(NarrowHaulGame game, int stars, double time) {
+    if (stars >= 3) return null;
+    final spec = game.currentLevelDef.stars;
+    final fuelPct = (game.lastLevelFuelFraction * 100).round();
+    if (stars == 2) {
+      if (game.lastLevelFuelFraction < spec.star3Fuel) {
+        return '★★★ needs ${(spec.star3Fuel * 100).round()}% fuel left (you had $fuelPct%)';
+      }
+      return '★★★ needs a time under ${spec.star3Time.round()}s';
+    }
+    return '★★ needs ${(spec.star2Fuel * 100).round()}% fuel left (you had $fuelPct%)';
   }
 
   String _formatTime(double seconds) {

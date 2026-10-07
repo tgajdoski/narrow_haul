@@ -1,7 +1,7 @@
 # Narrow Haul — Development Plan & Current State
 
 > Living reference document. Update after each work session.
-> Last updated: March 2026 (v1.2.0)
+> Last updated: October 2026 (v2.2.0)
 
 ---
 
@@ -53,6 +53,11 @@
 | `fuel_bar_frame.png` | 320×48 | Just the border frame, transparent interior | Already partially covered by `fuel_bar.png` |
 | App icon | 1024×1024 | iOS / Android launcher | Rocket carrying cargo, dark cave background |
 | Launch screen | 1242×2688 | iOS splash | Same branding |
+| `themes/<world>/rock.png` | 1024×1024 tileable | Textured rock fill per world | See "World theme art" prompts below |
+| `themes/<world>/far,mid,near.png` | 1920×1080 | Per-world parallax (replaces tinted shared layers) | See "World theme art" |
+| `themes/<world>/decor.png` | 1024×256 (4 cells) | Stalactite/stalagmite props (procedural spikes until then) | See "World theme art" |
+
+All theme files are optional; each falls back to the current look. Spec: `assets/themes/README.md`.
 
 ---
 
@@ -136,6 +141,8 @@ assets/
 | `'achievements'` | `_AchievementsOverlay` | "Achievements" button on menu |
 | `'rankUp'` | `_RankUpOverlay` | On top of levelComplete when the run crossed a rank |
 | `'pilotProfile'` | `_PilotLogbookOverlay` | Tapping the rank card on the menu |
+| `'pause'` | `PauseOverlay` (`lib/ui/`) | HUD pause button, or app backgrounded mid-flight |
+| `'settings'` | `SettingsOverlay` (`lib/ui/`) | "Settings" on menu or pause menu |
 
 ---
 
@@ -187,6 +194,20 @@ with a silent fallback if missing.
 ---
 
 ## AI Asset Prompts
+
+### World theme art (per world → `assets/themes/<world>/`)
+
+**Shared style suffix.** Append this to every prompt so the set stays consistent:
+> `2D side-view mobile game art, stylized painterly with clean shapes, soft rim lighting, muted dark values, low contrast and low detail so foreground gameplay stays readable, no text, no characters, no spaceship, no UI.`
+
+#### A1. Rock fill textures, 5 images. This fixes "terrain where the rocket can't pass".
+- **Spec:** 1024×1024 PNG, **seamless tileable** on both axes, viewed flat (no perspective), dark-mid values.
+- **Mapping:** the texture tiles across the solid rock, at about 1 tile per 8 m.
+- **Files:** `assets/themes/<world>/rock.png`
+
+| World | Prompt (+ style suffix) |
+|
+
 
 ### Joystick knob
 ```
@@ -264,6 +285,14 @@ Flat vector / cartoon style. No fill color — just the frame.
 - [ ] Rank insignia on the in-flight HUD
 - [ ] "Expert" daily variant for Captain+ (double XP)
 - [ ] Device-test and tune XP thresholds / contract difficulty
+
+### Look & feel follow-ups
+- [ ] Generate world art (rock / parallax / decor) — start with Ice, verify texture scale in-game
+- [ ] Lava surface strip, mine obstacle skins, menu key art, world cards for level select
+- [ ] Per-world music + ambience; low-fuel beep; explosion sound
+- [ ] Garage live preview of skins
+- [ ] Overlay transitions (fade/slide)
+- [ ] Device-test: ship-waits-on-pad start, auto-pause on focus loss, hint pill placement on small phones
 
 ### Future features
 - [ ] Online leaderboard for daily challenge (Firebase / Supabase)

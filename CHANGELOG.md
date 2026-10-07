@@ -1,5 +1,37 @@
 # Narrow Haul — Changelog
 
+## v2.2.0 — Look & Feel Update
+
+Worlds finally look like where they are, and flying feels better.
+
+### World visuals
+- Per-world art pipeline: optional `rock.png` (tileable rock texture), `far/mid/near.png` (dedicated parallax) and `decor.png` (edge props) in `assets/themes/<world>/`; every file falls back to the existing look. Prompts and specs in DEVELOPMENT_PLAN.md and `assets/themes/README.md`.
+- Stalactites & stalagmites on cave floors and ceilings (procedural spikes until art lands) — deterministic, kept clear of pads, cargo and narrow passages.
+- Edge glow per world (lava heat, ice frost, alien bioluminescence) and ambient particles (embers, snow, spores, dust).
+- Bundled display font (Russo One, OFL) for titles.
+
+### Flight & HUD
+- Pause button + pause menu (Resume / Restart / Settings / Menu); auto-pause when the app is backgrounded.
+- Settings: sound, vibration, left-handed controls, minimap.
+- Live timer and best-reachable star target in the HUD; star-threshold ticks on the fuel bar; blinking LOW FUEL warning.
+- Level intro card; onboarding hints on the first three tutorial levels; landing hint when only ship or cargo is on the pad.
+- Crash explosion with camera shake; confetti on delivery; haptics on hook, landing and crash.
+- The ship waits on its start pad until the first input, and the level clock starts then.
+
+### Screens
+- Mission Complete: stars pop in, fuel left shown, and what the next star needed.
+- Mission Select: auto-scrolls to and highlights the next mission, shows level names, explains modifier icons.
+
+### Fixes
+- Level time no longer counts paused or backgrounded time.
+- The solid level backdrop hid the parallax layers entirely (now a haze when a world has its own parallax art).
+- Rock speckles were re-computed (60 path hit-tests) every frame.
+- Starting a level now closes any lingering in-game overlay.
+
+### Dev
+- `integration_test/visual_smoke_test.dart`: drives the real app on macOS and saves screenshots (mocked save data).
+- New tests: cave decor placement, pause/settings layout on a small landscape phone.
+
 ## v2.1.0 — Pilot Career Update
 
 A long-term progression layer on top of stars: earn XP, climb a realistic civil-aviation career ladder, and take daily contracts.

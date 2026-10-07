@@ -118,6 +118,18 @@ class ProgressService {
   Future<void> setMinimapEnabled(bool v) async =>
       _prefs.setBool('minimap_enabled', v);
 
+  bool get soundEnabled => _prefs.getBool('sound_enabled') ?? true;
+  Future<void> setSoundEnabled(bool v) async =>
+      _prefs.setBool('sound_enabled', v);
+
+  bool get hapticsEnabled => _prefs.getBool('haptics_enabled') ?? true;
+  Future<void> setHapticsEnabled(bool v) async =>
+      _prefs.setBool('haptics_enabled', v);
+
+  /// Mirrors the touch controls: thrust on the left, joystick on the right.
+  bool get leftHanded => _prefs.getBool('left_handed') ?? false;
+  Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
+
   // ── Pilot career (XP) ────────────────────────────────────────────────────
 
   int getXp() => _prefs.getInt('xp_total') ?? 0;
