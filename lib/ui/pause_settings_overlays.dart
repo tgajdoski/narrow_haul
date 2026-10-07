@@ -17,18 +17,20 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: const Color(0xCC000000),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: Material(
-              color: _panelColor,
-              borderRadius: BorderRadius.circular(16),
-              // Scrolls rather than overflows on short landscape phones.
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                child: child,
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Material(
+                color: _panelColor,
+                borderRadius: BorderRadius.circular(16),
+                // Scrolls rather than overflows on short landscape phones.
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                  child: child,
+                ),
               ),
             ),
           ),

@@ -163,181 +163,183 @@ class _MenuOverlay extends StatelessWidget {
 
     return ColoredBox(
       color: const Color(0xDD050816),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'NARROW HAUL',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 4,
-                    color: const Color(0xFF00B4D8),
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'NARROW HAUL',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 4,
+                      color: const Color(0xFF00B4D8),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Cargo tow · Space physics · Precision landing',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white38,
-                    letterSpacing: 1,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Cargo tow · Space physics · Precision landing',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white38,
+                      letterSpacing: 1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _RankCard(
-                  xp: progress.getXp(),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  const SizedBox(height: 16),
+                  _RankCard(
+                    xp: progress.getXp(),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _StarIcon(filled: totalStars > 0, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$totalStars / $maxStars',
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      game.overlays.remove('menu');
+                      game.overlays.add('pilotProfile');
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  // Play button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => game.beginPlay(),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF00B4D8),
+                      ),
+                      child: const Text(
+                        'PLAY',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Level select + daily challenge row
+                  Row(
                     children: [
-                      _StarIcon(filled: totalStars > 0, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$totalStars / $maxStars',
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            game.overlays.remove('menu');
+                            game.overlays.add('levelSelect');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: const BorderSide(color: Color(0x5500B4D8)),
+                          ),
+                          child: const Text('Missions'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: challengeComplete
+                              ? null
+                              : () => game.beginChallenge(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            side: BorderSide(
+                              color: challengeComplete
+                                  ? const Color(0x334ADE80)
+                                  : const Color(0x55FFD166),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                (challengeComplete
+                                        ? 'Daily ✓'
+                                        : 'Daily Challenge') +
+                                    (dailyStreak > 0 ? '  🔥$dailyStreak' : ''),
+                                style: TextStyle(
+                                  color: challengeComplete
+                                      ? const Color(0xFF4ADE80)
+                                      : const Color(0xFFFFD166),
+                                ),
+                              ),
+                              if (challengeComplete && dailyBestTime != null)
+                                Text(
+                                  _formatTime(dailyBestTime),
+                                  style: const TextStyle(
+                                    color: Color(0xAA4ADE80),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  onTap: () {
-                    game.overlays.remove('menu');
-                    game.overlays.add('pilotProfile');
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Play button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => game.beginPlay(),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFF00B4D8),
-                    ),
-                    child: const Text(
-                      'PLAY',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Level select + daily challenge row
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
+                  const SizedBox(height: 10),
+                  const _ContractsPanel(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
                         onPressed: () {
                           game.overlays.remove('menu');
-                          game.overlays.add('levelSelect');
+                          game.overlays.add('achievements');
                         },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: const BorderSide(color: Color(0x5500B4D8)),
-                        ),
-                        child: const Text('Missions'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: challengeComplete
-                            ? null
-                            : () => game.beginChallenge(),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          side: BorderSide(
-                            color: challengeComplete
-                                ? const Color(0x334ADE80)
-                                : const Color(0x55FFD166),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              (challengeComplete
-                                      ? 'Daily ✓'
-                                      : 'Daily Challenge') +
-                                  (dailyStreak > 0 ? '  🔥$dailyStreak' : ''),
-                              style: TextStyle(
-                                color: challengeComplete
-                                    ? const Color(0xFF4ADE80)
-                                    : const Color(0xFFFFD166),
-                              ),
-                            ),
-                            if (challengeComplete && dailyBestTime != null)
-                              Text(
-                                _formatTime(dailyBestTime),
-                                style: const TextStyle(
-                                  color: Color(0xAA4ADE80),
-                                  fontSize: 10,
-                                ),
-                              ),
-                          ],
+                        child: const Text(
+                          'Achievements',
+                          style: TextStyle(color: Colors.white38, fontSize: 13),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const _ContractsPanel(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        game.overlays.remove('menu');
-                        game.overlays.add('achievements');
-                      },
-                      child: const Text(
-                        'Achievements',
-                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      const Text('·', style: TextStyle(color: Colors.white24)),
+                      TextButton(
+                        onPressed: () {
+                          game.overlays.remove('menu');
+                          game.overlays.add('cosmetics');
+                        },
+                        child: const Text(
+                          'Garage (Skins)',
+                          style: TextStyle(color: Colors.white38, fontSize: 13),
+                        ),
                       ),
-                    ),
-                    const Text('·', style: TextStyle(color: Colors.white24)),
-                    TextButton(
-                      onPressed: () {
-                        game.overlays.remove('menu');
-                        game.overlays.add('cosmetics');
-                      },
-                      child: const Text(
-                        'Garage (Skins)',
-                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      const Text('·', style: TextStyle(color: Colors.white24)),
+                      TextButton(
+                        onPressed: () {
+                          game.overlays.remove('menu');
+                          game.overlays.add('settings');
+                        },
+                        child: const Text(
+                          'Settings',
+                          style: TextStyle(color: Colors.white38, fontSize: 13),
+                        ),
                       ),
-                    ),
-                    const Text('·', style: TextStyle(color: Colors.white24)),
-                    TextButton(
-                      onPressed: () {
-                        game.overlays.remove('menu');
-                        game.overlays.add('settings');
-                      },
-                      child: const Text(
-                        'Settings',
-                        style: TextStyle(color: Colors.white38, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  ProgressService.instance.leftHanded
-                      ? 'Left side: thrust  ·  Right side: joystick (rotate)'
-                      : 'Left side: joystick (rotate)  ·  Right side: thrust',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.white24),
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    ProgressService.instance.leftHanded
+                        ? 'Left side: thrust  ·  Right side: joystick (rotate)'
+                        : 'Left side: joystick (rotate)  ·  Right side: thrust',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.white24),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1057,11 +1059,11 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const _StarIcon(filled: false, size: 30),
+                    const _StarIcon(filled: false, size: 26),
                     if (i < stars)
                       Transform.scale(
                         scale: scale,
-                        child: const _StarIcon(filled: true, size: 30),
+                        child: const _StarIcon(filled: true, size: 26),
                       ),
                   ],
                 ),
@@ -1177,42 +1179,25 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
 
     return ColoredBox(
       color: const Color(0xCC000000),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: reward == null ? 420 : 640),
-          child: Material(
-            color: const Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.circular(20),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (reward == null)
-                    result
-                  else
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: Center(child: result)),
-                          const VerticalDivider(
-                            color: Color(0x22FFFFFF),
-                            width: 32,
-                          ),
-                          Expanded(
-                            child: _XpSummary(reward: reward, anim: _anim),
-                          ),
-                        ],
-                      ),
+      child: _PopupFrame(
+        maxWidth: reward == null ? 420 : 640,
+        radius: 20,
+        padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
+        footer: buttons,
+        child: reward == null
+            ? result
+            : IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: Center(child: result)),
+                    const VerticalDivider(color: Color(0x22FFFFFF), width: 32),
+                    Expanded(
+                      child: _XpSummary(reward: reward, anim: _anim),
                     ),
-                  const SizedBox(height: 20),
-                  buttons,
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1251,7 +1236,7 @@ class _XpSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines = reward.xp.lines;
+    final lines = _groupAchievements(reward.xp.lines);
     return AnimatedBuilder(
       animation: anim,
       builder: (context, _) {
@@ -1362,6 +1347,26 @@ class _XpSummary extends StatelessWidget {
       },
     );
   }
+
+  /// Folds the per-achievement lines into one "Achievements ×N" line (at the
+  /// first one's position) — the chips below already name each of them.
+  static List<XpLine> _groupAchievements(List<XpLine> lines) {
+    const prefix = 'Achievement: ';
+    final achievements = lines.where((l) => l.label.startsWith(prefix));
+    if (achievements.length < 2) return lines;
+    final total = achievements.fold<int>(0, (sum, l) => sum + l.xp);
+    final out = <XpLine>[];
+    var added = false;
+    for (final l in lines) {
+      if (!l.label.startsWith(prefix)) {
+        out.add(l);
+      } else if (!added) {
+        out.add(XpLine('Achievements ×${achievements.length}', total));
+        added = true;
+      }
+    }
+    return out;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1391,69 +1396,60 @@ class _EndOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xCC000000),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Material(
-            color: const Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFE07A5F),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
-                  ),
-                  const SizedBox(height: 24),
-                  if (extra case final extra?) ...[
-                    extra,
-                    const SizedBox(height: 12),
-                  ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: onSecondary,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: const BorderSide(color: Color(0x3300B4D8)),
-                          ),
-                          child: Text(secondaryLabel),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: onPrimary,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFE07A5F),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            primaryLabel,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+    final buttons = Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: onSecondary,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: Color(0x3300B4D8)),
+            ),
+            child: Text(secondaryLabel),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: onPrimary,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFE07A5F),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: Text(
+              primaryLabel,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
+        ),
+      ],
+    );
+
+    return ColoredBox(
+      color: const Color(0xCC000000),
+      child: _PopupFrame(
+        maxWidth: 400,
+        radius: 16,
+        padding: const EdgeInsets.all(24),
+        footer: buttons,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFE07A5F),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+            ),
+            if (extra case final extra?) ...[const SizedBox(height: 24), extra],
+          ],
         ),
       ),
     );
@@ -1463,6 +1459,54 @@ class _EndOverlay extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Centered popup card that always fits the screen: kept clear of notches and
+/// edges, [child] scrolls inside the card when it's too tall, and [footer]
+/// (the buttons) stays pinned at the bottom so it never scrolls off-screen.
+class _PopupFrame extends StatelessWidget {
+  const _PopupFrame({
+    required this.maxWidth,
+    required this.child,
+    required this.footer,
+    this.padding = const EdgeInsets.all(24),
+    this.radius = 16,
+  });
+
+  final double maxWidth;
+  final Widget child;
+  final Widget footer;
+  final EdgeInsets padding;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Material(
+              color: const Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.circular(radius),
+              child: Padding(
+                padding: padding,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: SingleChildScrollView(child: child)),
+                    const SizedBox(height: 16),
+                    footer,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Opt-in rewarded-ad button. Hidden until an ad is actually loaded, so a tap
 /// always pays out; runs [onReward] only when the reward was earned.
@@ -2079,67 +2123,69 @@ class _RankUpOverlayState extends State<_RankUpOverlay>
       onTap: () => widget.game.overlays.remove('rankUp'),
       child: ColoredBox(
         color: const Color(0xEE050816),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'PROMOTED',
-                  style: TextStyle(
-                    color: Color(0xFF00B4D8),
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 6,
-                    fontSize: 14,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'PROMOTED',
+                    style: TextStyle(
+                      color: Color(0xFF00B4D8),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 6,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                ScaleTransition(
-                  scale: scale,
-                  child: _RankBadge(kind: rank.insignia, size: 110),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  rank.title.toUpperCase(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: const Color(0xFFFFD166),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 3,
+                  const SizedBox(height: 12),
+                  ScaleTransition(
+                    scale: scale,
+                    child: _RankBadge(kind: rank.insignia, size: 110),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  rank.perk,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                if (rankUpBonus(rank) > 0) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
                   Text(
-                    'Promotion bonus +${rankUpBonus(rank)} 💰',
-                    style: const TextStyle(
-                      color: Color(0xFF4ADE80),
-                      fontSize: 13,
+                    rank.title.toUpperCase(),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: const Color(0xFFFFD166),
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    rank.perk,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                  if (rankUpBonus(rank) > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Promotion bonus +${rankUpBonus(rank)} 💰',
+                      style: const TextStyle(
+                        color: Color(0xFF4ADE80),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () => widget.game.overlays.remove('rankUp'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD166),
+                      foregroundColor: const Color(0xFF050816),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 36,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'Continue',
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () => widget.game.overlays.remove('rankUp'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD166),
-                    foregroundColor: const Color(0xFF050816),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 36,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
