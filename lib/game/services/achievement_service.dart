@@ -18,6 +18,11 @@ class AchievementIds {
   static const fullManifest = 'full_manifest';
   static const weekOnDuty = 'week_on_duty';
   static const centuryHauler = 'century_hauler';
+  static const fleetQualified = 'fleet_qualified';
+  static const stormRider = 'storm_rider';
+  static const orbitalMechanic = 'orbital_mechanic';
+  static const heavyLifter = 'heavy_lifter';
+  static const testPilot = 'test_pilot';
 }
 
 class AchievementMeta {
@@ -124,6 +129,36 @@ class AchievementService {
       title: 'Century Hauler',
       description: 'Deliver 100 cargos.',
       icon: '📦',
+    ),
+    AchievementMeta(
+      id: AchievementIds.fleetQualified,
+      title: 'Fleet Qualified',
+      description: 'Hold a type rating for every ship.',
+      icon: '🛩️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.stormRider,
+      title: 'Storm Rider',
+      description: 'Earn 3 stars on a mission with wind.',
+      icon: '🌬️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.orbitalMechanic,
+      title: 'Orbital Mechanic',
+      description: 'Earn 3 stars on a mission with a gravity well.',
+      icon: '🪐',
+    ),
+    AchievementMeta(
+      id: AchievementIds.heavyLifter,
+      title: 'Heavy Lifter',
+      description: 'Deliver cargo at 1.5 g or more.',
+      icon: '🏋️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.testPilot,
+      title: 'Test Pilot',
+      description: 'Complete a Test Flight daily challenge.',
+      icon: '🧪',
     ),
   ];
 

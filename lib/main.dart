@@ -2005,6 +2005,22 @@ class _PilotLogbookOverlayState extends State<_PilotLogbookOverlay> {
                               ],
                             ),
                           ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'TYPE RATINGS',
+                          style: TextStyle(
+                            color: Color(0xFFFFD166),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final ship in kShips.values)
+                          _TypeRatingRow(
+                            ship: ship,
+                            rated: LevelRegistry.hasTypeRating(ship.id),
+                          ),
                       ],
                     ),
                   ),
@@ -2281,6 +2297,58 @@ class _AchievementToastHostState extends State<_AchievementToastHost> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// One licence endorsement in the logbook: ship name, role and status.
+class _TypeRatingRow extends StatelessWidget {
+  const _TypeRatingRow({required this.ship, required this.rated});
+
+  final ShipSpec ship;
+  final bool rated;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = ship.tint != null ? Color(ship.tint!).withValues(alpha: 1) : const Color(0xFF00B4D8);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.flight,
+            size: 18,
+            color: rated ? tint : Colors.white24,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ship.name,
+                  style: TextStyle(
+                    color: rated ? Colors.white : Colors.white38,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  ship.blurb,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            rated ? '✓ Rated' : 'Not rated',
+            style: TextStyle(
+              color: rated ? const Color(0xFF4ADE80) : Colors.white38,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }

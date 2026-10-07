@@ -84,6 +84,9 @@ class NarrowHaulGame extends Forge2DGame {
     return '${ship.name}$g';
   }
 
+  /// Effective base gravity of the running level, in g (for achievements).
+  double _levelGravityG = 1;
+
   /// Tank size of the active ship (fuel fractions for stars/HUD).
   double get _shipMaxFuel => ship?.maxFuel ?? kKestrel.maxFuel;
   CargoBody? cargo;
@@ -246,6 +249,9 @@ class NarrowHaulGame extends Forge2DGame {
     isChallengeMode = true;
     activeChallengeConfig = DailyChallengeConfig.forToday(
       LevelRegistry.totalLevels,
+      shipOptions: (i) => [
+        for (final s in LevelRegistry.testFlightOptions(i)) s.id,
+      ],
     );
     levelIndex = activeChallengeConfig!.levelIndex;
     _gravityMultiplier = activeChallengeConfig!.gravityMultiplier;
@@ -404,7 +410,11 @@ class NarrowHaulGame extends Forge2DGame {
     _levelEntities.add(landingStrip);
 
     late final CargoAttachment cargoLink;
-    final shipSpec = LevelRegistry.shipFor(levelIndex);
+    final challengeShip = isChallengeMode ? activeChallengeConfig?.shipId : null;
+    final shipSpec = challengeShip != null
+        ? shipById(challengeShip)
+        : LevelRegistry.shipFor(levelIndex);
+    _levelGravityG = g0 * gravityMul / baseGravityY();
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: _onShipHitWall,
@@ -854,6 +864,22 @@ class NarrowHaulGame extends Forge2DGame {
     }
 
     if (isChallengeMode) candidates.add(AchievementIds.dailyPilot);
+    if (isChallengeMode && activeChallengeConfig?.shipId != null) {
+      candidates.add(AchievementIds.testPilot);
+    }
+
+    // Flight-condition achievements.
+    final fields = currentLevel?.fields ?? const <FieldSpec>[];
+    if (stars >= 3 && fields.any((f) => f is WindZoneSpec)) {
+      candidates.add(AchievementIds.stormRider);
+    }
+    if (stars >= 3 && fields.any((f) => f is GravityWellSpec)) {
+      candidates.add(AchievementIds.orbitalMechanic);
+    }
+    if (_levelGravityG >= 1.5) candidates.add(AchievementIds.heavyLifter);
+    if (kShips.keys.every(LevelRegistry.hasTypeRating)) {
+      candidates.add(AchievementIds.fleetQualified);
+    }
 
     if (allPerfect) candidates.add(AchievementIds.perfectPilot);
 

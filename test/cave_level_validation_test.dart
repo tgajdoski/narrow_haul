@@ -42,6 +42,26 @@ void main() {
     }
   });
 
+  // Daily "Test Flight": the runtime chooser only offers swaps that pass the
+  // full validator, and well-equipped worlds still get some variety.
+  group('test flight options', () {
+    test('every offered swap is provably completable', () {
+      var offered = 0;
+      for (int i = 0; i < LevelRegistry.totalLevels; i++) {
+        final def = LevelRegistry.defAt(i);
+        for (final ship in LevelRegistry.testFlightOptions(i)) {
+          offered++;
+          if (def is CaveLevelDef) {
+            expect(validateCaveSpec(def.spec, ship: ship), isEmpty,
+                reason: '${def.saveId} in ${ship.name}');
+          }
+        }
+      }
+      expect(offered, greaterThan(LevelRegistry.totalLevels),
+          reason: 'Test Flight should usually have a ship to offer');
+    });
+  });
+
   group('builder invariants', () {
     test('deterministic — same spec builds identical loops', () {
       final spec = (alienLevels.first as CaveLevelDef).spec;

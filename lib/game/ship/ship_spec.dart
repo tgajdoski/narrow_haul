@@ -89,6 +89,9 @@ class ShipSpec {
 
   /// Seconds of continuous thrust on a full tank at drain multiplier 1.
   double get burnSeconds => maxFuel / fuelDrainPerSecond;
+
+  /// Velocity budget of a full tank (m/s): how much "flying" it buys.
+  double get deltaV => thrustForce / mass * burnSeconds;
 }
 
 /// Baseline rocket — exactly the pre-ShipSpec constants.
@@ -168,3 +171,19 @@ const Map<String, ShipSpec> kShips = {
 };
 
 ShipSpec shipById(String? id) => kShips[id] ?? kKestrel;
+
+/// A level validated for [native] stays geometrically flyable in any ship
+/// whose hull is no larger. Lift and fuel still need checking per level.
+bool shipFits(ShipSpec candidate, ShipSpec native) =>
+    candidate.circumradius <= native.circumradius + 1e-9;
+
+/// Ships the daily "Test Flight" may *consider* for a level's own [native]
+/// (hull fits). Cave levels then re-validate each candidate; levels without
+/// a validator also require [minDeltaVRatio] of the native ship's range.
+List<ShipSpec> testFlightShips(ShipSpec native, {double minDeltaVRatio = 0}) => [
+  for (final s in kShips.values)
+    if (s.id != native.id &&
+        shipFits(s, native) &&
+        s.deltaV >= native.deltaV * minDeltaVRatio)
+      s,
+];

@@ -1,6 +1,7 @@
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/specs/world_alien.dart';
@@ -91,6 +92,32 @@ abstract final class LevelRegistry {
   static LevelDef defAt(int flatIndex) => flat[flatIndex];
 
   /// The world containing [flatIndex] plus the level's index within it.
+  /// A pilot holds a ship's type rating once its `rating_<id>` mission is
+  /// flown; the Kestrel's comes from completing Training Grounds.
+  static bool hasTypeRating(String shipId) {
+    final progress = ProgressService.instance;
+    if (shipId == kKestrel.id) {
+      return progress.getStarsById(worlds.first.levels.last.saveId) > 0;
+    }
+    return progress.getStarsById('rating_$shipId') > 0;
+  }
+
+  /// Ships the daily "Test Flight" may fly on a level instead of its own.
+  /// Cave levels: every candidate must pass the full validator (clearance,
+  /// lift, fuel, fields) — at most a few runs, once per challenge start.
+  /// TMX levels have no validator, so they require ≥ 90% of the native range.
+  static List<ShipSpec> testFlightOptions(int flatIndex) {
+    final native = shipFor(flatIndex);
+    final def = defAt(flatIndex);
+    return switch (def) {
+      CaveLevelDef() => [
+          for (final s in testFlightShips(native))
+            if (validateCaveSpec(def.spec, ship: s).isEmpty) s,
+        ],
+      TmxLevelDef() => testFlightShips(native, minDeltaVRatio: 0.9),
+    };
+  }
+
   /// Ship flown on a level: its own override, else its world's default.
   static ShipSpec shipFor(int flatIndex) {
     final (world, indexInWorld) = worldOf(flatIndex);
