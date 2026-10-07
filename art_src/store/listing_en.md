@@ -18,7 +18,7 @@ Character limits are in brackets. Counts are checked with
 Tow cargo through tight caves
 
 **Promotional text** [170]
-Thrust, rotate and haul a swinging cargo pod through 60 hand-built caves. Six worlds, six ships, gravity wells, wind, ice and a fortress that shoots back.
+Thrust, rotate and haul a swinging cargo pod through 60 hand-built caves. Seven worlds, six ships, gravity wells, wind, ice and a fortress that shoots back.
 
 **Keywords** [100, comma-separated, no spaces]
 thrust,lander,cave,flyer,gravity,physics,rope,tow,cargo,spaceship,retro,arcade,skill,pilot,fuel
@@ -29,7 +29,7 @@ Fly a tiny cargo ship through narrow caves, hook a heavy pod on a rope and bring
 THRUST, ROTATE, HAUL
 Two controls, real physics. Feather the thrust and fight gravity. The pod swings on its rope behind you. Land the ship and the pod on the pad to deliver.
 
-60 HAND-BUILT LEVELS IN 6 WORLDS
+60 HAND-BUILT LEVELS IN 7 WORLDS
 • Training Grounds: learn to fly and tow
 • Xenar Caverns: low gravity and crystal tunnels
 • Rustshaft Mines: heavy gravity and moving machinery
@@ -47,7 +47,7 @@ Earn up to 3 stars per level for fuel and time. Chase your best times, take on a
 BUILD A PILOT CAREER
 Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achievements and customise your ship, rope and engine plume in the Garage.
 
-Free to play with light, optional ads. A one-time purchase removes interstitial ads.
+Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. A one-time purchase removes the ads between missions.
 
 ## Google Play
 

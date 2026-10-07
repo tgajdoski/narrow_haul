@@ -33,19 +33,20 @@ class DailyChallengeConfig {
 
   static const testFlightName = 'Test Flight';
 
-  /// [shipOptions] lists ship ids that may replace the level's own ship
-  /// (see `testFlightShips`); with none, a Test Flight day falls back to a
-  /// standard run.
+  /// [levels] are the flat level indices the player may be sent to (the
+  /// unlocked ones, so a new pilot never lands in a late world); empty means
+  /// level 0. [shipOptions] lists ship ids that may replace the level's own
+  /// ship (see `testFlightShips`); with none, a Test Flight day falls back to
+  /// a standard run.
   static DailyChallengeConfig forToday(
-    int totalLevels, {
+    List<int> levels, {
     List<String> Function(int levelIndex)? shipOptions,
   }) {
     final now = DateTime.now();
     final seed = now.year * 10000 + now.month * 100 + now.day;
     final rng = Random(seed);
 
-    // Level cycles through available levels, weighted toward later ones for challenge
-    final levelIndex = rng.nextInt(totalLevels);
+    final levelIndex = levels.isEmpty ? 0 : levels[rng.nextInt(levels.length)];
     var mod = _modifiers[rng.nextInt(_modifiers.length)];
 
     if (mod.$1 == testFlightName) {

@@ -9,8 +9,8 @@ plugins {
 }
 
 // Upload key for Google Play (android/key.properties, gitignored). Without it
-// release builds fall back to the debug key, which is fine for local testing
-// but rejected by Play.
+// release APKs fall back to the debug key (fine for local testing), but a Play
+// bundle (bundleRelease) fails the build — Play rejects debug-signed uploads.
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -65,4 +65,13 @@ android {
 
 flutter {
     source = "../.."
+}
+
+gradle.taskGraph.whenReady {
+    if (!keystorePropertiesFile.exists() && allTasks.any { it.name == "bundleRelease" }) {
+        throw GradleException(
+            "android/key.properties is missing: this bundle would be signed with " +
+                "the debug key, which Play rejects. See CLAUDE.md (Android signing).",
+        )
+    }
 }

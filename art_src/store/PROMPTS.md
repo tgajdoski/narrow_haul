@@ -62,7 +62,7 @@ is set.
 
 Suggested captions, one per screenshot:
 - "Tow cargo through living caves"
-- "6 worlds · 6 ships"
+- "7 worlds · 6 ships"
 - "Ice, wind and lava"
 - "Gravity wells & zero-g"
 - "Fight through The Redoubt"

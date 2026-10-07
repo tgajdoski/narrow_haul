@@ -340,7 +340,10 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     overlays.remove('menu');
     isChallengeMode = true;
     activeChallengeConfig = DailyChallengeConfig.forToday(
-      LevelRegistry.totalLevels,
+      [
+        for (var i = 0; i < LevelRegistry.totalLevels; i++)
+          if (LevelRegistry.isLevelUnlocked(i)) i,
+      ],
       shipOptions: (i) => [
         for (final s in LevelRegistry.testFlightOptions(i)) s.id,
       ],

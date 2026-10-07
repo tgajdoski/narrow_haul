@@ -120,6 +120,11 @@ class MonetizationService {
         debugPrint('MonetizationService: consent does not allow ads yet');
         return;
       }
+      // Keep ad content in line with the store age rating (9+ / Everyone 10+):
+      // no mature ads. Not child-directed — the store audience is 13+.
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(maxAdContentRating: MaxAdContentRating.pg),
+      );
       await MobileAds.instance.initialize();
       _adsReady = true;
       debugPrint('MonetizationService: ads SDK ready');
