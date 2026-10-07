@@ -84,4 +84,19 @@ void main() {
     expect(prefs.getBool('iap_granted_nh_supporter_pack'), isTrue);
     expect(prefs.getBool('save_v3'), isTrue);
   });
+
+  test('corrupt save values read as safe defaults', () async {
+    SharedPreferences.setMockInitialValues({
+      'stars2_tut_01': 'three', // wrong type
+      'stars2_tut_02': 9, // out of range
+      'cosmetic_currency': -40,
+      'left_handed': 1,
+    });
+    await ProgressService.init();
+    final p = ProgressService.instance;
+    expect(p.getStarsById('tut_01'), 0);
+    expect(p.getStarsById('tut_02'), 3);
+    expect(p.getCosmeticCurrency(), 0);
+    expect(p.leftHanded, isFalse);
+  });
 }

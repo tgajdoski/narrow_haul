@@ -51,14 +51,14 @@ What's left:
 - [ ] **Android 16 large screens.** targetSdk 36 ignores `sensorLandscape` on screens ≥ 600 dp. Test on tablets and foldables, or add the `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out.
 
 ### Stability and observability
-- [ ] **No global error handlers** (`FlutterError.onError`, `PlatformDispatcher.onError`) and **no crash reporting**. Add Crashlytics or Sentry; otherwise Dart errors in release builds are invisible. Update the privacy page and Data safety form to match.
-- [ ] **`main()` awaits `ProgressService.init()` and `CareerService.migrateIfNeeded()` without try/catch** (`lib/main.dart:29-30`). A corrupt prefs file hangs the splash screen.
-- [ ] **`startLevel()` doesn't await `loadCurrentLevel()`**, and nothing catches a failed load.
-- [ ] **Saves aren't type-safe on read.** Clamp stars to 0–3 and keep currency and XP ≥ 0. Add an integer `save_version` instead of one-off flags.
+- [x] **Done:** global error handlers. `ErrorReporter.install()` routes `FlutterError.onError` and `PlatformDispatcher.onError` to `ErrorReporter.report`. Still open: **a crash-reporting service** to plug into `ErrorReporter.sink`. Was: no global error handlers and no crash reporting. Add Crashlytics or Sentry; otherwise Dart errors in release builds are invisible. Update the privacy page and Data safety form to match.
+- [x] **Done:** the save migrations are guarded and a failure gets reported. Was: `main()` awaited `ProgressService.init()` and `CareerService.migrateIfNeeded()` without try/catch (`lib/main.dart:29-30`). A corrupt prefs file hangs the splash screen.
+- [x] **Done:** a level that fails to load is reported and drops back to the menu.
+- [x] **Done:** prefs reads are type-safe; stars are clamped to 0–3, coins and XP to ≥ 0. (A `save_version` int is optional until a migration needs it.) Was: saves weren't type-safe on read. Clamp stars to 0–3 and keep currency and XP ≥ 0. Add an integer `save_version` instead of one-off flags.
 
 ### Monetization
-- [ ] **A failed interstitial load is never retried** (`monetization_service.dart:250`), unlike rewarded ads (60 s retry). One failure means no interstitials for the session.
-- [ ] **`buyNonConsumable` isn't wrapped in try/catch** (`:363`). Also give the player feedback for pending purchases and for "restored / nothing to restore".
+- [x] **Done:** a failed interstitial load is retried after 60 s. Was: never retried (`monetization_service.dart:250`), unlike rewarded ads (60 s retry). One failure means no interstitials for the session.
+- [x] **Done:** `buyNonConsumable` and `restorePurchases` are wrapped in try/catch. Still open: Also give the player feedback for pending purchases and for "restored / nothing to restore".
 - [ ] **The Garage supporter item doesn't check `canBuy` before `buy()`** (`main.dart` ~1770).
 - [x] **Done:** the iOS SKAdNetwork list now has all 50 of Google's ids. Was incomplete: `SKAdNetworkItems` has 1 id; Google recommends about 50.
 - [x] **Done:** `ITSAppUsesNonExemptEncryption = false` is added. Still optional: an app-level `PrivacyInfo.xcprivacy` (the SDKs ship their own; add it in Xcode only if App Store Connect warns).
@@ -71,7 +71,7 @@ What's left:
 ### Release hygiene
 - [x] **Done:** `bundleRelease` now fails without `key.properties`, while local release APKs still use the debug key. Was: release builds silently fell back to the debug key when `key.properties` is missing (`android/app/build.gradle.kts:56-60`). Make the build fail instead.
 - [ ] **Back up `~/narrowhaul-upload.jks` and `android/key.properties` off this machine.**
-- [ ] **Guard `debugPrint` with `kDebugMode`.** The calls in the audio and monetization services also log in release builds.
+- [x] **Done:** the audio and monetization logs are debug-only. Was: `debugPrint` not guarded with `kDebugMode`. The calls in the audio and monetization services also log in release builds.
 
 ### Performance (low-end Android)
 - [ ] **`CaveTerrain.render` redraws the full rock path every frame**, plus a blurred edge glow. Cache it in a `Picture`, or drop the blur on weak devices.
@@ -154,7 +154,7 @@ Use a **release or profile build**: debug builds run at 0.7× gravity. Alternati
 ## Suggested order
 1. ~~Quick fixes: B2, B3, B4 and B7, the plist keys, and the release-signing guard.~~ Done.
 2. ~~Phone UX: safe areas, back button, text scale. Then licenses, privacy/support links and Reset progress.~~ Done.
-3. Crash reporting and error handling.
+3. ~~Error handling.~~ Done. Crash-reporting service: waiting on your choice.
 4. Human playtest and tuning (§5). Re-export the routes of any edited level (`LEVELS=<id> EXPORT_ROUTES=true`).
 5. Final Talon name.
 6. TestFlight and Play closed testing.

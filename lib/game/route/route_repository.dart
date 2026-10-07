@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 
 /// Bundled recorded flights: `assets/routes/<saveId>.json`, written by the
@@ -19,9 +20,11 @@ class RouteRepository {
     try {
       final text = await (bundle ?? rootBundle).loadString(assetPath(saveId));
       route = FlightRoute.fromJson(jsonDecode(text) as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, st) {
       // Missing asset is the normal "no route" case; anything else is a bug.
-      if (e is! FlutterError) debugPrint('RouteRepository: $saveId: $e');
+      if (e is! FlutterError) {
+        ErrorReporter.report(e, st, context: 'route $saveId');
+      }
       route = null;
     }
     _cache[saveId] = route;

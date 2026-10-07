@@ -37,6 +37,7 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/route/route_repository.dart';
+import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
@@ -398,8 +399,19 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   /// [retry] marks a reload of the same level after a crash or restart, so
-  /// clean-flight bonuses and the no-retry streak don't apply.
+  /// clean-flight bonuses and the no-retry streak don't apply. A level that
+  /// fails to load is reported and drops back to the menu instead of leaving
+  /// an empty, unplayable screen.
   Future<void> loadCurrentLevel({bool retry = false}) async {
+    try {
+      await _loadCurrentLevel(retry: retry);
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'loading ${currentLevelDef.saveId}');
+      backToMenu();
+    }
+  }
+
+  Future<void> _loadCurrentLevel({required bool retry}) async {
     _clearLevel();
     _currentLevelRetried = retry;
     _snapshots.clear();

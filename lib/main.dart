@@ -12,6 +12,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -25,6 +26,7 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ErrorReporter.install();
   // The bundled title font's licence, shown in Settings → Licenses.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(
@@ -35,7 +37,12 @@ void main() async {
   // Point the global Flame image cache at assets/ (not the default assets/images/).
   Flame.images.prefix = 'assets/';
   await ProgressService.init();
-  await CareerService.migrateIfNeeded();
+  try {
+    await CareerService.migrateIfNeeded();
+  } catch (e, st) {
+    // A failed XP backfill must not keep the game from starting.
+    ErrorReporter.report(e, st, context: 'save_v3 migration');
+  }
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,

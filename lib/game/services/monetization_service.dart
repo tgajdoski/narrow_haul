@@ -117,7 +117,7 @@ class MonetizationService {
     try {
       await _gatherConsent();
       if (!await ConsentInformation.instance.canRequestAds()) {
-        debugPrint('MonetizationService: consent does not allow ads yet');
+        _log('MonetizationService: consent does not allow ads yet');
         return;
       }
       // Keep ad content in line with the store age rating (9+ / Everyone 10+):
@@ -127,11 +127,11 @@ class MonetizationService {
       );
       await MobileAds.instance.initialize();
       _adsReady = true;
-      debugPrint('MonetizationService: ads SDK ready');
+      _log('MonetizationService: ads SDK ready');
       _loadInterstitial();
       _loadRewarded();
     } catch (e) {
-      debugPrint('MonetizationService: ads unavailable ($e)');
+      _log('MonetizationService: ads unavailable ($e)');
     }
   }
 
@@ -144,7 +144,7 @@ class MonetizationService {
       ConsentRequestParameters(),
       updated.complete,
       (error) {
-        debugPrint(
+        _log(
           'MonetizationService: consent update failed ${error.message}',
         );
         updated.complete();
@@ -229,7 +229,7 @@ class MonetizationService {
   void _logPacing({required bool loaded}) {
     final now = DateTime.now().millisecondsSinceEpoch;
     String ago(int ms) => ms == 0 ? 'never' : '${(now - ms) ~/ 1000}s ago';
-    debugPrint(
+    _log(
       'MonetizationService: interstitial check → '
       'allowed=$_interstitialAllowed loaded=$loaded | '
       'deliveries=${_p.getStat(ProgressService.statDeliveries)}/$kAdMinLifetimeDeliveries '
@@ -249,11 +249,15 @@ class MonetizationService {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('MonetizationService: interstitial loaded');
+          _log('MonetizationService: interstitial loaded');
           _interstitial = ad;
         },
-        onAdFailedToLoad: (e) =>
-            debugPrint('MonetizationService: interstitial load failed $e'),
+        onAdFailedToLoad: (e) {
+          _log('MonetizationService: interstitial load failed $e');
+          // Retry later (like rewarded) so one failure, e.g. while offline at
+          // launch, doesn't switch interstitials off for the whole session.
+          Future.delayed(const Duration(seconds: 60), _loadInterstitial);
+        },
       ),
     );
   }
@@ -269,7 +273,7 @@ class MonetizationService {
     if (!_adPlatform) {
       // Desktop / tests: debug grants instantly, release has no ads.
       if (!kDebugMode) return false;
-      debugPrint('MonetizationService [debug]: rewarded "$placement" granted');
+      _log('MonetizationService [debug]: rewarded "$placement" granted');
       await _p.setLastRewardedMs(DateTime.now().millisecondsSinceEpoch);
       onReward();
       return true;
@@ -312,12 +316,12 @@ class MonetizationService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('MonetizationService: rewarded loaded');
+          _log('MonetizationService: rewarded loaded');
           _rewarded = ad;
           rewardedReady.value = true;
         },
         onAdFailedToLoad: (e) {
-          debugPrint('MonetizationService: rewarded load failed $e');
+          _log('MonetizationService: rewarded load failed $e');
           // Retry later rather than hammering a no-fill network.
           Future.delayed(const Duration(seconds: 60), _loadRewarded);
         },
@@ -335,18 +339,18 @@ class MonetizationService {
       final iap = InAppPurchase.instance;
       _storeAvailable = await iap.isAvailable();
       if (!_storeAvailable) {
-        debugPrint('MonetizationService: store not available');
+        _log('MonetizationService: store not available');
         return;
       }
       _purchaseSub = iap.purchaseStream.listen(
         _onPurchases,
-        onError: (Object e) => debugPrint('MonetizationService: store $e'),
+        onError: (Object e) => _log('MonetizationService: store $e'),
       );
       final resp = await iap.queryProductDetails(ProductIds.all);
       for (final p in resp.productDetails) {
         _products[p.id] = p;
       }
-      debugPrint(
+      _log(
         'MonetizationService: store products ${_products.keys.toList()} '
         'missing ${resp.notFoundIDs}${resp.error == null ? '' : ' error ${resp.error}'}',
       );
@@ -354,7 +358,7 @@ class MonetizationService {
       // ID, so there it stays behind the Settings button.
       if (Platform.isAndroid) await iap.restorePurchases();
     } catch (e) {
-      debugPrint('MonetizationService: store unavailable ($e)');
+      _log('MonetizationService: store unavailable ($e)');
       _storeAvailable = false;
     }
   }
@@ -365,9 +369,16 @@ class MonetizationService {
     if (!_storeAvailable || product == null) return false;
     _pendingBuy?.complete(false);
     final pending = _pendingBuy = Completer<bool>();
-    final started = await InAppPurchase.instance.buyNonConsumable(
-      purchaseParam: PurchaseParam(productDetails: product),
-    );
+    bool started;
+    try {
+      started = await InAppPurchase.instance.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
+    } catch (e) {
+      // e.g. StoreKit still finishing an earlier transaction for this product.
+      _log('MonetizationService: buy $productId failed ($e)');
+      started = false;
+    }
     if (!started) {
       _pendingBuy = null;
       return false;
@@ -378,7 +389,11 @@ class MonetizationService {
   /// Settings → "Restore purchases" (required by Apple).
   Future<void> restore() async {
     if (!_storeAvailable) return;
-    await InAppPurchase.instance.restorePurchases();
+    try {
+      await InAppPurchase.instance.restorePurchases();
+    } catch (e) {
+      _log('MonetizationService: restore failed ($e)');
+    }
   }
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
@@ -420,4 +435,10 @@ class MonetizationService {
   }
 
   void dispose() => _purchaseSub?.cancel();
+}
+
+/// Ad / purchase decisions are logged in debug builds only (see CLAUDE.md,
+/// "Debugging ads"); release builds stay quiet.
+void _log(String message) {
+  if (kDebugMode) debugPrint(message);
 }

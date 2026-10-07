@@ -35,6 +35,7 @@ class AudioService {
   }
 
   static void _log(String message, [Object? error]) {
+    if (!kDebugMode) return;
     debugPrint('AudioService: $message${error != null ? " ($error)" : ""}');
   }
 

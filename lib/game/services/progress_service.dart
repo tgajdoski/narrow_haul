@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists level progress, star ratings, best times, achievements, streaks.
@@ -12,22 +15,58 @@ class ProgressService {
 
   final SharedPreferences _prefs;
 
+  // Type-safe reads: a value of the wrong type (a corrupted or hand-edited
+  // prefs file, or a key reused across versions) reads as missing instead of
+  // throwing in the middle of a frame.
+  int? _int(String key) {
+    final v = _prefs.get(key);
+    return v is int ? v : null;
+  }
+
+  double? _double(String key) {
+    final v = _prefs.get(key);
+    return v is num ? v.toDouble() : null;
+  }
+
+  bool? _bool(String key) {
+    final v = _prefs.get(key);
+    return v is bool ? v : null;
+  }
+
+  String? _string(String key) {
+    final v = _prefs.get(key);
+    return v is String ? v : null;
+  }
+
+  List<String>? _stringList(String key) {
+    try {
+      return _prefs.getStringList(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _instance = ProgressService._(prefs);
-    await _instance!._migrateToV2();
+    try {
+      await _instance!._migrateToV2();
+    } catch (e, st) {
+      // A failed migration must not keep the game from starting.
+      ErrorReporter.report(e, st, context: 'save_v2 migration');
+    }
   }
 
   /// One-time migration from index-keyed progress (`stars_0`…) to stable
   /// string save ids. The first 10 TMX levels became the trimmed tutorial;
   /// progress on dropped levels 11-20 is orphaned intentionally.
   Future<void> _migrateToV2() async {
-    if (_prefs.getBool('save_v2') ?? false) return;
+    if (_bool('save_v2') ?? false) return;
     for (int i = 0; i < 10; i++) {
       final saveId = 'tut_${(i + 1).toString().padLeft(2, '0')}';
-      final stars = _prefs.getInt('stars_$i');
+      final stars = _int('stars_$i');
       if (stars != null) await _prefs.setInt('stars2_$saveId', stars);
-      final time = _prefs.getDouble('time_$i');
+      final time = _double('time_$i');
       if (time != null) await _prefs.setDouble('time2_$saveId', time);
     }
     await _prefs.setBool('save_v2', true);
@@ -61,7 +100,8 @@ class ProgressService {
 
   // ── Stars (0–3), keyed by stable level saveId ────────────────────────────
 
-  int getStarsById(String saveId) => _prefs.getInt('stars2_$saveId') ?? 0;
+  int getStarsById(String saveId) =>
+      (_int('stars2_$saveId') ?? 0).clamp(0, 3);
 
   Future<void> saveStarsById(String saveId, int stars) async {
     if (stars > getStarsById(saveId)) {
@@ -71,7 +111,7 @@ class ProgressService {
 
   // ── Best time ────────────────────────────────────────────────────────────
 
-  double? getBestTimeById(String saveId) => _prefs.getDouble('time2_$saveId');
+  double? getBestTimeById(String saveId) => _double('time2_$saveId');
 
   Future<void> saveBestTimeById(String saveId, double seconds) async {
     final current = getBestTimeById(saveId);
@@ -82,14 +122,14 @@ class ProgressService {
 
   // ── No-retry streak ──────────────────────────────────────────────────────
 
-  int getNoRetryStreak() => _prefs.getInt('no_retry_streak') ?? 0;
+  int getNoRetryStreak() => _int('no_retry_streak') ?? 0;
   Future<void> setNoRetryStreak(int v) async =>
       _prefs.setInt('no_retry_streak', v);
 
   // ── Achievements ─────────────────────────────────────────────────────────
 
   Set<String> getUnlockedAchievements() =>
-      (_prefs.getStringList('achievements') ?? []).toSet();
+      (_stringList('achievements') ?? []).toSet();
 
   Future<bool> unlockAchievement(String id) async {
     final current = getUnlockedAchievements();
@@ -101,14 +141,14 @@ class ProgressService {
 
   // ── Stats & Currencies ───────────────────────────────────────────────────
 
-  double getTotalFuelSpent() => _prefs.getDouble('total_fuel_spent') ?? 0.0;
+  double getTotalFuelSpent() => _double('total_fuel_spent') ?? 0.0;
 
   Future<void> addFuelSpent(double amount) async {
     final current = getTotalFuelSpent();
     await _prefs.setDouble('total_fuel_spent', current + amount);
   }
 
-  int getCosmeticCurrency() => _prefs.getInt('cosmetic_currency') ?? 0;
+  int getCosmeticCurrency() => math.max(0, _int('cosmetic_currency') ?? 0);
 
   Future<void> addCosmeticCurrency(int amount) async {
     final current = getCosmeticCurrency();
@@ -125,20 +165,20 @@ class ProgressService {
   // ── Route guide ──────────────────────────────────────────────────────────
 
   /// "Show route" was offered and taken on this level; it stays available.
-  bool isRouteUnlocked(String saveId) => _prefs.getBool('route_unlocked_$saveId') ?? false;
+  bool isRouteUnlocked(String saveId) => _bool('route_unlocked_$saveId') ?? false;
   Future<void> setRouteUnlocked(String saveId) async =>
       _prefs.setBool('route_unlocked_$saveId', true);
 
   // ── Cosmetics ────────────────────────────────────────────────────────────
 
-  bool isCosmeticUnlocked(String id) => _prefs.getBool('cosmetic_unlocked_$id') ?? false;
+  bool isCosmeticUnlocked(String id) => _bool('cosmetic_unlocked_$id') ?? false;
 
   Future<void> unlockCosmetic(String id) async {
     await _prefs.setBool('cosmetic_unlocked_$id', true);
   }
 
   String getEquippedCosmetic(String category, String defaultId) {
-    return _prefs.getString('equipped_cosmetic_$category') ?? defaultId;
+    return _string('equipped_cosmetic_$category') ?? defaultId;
   }
 
   Future<void> equipCosmetic(String category, String id) async {
@@ -147,79 +187,79 @@ class ProgressService {
 
   // ── Settings ─────────────────────────────────────────────────────────────
 
-  bool get minimapEnabled => _prefs.getBool('minimap_enabled') ?? true;
+  bool get minimapEnabled => _bool('minimap_enabled') ?? true;
   Future<void> setMinimapEnabled(bool v) async =>
       _prefs.setBool('minimap_enabled', v);
 
-  bool get soundEnabled => _prefs.getBool('sound_enabled') ?? true;
+  bool get soundEnabled => _bool('sound_enabled') ?? true;
   Future<void> setSoundEnabled(bool v) async =>
       _prefs.setBool('sound_enabled', v);
 
-  bool get hapticsEnabled => _prefs.getBool('haptics_enabled') ?? true;
+  bool get hapticsEnabled => _bool('haptics_enabled') ?? true;
   Future<void> setHapticsEnabled(bool v) async =>
       _prefs.setBool('haptics_enabled', v);
 
   /// Mirrors the touch controls: thrust on the left, joystick on the right.
-  bool get leftHanded => _prefs.getBool('left_handed') ?? false;
+  bool get leftHanded => _bool('left_handed') ?? false;
   Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 
   /// Remove-ads entitlement (from `nh_remove_ads` or the supporter pack).
-  bool get adsRemoved => _prefs.getBool('ads_removed') ?? false;
+  bool get adsRemoved => _bool('ads_removed') ?? false;
   Future<void> setAdsRemoved(bool v) async => _prefs.setBool('ads_removed', v);
 
   /// Any IAP ever made — payers never see interstitials.
-  bool get hasPurchased => _prefs.getBool('iap_any_purchase') ?? false;
+  bool get hasPurchased => _bool('iap_any_purchase') ?? false;
   Future<void> setHasPurchased(bool v) async =>
       _prefs.setBool('iap_any_purchase', v);
 
   /// Non-consumable product ids already granted (supporter pack payout once).
-  bool isProductGranted(String id) => _prefs.getBool('iap_granted_$id') ?? false;
+  bool isProductGranted(String id) => _bool('iap_granted_$id') ?? false;
   Future<void> markProductGranted(String id) async =>
       _prefs.setBool('iap_granted_$id', true);
 
-  int get adClearsSinceInterstitial => _prefs.getInt('ads_clears_since_inter') ?? 0;
+  int get adClearsSinceInterstitial => _int('ads_clears_since_inter') ?? 0;
   Future<void> setAdClearsSinceInterstitial(int v) async =>
       _prefs.setInt('ads_clears_since_inter', v);
 
   /// Epoch ms of the last interstitial / rewarded ad (0 = never).
-  int get lastInterstitialMs => _prefs.getInt('ads_last_inter_ms') ?? 0;
+  int get lastInterstitialMs => _int('ads_last_inter_ms') ?? 0;
   Future<void> setLastInterstitialMs(int v) async =>
       _prefs.setInt('ads_last_inter_ms', v);
 
-  int get lastRewardedMs => _prefs.getInt('ads_last_rewarded_ms') ?? 0;
+  int get lastRewardedMs => _int('ads_last_rewarded_ms') ?? 0;
   Future<void> setLastRewardedMs(int v) async =>
       _prefs.setInt('ads_last_rewarded_ms', v);
 
   /// Epoch ms the remove-ads offer was last shown on the result screen.
-  int get removeAdsOfferMs => _prefs.getInt('ads_offer_ms') ?? 0;
+  int get removeAdsOfferMs => _int('ads_offer_ms') ?? 0;
   Future<void> setRemoveAdsOfferMs(int v) async =>
       _prefs.setInt('ads_offer_ms', v);
 
   // ── Pilot career (XP) ────────────────────────────────────────────────────
 
-  int getXp() => _prefs.getInt('xp_total') ?? 0;
+  int getXp() => math.max(0, _int('xp_total') ?? 0);
   Future<void> setXp(int v) async => _prefs.setInt('xp_total', v);
   Future<void> addXp(int amount) async => setXp(getXp() + amount);
 
   /// `save_v3`: XP backfilled from pre-rank progress (see CareerService).
-  bool get isXpMigrated => _prefs.getBool('save_v3') ?? false;
+  bool get isXpMigrated => _bool('save_v3') ?? false;
   Future<void> markXpMigrated() async => _prefs.setBool('save_v3', true);
 
-  int getReplayXpToday() => _prefs.getInt('replay_xp_${_todayKey()}') ?? 0;
+  int getReplayXpToday() => _int('replay_xp_${_todayKey()}') ?? 0;
   Future<void> addReplayXpToday(int amount) async =>
       _prefs.setInt('replay_xp_${_todayKey()}', getReplayXpToday() + amount);
 
   // ── Contracts (per day) ──────────────────────────────────────────────────
 
   List<String>? getTodayContracts() =>
-      _prefs.getStringList('contracts_${_todayKey()}');
+      _stringList('contracts_${_todayKey()}');
   Future<void> setTodayContracts(List<String> encoded) async =>
       _prefs.setStringList('contracts_${_todayKey()}', encoded);
 
   int getContractProgress(int i) =>
-      _prefs.getInt('contract_${_todayKey()}_$i') ?? 0;
+      _int('contract_${_todayKey()}_$i') ?? 0;
   Future<void> setContractProgress(int i, int v) async =>
       _prefs.setInt('contract_${_todayKey()}_$i', v);
 
@@ -236,12 +276,12 @@ class ProgressService {
   /// Sets a one-time flag; true only the first time (e.g. first reactor
   /// escape on a level, which pays its bonus once).
   Future<bool> markOnce(String key) async {
-    if (_prefs.getBool('once_$key') ?? false) return false;
+    if (_bool('once_$key') ?? false) return false;
     await _prefs.setBool('once_$key', true);
     return true;
   }
 
-  int getStat(String name) => _prefs.getInt('stat_$name') ?? 0;
+  int getStat(String name) => _int('stat_$name') ?? 0;
   Future<void> incrementStat(String name, [int by = 1]) async =>
       _prefs.setInt('stat_$name', getStat(name) + by);
 
@@ -255,18 +295,18 @@ class ProgressService {
   /// Consecutive days with a completed daily. Still shown as alive until a
   /// full day is missed.
   int getDailyStreak() {
-    final last = _prefs.getString('daily_last_date');
+    final last = _string('daily_last_date');
     final now = DateTime.now();
     final yesterday = _dateKey(DateTime(now.year, now.month, now.day - 1));
     if (last == _todayKey() || last == yesterday) {
-      return _prefs.getInt('daily_streak') ?? 0;
+      return _int('daily_streak') ?? 0;
     }
     return 0;
   }
 
   /// Call once on the first daily completion of a day; returns the new streak.
   Future<int> advanceDailyStreak() async {
-    if (_prefs.getString('daily_last_date') == _todayKey()) {
+    if (_string('daily_last_date') == _todayKey()) {
       return getDailyStreak();
     }
     final streak = getDailyStreak() + 1;
@@ -276,13 +316,13 @@ class ProgressService {
   }
 
   bool isDailyChallengeComplete() =>
-      _prefs.getBool('daily_${_todayKey()}') ?? false;
+      _bool('daily_${_todayKey()}') ?? false;
 
   Future<void> markDailyChallengeComplete() async {
     await _prefs.setBool('daily_${_todayKey()}', true);
   }
 
-  double? getDailyBestTime() => _prefs.getDouble('daily_time_${_todayKey()}');
+  double? getDailyBestTime() => _double('daily_time_${_todayKey()}');
 
   Future<void> saveDailyBestTime(double seconds) async {
     final current = getDailyBestTime();
