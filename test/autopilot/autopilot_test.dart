@@ -3,10 +3,13 @@
 //
 //   flutter test test/autopilot --dart-define=STORE_CAPTURE=true \
 //     [--dart-define=LEVELS=alien_01,mine_03] [--dart-define=CLEAN=true]
+//     [--dart-define=EXPORT_ROUTES=true]
 //
 // Debug knobs: PROFILE=<name>, TRACE=<frames>, NOSEARCH=true, DODGE=true.
 // STORE_CAPTURE gives full release gravity (debug builds fly at 70%).
-// Writes build/autopilot_report.md and build/autopilot_report.json.
+// Writes build/autopilot_report.md and build/autopilot_report.json (with a
+// difficulty score + label per level). EXPORT_ROUTES writes each delivered
+// level's flight to assets/routes/<saveId>.json for the in-game route guide.
 @Tags(['autopilot'])
 library;
 // ignore_for_file: avoid_print
@@ -25,6 +28,7 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 import 'autopilot.dart';
+import 'difficulty.dart';
 import 'harness.dart';
 
 const _levels = String.fromEnvironment('LEVELS');
@@ -33,6 +37,7 @@ const _trace = int.fromEnvironment('TRACE');
 const _profile = String.fromEnvironment('PROFILE');
 const _noSearch = bool.fromEnvironment('NOSEARCH');
 const _dodgeOnly = bool.fromEnvironment('DODGE');
+const _exportRoutes = bool.fromEnvironment('EXPORT_ROUTES');
 
 /// A player is assumed to need this much more fuel and time than the bot's
 /// best flight (calibrate against real runs: the debug `RUN` log line).
@@ -55,7 +60,25 @@ enum Verdict { pass, tight, botFail }
 
 class LevelReport {
   LevelReport(this.def, this.shipId, this.real, this.clean,
-      {required this.grid, required this.anchors, required this.pickups});
+      {required this.grid, required this.anchors, required this.pickups, this.profileResults = const []});
+
+  /// Best hazards-on flight of each pilot profile (empty for CLEAN runs).
+  final List<FlightResult> profileResults;
+
+  int get profilesOk =>
+      profileResults.where((r) => r.outcome == FlightOutcome.delivered).length;
+
+  late final Difficulty difficulty = rateDifficulty(
+    delivered: delivered,
+    budget: budget,
+    timeLimit: timeLimit,
+    humanFuel: delivered ? humanFuel : null,
+    humanTime: delivered ? humanTime : null,
+    profilesOk: profilesOk,
+    profiles: kPilotProfiles.length,
+    heldSeconds: real?.heldSeconds ?? 0,
+    seconds: real?.seconds ?? 0,
+  );
 
   /// Fuel canisters in the level.
   final List<FuelCellSpec> pickups;
@@ -172,6 +195,11 @@ class LevelReport {
         'id': def.saveId,
         'ship': shipId,
         'verdict': verdict.name,
+        'score': difficulty.score,
+        'label': difficulty.label.text,
+        'profilesOk': profilesOk,
+        'heldSeconds': real?.heldSeconds,
+        'profiles': [for (final r in profileResults) _resultJson(r)],
         'budgetFuel': budget,
         'star3Time': timeLimit,
         'real': _resultJson(real),
@@ -192,6 +220,7 @@ Map<String, Object?>? _resultJson(FlightResult? r) => r == null
         'fuelUsed': r.fuelUsed,
         'seconds': r.seconds,
         'stars': r.stars,
+        'heldSeconds': r.heldSeconds,
         'note': r.note.trim(),
       };
 
@@ -207,17 +236,21 @@ void main() {
       if (wanted != null && !wanted.contains(def.saveId)) continue;
       await h.loadLevel(i);
       final grid = _gridFor(def, h);
-      final real = _cleanOnly ? null : await _bestOver(h, i, grid, def, clean: false);
-      final clean = await _bestOver(h, i, grid, def, clean: true);
+      final (real, profileResults) =
+          _cleanOnly ? (null, const <FlightResult>[]) : await _bestOver(h, i, grid, def, clean: false);
+      final (clean, _) = await _bestOver(h, i, grid, def, clean: true);
+      if (_exportRoutes) _exportRoute(def, profileResults, real);
       final l = h.game.currentLevel!;
       final report = LevelReport(def, LevelRegistry.shipFor(i).id, real, clean,
           grid: grid,
           anchors: [
             for (final v in [l.shipSpawn, l.cargoSpawn, l.goalCenter]) Pt(v.x, v.y),
           ],
-          pickups: l.pickups.whereType<FuelCellSpec>().toList());
+          pickups: l.pickups.whereType<FuelCellSpec>().toList(),
+          profileResults: profileResults);
       reports.add(report);
       print('${def.saveId.padRight(13)} ${report.verdict.name.padRight(7)} '
+          '${report.difficulty.label.text} (${report.difficulty.score}) '
           'real: ${real ?? '-'} | clean: $clean');
     }
     _writeReport(reports);
@@ -229,21 +262,40 @@ void main() {
   }, timeout: const Timeout(Duration(hours: 2)));
 }
 
-/// Best delivery over the pilot profiles (stars first, then fuel margin).
-Future<FlightResult?> _bestOver(GameHarness h, int index, NavGrid grid, LevelDef def,
+/// Best delivery over the pilot profiles (stars first, then fuel margin),
+/// and each profile's own result (in [kPilotProfiles] order).
+Future<(FlightResult?, List<FlightResult>)> _bestOver(
+    GameHarness h, int index, NavGrid grid, LevelDef def,
     {required bool clean}) async {
   FlightResult? best;
+  final all = <FlightResult>[];
   for (final profile in kPilotProfiles) {
     if (_profile.isNotEmpty && profile.name != _profile) continue;
     await h.loadLevel(index, skipHazards: clean);
     final r = await _flySearching(h, index, grid, profile, clean: clean);
     if (_profile.isNotEmpty || _trace > 0) print('  ${def.saveId} ${profile.name} $r');
     final tagged = _tag(r, profile.name);
+    all.add(tagged);
     if (best == null || (r.outcome == FlightOutcome.delivered && !_better(best, r, def))) {
       best = tagged;
     }
   }
-  return best;
+  return (best, all);
+}
+
+/// Writes the route a stuck player is shown: the most careful profile that
+/// still gets 3★ (an easier line to follow), else the best delivery.
+void _exportRoute(LevelDef def, List<FlightResult> profiles, FlightResult? best) {
+  bool ok(FlightResult r) => r.outcome == FlightOutcome.delivered && r.route != null;
+  final pick = profiles.where((r) => ok(r) && r.stars == 3).firstOrNull ??
+      (best != null && ok(best) ? best : null);
+  if (pick == null) {
+    print('  ${def.saveId}: no delivered flight, no route exported');
+    return;
+  }
+  final file = File('assets/routes/${def.saveId}.json')..parent.createSync(recursive: true);
+  file.writeAsStringSync(jsonEncode(pick.route!.toJson()));
+  print('  ${def.saveId}: route exported (${pick.note.trim()}, ${pick.route!.samples.length} samples)');
 }
 
 void _writeReport(List<LevelReport> reports) {
@@ -256,18 +308,40 @@ void _writeReport(List<LevelReport> reports) {
         '(fuel) / × $kHumanTimeFactor (time); bot failures use the clean run + '
         '${(kHazardFuelAllowance * 100).round()}% fuel / ${kHazardTimeAllowance.round()} s.')
     ..writeln()
-    ..writeln('| Level | Ship | Verdict | Bot fuel | Bot time | Bot ★ | Clean fuel | '
+    ..writeln('Difficulty: score 0–100 from the player fuel margin (50), time margin (15), '
+        'profiles that failed with hazards on (20) and time spent waiting at hazards (15). '
+        '"3★ tight" = fuel margin < ${(kTightFuelMargin * 100).round()}% of the budget, '
+        'time margin < ${(kTightTimeMargin * 100).round()}%, ≤ 1 profile succeeds, or > '
+        '${(kTightWaitShare * 100).round()}% of the flight spent waiting.')
+    ..writeln()
+    ..writeln('| Level | Ship | Verdict | Score | Label | Profiles | Waiting | Bot fuel | Bot time | Bot ★ | Clean fuel | '
         'Player fuel | 3★ fuel budget | Player time | 3★ time | Missing fuel |')
-    ..writeln('|---|---|---|---|---|---|---|---|---|---|---|---|');
+    ..writeln('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (final r in reports) {
     final real = r.delivered ? r.real : null;
     final cleanOk = r.clean?.outcome == FlightOutcome.delivered ? r.clean : null;
     b.writeln('| ${r.def.saveId} | ${r.shipId} | ${r.verdict.name} | '
+        '${r.difficulty.score.toStringAsFixed(0)} | ${r.difficulty.label.text} | '
+        '${r.profilesOk}/${r.profileResults.length} | ${secs(real?.heldSeconds)} | '
         '${pct(real?.fuelUsed)} | ${secs(real?.seconds)} | ${real?.stars ?? '–'} | '
         '${pct(cleanOk?.fuelUsed)} | ${pct(r.humanFuel)} | ${pct(r.budget)} | '
         '${secs(r.humanTime)} | ${secs(r.timeLimit)} | '
         '${r.fuelDeficit > 0 ? pct(r.fuelDeficit) : ''} |');
   }
+  final counts = {
+    for (final l in DifficultyLabel.values) l: reports.where((r) => r.difficulty.label == l).length,
+  };
+  b
+    ..writeln()
+    ..writeln('## Difficulty ranking')
+    ..writeln()
+    ..writeln(counts.entries.map((e) => '${e.key.text}: ${e.value}').join(' · '))
+    ..writeln();
+  final ranked = [...reports]..sort((a, b) => b.difficulty.score.compareTo(a.difficulty.score));
+  for (final (k, r) in ranked.indexed) {
+    b.writeln('${k + 1}. **${r.def.saveId}** ${r.difficulty.score.toStringAsFixed(0)} – ${r.difficulty.label.text}');
+  }
+  print('difficulty: ${counts.entries.map((e) => '${e.key.text}=${e.value}').join(', ')}');
   b
     ..writeln()
     ..writeln('## Suggested fuel canisters')
@@ -305,13 +379,7 @@ Future<FlightResult> _flySearching(GameHarness h, int index, NavGrid grid, Pilot
   if (!_noSearch) {
     final around = Autopilot(h.game, grid, profile, avoidSweeps: true)..traceEvery = _trace;
     final flown = await h.fly(around.step, describe: around.describe, abort: () => around.gaveUp);
-    final r = FlightResult(
-        outcome: flown.outcome,
-        fuelLeft: flown.fuelLeft,
-        seconds: flown.seconds,
-        stars: flown.stars,
-        note: flown.note,
-        track: around.track);
+    final r = flown.copyWith(track: around.track, heldSeconds: around.heldFramesTotal / 60);
     await h.loadLevel(index);
     if (r.outcome == FlightOutcome.delivered) {
       final searched = await _flyPlans(h, index, grid, profile, clean: false);
@@ -339,13 +407,7 @@ Future<FlightResult> _flySearching(GameHarness h, int index, NavGrid grid, Pilot
 bool _better(FlightResult a, FlightResult b, LevelDef def) =>
     b.outcome != FlightOutcome.delivered || _score(a, def) >= _score(b, def);
 
-FlightResult _tag(FlightResult r, String note) => FlightResult(
-    outcome: r.outcome,
-    fuelLeft: r.fuelLeft,
-    seconds: r.seconds,
-    stars: r.stars,
-    note: '${r.note} $note',
-    track: r.track);
+FlightResult _tag(FlightResult r, String note) => r.copyWith(note: '${r.note} $note');
 
 Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProfile profile,
     {double sweepWeight = 3, bool snipe = true, required bool clean}) async {
@@ -353,6 +415,7 @@ Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProf
   var tries = 0;
   var killed = 0;
   var track = const <TrackPoint>[];
+  var held = 0.0;
   late FlightResult r;
   while (true) {
     if (tries > 0) await h.loadLevel(index, skipHazards: clean);
@@ -363,6 +426,7 @@ Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProf
     r = await h.fly(bot.step, describe: bot.describe, abort: () => bot.gaveUp);
     killed = bot.turretsKilled;
     track = bot.track;
+    held = bot.heldFramesTotal / 60;
     // Search only crashes the hazards had a hand in (hit, or holding/crossing
     // near one); a plain wall crash with no hazard nearby is final.
     final hazardRelated =
@@ -377,14 +441,11 @@ Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProf
     if (plan[k] + 1 >= _tactics.length) break;
     plan[k]++;
   }
-  return FlightResult(
-    outcome: r.outcome,
-    fuelLeft: r.fuelLeft,
-    seconds: r.seconds,
-    stars: r.stars,
+  return r.copyWith(
     note: '${r.note} tries=$tries plan=${plan.map((t) => _tactics[t]).toList()}'
         '${killed > 0 ? ' kills=$killed' : ''}',
     track: track,
+    heldSeconds: held,
   );
 }
 

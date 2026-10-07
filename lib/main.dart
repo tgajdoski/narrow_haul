@@ -19,6 +19,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
+import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
@@ -104,16 +105,28 @@ class _NarrowHaulApp extends StatelessWidget {
                         onPrimary: g.restartLevel,
                         secondaryLabel: 'Menu',
                         onSecondary: g.backToMenu,
-                        extra: g.canContinue
-                            ? _RewardedButton(
-                                label: 'Continue from before the crash',
-                                note: 'Watch an ad · this run can earn up to 2★',
-                                icon: Icons.play_circle_outline_rounded,
-                                placement: AdPlacement.continueAfterCrash,
-                                onReward: g.continueAfterCrash,
+                        extra: g.canContinue || g.canShowRoute
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (g.canContinue)
+                                    _RewardedButton(
+                                      label: 'Continue from before the crash',
+                                      note: 'Watch an ad · this run can earn up to 2★',
+                                      icon: Icons.play_circle_outline_rounded,
+                                      placement: AdPlacement.continueAfterCrash,
+                                      onReward: g.continueAfterCrash,
+                                    ),
+                                  if (g.canContinue && g.canShowRoute)
+                                    const SizedBox(height: 12),
+                                  RouteHelpButtons(game: g),
+                                ],
                               )
                             : null,
                       );
+                    },
+                    'demo': (context, game) {
+                      return DemoFlightOverlay(game: game as NarrowHaulGame);
                     },
                     'levelComplete': (context, game) {
                       final g = game as NarrowHaulGame;

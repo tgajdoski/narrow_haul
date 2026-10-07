@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/ui/route_guide_overlays.dart';
 
 const _panelColor = Color(0xFF0D1B2A);
 const _accent = Color(0xFF00B4D8);
@@ -90,6 +91,10 @@ class PauseOverlay extends StatelessWidget {
             label: const Text('Restart'),
             style: OutlinedButton.styleFrom(padding: buttonPad),
           ),
+          if (game.routeGuideAvailable) ...[
+            const SizedBox(height: 6),
+            RouteGuideToggle(game: game),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [

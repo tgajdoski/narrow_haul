@@ -1,5 +1,10 @@
 # Handoff: level difficulty ranking + "show route" ghost after repeated crashes
 
+> **Status (2026-10-07): done.** Difficulty score/labels in the autopilot report, 58 routes exported to
+> `assets/routes/`, route guide + ghost + demo flight in game (see "Route guide & demo flight" in CLAUDE.md).
+> Decisions: a guided flight is capped at 2★, unlocking the route is free (no ad), and the demo covers all levels
+> (turrets stay passive). Still to do: look at it in the real app.
+
 Paste this into a new Claude Code session (plan mode) in this repo.
 
 ## Context (already built in another session)

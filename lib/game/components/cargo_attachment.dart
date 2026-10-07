@@ -41,6 +41,10 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   bool attached = false;
   double ropeRevealProgress = 0;
 
+  /// Demo flight: the recording says when the pod is in tow; no rope joint
+  /// is made (both bodies are kinematic), only the rope is drawn.
+  bool Function()? scriptedTow;
+
   RopePhysicsCoupling? _coupling;
   bool _attaching = false;
 
@@ -65,6 +69,15 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   @override
   void update(double dt) {
     super.update(dt);
+    final scripted = scriptedTow;
+    if (scripted != null) {
+      attached = scripted();
+      final near = (ship.body.position - cargo.body.position).length < approachDistanceMeters;
+      ropeRevealProgress = attached
+          ? 1.0
+          : (ropeRevealProgress + (near ? dt / ropeRevealDuration : -dt * 0.55)).clamp(0.0, 1.0);
+      return;
+    }
     if (attached) {
       if (!_swingerUnlocked) {
         final diff = cargo.body.position - ship.body.position;
@@ -111,7 +124,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   }
 
   void onHookCargoTouch() {
-    if (attached || _attaching) return;
+    if (attached || _attaching || scriptedTow != null) return;
     if (ropeRevealProgress < minRevealToAttach) return;
     _attach();
   }

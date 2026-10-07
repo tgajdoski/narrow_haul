@@ -33,6 +33,15 @@ class CargoBody extends BodyComponent {
     body.setAwake(true);
   }
 
+  /// Demo flight: placed along a recorded route each frame.
+  void drivePosition(Vector2 position) {
+    if (body.bodyType != BodyType.kinematic) body.setType(BodyType.kinematic);
+    body
+      ..setTransform(position, body.angle)
+      ..linearVelocity.setZero()
+      ..angularVelocity = 0;
+  }
+
   /// Smaller than ship hull (~33% reduced from prior 0.14 m).
   static const double radius = kCargoRadius;
 

@@ -88,7 +88,23 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   bool get launched => _launched;
   bool _launched = false;
 
-  bool get isThrusting => _thrustInput && fuel > 0 && !_wrecked;
+  bool get isThrusting => (_thrustInput || _scriptedThrust) && fuel > 0 && !_wrecked;
+
+  /// Demo flight: the ship is placed along a recorded route each frame
+  /// (kinematic, so it can neither crash nor drift); [thrust] lights the plume.
+  void drivePose(Vector2 position, double angle, {required bool thrust}) {
+    if (body.bodyType != BodyType.kinematic) {
+      body.setType(BodyType.kinematic);
+      body.gravityScale = Vector2.zero();
+    }
+    _scriptedThrust = thrust;
+    body
+      ..setTransform(position, angle)
+      ..linearVelocity.setZero()
+      ..angularVelocity = 0;
+  }
+
+  bool _scriptedThrust = false;
 
   bool _wrecked = false;
 
@@ -271,6 +287,14 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     final dir = body.worldVector(Vector2(0, -1));
     final muzzle = body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
     onFire?.call(muzzle, body.linearVelocity + dir * spec.muzzleSpeed);
+  }
+
+  /// Demo flight: one recorded shot from the current pose ([shipVelocity]
+  /// from the recording; a kinematic replay has no velocity of its own).
+  void fireScripted(Vector2 shipVelocity) {
+    final dir = body.worldVector(Vector2(0, -1));
+    final muzzle = body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
+    onFire?.call(muzzle, shipVelocity + dir * spec.muzzleSpeed);
   }
 
   @override

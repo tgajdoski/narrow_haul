@@ -96,6 +96,13 @@ class ProgressService {
     }
   }
 
+  // ── Route guide ──────────────────────────────────────────────────────────
+
+  /// "Show route" was offered and taken on this level; it stays available.
+  bool isRouteUnlocked(String saveId) => _prefs.getBool('route_unlocked_$saveId') ?? false;
+  Future<void> setRouteUnlocked(String saveId) async =>
+      _prefs.setBool('route_unlocked_$saveId', true);
+
   // ── Cosmetics ────────────────────────────────────────────────────────────
 
   bool isCosmeticUnlocked(String id) => _prefs.getBool('cosmetic_unlocked_$id') ?? false;

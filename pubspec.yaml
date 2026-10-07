@@ -74,6 +74,7 @@ flutter:
     - assets/
     - assets/audio/
     - assets/tiles/
+    - assets/routes/
     - assets/themes/tutorial/
     - assets/themes/alien/
     - assets/themes/mine/

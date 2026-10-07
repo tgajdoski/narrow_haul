@@ -4,6 +4,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/widgets.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,10 +33,18 @@ class FlightResult {
     required this.stars,
     this.note = '',
     this.track = const [],
+    this.heldSeconds = 0,
+    this.route,
   });
 
-  /// Trajectory samples (every 0.1 s) for canister placement / route export.
+  /// Trajectory samples (every 0.1 s) for canister placement.
   final List<TrackPoint> track;
+
+  /// Seconds spent holding short of moving obstacles.
+  final double heldSeconds;
+
+  /// The game's own recording of a delivered flight (route export).
+  final FlightRoute? route;
   final FlightOutcome outcome;
 
   /// Fraction of the tank left at delivery (stars use this).
@@ -45,6 +54,17 @@ class FlightResult {
   final String note;
 
   double get fuelUsed => 1 - fuelLeft;
+
+  FlightResult copyWith({String? note, List<TrackPoint>? track, double? heldSeconds}) => FlightResult(
+        outcome: outcome,
+        fuelLeft: fuelLeft,
+        seconds: seconds,
+        stars: stars,
+        note: note ?? this.note,
+        track: track ?? this.track,
+        heldSeconds: heldSeconds ?? this.heldSeconds,
+        route: route,
+      );
 
   @override
   String toString() => '${outcome.name} fuelLeft=${(fuelLeft * 100).toStringAsFixed(1)}% '
@@ -77,6 +97,7 @@ class GameHarness {
       'pilotProfile',
       'pause',
       'settings',
+      'demo',
     ]) {
       game.overlays.addEntry(name, (_, _) => const SizedBox());
     }
@@ -126,6 +147,7 @@ class GameHarness {
           fuelLeft: game.lastLevelFuelFraction,
           seconds: game.lastLevelTimeSeconds,
           stars: game.lastLevelStars,
+          route: game.lastFlightRoute,
         );
       }
       if (game.runState == RunState.gameOver) {

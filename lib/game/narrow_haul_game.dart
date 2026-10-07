@@ -20,6 +20,7 @@ import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
+import 'package:narrow_haul/game/components/route_guide.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
@@ -33,6 +34,9 @@ import 'package:narrow_haul/game/level/theme_assets.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/level/tiled_level_loader.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/route/crash_streak.dart';
+import 'package:narrow_haul/game/route/flight_route.dart';
+import 'package:narrow_haul/game/route/route_repository.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
@@ -209,6 +213,33 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   int _playtimeBooked = 0;
   double _fuelBaseline = 0;
 
+  // ── Route guide & demo flight ────────────────────────────────────────────
+  /// Crashes in a row on one level (3 → the game-over screen offers help).
+  final CrashStreak crashStreak = CrashStreak();
+
+  /// Recorded flight bundled for this level (null: none, or a daily run).
+  FlightRoute? currentRoute;
+
+  /// This attempt's own flight, finished on delivery (autopilot export).
+  FlightRoute? lastFlightRoute;
+  FlightRecorder? _recorder;
+
+  /// Level the route guide is switched on for (stays on across retries).
+  String? _routeGuideLevel;
+
+  /// The guide was showing during this flight: capped at 2★.
+  bool guidedThisRun = false;
+  final List<Component> _guideComponents = [];
+
+  /// Kinematic replay of [currentRoute]: no input, no crash, no rewards.
+  bool demoMode = false;
+  double _demoT = 0;
+  int _demoShot = 0;
+  bool _demoTowing = false;
+
+  /// The demo reached the end of its recording (the overlay offers to fly).
+  final ValueNotifier<bool> demoFinished = ValueNotifier(false);
+
   /// The last win paid the daily's first-clear reward (no interstitial then).
   bool _lastWinDailyFirst = false;
   bool _currencyDoubled = false;
@@ -333,6 +364,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       'pause',
       'settings',
     ]);
+    _leaveDemo();
     _resetChallenge();
     levelIndex = index;
     _resetInputState();
@@ -350,10 +382,17 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _snapshotTimer = 0;
     _continueUsed = false;
     continuedThisRun = false;
+    guidedThisRun = false;
     _crashedByMeltdown = false;
     _meltdownAtCrash = null;
     _playtimeBooked = 0;
-    ProgressService.instance.incrementStat(ProgressService.statFlights);
+    _demoT = 0;
+    _demoShot = 0;
+    _demoTowing = false;
+    if (!demoMode) {
+      ProgressService.instance.incrementStat(ProgressService.statFlights);
+    }
+    currentRoute = await _routeForCurrentLevel();
     // In debug, rebuild caves every load so hot-reloaded spec edits show up.
     if (kDebugMode) clearCaveCache();
     final data = switch (currentLevelDef) {
@@ -525,6 +564,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     cargo = cargoBody;
     cargoAttachment = cargoLink;
     _hudControls?.showFire = shipSpec.armed;
+    _recorder = FlightRecorder(saveId: currentLevelDef.saveId, shipId: shipSpec.id);
+    if (demoMode) cargoLink.scriptedTow = () => _demoTowing;
 
     _forces = null;
     if (data.fields.isNotEmpty) {
@@ -568,10 +609,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _rotateUsed = 0;
     _tutorialHints =
         !isChallengeMode &&
+        !demoMode &&
         levelIndex < 3 &&
         currentLevelDef is TmxLevelDef &&
         ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0;
-    _pauseButton?.visible = true;
+    _pauseButton?.visible = !demoMode;
+    _syncRouteGuide();
     _fuelGauge?.starMarks = [
       currentLevelDef.stars.star3Fuel,
       currentLevelDef.stars.star2Fuel,
@@ -660,6 +703,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       c.removeFromParent();
     }
     _levelEntities.clear();
+    _guideComponents.clear();
+    _recorder = null;
     ship = null;
     cargo = null;
     cargoAttachment = null;
@@ -702,7 +747,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   // ── Game events ───────────────────────────────────────────────────────────
 
   void _onShipHitWall() {
-    if (runState != RunState.playing) return;
+    if (runState != RunState.playing || demoMode) return;
+    crashStreak.onCrash(currentLevelDef.saveId);
     _currentLevelRetried = true;
     _recordSpentFuel();
     _recordPlaytime();
@@ -743,7 +789,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   Future<void> _onGoalReached() async {
-    if (runState != RunState.playing) return;
+    if (runState != RunState.playing || demoMode) return;
     // Claim the win before any await so a second contact can't re-enter.
     runState = RunState.won;
 
@@ -778,6 +824,21 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     final stars = _calculateStars(fuelLeft, elapsed);
     lastLevelStars = stars;
     lastLevelTimeSeconds = elapsed;
+    crashStreak.onDelivered();
+    final s = ship;
+    final c = cargo;
+    if (s != null && c != null) {
+      lastFlightRoute = _recorder?.finish(
+        x: s.body.position.x,
+        y: s.body.position.y,
+        angle: s.body.angle,
+        cx: c.body.position.x,
+        cy: c.body.position.y,
+        seconds: elapsed,
+        stars: stars,
+        fuelLeft: lastLevelFuelFraction,
+      );
+    }
     // Calibration line for the autopilot report (test/autopilot): a real
     // pilot's fuel/time next to the bot's.
     if (kDebugMode) {
@@ -945,13 +1006,18 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _winReady = true;
   }
 
+  @visibleForTesting
+  int debugStars(double fuelFraction, double timeSeconds) =>
+      _calculateStars(fuelFraction * _shipMaxFuel, timeSeconds);
+
   int _calculateStars(double fuelRemaining, double timeSeconds) {
     final pct = fuelRemaining / _shipMaxFuel;
     final spec = currentLevelDef.stars;
-    // A continued run (rewarded ad) can never buy a perfect rating.
+    // A continued (rewarded ad) or guided run can never buy a perfect rating.
     if (pct >= spec.star3Fuel &&
         timeSeconds <= spec.star3Time &&
-        !continuedThisRun) {
+        !continuedThisRun &&
+        !guidedThisRun) {
       return 3;
     }
     if (pct >= spec.star2Fuel) return 2;
@@ -1086,6 +1152,138 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     }
   }
 
+  // ── Route guide & demo flight ─────────────────────────────────────────────
+
+  /// The bundled route, when it was recorded with this level's ship (a
+  /// daily's modifiers or Test Flight ship would make it wrong).
+  Future<FlightRoute?> _routeForCurrentLevel() async {
+    if (isChallengeMode) return null;
+    final route = await RouteRepository.load(currentLevelDef.saveId);
+    if (route == null || route.shipId != LevelRegistry.shipFor(levelIndex).id) return null;
+    return route;
+  }
+
+  bool get routeGuideOn =>
+      !isChallengeMode && _routeGuideLevel == currentLevelDef.saveId;
+
+  /// The pause toggle: this level's route was unlocked before.
+  bool get routeGuideAvailable =>
+      currentRoute != null &&
+      !isChallengeMode &&
+      ProgressService.instance.isRouteUnlocked(currentLevelDef.saveId);
+
+  /// Game-over help: after [CrashStreak.offerAfter] crashes in a row, or
+  /// whenever this level's route was unlocked before.
+  bool get canShowRoute =>
+      currentRoute != null &&
+      !isChallengeMode &&
+      (crashStreak.shouldOfferFor(currentLevelDef.saveId) ||
+          ProgressService.instance.isRouteUnlocked(currentLevelDef.saveId));
+
+  /// "Show route": unlock it for this level and retry with the guide on.
+  Future<void> showRoute() async {
+    if (!canShowRoute) return;
+    await ProgressService.instance.setRouteUnlocked(currentLevelDef.saveId);
+    _routeGuideLevel = currentLevelDef.saveId;
+    await restartLevel();
+  }
+
+  /// Pause-menu toggle. Switching it on mid-flight caps the run at 2★.
+  void setRouteGuide(bool on) {
+    _routeGuideLevel = on ? currentLevelDef.saveId : null;
+    _syncRouteGuide();
+  }
+
+  /// Adds/removes the dotted route (and the ghost ship outside demos).
+  void _syncRouteGuide() {
+    for (final c in _guideComponents) {
+      c.removeFromParent();
+      _levelEntities.remove(c);
+    }
+    _guideComponents.clear();
+    final route = currentRoute;
+    final level = currentLevel;
+    final s = ship;
+    if (route == null || level == null || s == null) return;
+    if (!routeGuideOn && !demoMode) return;
+    _guideComponents.add(RouteGuideLine(route: route, accent: level.theme.uiAccent));
+    if (!demoMode) {
+      _guideComponents.add(RouteGhost(
+        route: route,
+        ship: s.spec,
+        flightTime: () => (ship?.launched ?? false) ? elapsedSeconds : null,
+      ));
+    }
+    for (final c in _guideComponents) {
+      world.add(c);
+      _levelEntities.add(c);
+    }
+  }
+
+  /// "Watch a demo flight": reloads the level with the engine stopped (so
+  /// obstacles start in step with the recording), then replays it.
+  Future<void> startDemoFlight() async {
+    if (!canShowRoute) return;
+    await ProgressService.instance.setRouteUnlocked(currentLevelDef.saveId);
+    overlays.removeAll(['gameOver', 'pause', 'settings']);
+    _resetInputState();
+    demoMode = true;
+    demoFinished.value = false;
+    runState = RunState.playing;
+    pauseEngine();
+    await loadCurrentLevel(retry: true);
+    _hudControls?.removeFromParent();
+    overlays.add('demo');
+    resumeEngine();
+  }
+
+  /// Ends a demo (back to normal flight state; the caller loads what's next).
+  void _leaveDemo() {
+    if (!demoMode) return;
+    demoMode = false;
+    demoFinished.value = false;
+    overlays.remove('demo');
+    final hud = _hudControls;
+    if (hud != null && hud.parent == null) camera.viewport.add(hud);
+  }
+
+  /// "Take the controls": fly the level yourself (the guide stays as it was).
+  Future<void> takeControlsFromDemo() => restartLevel();
+
+  void _updateDemo(double dt, ShipBody s) {
+    final route = currentRoute;
+    if (route == null) return;
+    _demoT += dt;
+    final pose = route.poseAt(_demoT);
+    s.drivePose(Vector2(pose.x, pose.y), pose.angle, thrust: pose.thrust);
+    cargo?.drivePosition(Vector2(pose.cx, pose.cy));
+    _demoTowing = pose.towing;
+    while (_demoShot < route.shots.length && route.shots[_demoShot] <= _demoT) {
+      _demoShot++;
+      final a = route.poseAt(_demoT - 0.05);
+      final b = route.poseAt(_demoT + 0.05);
+      s.fireScripted(Vector2((b.x - a.x) / 0.1, (b.y - a.y) / 0.1));
+    }
+    if (_demoT >= route.endT && !demoFinished.value) demoFinished.value = true;
+  }
+
+  void _recordFrame(double dt, ShipBody s) {
+    final rec = _recorder;
+    final c = cargo;
+    if (rec == null || c == null || demoMode) return;
+    rec.tick(
+      dt,
+      x: s.body.position.x,
+      y: s.body.position.y,
+      angle: s.body.angle,
+      cx: c.body.position.x,
+      cy: c.body.position.y,
+      launched: s.launched,
+      towing: cargoAttachment?.attached ?? false,
+      thrust: s.isThrusting,
+    );
+  }
+
   // ── Monetization hooks ────────────────────────────────────────────────────
 
   /// Leaves the result screen via [then] (next mission / menu), showing an
@@ -1216,12 +1414,13 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   // ── Public navigation ─────────────────────────────────────────────────────
 
-  void restartLevel() {
+  Future<void> restartLevel() {
+    _leaveDemo();
     overlays.removeAll(['gameOver', 'pause', 'settings']);
     _resetInputState();
     runState = RunState.playing;
     resumeEngine();
-    loadCurrentLevel(retry: true);
+    return loadCurrentLevel(retry: true);
   }
 
   Future<void> nextLevel() async {
@@ -1241,6 +1440,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   void backToMenu() {
+    _leaveDemo();
     overlays.removeAll(['gameOver', 'pause', 'settings']);
     CosmeticsService.clearTrials();
     // Quitting mid-flight still counts the time flown.
@@ -1336,7 +1536,10 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   @override
   bool get combatLive =>
-      runState == RunState.playing && !isPaused && (ship?.launched ?? false);
+      runState == RunState.playing &&
+      !isPaused &&
+      !demoMode &&
+      (ship?.launched ?? false);
 
   @override
   bool get turretsDisabled => _turretsOfflineLeft > 0 || _reactorDestroyed;
@@ -1348,6 +1551,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   void _onShipFired(Vector2 muzzle, Vector2 velocity) {
+    _recorder?.shot();
     spawnShell(Shell(
       position: muzzle,
       velocity: velocity,
@@ -1365,6 +1569,11 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   @override
   void onTurretDestroyed(Offset at) {
+    if (demoMode) {
+      _burstAt(at);
+      AudioService.playBoom();
+      return;
+    }
     _turretsDestroyed++;
     ProgressService.instance.incrementStat(ProgressService.statTurretsDestroyed);
     _burstAt(at);
@@ -1383,6 +1592,13 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   @override
   void onReactorDestroyed(Offset at, double escapeSeconds) {
     if (runState != RunState.playing) return;
+    if (demoMode) {
+      // No meltdown in a demo: the replay can't run from it.
+      _reactorDestroyed = true;
+      _burstAt(at);
+      AudioService.playBoom();
+      return;
+    }
     _reactorDestroyed = true;
     _meltdownLeft = escapeSeconds;
     _turretsOfflineLeft = 0;
@@ -1492,9 +1708,15 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         camera.viewfinder.position = current + (target - current) * 0.18;
       }
 
-      s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
+      if (demoMode) {
+        _updateDemo(dt, s);
+      } else {
+        s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
+        if (routeGuideOn && s.launched) guidedThisRun = true;
+      }
       _updateCombat(dt);
       _sampleSnapshot(dt, s);
+      _recordFrame(dt, s);
 
       final tow = cargoAttachment?.attached == true;
 

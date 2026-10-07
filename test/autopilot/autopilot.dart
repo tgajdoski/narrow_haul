@@ -129,6 +129,9 @@ class Autopilot {
   /// Held short of an obstacle sweep at some point.
   bool everHeld = false;
 
+  /// Frames spent holding short of obstacle sweeps over the whole flight.
+  int heldFramesTotal = 0;
+
   /// Per-crossing tactic (see [_hazardCap]).
   final List<double> crossPlan;
 
@@ -557,6 +560,7 @@ class Autopilot {
     final holding = toStart < 1.8 && speed < 0.5;
     if (holding) {
       _holdFrames++;
+      heldFramesTotal++;
       everHeld = true;
     }
     final held = _holdFrames / 60;
