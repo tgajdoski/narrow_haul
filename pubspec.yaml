@@ -43,6 +43,7 @@ dependencies:
   flame_audio: ^2.12.0
   google_mobile_ads: ^9.1.0
   in_app_purchase: ^3.3.1
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +76,7 @@ flutter:
     - assets/audio/
     - assets/tiles/
     - assets/routes/
+    - assets/fonts/OFL.txt
     - assets/themes/tutorial/
     - assets/themes/alien/
     - assets/themes/mine/

@@ -40,6 +40,15 @@ class HudTouchControls extends PositionComponent {
     _relayout(size);
   }
 
+  /// Safe-area insets: buttons and the joystick hint stay clear of them.
+  EdgeInsets get insets => _insets;
+  EdgeInsets _insets = EdgeInsets.zero;
+  set insets(EdgeInsets v) {
+    if (v == _insets) return;
+    _insets = v;
+    _relayout(size);
+  }
+
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
   _FireButton? _fireBtn;
@@ -72,13 +81,20 @@ class HudTouchControls extends PositionComponent {
       position: Vector2(_leftHanded ? sz.x * 0.5 : 0, 0),
       onAxisChanged: onRotateAxis,
       hintFraction: _leftHanded ? 0.78 : 0.22,
+      // The joystick covers one half: only that half's outer edge is inset.
+      hintInsets: _leftHanded
+          ? EdgeInsets.only(right: _insets.right, bottom: _insets.bottom)
+          : EdgeInsets.only(left: _insets.left, bottom: _insets.bottom),
     );
 
     const btnRadius = 52.0;
     const margin = 28.0;
-    final btnX = _leftHanded ? margin + btnRadius : sz.x - margin - btnRadius;
+    final btnX = _leftHanded
+        ? _insets.left + margin + btnRadius
+        : sz.x - _insets.right - margin - btnRadius;
+    final btnY = sz.y - _insets.bottom - margin - btnRadius;
     _thrustBtn = _ThrustButton(
-      center: Vector2(btnX, sz.y - margin - btnRadius),
+      center: Vector2(btnX, btnY),
       radius: btnRadius,
       onChanged: onThrust,
     );
@@ -90,7 +106,7 @@ class HudTouchControls extends PositionComponent {
       // Directly above thrust: the same thumb rocks between the two.
       const fireRadius = 40.0;
       _fireBtn = _FireButton(
-        center: Vector2(btnX, sz.y - margin - btnRadius * 2 - 18 - fireRadius),
+        center: Vector2(btnX, btnY - btnRadius - 18 - fireRadius),
         radius: fireRadius,
         onChanged: onFire!,
       );
@@ -109,6 +125,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     required Vector2 position,
     required this.onAxisChanged,
     this.hintFraction = 0.22,
+    this.hintInsets = EdgeInsets.zero,
   }) : super(
           position: position,
           size: areaSize,
@@ -119,6 +136,9 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
 
   /// Horizontal position of the idle hint within the joystick area.
   final double hintFraction;
+
+  /// Keeps the idle hint clear of the notch / home indicator.
+  final EdgeInsets hintInsets;
 
   static const double _maxKnobRadius = 56.0;
   static const double _baseOuterRadius = 68.0;
@@ -206,8 +226,12 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   /// Resting position hint: show the full joystick (base + centred knob)
   /// at a fixed bottom-left location so the player always sees it.
   void _drawHint(Canvas canvas) {
-    final cx = size.x * hintFraction;
-    final cy = size.y - _baseOuterRadius - 16;
+    const edge = _baseOuterRadius + 12;
+    final cx = (size.x * hintFraction).clamp(
+      hintInsets.left + edge,
+      math.max(hintInsets.left + edge, size.x - hintInsets.right - edge),
+    ).toDouble();
+    final cy = size.y - hintInsets.bottom - _baseOuterRadius - 16;
 
     if (_baseSprite != null) {
       final d = _baseOuterRadius * 2;

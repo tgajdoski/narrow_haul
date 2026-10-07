@@ -298,6 +298,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     camera.viewport.add(_hint!);
     _combatHud = CombatStatusHud();
     camera.viewport.add(_combatHud!);
+    _applySafeInsets();
 
     applySettings();
 
@@ -311,6 +312,26 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   void onRemove() {
     AchievementService.announced.removeListener(_onAchievementAnnounced);
     super.onRemove();
+  }
+
+  /// Screen insets (notch / Dynamic Island / home indicator) the HUD keeps
+  /// clear of; the world itself still draws edge to edge. Set by the host
+  /// widget from `MediaQuery.viewPaddingOf`.
+  EdgeInsets get safeInsets => _safeInsets;
+  EdgeInsets _safeInsets = EdgeInsets.zero;
+  void setSafeInsets(EdgeInsets insets) {
+    if (insets == _safeInsets) return;
+    _safeInsets = insets;
+    _applySafeInsets();
+  }
+
+  void _applySafeInsets() {
+    final topLeft = Vector2(_safeInsets.left, _safeInsets.top);
+    _fuelGauge?.position = topLeft;
+    _gravityHud?.position = topLeft.clone();
+    _levelInfoHud?.position = topLeft.clone();
+    _hudControls?.insets = _safeInsets;
+    _minimap?.refreshLayout();
   }
 
   @override
@@ -1293,12 +1314,20 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   /// interstitial first only when pacing allows. Never on the daily's first
   /// clear or a rank-up, which are moments to celebrate, not interrupt.
   Future<void> leaveResults(Future<void> Function() then) async {
-    final rankedUp = lastRunReward?.rankedUp ?? false;
-    if (!_lastWinDailyFirst && !rankedUp) {
-      await MonetizationService.instance.maybeShowInterstitial();
+    if (_leavingResults) return; // a button tap and the back key can race
+    _leavingResults = true;
+    try {
+      final rankedUp = lastRunReward?.rankedUp ?? false;
+      if (!_lastWinDailyFirst && !rankedUp) {
+        await MonetizationService.instance.maybeShowInterstitial();
+      }
+      await then();
+    } finally {
+      _leavingResults = false;
     }
-    await then();
   }
+
+  bool _leavingResults = false;
 
   /// 2× coins on the result screen is offered once, when the run paid any.
   bool get canDoubleCurrency =>
@@ -1493,6 +1522,34 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   // ── Pause & settings ──────────────────────────────────────────────────────
+
+  /// Android back / system back. Returns false only on the main menu, where
+  /// the app may close; everywhere else it steps back one screen.
+  bool handleBack() {
+    final active = overlays.activeOverlays;
+    if (active.contains('rankUp')) {
+      overlays.remove('rankUp');
+    } else if (active.contains('settings')) {
+      overlays.remove('settings');
+      overlays.add(isPaused ? 'pause' : 'menu');
+    } else if (active.contains('pause')) {
+      resumeGame();
+    } else if (active.contains('levelComplete')) {
+      leaveResults(() async => backToMenu());
+    } else if (active.contains('gameOver') || active.contains('demo')) {
+      backToMenu();
+    } else if (const ['levelSelect', 'achievements', 'cosmetics', 'pilotProfile']
+        .any(active.contains)) {
+      overlays.removeAll(['levelSelect', 'achievements', 'cosmetics', 'pilotProfile']);
+      overlays.add('menu');
+    } else if (active.contains('menu')) {
+      return false;
+    } else if (runState == RunState.playing) {
+      pauseGame();
+    }
+    // Otherwise (crash explosion / delivery celebration): swallow it.
+    return true;
+  }
 
   void pauseGame() {
     if (runState != RunState.playing || isPaused || ship == null) return;

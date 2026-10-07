@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _panelColor = Color(0xFF0D1B2A);
 const _accent = Color(0xFF00B4D8);
@@ -204,6 +206,8 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           ),
           const Divider(color: Color(0x22FFFFFF), height: 20),
           _PurchasesSection(onChanged: () => setState(() {})),
+          const Divider(color: Color(0x22FFFFFF), height: 20),
+          _AboutSection(game: widget.game),
         ],
       ),
     );
@@ -335,6 +339,105 @@ class _PurchasesSection extends StatelessWidget {
               await onTap();
               onChanged();
             },
+    );
+  }
+}
+
+/// Privacy policy, support, open-source licenses and (from the main menu
+/// only, never mid-flight) Reset progress.
+class _AboutSection extends StatelessWidget {
+  const _AboutSection({required this.game});
+
+  final NarrowHaulGame game;
+
+  static final _privacyUrl = Uri.parse('https://zafrk.com/narrow-haul/privacy');
+  static final _supportUrl = Uri.parse('https://zafrk.com/narrow-haul/support');
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _linkRow(Icons.shield_outlined, 'Privacy policy', () => _open(_privacyUrl)),
+        _linkRow(Icons.help_outline_rounded, 'Support', () => _open(_supportUrl)),
+        _linkRow(
+          Icons.description_outlined,
+          'Licenses',
+          () => showLicensePage(
+            context: context,
+            applicationName: 'Narrow Haul',
+            applicationLegalese: '© 2026 zafrk',
+          ),
+        ),
+        if (!game.isPaused)
+          _linkRow(
+            Icons.restart_alt_rounded,
+            'Reset progress',
+            () => _confirmReset(context),
+            color: const Color(0xFFFF6B6B),
+          ),
+      ],
+    );
+  }
+
+  static Future<void> _open(Uri url) async {
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // No browser available: nothing sensible to do in a game.
+    }
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _panelColor,
+        title: const Text('Reset progress?'),
+        content: const Text(
+          'This erases your stars, times, rank, coins, achievements and Garage '
+          'items. Purchases (ad removal, Supporter Livery) and settings are '
+          'kept. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF6B6B)),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ProgressService.instance.resetProgress(
+      keepCosmeticIds: {
+        for (final item in CosmeticsService.all)
+          if (item.supporterOnly) item.id,
+      },
+    );
+    CosmeticsService.clearTrials();
+    game.applySettings();
+    game.overlays.remove('settings');
+    game.overlays.add('menu');
+  }
+
+  Widget _linkRow(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    Color color = Colors.white60,
+  }) {
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: Icon(icon, color: color),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      onTap: onTap,
     );
   }
 }

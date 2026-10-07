@@ -25,6 +25,13 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The bundled title font's licence, shown in Settings → Licenses.
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+      ['RussoOne'],
+      await rootBundle.loadString('assets/fonts/OFL.txt'),
+    );
+  });
   // Point the global Flame image cache at assets/ (not the default assets/images/).
   Flame.images.prefix = 'assets/';
   await ProgressService.init();
@@ -73,84 +80,105 @@ class _NarrowHaulApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: _theme(),
-      home: Scaffold(
-        backgroundColor: const Color(0xFF050816),
-        body: ClipRect(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GameWidget(
-                  game: game,
-                  overlayBuilderMap: {
-                    'menu': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _MenuOverlay(game: g);
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        // The HUD (drawn by Flame) keeps clear of the notch / home indicator.
+        game.setSafeInsets(mq.viewPadding);
+        // Large system font sizes would overflow buttons on short landscape
+        // phones; allow some scaling, not unlimited.
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(maxScaleFactor: 1.3),
+          ),
+          child: child!,
+        );
+      },
+      // Android back steps back through screens (pause mid-flight) instead of
+      // closing the app; only the main menu lets it exit.
+      home: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !game.handleBack()) SystemNavigator.pop();
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFF050816),
+          body: ClipRect(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GameWidget(
+                    game: game,
+                    overlayBuilderMap: {
+                      'menu': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _MenuOverlay(game: g);
+                      },
+                      'levelSelect': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _LevelSelectOverlay(game: g);
+                      },
+                      'achievements': (context, game) {
+                        return const _AchievementsOverlay();
+                      },
+                      'cosmetics': (context, game) {
+                        return const _CosmeticsOverlay();
+                      },
+                      'gameOver': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _EndOverlay(
+                          title: 'Hull Breach',
+                          subtitle: 'The ship touched the terrain.',
+                          primaryLabel: 'Retry',
+                          onPrimary: g.restartLevel,
+                          secondaryLabel: 'Menu',
+                          onSecondary: g.backToMenu,
+                          extra: g.canContinue || g.canShowRoute
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (g.canContinue)
+                                      _RewardedButton(
+                                        label: 'Continue from before the crash',
+                                        note: 'Watch an ad · this run can earn up to 2★',
+                                        icon: Icons.play_circle_outline_rounded,
+                                        placement: AdPlacement.continueAfterCrash,
+                                        onReward: g.continueAfterCrash,
+                                      ),
+                                    if (g.canContinue && g.canShowRoute)
+                                      const SizedBox(height: 12),
+                                    RouteHelpButtons(game: g),
+                                  ],
+                                )
+                              : null,
+                        );
+                      },
+                      'demo': (context, game) {
+                        return DemoFlightOverlay(game: game as NarrowHaulGame);
+                      },
+                      'levelComplete': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _LevelCompleteOverlay(game: g);
+                      },
+                      'rankUp': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _RankUpOverlay(game: g);
+                      },
+                      'pause': (context, game) {
+                        return PauseOverlay(game: game as NarrowHaulGame);
+                      },
+                      'settings': (context, game) {
+                        return SettingsOverlay(game: game as NarrowHaulGame);
+                      },
+                      'pilotProfile': (context, game) {
+                        final g = game as NarrowHaulGame;
+                        return _PilotLogbookOverlay(game: g);
+                      },
                     },
-                    'levelSelect': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _LevelSelectOverlay(game: g);
-                    },
-                    'achievements': (context, game) {
-                      return const _AchievementsOverlay();
-                    },
-                    'cosmetics': (context, game) {
-                      return const _CosmeticsOverlay();
-                    },
-                    'gameOver': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _EndOverlay(
-                        title: 'Hull Breach',
-                        subtitle: 'The ship touched the terrain.',
-                        primaryLabel: 'Retry',
-                        onPrimary: g.restartLevel,
-                        secondaryLabel: 'Menu',
-                        onSecondary: g.backToMenu,
-                        extra: g.canContinue || g.canShowRoute
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (g.canContinue)
-                                    _RewardedButton(
-                                      label: 'Continue from before the crash',
-                                      note: 'Watch an ad · this run can earn up to 2★',
-                                      icon: Icons.play_circle_outline_rounded,
-                                      placement: AdPlacement.continueAfterCrash,
-                                      onReward: g.continueAfterCrash,
-                                    ),
-                                  if (g.canContinue && g.canShowRoute)
-                                    const SizedBox(height: 12),
-                                  RouteHelpButtons(game: g),
-                                ],
-                              )
-                            : null,
-                      );
-                    },
-                    'demo': (context, game) {
-                      return DemoFlightOverlay(game: game as NarrowHaulGame);
-                    },
-                    'levelComplete': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _LevelCompleteOverlay(game: g);
-                    },
-                    'rankUp': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _RankUpOverlay(game: g);
-                    },
-                    'pause': (context, game) {
-                      return PauseOverlay(game: game as NarrowHaulGame);
-                    },
-                    'settings': (context, game) {
-                      return SettingsOverlay(game: game as NarrowHaulGame);
-                    },
-                    'pilotProfile': (context, game) {
-                      final g = game as NarrowHaulGame;
-                      return _PilotLogbookOverlay(game: g);
-                    },
-                  },
+                  ),
                 ),
-              ),
-              const _AchievementToastHost(),
-            ],
+                const _AchievementToastHost(),
+              ],
+            ),
           ),
         ),
       ),

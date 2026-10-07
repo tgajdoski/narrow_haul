@@ -42,12 +42,12 @@ What's left:
 ## 2. Should fix before launch
 
 ### Phone UX
-- [ ] **The in-game HUD ignores safe areas.** There's no `viewPadding` or `SafeArea` anywhere in `lib/game`.
+- [x] **Done:** the HUD now keeps clear of safe areas (`NarrowHaulGame.setSafeInsets` from `MediaQuery.viewPadding`, used by the gauges, minimap, joystick hint and THRUST/FIRE). Was: the in-game HUD ignored safe areas. There's no `viewPadding` or `SafeArea` anywhere in `lib/game`.
   - The fuel gauge sits 12 px from the left edge, the minimap 12 px from the right, and THRUST/FIRE 28 px from the edges.
   - In landscape the iPhone notch or Dynamic Island covers 47–59 pt on one side, and the home indicator runs along the bottom.
   - Fix: pass `MediaQuery.viewPaddingOf` insets into the HUD layout (`hud_touch_controls.dart:78-93,584`, `minimap_hud.dart:23,91`).
-- [ ] **No `PopScope` / `WillPopScope` anywhere.** The Android back button exits the app from mid-flight or from any overlay. It should go pause → back out of the current overlay → exit only from the menu.
-- [ ] **Text scaling isn't clamped** (no `textScaler` anywhere). Clamp it to about 1.0–1.3 in `MaterialApp.builder`.
+- [x] **Done:** `PopScope` + `NarrowHaulGame.handleBack()` (`test/back_navigation_test.dart`). Was: no `PopScope` / `WillPopScope` anywhere. The Android back button exits the app from mid-flight or from any overlay. It should go pause → back out of the current overlay → exit only from the menu.
+- [x] **Done:** text scale is capped at 1.3 in `MaterialApp.builder`. Was: text scaling wasn't clamped (no `textScaler` anywhere). Clamp it to about 1.0–1.3 in `MaterialApp.builder`.
 - [ ] **Android 16 large screens.** targetSdk 36 ignores `sensorLandscape` on screens ≥ 600 dp. Test on tablets and foldables, or add the `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out.
 
 ### Stability and observability
@@ -65,8 +65,8 @@ What's left:
 - [ ] **Confirm the AdMob IDFA explainer message is published**, so the ATT prompt actually appears. The app never calls ATT itself.
 
 ### Legal and settings
-- [ ] **No Licenses / Credits screen** (no `showLicensePage` or `LicenseRegistry` in the code). RussoOne is OFL-licensed, so register `assets/fonts/OFL.txt` with `LicenseRegistry`.
-- [ ] **No Privacy policy / Support links in Settings** (no `url_launcher`). Add them, plus a **Reset progress** option.
+- [x] **Done:** Settings → Licenses (`showLicensePage`, with the RussoOne OFL registered). Was: no Licenses / Credits screen (no `showLicensePage` or `LicenseRegistry` in the code). RussoOne is OFL-licensed, so register `assets/fonts/OFL.txt` with `LicenseRegistry`.
+- [x] **Done:** Privacy policy and Support (`url_launcher`), plus Reset progress (menu only; keeps purchases and settings). Was: no Privacy policy / Support links in Settings (no `url_launcher`). Add them, plus a **Reset progress** option.
 
 ### Release hygiene
 - [x] **Done:** `bundleRelease` now fails without `key.properties`, while local release APKs still use the debug key. Was: release builds silently fell back to the debug key when `key.properties` is missing (`android/app/build.gradle.kts:56-60`). Make the build fail instead.
@@ -153,7 +153,7 @@ Use a **release or profile build**: debug builds run at 0.7× gravity. Alternati
 
 ## Suggested order
 1. ~~Quick fixes: B2, B3, B4 and B7, the plist keys, and the release-signing guard.~~ Done.
-2. Phone UX: safe areas, back button, text scale. Then licenses, privacy/support links and Reset progress.
+2. ~~Phone UX: safe areas, back button, text scale. Then licenses, privacy/support links and Reset progress.~~ Done.
 3. Crash reporting and error handling.
 4. Human playtest and tuning (§5). Re-export the routes of any edited level (`LEVELS=<id> EXPORT_ROUTES=true`).
 5. Final Talon name.

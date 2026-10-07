@@ -33,6 +33,32 @@ class ProgressService {
     await _prefs.setBool('save_v2', true);
   }
 
+  // ── Reset ────────────────────────────────────────────────────────────────
+
+  /// Settings and migration flags that survive "Reset progress".
+  static const _keptOnReset = {
+    'sound_enabled',
+    'haptics_enabled',
+    'left_handed',
+    'minimap_enabled',
+    'save_v2',
+    'save_v3',
+  };
+
+  /// Wipes the career (stars, times, XP, coins, achievements, Garage,
+  /// dailies, contracts, stats) but keeps settings, purchases (`iap_*`,
+  /// `ads_removed`), ad pacing and the cosmetics in [keepCosmeticIds]
+  /// (paid items such as the Supporter Livery).
+  Future<void> resetProgress({Set<String> keepCosmeticIds = const {}}) async {
+    for (final key in _prefs.getKeys().toList()) {
+      final kept = _keptOnReset.contains(key) ||
+          key.startsWith('iap_') ||
+          key.startsWith('ads_') ||
+          keepCosmeticIds.any((id) => key == 'cosmetic_unlocked_$id');
+      if (!kept) await _prefs.remove(key);
+    }
+  }
+
   // ── Stars (0–3), keyed by stable level saveId ────────────────────────────
 
   int getStarsById(String saveId) => _prefs.getInt('stars2_$saveId') ?? 0;

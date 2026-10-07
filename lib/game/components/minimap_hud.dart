@@ -88,7 +88,8 @@ class MinimapHud extends PositionComponent
 
   void _relayout() {
     final vp = game.camera.viewport.size;
-    position = Vector2(vp.x - _margin, _margin);
+    final safe = game.safeInsets;
+    position = Vector2(vp.x - safe.right - _margin, safe.top + _margin);
     size = _expanded ? _mapSize : Vector2.all(_iconSize);
   }
 
