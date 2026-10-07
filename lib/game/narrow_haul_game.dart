@@ -10,6 +10,7 @@ import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
 import 'package:narrow_haul/game/components/dual_landing_zone.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
+import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
@@ -71,6 +72,9 @@ class NarrowHaulGame extends Forge2DGame {
   CargoBody? cargo;
   CargoAttachment? cargoAttachment;
 
+  /// Data of the level currently in play; null outside a level.
+  LevelData? currentLevel;
+
   double rotateAxis = 0;
   bool thrustHeld = false;
 
@@ -91,6 +95,7 @@ class NarrowHaulGame extends Forge2DGame {
   HudTouchControls? _hudControls;
   FuelGaugeHud? _fuelGauge;
   LevelInfoHud? _levelInfoHud;
+  MinimapHud? _minimap;
   ParallaxBackground? _parallax;
   Vector2? _currentWorldSize;
 
@@ -121,6 +126,9 @@ class NarrowHaulGame extends Forge2DGame {
 
     _levelInfoHud = LevelInfoHud();
     camera.viewport.add(_levelInfoHud!);
+
+    _minimap = MinimapHud();
+    camera.viewport.add(_minimap!);
 
     _hudControls = HudTouchControls(
       onRotateAxis: (v) => rotateAxis = v,
@@ -322,6 +330,9 @@ class NarrowHaulGame extends Forge2DGame {
     camera.stop();
     _snapCameraToShip();
 
+    currentLevel = data;
+    _minimap?.setLevel(data);
+
     _levelStartTime = DateTime.now();
     _updateLevelInfoHud();
   }
@@ -392,6 +403,8 @@ class NarrowHaulGame extends Forge2DGame {
     ship = null;
     cargo = null;
     cargoAttachment = null;
+    currentLevel = null;
+    _minimap?.setLevel(null);
     _currentWorldSize = null;
     _levelStartTime = null;
     _resetInputState();

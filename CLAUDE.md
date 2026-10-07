@@ -114,6 +114,7 @@ Base zoom `_baseZoom = 28` (px/meter). Follows ship with 18% lerp per frame. Cla
 | Terrain/objects | 0 (default) |
 | Rope line | 1000 |
 | HUD controls & text | 5000 |
+| Minimap (`MinimapHud`, top-right, tap to collapse; persisted as `minimap_enabled`) | 4900 |
 
 ### Key Tuning Constants
 

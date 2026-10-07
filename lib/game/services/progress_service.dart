@@ -112,6 +112,12 @@ class ProgressService {
     await _prefs.setString('equipped_cosmetic_$category', id);
   }
 
+  // ── Settings ─────────────────────────────────────────────────────────────
+
+  bool get minimapEnabled => _prefs.getBool('minimap_enabled') ?? true;
+  Future<void> setMinimapEnabled(bool v) async =>
+      _prefs.setBool('minimap_enabled', v);
+
   // ── Pilot career (XP) ────────────────────────────────────────────────────
 
   int getXp() => _prefs.getInt('xp_total') ?? 0;
