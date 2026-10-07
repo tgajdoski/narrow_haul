@@ -83,6 +83,17 @@ class Turret extends BodyComponent implements Shootable {
     }
   }
 
+  /// Could this turret shoot at a ship at [p] (range, arc, line of sight)?
+  /// Used by the route guide to mark the stretch it covers.
+  bool covers(Vector2 p) {
+    if (destroyed) return false;
+    final to = p - _base;
+    if (to.length > spec.range) return false;
+    final bearing = math.atan2(to.y, to.x);
+    if (angleDelta(spec.facing, bearing).abs() > spec.aimArc) return false;
+    return hasLineOfSight(world, _muzzle(bearing), p, ignore: body);
+  }
+
   @override
   void update(double dt) {
     super.update(dt);

@@ -92,7 +92,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   /// Demo flight: the ship is placed along a recorded route each frame
   /// (kinematic, so it can neither crash nor drift); [thrust] lights the plume.
-  void drivePose(Vector2 position, double angle, {required bool thrust}) {
+  /// [velocity] keeps the body's motion real for anything reading it
+  /// (turret lead aim); the next pose overrides any drift.
+  void drivePose(Vector2 position, double angle, {required bool thrust, Vector2? velocity}) {
     if (body.bodyType != BodyType.kinematic) {
       body.setType(BodyType.kinematic);
       body.gravityScale = Vector2.zero();
@@ -100,7 +102,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     _scriptedThrust = thrust;
     body
       ..setTransform(position, angle)
-      ..linearVelocity.setZero()
+      ..linearVelocity.setFrom(velocity ?? Vector2.zero())
       ..angularVelocity = 0;
   }
 

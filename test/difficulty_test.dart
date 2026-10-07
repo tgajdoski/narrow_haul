@@ -50,9 +50,12 @@ void main() {
   });
 
   // Spread over the last real autopilot run (local build output, if any).
+  // A partial run (LEVELS=…) says nothing about the spread: skipped.
   final report = File('build/autopilot_report.json');
+  final rows = report.existsSync()
+      ? (jsonDecode(report.readAsStringSync()) as List).cast<Map<String, dynamic>>()
+      : const <Map<String, dynamic>>[];
   test('labels spread over the last autopilot report', () {
-    final rows = (jsonDecode(report.readAsStringSync()) as List).cast<Map<String, dynamic>>();
     final counts = <DifficultyLabel, int>{};
     for (final r in rows) {
       final real = r['real'] as Map<String, dynamic>?;
@@ -73,5 +76,5 @@ void main() {
     // Neither label should swallow the game.
     expect(counts[DifficultyLabel.comfortable] ?? 0, greaterThan(rows.length ~/ 4));
     expect(counts[DifficultyLabel.tight] ?? 0, lessThan(rows.length * 3 ~/ 4));
-  }, skip: report.existsSync() ? false : 'no build/autopilot_report.json');
+  }, skip: rows.length >= 30 ? false : 'no full build/autopilot_report.json');
 }

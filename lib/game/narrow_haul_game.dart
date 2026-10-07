@@ -235,6 +235,10 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   /// Kinematic replay of [currentRoute]: no input, no crash, no rewards.
   bool demoMode = false;
+
+  /// Enemy shells that reached the demo ship (a faithful replay has none).
+  @visibleForTesting
+  int demoShellHits = 0;
   double _demoT = 0;
   int _demoShot = 0;
   bool _demoTowing = false;
@@ -434,6 +438,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _playtimeBooked = 0;
     _demoT = 0;
     _demoShot = 0;
+    demoShellHits = 0;
     _demoTowing = false;
     if (!demoMode) {
       ProgressService.instance.incrementStat(ProgressService.statFlights);
@@ -1254,7 +1259,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     final s = ship;
     if (route == null || level == null || s == null) return;
     if (!routeGuideOn && !demoMode) return;
-    _guideComponents.add(RouteGuideLine(route: route, accent: level.theme.uiAccent));
+    _guideComponents.add(RouteGuideLine(
+      route: route,
+      accent: level.theme.uiAccent,
+      turrets: () => [for (final c in world.children) if (c is Turret) c],
+      turretsOffline: () => turretsDisabled,
+    ));
     if (!demoMode) {
       _guideComponents.add(RouteGhost(
         route: route,
@@ -1303,11 +1313,21 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     if (route == null) return;
     _demoT += dt;
     final pose = route.poseAt(_demoT);
-    s.drivePose(Vector2(pose.x, pose.y), pose.angle, thrust: pose.thrust);
+    // The real velocity, so turrets lead their shots like they did live.
+    final next = route.poseAt(_demoT + dt);
+    s.drivePose(Vector2(pose.x, pose.y), pose.angle,
+        thrust: pose.thrust,
+        velocity: dt > 0 ? Vector2((next.x - pose.x) / dt, (next.y - pose.y) / dt) : null);
     cargo?.drivePosition(Vector2(pose.cx, pose.cy));
     _demoTowing = pose.towing;
     while (_demoShot < route.shots.length && route.shots[_demoShot] <= _demoT) {
-      _demoShot++;
+      final k = _demoShot++;
+      if (k < route.shotRays.length) {
+        // The very shell the recorded flight fired.
+        final r = route.shotRays[k];
+        _onShipFired(Vector2(r[0], r[1]), Vector2(r[2], r[3]));
+        continue;
+      }
       final a = route.poseAt(_demoT - 0.05);
       final b = route.poseAt(_demoT + 0.05);
       s.fireScripted(Vector2((b.x - a.x) / 0.1, (b.y - a.y) / 0.1));
@@ -1529,6 +1549,13 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0) {
       return 'Tap FIRE to knock out turrets — each shot costs fuel';
     }
+    if (routeGuideOn &&
+        s != null &&
+        s.spec.armed &&
+        elapsedSeconds < 8 &&
+        (currentRoute?.shots.isNotEmpty ?? false)) {
+      return 'Route guide: stop at each red ⊕ and fire along its dashes. Red dots = under fire';
+    }
     final pickupHint = _pickupHint();
     if (!_tutorialHints) {
       // First seconds of a flight: what the unfamiliar ship does, then the
@@ -1658,8 +1685,15 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   bool get combatLive =>
       runState == RunState.playing &&
       !isPaused &&
-      !demoMode &&
-      (ship?.launched ?? false);
+      (demoMode ? _demoLaunched : (ship?.launched ?? false));
+
+  /// Demo flight past the recorded launch: turrets fight the replay exactly
+  /// as they fought the recorded flight (their timing is seeded and runs on
+  /// the same level-load clock).
+  bool get _demoLaunched {
+    final route = currentRoute;
+    return route != null && _demoT >= route.launchT;
+  }
 
   @override
   bool get turretsDisabled => _turretsOfflineLeft > 0 || _reactorDestroyed;
@@ -1671,7 +1705,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   void _onShipFired(Vector2 muzzle, Vector2 velocity) {
-    _recorder?.shot();
+    _recorder?.shot([muzzle.x, muzzle.y, velocity.x, velocity.y]);
     spawnShell(Shell(
       position: muzzle,
       velocity: velocity,
@@ -1685,7 +1719,15 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   }
 
   @override
-  void onShipShot() => _onShipHitWall();
+  void onShipShot() {
+    // A replay can't dodge: a shell that drifts onto the demo ship just
+    // vanishes (the shell expires on impact).
+    if (demoMode) {
+      demoShellHits++;
+      return;
+    }
+    _onShipHitWall();
+  }
 
   @override
   void onTurretDestroyed(Offset at) {

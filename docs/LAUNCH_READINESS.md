@@ -129,7 +129,7 @@ Use a **release or profile build**: debug builds run at 0.7× gravity. Alternati
    - redoubt_02 and redoubt_04: the bot can't pass them and they have no route.
    - redoubt_05 and redoubt_03 (tightest, meltdown escape).
    - redoubt_01 and rating_talon.
-   - The dodge-only turrets in mine_06 and lava_03.
+   - The route guide and demo on turret levels: towers fire back in the demo, red dots mark covered stretches, crosshairs mark firing spots.
    - Whether FIRE above THRUST works with one thumb.
    - Whether turret fire feels fair.
 2. **The tightest levels by difficulty score:**

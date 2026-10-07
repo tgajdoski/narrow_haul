@@ -177,7 +177,7 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
 
 /// Turrets sit on rock, face open space, and never see the spawn pad, the
 /// cargo pocket or the goal pad — the anchors are always safe to sit on.
-/// A reactor needs an armed ship to shoot it.
+/// Turrets and reactors need an armed ship (an unarmed one can't fight back).
 List<String> _combatIssues(
   LevelSpec spec,
   ShipSpec ship,
@@ -199,6 +199,7 @@ List<String> _combatIssues(
     switch (o) {
       case TurretSpec t:
         final at = '(${t.base.x},${t.base.y})';
+        if (!ship.armed) issues.add('TURRET: $at but ${ship.name} is unarmed');
         final onWall = f(t.base.x, t.base.y);
         if (onWall < -0.45 || onWall > 0.35) {
           issues.add('TURRET: $at is not on a wall '

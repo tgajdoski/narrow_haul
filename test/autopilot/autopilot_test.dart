@@ -5,7 +5,8 @@
 //     [--dart-define=LEVELS=alien_01,mine_03] [--dart-define=CLEAN=true]
 //     [--dart-define=EXPORT_ROUTES=true]
 //
-// Debug knobs: PROFILE=<name>, TRACE=<frames>, NOSEARCH=true, DODGE=true.
+// Debug knobs: PROFILE=<name>, TRACE=<frames>, NOSEARCH=true, DODGE=true,
+// ASSAULT=true (the last two only with NOSEARCH).
 // STORE_CAPTURE gives full release gravity (debug builds fly at 70%).
 // Writes build/autopilot_report.md and build/autopilot_report.json (with a
 // difficulty score + label per level). EXPORT_ROUTES writes each delivered
@@ -37,6 +38,7 @@ const _trace = int.fromEnvironment('TRACE');
 const _profile = String.fromEnvironment('PROFILE');
 const _noSearch = bool.fromEnvironment('NOSEARCH');
 const _dodgeOnly = bool.fromEnvironment('DODGE');
+const _assaultOnly = bool.fromEnvironment('ASSAULT');
 const _exportRoutes = bool.fromEnvironment('EXPORT_ROUTES');
 
 /// A player is assumed to need this much more fuel and time than the bot's
@@ -221,6 +223,8 @@ Map<String, Object?>? _resultJson(FlightResult? r) => r == null
         'seconds': r.seconds,
         'stars': r.stars,
         'heldSeconds': r.heldSeconds,
+        'exposedSeconds': r.exposedSeconds,
+        'kills': r.kills,
         'note': r.note.trim(),
       };
 
@@ -239,7 +243,8 @@ void main() {
       final (real, profileResults) =
           _cleanOnly ? (null, const <FlightResult>[]) : await _bestOver(h, i, grid, def, clean: false);
       final (clean, _) = await _bestOver(h, i, grid, def, clean: true);
-      if (_exportRoutes) _exportRoute(def, profileResults, real);
+      if (_exportRoutes) _exportRoute(def, profileResults, real, armed: LevelRegistry.shipFor(i).armed);
+      _candidates.clear();
       final l = h.game.currentLevel!;
       final report = LevelReport(def, LevelRegistry.shipFor(i).id, real, clean,
           grid: grid,
@@ -283,11 +288,39 @@ Future<(FlightResult?, List<FlightResult>)> _bestOver(
   return (best, all);
 }
 
+/// Every hazards-on flight of the current level (all profiles and search
+/// variants), so the route export can pick one that deals with turrets.
+final _candidates = <FlightResult>[];
+
+/// A route counts as dealing with the turrets when the ship spent at most
+/// this long in a live turret's view.
+const double kMaxExposedSeconds = 0.5;
+
 /// Writes the route a stuck player is shown: the most careful profile that
-/// still gets 3★ (an easier line to follow), else the best delivery.
-void _exportRoute(LevelDef def, List<FlightResult> profiles, FlightResult? best) {
+/// still gets 3★ (an easier line to follow), else the best delivery. On
+/// armed levels the route must take out (or stay hidden from) the turrets:
+/// the least exposed 3★ flight wins.
+void _exportRoute(LevelDef def, List<FlightResult> profiles, FlightResult? best, {required bool armed}) {
   bool ok(FlightResult r) => r.outcome == FlightOutcome.delivered && r.route != null;
-  final pick = profiles.where((r) => ok(r) && r.stars == 3).firstOrNull ??
+  FlightResult? pick;
+  if (armed) {
+    // Most kills first (a player is taught to shoot back; a guided flight
+    // is capped at 2★ anyway), then stars, then the least time under fire;
+    // candidates are in careful → racer order.
+    for (final r in _candidates.where(ok)) {
+      if (pick == null ||
+          r.kills > pick.kills ||
+          (r.kills == pick.kills && r.stars > pick.stars) ||
+          (r.kills == pick.kills && r.stars == pick.stars && r.exposedSeconds < pick.exposedSeconds - 0.5)) {
+        pick = r;
+      }
+    }
+    if (pick != null && pick.exposedSeconds > kMaxExposedSeconds) {
+      print('  ${def.saveId}: note: route spends ${pick.exposedSeconds.toStringAsFixed(1)} s '
+          'in turret view (kills ${pick.kills})');
+    }
+  }
+  pick ??= profiles.where((r) => ok(r) && r.stars == 3).firstOrNull ??
       (best != null && ok(best) ? best : null);
   if (pick == null) {
     print('  ${def.saveId}: no delivered flight, no route exported');
@@ -295,7 +328,8 @@ void _exportRoute(LevelDef def, List<FlightResult> profiles, FlightResult? best)
   }
   final file = File('assets/routes/${def.saveId}.json')..parent.createSync(recursive: true);
   file.writeAsStringSync(jsonEncode(pick.route!.toJson()));
-  print('  ${def.saveId}: route exported (${pick.note.trim()}, ${pick.route!.samples.length} samples)');
+  print('  ${def.saveId}: route exported (${pick.note.trim()}, ${pick.route!.samples.length} samples, '
+      'exposed ${pick.exposedSeconds.toStringAsFixed(1)} s, kills ${pick.kills}, shots ${pick.route!.shots.length})');
 }
 
 void _writeReport(List<LevelReport> reports) {
@@ -375,31 +409,54 @@ final _tactics = [
 Future<FlightResult> _flySearching(GameHarness h, int index, NavGrid grid, PilotProfile profile,
     {required bool clean}) async {
   if (clean) return _flyPlans(h, index, grid, profile, clean: true);
+  final armed = h.game.ship!.spec.armed;
+  FlightResult? aroundBest;
   // First choice: a route around every sweep, if the cave has one.
   if (!_noSearch) {
     final around = Autopilot(h.game, grid, profile, avoidSweeps: true)..traceEvery = _trace;
     final flown = await h.fly(around.step, describe: around.describe, abort: () => around.gaveUp);
-    final r = flown.copyWith(track: around.track, heldSeconds: around.heldFramesTotal / 60);
+    final r = flown.copyWith(
+        track: around.track,
+        heldSeconds: around.heldFramesTotal / 60,
+        exposedSeconds: around.exposedFrames / 60,
+        kills: around.turretsKilled);
+    _candidates.add(_tag(r, '${profile.name} around'));
     await h.loadLevel(index);
     if (r.outcome == FlightOutcome.delivered) {
       final searched = await _flyPlans(h, index, grid, profile, clean: false);
-      return _better(r, searched, h.game.currentLevelDef) ? _tag(r, 'around') : searched;
+      _candidates.add(_tag(searched, '${profile.name} w=3.0'));
+      final pick = _better(r, searched, h.game.currentLevelDef) ? _tag(r, 'around') : searched;
+      // Armed levels go on searching until a 3★ flight takes a turret out.
+      if (!armed || _candidates.any((c) => c.stars == 3 && c.kills > 0)) return pick;
+      await h.loadLevel(index);
+      aroundBest = pick;
     }
   }
-  if (_noSearch) return _flyPlans(h, index, grid, profile, snipe: !_dodgeOnly, clean: false);
-  FlightResult? best;
-  final armed = h.game.ship!.spec.armed;
-  for (final snipe in armed ? const [true, false] : const [true]) {
+  if (_noSearch) {
+    return _flyPlans(h, index, grid, profile, snipe: !_dodgeOnly, assault: _assaultOnly, clean: false);
+  }
+  FlightResult? best = aroundBest;
+  // Armed: snipe from hiding, then assault (shoot from inside the view),
+  // then dodge. Every 3★ armed variant is flown so the route export can
+  // pick one that takes the turrets out.
+  final modes = armed ? const ['snipe', 'assault', 'dodge'] : const [''];
+  for (final mode in modes) {
     for (final weight in const [3.0, 15.0]) {
       final r = await _flyPlans(h, index, grid, profile,
-          sweepWeight: weight, snipe: snipe, clean: false);
+          sweepWeight: weight, snipe: mode != 'dodge', assault: mode == 'assault', clean: false);
+      final tag = 'w=$weight${mode.isEmpty ? '' : ' $mode'}';
+      _candidates.add(_tag(r, '${profile.name} $tag'));
       if (best == null || !_better(best, r, h.game.currentLevelDef)) {
-        best = _tag(r, 'w=$weight${armed ? (snipe ? ' snipe' : ' dodge') : ''}');
+        best = _tag(r, tag);
       }
       await h.loadLevel(index);
       if (r.outcome == FlightOutcome.delivered) break;
     }
-    if (best!.outcome == FlightOutcome.delivered) break;
+    // Armed: keep trying until a 3★ flight kills something (or dodge).
+    final done = armed && mode != 'dodge'
+        ? _candidates.any((c) => c.stars == 3 && c.kills > 0 && c.note.contains(profile.name))
+        : best!.outcome == FlightOutcome.delivered;
+    if (done) break;
   }
   return best!;
 }
@@ -410,23 +467,25 @@ bool _better(FlightResult a, FlightResult b, LevelDef def) =>
 FlightResult _tag(FlightResult r, String note) => r.copyWith(note: '${r.note} $note');
 
 Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProfile profile,
-    {double sweepWeight = 3, bool snipe = true, required bool clean}) async {
+    {double sweepWeight = 3, bool snipe = true, bool assault = false, required bool clean}) async {
   final plan = <int>[]; // tactic index per crossing
   var tries = 0;
   var killed = 0;
   var track = const <TrackPoint>[];
   var held = 0.0;
+  var exposed = 0.0;
   late FlightResult r;
   while (true) {
     if (tries > 0) await h.loadLevel(index, skipHazards: clean);
     tries++;
     final bot = Autopilot(h.game, grid, profile,
-        crossPlan: [for (final t in plan) _tactics[t]], sweepWeight: sweepWeight, snipe: snipe)
+        crossPlan: [for (final t in plan) _tactics[t]], sweepWeight: sweepWeight, snipe: snipe, assault: assault)
       ..traceEvery = _trace;
     r = await h.fly(bot.step, describe: bot.describe, abort: () => bot.gaveUp);
     killed = bot.turretsKilled;
     track = bot.track;
     held = bot.heldFramesTotal / 60;
+    exposed = bot.exposedFrames / 60;
     // Search only crashes the hazards had a hand in (hit, or holding/crossing
     // near one); a plain wall crash with no hazard nearby is final.
     final hazardRelated =
@@ -446,6 +505,8 @@ Future<FlightResult> _flyPlans(GameHarness h, int index, NavGrid grid, PilotProf
         '${killed > 0 ? ' kills=$killed' : ''}',
     track: track,
     heldSeconds: held,
+    exposedSeconds: exposed,
+    kills: killed,
   );
 }
 

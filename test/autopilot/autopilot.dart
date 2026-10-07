@@ -81,7 +81,8 @@ class _Target {
 }
 
 class Autopilot {
-  Autopilot(this.game, this.grid, this.profile, {this.crossPlan = const [], this.avoidSweeps = false, this.sweepWeight = 3, this.snipe = true})
+  Autopilot(this.game, this.grid, this.profile,
+      {this.crossPlan = const [], this.avoidSweeps = false, this.sweepWeight = 3, this.snipe = true, this.assault = false})
       : hazards = ObstacleHazards.of(game) {
     if (!hazards.isEmpty) {
       _cost = hazards.occupancyCost(grid, _r + _hazardMargin,
@@ -98,6 +99,11 @@ class Autopilot {
   /// Armed ships shoot turrets before passing them (else: dodge like an
   /// unarmed ship).
   final bool snipe;
+
+  /// Shoot from inside the target turret's view (closer, quicker; the
+  /// shell dodge covers its return fire) when that beats hiding — what a
+  /// pilot does when there's no hidden firing spot.
+  final bool assault;
 
   final NarrowHaulGame game;
   final NavGrid grid;
@@ -181,7 +187,11 @@ class Autopilot {
   double _burned = 0;
   double? _lastFuel;
 
+  /// Frames spent in a live turret's view after launch.
+  int exposedFrames = 0;
+
   void _record(int frame) {
+    if (_ship.launched && exposedNow) exposedFrames++;
     final fuel = _ship.fuel;
     final last = _lastFuel;
     if (last != null && fuel < last) _burned += last - fuel;
@@ -294,10 +304,67 @@ class Autopilot {
     _aimedAt = Pt(c.x, c.y);
     // Hover point right above the pod (attach needs centres within 1.2 m).
     final target = _bestHoverAbove(c, 0.85);
-    final path = _planVia(_pt(_ship.body.position), target, tolerance: 0.2);
+    final from = _pt(_ship.body.position);
+    var path = _planVia(from, target, tolerance: 0.2);
     if (path == null) return false;
+    // Armed: clear turrets that cover the tow route first, while the ship
+    // is light — a detour through a spot each one can be shot from.
+    final ways = assault ? _towRouteFiringSpots(target, path) : const <Pt>[];
+    if (ways.isNotEmpty) {
+      final legs = <Pt>[];
+      var at = from;
+      for (final w in [...ways, target]) {
+        final leg = _plan(at, w, tolerance: w == target ? 0.2 : 0.3);
+        if (leg == null) {
+          legs.clear();
+          break;
+        }
+        legs.addAll(legs.isEmpty ? leg : leg.skip(1));
+        at = w;
+      }
+      if (legs.isNotEmpty) path = legs;
+    }
     _setPath(path);
     return true;
+  }
+
+  /// For each live turret that sees the planned tow route but not [approach]:
+  /// a roomy point on the tow route (or near it) with a clear shot at it.
+  List<Pt> _towRouteFiringSpots(Pt hover, List<Pt> approach) {
+    if (!_ship.spec.armed || !snipe) return const [];
+    final turrets = liveTurrets(game);
+    if (turrets.isEmpty) return const [];
+    final g = game.currentLevel!.goalCenter;
+    final tow = _plan(hover, Pt(g.x, g.y - 1), tolerance: 0.4);
+    if (tow == null) return const [];
+    final out = <Pt>[];
+    for (final t in turrets) {
+      if (approach.any((p) => turretSees(grid, t.spec, p))) continue; // met on the way anyway
+      if (!tow.any((p) => turretSees(grid, t.spec, p))) continue;
+      final tgt = _Target.turret(t);
+      Pt? best;
+      var bestCost = double.infinity;
+      for (final p in tow) {
+        final clear = grid.clearanceAt(p.x, p.y);
+        if (clear < _r + 0.45) continue;
+        final front = tgt.sightPoint(p);
+        final d = math.sqrt((p.x - front.x) * (p.x - front.x) + (p.y - front.y) * (p.y - front.y));
+        if (d > 7 || d < 2 || !caveSight(grid, p, front, margin: 0.06)) continue;
+        if (turrets.any((o) => o != t && turretSees(grid, o.spec, p, extra: 0.6))) continue;
+        final aim = tgt.aim;
+        final fromUp = math.atan2(aim.x - p.x, -(aim.y - p.y)).abs();
+        final cost = fromUp * 0.5 + 0.12 * d + 0.4 / clear;
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = p;
+        }
+      }
+      if (best != null) out.add(best);
+    }
+    // Nearest first from the ship.
+    final here = _pt(_ship.body.position);
+    out.sort((a, b) => _d2p(a, here).compareTo(_d2p(b, here)));
+    return out;
   }
 
   Pt _bestHoverAbove(Vector2 c, double h) {
@@ -388,7 +455,7 @@ class Autopilot {
             (tgt == null
                 ? seenBy[k].isNotEmpty
                 : k < _fireIdx
-                    ? seenBy[k].isNotEmpty
+                    ? seenBy[k].any((t) => !assault || t != tgt.turret)
                     // Past the firing point the target is gone (the reactor
                     // takes every turret with it).
                     : tgt.reactor == null && seenBy[k].any((t) => t != tgt.turret)),
@@ -403,16 +470,34 @@ class Autopilot {
     var bestCost = double.infinity;
     final aim = t.aim;
     final turrets = liveTurrets(game);
-    for (var k = exposedAt - 1; k >= _idx && _arc[exposedAt] - _arc[k] < 15; k--) {
+    final open = assault && t.turret != null;
+    final last = open ? _path.length - 1 : exposedAt - 1;
+    for (var k = last; k >= _idx; k--) {
+      if (_arc[exposedAt] - _arc[k] >= 15) break;
+      if (_arc[k] - _arc[exposedAt] > 6) continue;
       final p = _path[k];
-      if (turrets.any((o) => turretSees(grid, o.spec, p, extra: o == t.turret ? 0.9 : 0.6))) continue;
+      if (turrets.any((o) => o == t.turret
+          ? !open && turretSees(grid, o.spec, p, extra: 0.9)
+          : turretSees(grid, o.spec, p, extra: 0.6))) {
+        continue;
+      }
       final front = t.sightPoint(p);
       final d = math.sqrt((p.x - front.x) * (p.x - front.x) + (p.y - front.y) * (p.y - front.y));
       // Shells must clear the rock by more than the map's few cm of error.
-      if (d > 10 || !caveSight(grid, p, front, margin: 0.06)) continue;
-      if (grid.clearanceAt(p.x, p.y) < _r + 0.35) continue;
+      if (d > (open ? 8 : 10) || !caveSight(grid, p, front, margin: 0.06)) continue;
+      final clear = grid.clearanceAt(p.x, p.y);
+      if (clear < _r + 0.35) continue;
       final fromUp = math.atan2(aim.x - p.x, -(aim.y - p.y)).abs();
-      final cost = fromUp + 0.05 * (_arc[exposedAt] - _arc[k]) + 0.03 * d;
+      // Assault: roomy spots (a steady hover under fire), as little of the
+      // route under fire as possible.
+      final cost = open
+          ? fromUp * 0.5 +
+              0.12 * d +
+              0.4 / clear +
+              0.3 * math.max(0.0, _arc[k] - _arc[exposedAt]) +
+              // Hovering in its view means dodging while aiming.
+              (turretSees(grid, t.turret!.spec, p, extra: 0.9) ? 1.0 : 0.0)
+          : fromUp + 0.05 * (_arc[exposedAt] - _arc[k]) + 0.03 * d;
       if (cost < bestCost) {
         bestCost = cost;
         best = k;
@@ -470,7 +555,14 @@ class Autopilot {
     final up = g.length > 0.05 ? -g / g.length : Vector2(0, -1);
     switch (_snipe) {
       case _Snipe.settle:
-        if (v.length < 0.35 && off.length < 0.4) {
+        final settled = _shootTime > 1.5 || assault ? v.length < 0.6 && off.length < 0.7 : v.length < 0.35 && off.length < 0.4;
+        // Under fire, a shot that points up needs no hop: fire right away.
+        final aimUp = Vector2(t.aim.x - p.x, t.aim.y - p.y).normalized().dot(up) > 0.2;
+        if (assault && aimUp && v.length < 1.0 && off.length < 0.8) {
+          _snipe = _Snipe.aim;
+          _snipeTime = 0;
+          _shotsAtStart = _ship.shotsFired;
+        } else if (settled) {
           _snipe = _Snipe.hop;
           _snipeTime = 0;
         }
@@ -503,7 +595,11 @@ class Autopilot {
           _snipe = _Snipe.settle;
           return null;
         }
-        return _steer(nose, Vector2.zero(), fire: true, aimTolerance: 0.025);
+        // Lean against the drift (as far as the nose allows); the aim window
+        // is the dome's size at this range.
+        final dist = Vector2(aim.x - p.x, aim.y - p.y).length;
+        return _steer(nose, off * 0.6 - v * 1.0,
+            fire: true, aimTolerance: (0.3 / math.max(dist, 1)).clamp(0.025, 0.06));
     }
   }
 
@@ -778,6 +874,10 @@ class Autopilot {
   }
 
   void _replan() {
+    if (_phase == _Phase.approach && assault) {
+      if (_planApproach()) lastEvent = 'replan@$_frame';
+      return;
+    }
     final to = _path.last;
     final path = _planVia(_pt(_ship.body.position), to, tolerance: 0.25);
     if (path != null) {

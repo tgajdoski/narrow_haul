@@ -34,8 +34,16 @@ class FlightResult {
     this.note = '',
     this.track = const [],
     this.heldSeconds = 0,
+    this.exposedSeconds = 0,
+    this.kills = 0,
     this.route,
   });
+
+  /// Seconds the ship spent in a live turret's view (after launch).
+  final double exposedSeconds;
+
+  /// Turrets (and the reactor) the bot destroyed.
+  final int kills;
 
   /// Trajectory samples (every 0.1 s) for canister placement.
   final List<TrackPoint> track;
@@ -55,7 +63,9 @@ class FlightResult {
 
   double get fuelUsed => 1 - fuelLeft;
 
-  FlightResult copyWith({String? note, List<TrackPoint>? track, double? heldSeconds}) => FlightResult(
+  FlightResult copyWith(
+          {String? note, List<TrackPoint>? track, double? heldSeconds, double? exposedSeconds, int? kills}) =>
+      FlightResult(
         outcome: outcome,
         fuelLeft: fuelLeft,
         seconds: seconds,
@@ -63,12 +73,16 @@ class FlightResult {
         note: note ?? this.note,
         track: track ?? this.track,
         heldSeconds: heldSeconds ?? this.heldSeconds,
+        exposedSeconds: exposedSeconds ?? this.exposedSeconds,
+        kills: kills ?? this.kills,
         route: route,
       );
 
   @override
   String toString() => '${outcome.name} fuelLeft=${(fuelLeft * 100).toStringAsFixed(1)}% '
-      't=${seconds.toStringAsFixed(1)}s ★$stars $note';
+      't=${seconds.toStringAsFixed(1)}s ★$stars '
+      '${exposedSeconds > 0 ? 'exposed=${exposedSeconds.toStringAsFixed(1)}s ' : ''}'
+      '${kills > 0 ? 'kills=$kills ' : ''}$note';
 }
 
 Future<void> _yield() => Future<void>.delayed(Duration.zero);

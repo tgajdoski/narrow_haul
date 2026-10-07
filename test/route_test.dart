@@ -6,6 +6,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/components/defences.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/route_planner.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
@@ -94,6 +96,18 @@ void main() {
       expect(r.poseAt(1.05).cy, closeTo(1.5, 1e-9));
       expect(r.poseAt(3.0).towing, isTrue);
       expect(r.poseAt(1.0).towing, isFalse);
+    });
+
+    test('fire marks: one per burst, at the pose, along the nose', () {
+      final r = _line(x0: 0, y0: 0, x1: 4, y1: 0, shots: const [1.0, 1.27, 3.0]);
+      final marks = r.fireMarks();
+      expect(marks.length, 2);
+      expect(marks[0].shots, 2);
+      expect(marks[1].shots, 1);
+      expect(marks[0].x, closeTo(1.0, 1e-6));
+      final a = r.poseAt(1.0).angle;
+      expect(marks[0].dirX, closeTo(math.sin(a), 1e-9));
+      expect(marks[0].dirY, closeTo(-math.cos(a), 1e-9));
     });
 
     test('poseAt turns the short way across ±π', () {
@@ -336,6 +350,43 @@ void main() {
         }
         expect(grid.clearanceAt(at.cx, at.cy), greaterThan(0),
             reason: '$id: pod hooked inside rock (stale? re-export)');
+      }
+    });
+
+    test('demo flights fight the turrets and are never hit', () async {
+      final h = GameHarness();
+      await h.boot();
+      for (var i = 0; i < LevelRegistry.totalLevels; i++) {
+        final def = LevelRegistry.defAt(i);
+        if (!files.contains(def.saveId)) continue;
+        if (def is! CaveLevelDef || !def.spec.obstacles.any((o) => o is TurretSpec)) continue;
+        final id = def.saveId;
+        final route = FlightRoute.fromJson(
+          jsonDecode(File('assets/routes/$id.json').readAsStringSync()) as Map<String, dynamic>,
+        );
+        RouteRepository.debugSet(id, route);
+        await h.loadLevel(i);
+        await ProgressService.instance.setRouteUnlocked(id);
+        final g = h.game;
+        await g.startDemoFlight();
+        await g.ready();
+        expect(g.demoMode, isTrue, reason: id);
+        await h.fly((_) => BotInput.idle, maxSeconds: route.endT + 0.5);
+        final turrets = [for (final c in g.world.children) if (c is Turret) c];
+        final reactorDown = g.world.children.any((c) => c is Reactor && c.destroyed);
+        printOnFailure('$id: hits=${g.demoShellHits} turrets down='
+            '${turrets.where((t) => t.destroyed).length}/${turrets.length} reactor down=$reactorDown');
+        expect(g.demoShellHits, 0, reason: '$id: turret fire hits the demo ship (re-export)');
+        // The armed ship takes out what its route meets: every shot burst
+        // knocks something out.
+        if (LevelRegistry.shipFor(i).armed && route.shots.isNotEmpty) {
+          final kills = turrets.where((t) => t.destroyed).length + (reactorDown ? 1 : 0);
+          expect(kills, greaterThanOrEqualTo(1), reason: '$id: demo shots hit nothing');
+          expect(kills + (g.turretsDisabled ? 1 : 0), greaterThanOrEqualTo(route.fireMarks().length),
+              reason: '$id: a demo shot burst misses its target');
+        }
+        await g.takeControlsFromDemo();
+        await g.ready();
       }
     });
 

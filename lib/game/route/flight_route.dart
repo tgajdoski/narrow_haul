@@ -69,6 +69,9 @@ typedef RoutePose = ({
   bool thrust,
 });
 
+/// A burst of recorded shots: where the ship was and where its nose pointed.
+typedef FireMark = ({double t, double x, double y, double dirX, double dirY, int shots});
+
 class FlightRoute {
   const FlightRoute({
     required this.saveId,
@@ -80,6 +83,7 @@ class FlightRoute {
     this.stars = 0,
     this.fuelLeft = 0,
     this.shots = const [],
+    this.shotRays = const [],
   });
 
   static const int version = 1;
@@ -104,7 +108,50 @@ class FlightRoute {
   /// Times the (armed) ship fired.
   final List<double> shots;
 
+  /// Per shot (when recorded): muzzle x, y and shell velocity x, y — the
+  /// demo fires exactly these. Empty in older recordings.
+  final List<List<double>> shotRays;
+
   double get endT => samples.isEmpty ? 0 : samples.last.t;
+
+  /// Where the recorded flight fired: one mark per burst (shots less than
+  /// 1 s apart), at the ship's position, with the nose direction.
+  List<FireMark> fireMarks() {
+    final out = <FireMark>[];
+    double? burstStart;
+    var count = 0;
+    var burstIdx = 0;
+    void flush() {
+      final t = burstStart;
+      if (t == null) return;
+      final p = poseAt(t);
+      var dx = math.sin(p.angle);
+      var dy = -math.cos(p.angle);
+      if (burstIdx < shotRays.length) {
+        final r = shotRays[burstIdx];
+        final len = math.sqrt(r[2] * r[2] + r[3] * r[3]);
+        if (len > 1e-6) {
+          dx = r[2] / len;
+          dy = r[3] / len;
+        }
+      }
+      out.add((t: t, x: p.x, y: p.y, dirX: dx, dirY: dy, shots: count));
+    }
+
+    double? last;
+    for (final (i, t) in shots.indexed) {
+      if (last == null || t - last > 1.0) {
+        flush();
+        burstStart = t;
+        burstIdx = i;
+        count = 0;
+      }
+      count++;
+      last = t;
+    }
+    flush();
+    return out;
+  }
 
   /// Samples from launch on (the part a player flies).
   Iterable<RouteSample> get flown => samples.where((s) => s.t >= launchT);
@@ -179,6 +226,7 @@ class FlightRoute {
         'stars': stars,
         'fuelLeft': _r(fuelLeft, 1000),
         'shots': [for (final s in shots) _r(s)],
+        if (shotRays.isNotEmpty) 'shotRays': [for (final r in shotRays) [for (final v in r) _r(v, 1000)]],
         'pts': [for (final s in samples) s.toJson()],
       };
 
@@ -194,6 +242,10 @@ class FlightRoute {
       stars: (j['stars'] as num?)?.toInt() ?? 0,
       fuelLeft: (j['fuelLeft'] as num?)?.toDouble() ?? 0,
       shots: [for (final s in (j['shots'] as List? ?? const [])) (s as num).toDouble()],
+      shotRays: [
+        for (final r in (j['shotRays'] as List? ?? const []))
+          [for (final v in r as List) (v as num).toDouble()],
+      ],
       samples: [for (final p in j['pts'] as List) RouteSample.fromJson(p as List)],
     );
   }
@@ -211,6 +263,7 @@ class FlightRecorder {
 
   final List<RouteSample> _samples = [];
   final List<double> _shots = [];
+  final List<List<double>> _shotRays = [];
 
   /// Level time (s since load), advanced by [tick].
   double time = 0;
@@ -239,7 +292,12 @@ class FlightRecorder {
     _add(x, y, angle, cx, cy, towing, thrust);
   }
 
-  void shot() => _shots.add(time);
+  /// The (armed) ship fired; [ray] = muzzle x, y and shell velocity x, y,
+  /// so a demo can fire the very same shell.
+  void shot([List<double>? ray]) {
+    _shots.add(time);
+    if (ray != null && _shotRays.length == _shots.length - 1) _shotRays.add(ray);
+  }
 
   void _add(double x, double y, double angle, double cx, double cy, bool towing, bool thrust) {
     _samples.add(RouteSample(
@@ -277,6 +335,7 @@ class FlightRecorder {
       stars: stars,
       fuelLeft: fuelLeft,
       shots: List.unmodifiable(_shots),
+      shotRays: _shotRays.length == _shots.length ? List.unmodifiable(_shotRays) : const [],
     );
   }
 }
