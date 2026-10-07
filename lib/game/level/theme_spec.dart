@@ -158,6 +158,24 @@ const orbitTheme = ThemeSpec(
   decorDensity: 0.8,
 );
 
+/// Fortified gun caves: cold gunmetal rock and amber warning accents.
+const redoubtTheme = ThemeSpec(
+  id: 'redoubt',
+  name: 'The Redoubt',
+  backdropColor: Color(0xFF0B0E13),
+  rockFill: Color(0xFF363C47),
+  rockEdge: Color(0xFF13161C),
+  rockHighlight: Color(0x44B0BEC5),
+  parallaxTint: Color(0xFF90A4AE),
+  parallaxAlphas: [0.30, 0.50, 0.75],
+  padBase: Color(0xFF3B4250),
+  padAccent: Color(0xFFFFD54F),
+  uiAccent: Color(0xFFFFCA28),
+  decorTip: Color(0xFF78909C),
+  ambient: AmbientKind.dust,
+  decorDensity: 0.6,
+);
+
 const Map<String, ThemeSpec> gameThemes = {
   'tutorial': tutorialTheme,
   'alien': alienTheme,
@@ -165,4 +183,5 @@ const Map<String, ThemeSpec> gameThemes = {
   'ice': iceTheme,
   'lava': lavaTheme,
   'orbit': orbitTheme,
+  'redoubt': redoubtTheme,
 };

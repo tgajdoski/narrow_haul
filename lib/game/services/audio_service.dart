@@ -13,7 +13,12 @@ import 'package:flutter/foundation.dart';
 ///   crash.mp3         – hull breach / wall hit
 ///   land.mp3          – successful landing
 ///   star.mp3          – star(s) earned jingle
+///
+/// Optional (skipped when missing):
+///   shot.mp3          – nose cannon shot
+///   boom.mp3          – turret / reactor explosion (falls back to crash.mp3)
 class AudioService {
+  static final Set<String> _optional = {};
   static bool _ready = false;
   static AudioPlayer? _thrustPlayer;
   static bool _enabled = true;
@@ -46,6 +51,12 @@ class AudioService {
         'star.mp3',
       ]);
       await _prewarmThrustLoop();
+      for (final f in ['shot.mp3', 'boom.mp3']) {
+        try {
+          await FlameAudio.audioCache.load(f);
+          _optional.add(f);
+        } catch (_) {}
+      }
       _ready = true;
       _log('initialized 5 sounds');
     } catch (e) {
@@ -116,6 +127,24 @@ class AudioService {
     FlameAudio.play('crash.mp3', volume: 0.9).then<void>(
       (_) {},
       onError: (Object e, StackTrace _) => _log('failed to play crash', e),
+    );
+  }
+
+  static void playShot() {
+    if (!_ready || !_enabled || !_optional.contains('shot.mp3')) return;
+    FlameAudio.play('shot.mp3', volume: 0.5).then<void>(
+      (_) {},
+      onError: (Object e, StackTrace _) => _log('failed to play shot', e),
+    );
+  }
+
+  /// Explosion that isn't the player's crash (keeps the engine loop going).
+  static void playBoom() {
+    if (!_ready || !_enabled) return;
+    final file = _optional.contains('boom.mp3') ? 'boom.mp3' : 'crash.mp3';
+    FlameAudio.play(file, volume: 0.7).then<void>(
+      (_) {},
+      onError: (Object e, StackTrace _) => _log('failed to play boom', e),
     );
   }
 

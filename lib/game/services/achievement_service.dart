@@ -23,6 +23,10 @@ class AchievementIds {
   static const orbitalMechanic = 'orbital_mechanic';
   static const heavyLifter = 'heavy_lifter';
   static const testPilot = 'test_pilot';
+  static const weaponsHot = 'weapons_hot';
+  static const meltdownEscape = 'meltdown_escape';
+  static const holdFire = 'hold_fire';
+  static const hotRefuel = 'hot_refuel';
 }
 
 class AchievementMeta {
@@ -159,6 +163,30 @@ class AchievementService {
       title: 'Test Pilot',
       description: 'Complete a Test Flight daily challenge.',
       icon: '🧪',
+    ),
+    AchievementMeta(
+      id: AchievementIds.weaponsHot,
+      title: 'Weapons Hot',
+      description: 'Destroy your first defence turret.',
+      icon: '🎯',
+    ),
+    AchievementMeta(
+      id: AchievementIds.meltdownEscape,
+      title: 'Meltdown Escape',
+      description: 'Destroy a reactor core and deliver before it blows.',
+      icon: '☢️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.holdFire,
+      title: 'Hold Fire',
+      description: 'Deliver on a defended mission in an armed ship without firing a shot.',
+      icon: '🕊️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.hotRefuel,
+      title: 'Hot Refuel',
+      description: 'Collect 10 fuel canisters in flight.',
+      icon: '⛽',
     ),
   ];
 

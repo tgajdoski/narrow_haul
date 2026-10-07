@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:narrow_haul/game/components/rank_insignia.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
@@ -398,7 +399,7 @@ class _LevelSelectOverlay extends StatelessWidget {
               padding: EdgeInsets.only(bottom: 8),
               child: Text(
                 '▼ heavy gravity   ▲ light gravity   ⛽ fast fuel burn   '
-                '⚓ heavy cargo   ❄ icy walls',
+                '⚓ heavy cargo   ❄ icy walls   ✛ turrets   ☢ reactor',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
@@ -707,6 +708,11 @@ class _MapNode extends StatelessWidget {
     if (m.fuelDrainMul > 1) b.write('⛽');
     if (m.cargoDensityMul > 1) b.write('⚓');
     if (m.wallFriction != null) b.write('❄');
+    final d = def;
+    if (d is CaveLevelDef) {
+      if (d.spec.obstacles.any((o) => o is TurretSpec)) b.write('✛');
+      if (d.spec.obstacles.any((o) => o is ReactorSpec)) b.write('☢');
+    }
     return b.toString();
   }
 

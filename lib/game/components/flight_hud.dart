@@ -404,3 +404,80 @@ class _Confetti {
   final double spin;
   final Color color;
 }
+
+/// Combat banner, top-center: the meltdown escape countdown (Thrust's
+/// reactor) or how long the turrets stay offline after reactor hits.
+class CombatStatusHud extends PositionComponent {
+  CombatStatusHud() : super(priority: 4920);
+
+  /// Seconds left to deliver before the reactor blows; null = no meltdown.
+  double? meltdownLeft;
+
+  /// Seconds the turrets stay offline; 0 = online.
+  double turretsOfflineLeft = 0;
+
+  double _t = 0;
+
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    this.size = size;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final melt = meltdownLeft;
+    final String text;
+    final Color color;
+    if (melt != null) {
+      final s = melt.ceil().clamp(0, 999);
+      text = 'REACTOR CRITICAL — ESCAPE  ${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+      // Blink faster in the last ten seconds.
+      final rate = melt < 10 ? 10.0 : 4.0;
+      color = Color.lerp(
+        const Color(0xFFFF3D00),
+        const Color(0xFFFFD180),
+        0.5 + 0.5 * math.sin(_t * rate),
+      )!;
+    } else if (turretsOfflineLeft > 0) {
+      text = 'TURRETS OFFLINE  ${turretsOfflineLeft.ceil()}s';
+      color = const Color(0xFF4FC3F7);
+    } else {
+      return;
+    }
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: melt != null ? 16 : 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    const top = 54.0;
+    final w = tp.width + 28;
+    final h = tp.height + 12;
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTWH((size.x - w) / 2, top, w, h),
+      Radius.circular(h / 2),
+    );
+    canvas.drawRRect(r, Paint()..color = const Color(0xCC0D1B2A));
+    canvas.drawRRect(
+      r,
+      Paint()
+        ..color = color.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+    tp.paint(canvas, Offset((size.x - tp.width) / 2, top + 6));
+  }
+}

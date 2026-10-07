@@ -2,17 +2,22 @@ import 'dart:math' as math;
 
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/combat.dart';
+import 'package:narrow_haul/game/components/defences.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/tags.dart';
 
-/// Builds the matching component for an [ObstacleSpec].
-BodyComponent obstacleFromSpec(ObstacleSpec spec, ThemeSpec theme) {
+/// Builds the matching component for an [ObstacleSpec]. Defences (turrets,
+/// reactor) talk to the running game through [host].
+BodyComponent obstacleFromSpec(ObstacleSpec spec, ThemeSpec theme, CombatHost host) {
   return switch (spec) {
     RotatingBarSpec s => RotatingBar(spec: s, theme: theme),
     PendulumSpec s => Pendulum(spec: s, theme: theme),
     SlidingBlockSpec s => SlidingBlock(spec: s, theme: theme),
+    TurretSpec s => Turret(spec: s, theme: theme, host: host),
+    ReactorSpec s => Reactor(spec: s, theme: theme, host: host),
   };
 }
 

@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
 import 'package:narrow_haul/game/level/specs/world_orbit.dart';
+import 'package:narrow_haul/game/level/specs/world_redoubt.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -80,6 +81,15 @@ abstract final class LevelRegistry {
       rewardPerStar: 25,
       levels: orbitLevels,
       defaultShipId: orbitShipId,
+    ),
+    WorldDef(
+      id: 'redoubt',
+      name: 'The Redoubt',
+      themeId: 'redoubt',
+      starsRequired: 100,
+      rewardPerStar: 25,
+      levels: redoubtLevels,
+      defaultShipId: redoubtShipId,
     ),
   ];
 
@@ -185,6 +195,7 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
     modifiers: spec.modifiers,
     obstacles: spec.obstacles,
     fields: spec.fields,
+    pickups: spec.pickups,
     cargoClamped: spec.cargoClamped,
   );
 }

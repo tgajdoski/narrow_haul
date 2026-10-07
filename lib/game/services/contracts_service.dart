@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 /// Contracts ("flying for hire") unlock with the Commercial Pilot licence.
 const int kContractsRankIndex = 2;
@@ -18,6 +19,7 @@ enum ContractKind {
   earnStars,
   quickDelivery,
   dailyChallenge,
+  destroyTurrets,
 }
 
 /// One daily task. [param] meaning depends on [kind]: world index, fuel %, or
@@ -37,6 +39,7 @@ class Contract {
         ContractKind.earnStars => 150,
         ContractKind.quickDelivery => 100,
         ContractKind.dailyChallenge => 75,
+        ContractKind.destroyTurrets => 100,
       };
 
   String get description => switch (kind) {
@@ -49,6 +52,7 @@ class Contract {
         ContractKind.earnStars => 'Earn $target new stars',
         ContractKind.quickDelivery => 'Deliver in under ${param}s',
         ContractKind.dailyChallenge => "Complete today's daily challenge",
+        ContractKind.destroyTurrets => 'Destroy $target turrets and deliver',
       };
 
   String encode() => '${kind.name}|$target|$param';
@@ -78,6 +82,7 @@ class DeliveryEvent {
     required this.seconds,
     required this.newStars,
     required this.personalBest,
+    this.turretsDestroyed = 0,
   });
 
   final int worldIndex;
@@ -87,6 +92,7 @@ class DeliveryEvent {
   final double seconds;
   final int newStars;
   final bool personalBest;
+  final int turretsDestroyed;
 }
 
 /// Progress a single delivery adds to [c] (pure).
@@ -98,6 +104,7 @@ int contractProgress(Contract c, DeliveryEvent e) => switch (c.kind) {
       ContractKind.earnStars => e.newStars,
       ContractKind.quickDelivery => e.seconds < c.param ? 1 : 0,
       ContractKind.dailyChallenge => e.challenge ? 1 : 0,
+      ContractKind.destroyTurrets => e.turretsDestroyed,
     };
 
 /// Deterministic pick of 3 contracts for [date] (pure). Only offers what the
@@ -108,6 +115,7 @@ List<Contract> generateContracts(
   required List<int> unlockedWorlds,
   required int starsRemaining,
   required bool dailyDone,
+  bool armedUnlocked = false,
 }) {
   final rng = Random(date.year * 10000 + date.month * 100 + date.day + 7919);
   final pool = <Contract>[
@@ -123,6 +131,7 @@ List<Contract> generateContracts(
     if (starsRemaining >= 2) const Contract(ContractKind.earnStars, target: 2),
     Contract(ContractKind.quickDelivery, target: 1, param: [40, 45, 50][rng.nextInt(3)]),
     if (!dailyDone) const Contract(ContractKind.dailyChallenge, target: 1),
+    if (armedUnlocked) Contract(ContractKind.destroyTurrets, target: 4 + rng.nextInt(3)),
   ]..shuffle(rng);
   return pool.take(3).toList();
 }
@@ -153,6 +162,8 @@ abstract final class ContractsService {
         unlockedWorlds: unlocked,
         starsRemaining: LevelRegistry.totalLevels * 3 - LevelRegistry.totalStars(),
         dailyDone: progress.isDailyChallengeComplete(),
+        armedUnlocked: LevelRegistry.worlds.any((w) =>
+            shipById(w.defaultShipId).armed && LevelRegistry.isWorldUnlocked(w)),
       ).map((c) => c.encode()).toList();
       progress.setTodayContracts(raw);
     }

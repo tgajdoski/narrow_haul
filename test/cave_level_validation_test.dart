@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
 import 'package:narrow_haul/game/level/specs/world_mine.dart';
 import 'package:narrow_haul/game/level/specs/world_orbit.dart';
+import 'package:narrow_haul/game/level/specs/world_redoubt.dart';
 
 void main() {
   final allCaveDefs = <CaveLevelDef>[
@@ -17,6 +18,7 @@ void main() {
     ...iceLevels.whereType<CaveLevelDef>(),
     ...lavaLevels.whereType<CaveLevelDef>(),
     ...orbitLevels.whereType<CaveLevelDef>(),
+    ...redoubtLevels.whereType<CaveLevelDef>(),
   ];
 
   // Validate each level against the ship it is actually flown with.
@@ -25,9 +27,9 @@ void main() {
     return shipById(def.shipId ?? world.defaultShipId);
   }
 
-  test('cave worlds: 8 missions each (+ type ratings), unique ids', () {
+  test('cave worlds: 8 missions each, Redoubt 5 (+ type ratings), unique ids', () {
     final ratings = allCaveDefs.where((d) => d.spec.id.startsWith('rating_'));
-    expect(allCaveDefs.length - ratings.length, 40);
+    expect(allCaveDefs.length - ratings.length, 45);
     final ids = allCaveDefs.map((d) => d.spec.id).toSet();
     expect(ids.length, allCaveDefs.length, reason: 'duplicate level ids');
   });

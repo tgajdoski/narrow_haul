@@ -16,6 +16,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     required Vector2 initialPosition,
     required this.onWallHit,
     this.onHookTouchesCargo,
+    this.onFire,
     this.fuelDrainMultiplier = 1.0,
     this.spec = kKestrel,
   }) : _initialPosition = initialPosition,
@@ -36,6 +37,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   bool _usingFallbackArt = false;
   final void Function() onWallHit;
   final void Function()? onHookTouchesCargo;
+
+  /// Armed ships: spawn a shell at [muzzle] with [velocity] (world, m, m/s).
+  final void Function(Vector2 muzzle, Vector2 velocity)? onFire;
 
   /// Local +Y anchor at engine bell (rope + plume).
   double get rearLocalY => spec.rearLocalY;
@@ -63,11 +67,17 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   double _rotateInput = 0;
   bool _thrustInput = false;
+  bool _fireInput = false;
+  double _fireCooldown = 0;
 
-  void setInput({required double rotate, required bool thrust}) {
+  /// Shells fired this flight (for the "pacifist" check).
+  int shotsFired = 0;
+
+  void setInput({required double rotate, required bool thrust, bool fire = false}) {
     _rotateInput = rotate.clamp(-1.0, 1.0);
     _thrustInput = thrust;
-    if (!_launched && (thrust || rotate.abs() > 0.05)) {
+    _fireInput = fire && spec.armed;
+    if (!_launched && (thrust || _fireInput || rotate.abs() > 0.05)) {
       _launched = true;
       body.gravityScale = null; // gravity on from the first input
     }
@@ -216,6 +226,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       body.angularVelocity = _rotateInput * spec.rotationSpeedRadPerSec;
     }
 
+    _updateCannon(dt);
+
     if (_thrustInput && fuel > 0) {
       fuel -= spec.fuelDrainPerSecond * fuelDrainMultiplier * dt;
       if (fuel < 0) fuel = 0;
@@ -226,6 +238,19 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         body.applyForce(localAccel * (-hoverAssistFraction * body.mass));
       }
     }
+  }
+
+  void _updateCannon(double dt) {
+    if (_fireCooldown > 0) _fireCooldown -= dt;
+    if (!_fireInput || _fireCooldown > 0 || _wrecked || !_launched) return;
+    final shot = spec.fuelPerShot * fuelDrainMultiplier;
+    if (fuel < shot) return;
+    fuel -= shot;
+    _fireCooldown = spec.fireCooldown;
+    shotsFired++;
+    final dir = body.worldVector(Vector2(0, -1));
+    final muzzle = body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
+    onFire?.call(muzzle, body.linearVelocity + dir * spec.muzzleSpeed);
   }
 
   @override

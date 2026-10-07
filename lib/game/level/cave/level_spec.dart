@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:narrow_haul/game/level/cave/geom.dart';
 
 /// Hand-authored organic cave level. Everything is const data; the terrain
@@ -18,6 +20,7 @@ class LevelSpec {
     required this.goal,
     this.obstacles = const <ObstacleSpec>[],
     this.fields = const <FieldSpec>[],
+    this.pickups = const <PickupSpec>[],
     this.modifiers = const LevelModifiers(),
     this.noise = const NoiseSpec(),
     this.shipId,
@@ -39,6 +42,9 @@ class LevelSpec {
 
   /// Gravity zones, wind and gravity wells (see [FieldSpec]).
   final List<FieldSpec> fields;
+
+  /// Fuel cells and other fly-through collectibles (see [PickupSpec]).
+  final List<PickupSpec> pickups;
   final LevelModifiers modifiers;
   final NoiseSpec noise;
 
@@ -176,6 +182,75 @@ class SlidingBlockSpec extends ObstacleSpec {
   final double halfH;
   final double periodSec;
   final double phase;
+}
+
+/// Wall-mounted defence turret. [base] sits on the cave wall and [facing]
+/// (radians, 0 = +X, π/2 = down) points out into open space. It fires at the
+/// ship within [range] when it has line of sight and the ship is inside
+/// ±[aimArc] of [facing]. Shells kill the ship and shove the cargo.
+class TurretSpec extends ObstacleSpec {
+  const TurretSpec(
+    this.base, {
+    required this.facing,
+    this.range = 9,
+    this.cooldown = 2.2,
+    this.aimArc = 1.3,
+    this.shellSpeed = 4.5,
+    this.hp = 2,
+    this.phase = 0,
+  });
+  final Pt base;
+  final double facing;
+  final double range;
+  final double cooldown;
+  final double aimArc;
+  final double shellSpeed;
+  final int hp;
+
+  /// Seconds added to the first cooldown so turrets don't fire in unison.
+  final double phase;
+}
+
+/// Facing shorthands for [TurretSpec.facing] (+Y is down).
+const double kFaceUp = -math.pi / 2;
+const double kFaceDown = math.pi / 2;
+const double kFaceLeft = math.pi;
+const double kFaceRight = 0;
+
+/// Reactor core (Thrust's power plant). [disableHits] hits knock every
+/// turret offline for [disableSeconds]; destroying it ([hp] hits) starts a
+/// meltdown — deliver within [escapeSeconds] or the cave goes with it.
+/// Only valid on levels flown by an armed ship.
+class ReactorSpec extends ObstacleSpec {
+  const ReactorSpec(
+    this.center, {
+    this.radius = 0.6,
+    this.hp = 8,
+    this.disableHits = 3,
+    this.disableSeconds = 10,
+    this.escapeSeconds = 30,
+  });
+  final Pt center;
+  final double radius;
+  final int hp;
+  final int disableHits;
+  final double disableSeconds;
+  final double escapeSeconds;
+}
+
+// ── Pickups (fly-through sensors, ship only) ───────────────────────────────
+
+sealed class PickupSpec {
+  const PickupSpec();
+  Pt get pos;
+}
+
+/// Fuel canister: flying through it adds [amount] units (capped at the tank).
+class FuelCellSpec extends PickupSpec {
+  const FuelCellSpec(this.pos, {this.amount = 25});
+  @override
+  final Pt pos;
+  final double amount;
 }
 
 // ── Force fields (extra acceleration on ship + cargo) ─────────────────────

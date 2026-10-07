@@ -23,6 +23,7 @@ class LevelData {
     this.modifiers = const LevelModifiers(),
     this.obstacles = const <ObstacleSpec>[],
     this.fields = const <FieldSpec>[],
+    this.pickups = const <PickupSpec>[],
     this.cargoClamped = false,
   });
 
@@ -51,7 +52,12 @@ class LevelData {
   final LevelModifiers modifiers;
   final List<ObstacleSpec> obstacles;
   final List<FieldSpec> fields;
+  final List<PickupSpec> pickups;
   final bool cargoClamped;
+
+  /// Turrets or a reactor present — drives combat HUD and stats.
+  bool get hasCombat =>
+      obstacles.any((o) => o is TurretSpec || o is ReactorSpec);
 }
 
 class WallRect {

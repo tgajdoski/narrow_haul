@@ -1,5 +1,31 @@
 # Narrow Haul — Changelog
 
+## v2.3.0 — Defences Update (Thrust layer)
+
+Borrowed from Thrust and Gravitar: caves that shoot back, fuel worth the detour, and a reactor to outrun.
+
+### New world: The Redoubt
+- 6 missions (Talon type rating + 5), unlocked at 100 stars, flown in the new **Talon** armed escort hauler (Kestrel handling, 115 tank, nose cannon). Own sprite (`ship_talon.png`, source in `art_src/ships/`).
+- **FIRE button** appears only for armed ships (tap = one shot, hold = auto-fire; every shot costs fuel). Mirrored in left-handed mode.
+
+### Defences & pickups
+- **Wall turrets**: lead their aim, need line of sight (the cargo pod is cover), telegraph each shot with a muzzle glow, hold fire until you launch. Shells destroy the ship and shove the cargo. Two hits destroy a turret.
+- **Reactor core**: 3 hits knock all turrets offline for 10 s; destroying it starts a meltdown countdown — deliver before it hits zero. First escape per mission pays +150 XP and a currency bonus.
+- **Fuel canisters**: fly through to top up the tank.
+- Dodge-only turrets added to The Grinder (mine) and Molten Run (lava).
+- Mission Select badges: ✛ turrets, ☢ reactor.
+
+### Progression
+- Achievements: Weapons Hot, Meltdown Escape, Hold Fire, Hot Refuel.
+- Contract: "Destroy N turrets and deliver" (offered once an armed world is unlocked).
+- Lifetime stats: turrets destroyed, reactor escapes, fuel canisters.
+
+### Dev
+- `TurretSpec` / `ReactorSpec` obstacles and `LevelSpec.pickups` (`FuelCellSpec`); `ShipSpec.armed`.
+- Validator: turrets must sit on a wall facing open space and must never see the spawn pad, cargo or goal; reactors require an armed ship; pickups must be open and reachable. ASCII preview marks `T`, `R`, `F`.
+- Optional sounds `shot.mp3` / `boom.mp3` (silently skipped when missing).
+- New tests: lead-aim math, line of sight, reactor/turret state, validator combat rules, turret contract.
+
 ## v2.2.0 — Look & Feel Update
 
 Worlds finally look like where they are, and flying feels better.

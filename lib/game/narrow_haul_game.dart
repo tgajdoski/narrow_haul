@@ -10,6 +10,8 @@ import 'package:narrow_haul/game/components/cargo_attachment.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/cave_decor.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
+import 'package:narrow_haul/game/components/combat.dart';
+import 'package:narrow_haul/game/components/defences.dart';
 import 'package:narrow_haul/game/components/dual_landing_zone.dart';
 import 'package:narrow_haul/game/components/force_field_system.dart';
 import 'package:narrow_haul/game/components/well_core.dart';
@@ -42,6 +44,10 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
+/// First reactor escape on a level pays this XP and currency (once).
+const int kReactorEscapeXp = 150;
+const int kReactorEscapeCurrency = 40;
+
 /// Everything a successful delivery paid out, for the level-complete screen.
 class RunReward {
   const RunReward({
@@ -63,7 +69,7 @@ class RunReward {
   bool get rankedUp => rankAfter.index > rankBefore.index;
 }
 
-class NarrowHaulGame extends Forge2DGame {
+class NarrowHaulGame extends Forge2DGame implements CombatHost {
   static const double _baseZoom = 28;
 
   NarrowHaulGame() : super(gravity: narrowHaulGravity(), zoom: _baseZoom);
@@ -97,6 +103,17 @@ class NarrowHaulGame extends Forge2DGame {
 
   double rotateAxis = 0;
   bool thrustHeld = false;
+  bool fireHeld = false;
+
+  // ── Combat (turrets, reactor, fuel cells) ────────────────────────────────
+  CombatStatusHud? _combatHud;
+
+  /// Seconds left to deliver after the reactor was destroyed; null = calm.
+  double? _meltdownLeft;
+  double _turretsOfflineLeft = 0;
+  int _turretsDestroyed = 0;
+  bool _reactorDestroyed = false;
+  final math.Random _combatRng = math.Random();
 
   // ── Star / time tracking ─────────────────────────────────────────────────
   int lastLevelStars = 0;
@@ -188,6 +205,7 @@ class NarrowHaulGame extends Forge2DGame {
 
     _hudControls = HudTouchControls(
       onRotateAxis: (v) => rotateAxis = v,
+      onFire: (v) => fireHeld = v,
       onThrust: (v) {
         thrustHeld = v;
         if (v) {
@@ -206,6 +224,8 @@ class NarrowHaulGame extends Forge2DGame {
     camera.viewport.add(_levelIntro!);
     _hint = HintHud();
     camera.viewport.add(_hint!);
+    _combatHud = CombatStatusHud();
+    camera.viewport.add(_combatHud!);
 
     applySettings();
 
@@ -388,9 +408,17 @@ class NarrowHaulGame extends Forge2DGame {
     }
 
     for (final spec in data.obstacles) {
-      final obstacle = obstacleFromSpec(spec, theme);
+      final obstacle = obstacleFromSpec(spec, theme, this);
       await world.add(obstacle);
       _levelEntities.add(obstacle);
+    }
+
+    for (final spec in data.pickups) {
+      final pickup = switch (spec) {
+        FuelCellSpec s => FuelCell(spec: s, host: this, accent: theme.uiAccent),
+      };
+      await world.add(pickup);
+      _levelEntities.add(pickup);
     }
 
     final helipad = HelipadVisual(
@@ -419,6 +447,7 @@ class NarrowHaulGame extends Forge2DGame {
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: _onShipHitWall,
       onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
+      onFire: _onShipFired,
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
       spec: shipSpec,
     );
@@ -447,6 +476,7 @@ class NarrowHaulGame extends Forge2DGame {
     ship = shipBody;
     cargo = cargoBody;
     cargoAttachment = cargoLink;
+    _hudControls?.showFire = shipSpec.armed;
 
     _forces = null;
     if (data.fields.isNotEmpty) {
@@ -596,12 +626,19 @@ class NarrowHaulGame extends Forge2DGame {
     _crashTimer = 0;
     _shakeTimer = 0;
     _pauseButton?.visible = false;
+    _hudControls?.showFire = false;
+    _meltdownLeft = null;
+    _turretsOfflineLeft = 0;
+    _turretsDestroyed = 0;
+    _reactorDestroyed = false;
+    _syncCombatHud();
     _resetInputState();
   }
 
   void _resetInputState() {
     rotateAxis = 0;
     thrustHeld = false;
+    fireHeld = false;
     AudioService.stopThrust();
   }
 
@@ -631,6 +668,9 @@ class NarrowHaulGame extends Forge2DGame {
     runState = RunState.gameOver;
     _pauseButton?.visible = false;
     _hint?.message = null;
+    _meltdownLeft = null;
+    _turretsOfflineLeft = 0;
+    _syncCombatHud();
 
     // Let the wreck play out (explosion + shake) before the dialog; the
     // overlay is raised from update() when [_crashTimer] runs out.
@@ -657,6 +697,10 @@ class NarrowHaulGame extends Forge2DGame {
     runState = RunState.won;
 
     final elapsed = elapsedSeconds;
+    final reactorEscape = _reactorDestroyed && _meltdownLeft != null;
+    _meltdownLeft = null;
+    _turretsOfflineLeft = 0;
+    _syncCombatHud();
     _pauseButton?.visible = false;
     _hint?.message = null;
     Haptics.medium();
@@ -766,8 +810,19 @@ class NarrowHaulGame extends Forge2DGame {
         seconds: elapsed,
         newStars: earnedStars,
         personalBest: personalBest,
+        turretsDestroyed: _turretsDestroyed,
       ),
     );
+
+    // Reactor escape (Thrust's big finish): bonus the first time per level.
+    final combatLines = <XpLine>[];
+    if (reactorEscape) {
+      progress.incrementStat(ProgressService.statReactorEscapes);
+      if (await progress.markOnce('reactor_${currentLevelDef.saveId}')) {
+        combatLines.add(const XpLine('Reactor escape', kReactorEscapeXp));
+        currency += (kReactorEscapeCurrency * currencyMul).round();
+      }
+    }
 
     final unlocked = [
       ..._inFlightAchievements,
@@ -776,11 +831,13 @@ class NarrowHaulGame extends Forge2DGame {
         elapsed,
         fuelLeft,
         allContractsDone: allContractsDone,
+        reactorEscape: reactorEscape,
       ),
     ];
     _inFlightAchievements.clear();
     var xp = XpBreakdown([
       ...runXp.lines,
+      ...combatLines,
       ...contractLines,
       for (final a in unlocked) XpLine('Achievement: ${a.title}', 100),
     ]);
@@ -839,9 +896,16 @@ class NarrowHaulGame extends Forge2DGame {
     double timeSeconds,
     double fuelRemaining, {
     required bool allContractsDone,
+    bool reactorEscape = false,
   }) async {
     final progress = ProgressService.instance;
     final candidates = <String>[AchievementIds.firstHaul];
+
+    if (reactorEscape) candidates.add(AchievementIds.meltdownEscape);
+    final s = ship;
+    if (s != null && s.spec.armed && s.shotsFired == 0 && currentLevel?.hasCombat == true) {
+      candidates.add(AchievementIds.holdFire);
+    }
 
     if (fuelRemaining >= 0.9 * _shipMaxFuel) candidates.add(AchievementIds.fuelMiser);
     if (timeSeconds < 30) candidates.add(AchievementIds.speedHauler);
@@ -999,6 +1063,15 @@ class NarrowHaulGame extends Forge2DGame {
           ? 'Lower the cargo onto the pad too'
           : 'Cargo is on the pad — now land the ship';
     }
+    if (_meltdownLeft != null) return 'Reactor critical — deliver the pod before it blows!';
+    final s = ship;
+    if (s != null &&
+        s.spec.armed &&
+        s.shotsFired == 0 &&
+        currentLevel?.hasCombat == true &&
+        ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0) {
+      return 'Tap FIRE to knock out turrets — each shot costs fuel';
+    }
     if (!_tutorialHints) return null;
     final attached = cargoAttachment?.attached == true;
     final steerSide = _hudControls?.leftHanded == true ? 'right' : 'left';
@@ -1049,6 +1122,130 @@ class NarrowHaulGame extends Forge2DGame {
     super.lifecycleStateChange(state);
   }
 
+  // ── Combat (CombatHost) ──────────────────────────────────────────────────
+
+  @override
+  ShipBody? get combatShip => ship;
+
+  @override
+  Body? get combatCargo {
+    final c = cargo;
+    return c != null && c.isMounted ? c.body : null;
+  }
+
+  @override
+  bool get combatLive =>
+      runState == RunState.playing && !isPaused && (ship?.launched ?? false);
+
+  @override
+  bool get turretsDisabled => _turretsOfflineLeft > 0 || _reactorDestroyed;
+
+  @override
+  void spawnShell(Shell shell) {
+    world.add(shell);
+    _levelEntities.add(shell);
+  }
+
+  void _onShipFired(Vector2 muzzle, Vector2 velocity) {
+    spawnShell(Shell(
+      position: muzzle,
+      velocity: velocity,
+      fromPlayer: true,
+      host: this,
+      world: world,
+      color: currentLevel?.theme.uiAccent ?? const Color(0xFFFFD166),
+    ));
+    AudioService.playShot();
+    Haptics.light();
+  }
+
+  @override
+  void onShipShot() => _onShipHitWall();
+
+  @override
+  void onTurretDestroyed(Offset at) {
+    _turretsDestroyed++;
+    ProgressService.instance.incrementStat(ProgressService.statTurretsDestroyed);
+    _burstAt(at);
+    AudioService.playBoom();
+    Haptics.medium();
+    AchievementService.unlock(AchievementIds.weaponsHot, announce: true);
+  }
+
+  @override
+  void onReactorDisabledTurrets(double seconds) {
+    _turretsOfflineLeft = seconds;
+    Haptics.medium();
+    _syncCombatHud();
+  }
+
+  @override
+  void onReactorDestroyed(Offset at, double escapeSeconds) {
+    if (runState != RunState.playing) return;
+    _reactorDestroyed = true;
+    _meltdownLeft = escapeSeconds;
+    _turretsOfflineLeft = 0;
+    _burstAt(at);
+    AudioService.playBoom();
+    Haptics.heavy();
+    _syncCombatHud();
+  }
+
+  @override
+  void onFuelCollected(double amount, Offset at) {
+    final s = ship;
+    if (s == null) return;
+    s.fuel = math.min(s.maxFuel, s.fuel + amount);
+    final progress = ProgressService.instance;
+    progress.incrementStat(ProgressService.statFuelCells);
+    if (progress.getStat(ProgressService.statFuelCells) >= 10) {
+      AchievementService.unlock(AchievementIds.hotRefuel, announce: true);
+    }
+    AudioService.playAttach();
+    Haptics.light();
+  }
+
+  void _burstAt(Offset at) {
+    final burst = ExplosionBurst(
+      center: at,
+      accent: currentLevel?.theme.uiAccent ?? const Color(0xFFFF6B35),
+      seed: _combatRng.nextInt(1 << 20),
+    );
+    world.add(burst);
+    _levelEntities.add(burst);
+  }
+
+  /// Turret-offline timer and the meltdown countdown; a meltdown that runs
+  /// out takes the ship with it.
+  void _updateCombat(double dt) {
+    if (_turretsOfflineLeft > 0) {
+      _turretsOfflineLeft = math.max(0, _turretsOfflineLeft - dt);
+    }
+    final melt = _meltdownLeft;
+    if (melt != null) {
+      final left = melt - dt;
+      _meltdownLeft = left;
+      // The cave rumbles harder as the clock runs down.
+      final amp = 0.03 + 0.07 * (1 - (left / 30).clamp(0.0, 1.0));
+      camera.viewfinder.position += Vector2(
+            _combatRng.nextDouble() - 0.5,
+            _combatRng.nextDouble() - 0.5,
+          ) *
+          (2 * amp);
+      if (left <= 0) {
+        _meltdownLeft = null;
+        _onShipHitWall();
+      }
+    }
+    _syncCombatHud();
+  }
+
+  void _syncCombatHud() {
+    _combatHud
+      ?..meltdownLeft = _meltdownLeft
+      ..turretsOfflineLeft = _turretsOfflineLeft;
+  }
+
   // ── Update loop ───────────────────────────────────────────────────────────
 
   @override
@@ -1093,7 +1290,8 @@ class NarrowHaulGame extends Forge2DGame {
         camera.viewfinder.position = current + (target - current) * 0.18;
       }
 
-      s.setInput(rotate: rotateAxis, thrust: thrustHeld);
+      s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
+      _updateCombat(dt);
 
       final tow = cargoAttachment?.attached == true;
 

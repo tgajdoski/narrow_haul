@@ -95,6 +95,8 @@ final List<LevelDef> lavaLevels = [
       obstacles: [
         RotatingBarSpec(Pt(15.5, 12.5), halfLength: 1.5, radPerSec: 1.2),
         RotatingBarSpec(Pt(29.5, 12.5), halfLength: 1.5, radPerSec: -1.2, initialAngle: 1.57),
+        // Dodge-only (the Mule is unarmed): it covers the run-in to the pad.
+        TurretSpec(Pt(34.5, 11.7), facing: kFaceDown, range: 7, aimArc: 0.6, cooldown: 2.6),
       ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(22, 7.5),

@@ -10,14 +10,26 @@ import 'package:flutter/material.dart';
 /// Horizontal axis [-1..1] drives rotation.
 ///
 /// Right side → [_ThrustButton]: large circular hold-button for engine thrust.
+/// Armed ships add [_FireButton] above it (tap = one shot, hold = auto-fire).
 class HudTouchControls extends PositionComponent {
   HudTouchControls({
     required this.onRotateAxis,
     required this.onThrust,
+    this.onFire,
   }) : super(priority: 5000);
 
   final void Function(double axis) onRotateAxis;
   final void Function(bool pressed) onThrust;
+  final void Function(bool pressed)? onFire;
+
+  /// Show the FIRE button (only for armed ships).
+  bool get showFire => _showFire;
+  bool _showFire = false;
+  set showFire(bool v) {
+    if (v == _showFire) return;
+    _showFire = v;
+    _relayout(size);
+  }
 
   /// Mirror the layout: thrust bottom-left, joystick on the right half.
   bool get leftHanded => _leftHanded;
@@ -30,6 +42,7 @@ class HudTouchControls extends PositionComponent {
 
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
+  _FireButton? _fireBtn;
 
   @override
   Future<void> onLoad() async {
@@ -50,6 +63,9 @@ class HudTouchControls extends PositionComponent {
 
     _joystick?.removeFromParent();
     _thrustBtn?.removeFromParent();
+    if (_fireBtn?.pressed == true) onFire?.call(false);
+    _fireBtn?.removeFromParent();
+    _fireBtn = null;
 
     _joystick = _FloatingJoystick(
       areaSize: Vector2(sz.x * 0.5, sz.y),
@@ -69,6 +85,17 @@ class HudTouchControls extends PositionComponent {
 
     add(_joystick!);
     add(_thrustBtn!);
+
+    if (_showFire && onFire != null) {
+      // Directly above thrust: the same thumb rocks between the two.
+      const fireRadius = 40.0;
+      _fireBtn = _FireButton(
+        center: Vector2(btnX, sz.y - margin - btnRadius * 2 - 18 - fireRadius),
+        radius: fireRadius,
+        onChanged: onFire!,
+      );
+      add(_fireBtn!);
+    }
   }
 }
 
@@ -472,6 +499,58 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
       final w = (i == 1) ? 18.0 : 12.0;
       canvas.drawLine(Offset(pos.dx - w / 2, y), Offset(pos.dx + w / 2, y), linePaint);
     }
+  }
+}
+
+/// Cannon trigger: the thrust button's touch handling with a crosshair face.
+class _FireButton extends _ThrustButton {
+  _FireButton({required super.center, required super.radius, required super.onChanged});
+
+  bool get pressed => _pressed;
+
+  @override
+  Future<void> onLoad() async {} // no sprites: always the drawn face
+
+  @override
+  void render(Canvas canvas) {
+    final c = Offset(radius, radius);
+    const accent = Color(0xFFFF5252);
+    canvas.drawCircle(
+      c,
+      radius,
+      Paint()..color = Color.fromARGB(_pressed ? 220 : 80, 27, 38, 59),
+    );
+    canvas.drawCircle(
+      c,
+      radius,
+      Paint()
+        ..color = accent.withValues(alpha: _pressed ? 1 : 0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _pressed ? 3.5 : 2.5,
+    );
+    final line = Paint()
+      ..color = accent.withValues(alpha: _pressed ? 1 : 0.8)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final r = radius * 0.42;
+    canvas.drawCircle(c, r * 0.62, line);
+    for (final d in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
+      canvas.drawLine(c + d * (r * 0.35), c + d * r, line);
+    }
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'FIRE',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: _pressed ? 0.95 : 0.7),
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(radius - tp.width / 2, radius + r + 2));
   }
 }
 

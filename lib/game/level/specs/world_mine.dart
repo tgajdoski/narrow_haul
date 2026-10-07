@@ -218,6 +218,8 @@ final List<LevelDef> mineLevels = [
       ],
       obstacles: [
         RotatingBarSpec(Pt(21, 14), halfLength: 1.5, radPerSec: 1.4),
+        // Dodge-only: the Mule is unarmed. Keep the pod between you and it.
+        TurretSpec(Pt(30, 12.6), facing: kFaceDown, range: 6, cooldown: 2.6),
       ],
       shipSpawn: Pt(5, 14),
       cargoSpawn: Pt(18, 20),

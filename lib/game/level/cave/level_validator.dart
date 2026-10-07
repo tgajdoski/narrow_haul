@@ -161,6 +161,78 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
     }
   }
 
+  // 7. Defences and pickups.
+  issues.addAll(_combatIssues(spec, ship, f));
+  for (final p in spec.pickups) {
+    if (f(p.pos.x, p.pos.y) > -0.6) {
+      issues.add('PICKUP: (${p.pos.x},${p.pos.y}) is not in open space');
+    } else if (reached != null && !reachedNear(reached, p.pos, 0.8)) {
+      issues.add('PICKUP: (${p.pos.x},${p.pos.y}) cannot be reached');
+    }
+  }
+
+  return issues;
+}
+
+/// Turrets sit on rock, face open space, and never see the spawn pad, the
+/// cargo pocket or the goal pad — the anchors are always safe to sit on.
+/// A reactor needs an armed ship to shoot it.
+List<String> _combatIssues(
+  LevelSpec spec,
+  ShipSpec ship,
+  double Function(double x, double y) f,
+) {
+  final issues = <String>[];
+  // Rock along the segment (sampled every 0.1 m) blocks sight.
+  bool clearSight(Pt a, Pt b) {
+    final dx = b.x - a.x;
+    final dy = b.y - a.y;
+    final n = math.max(1, (math.sqrt(dx * dx + dy * dy) / 0.1).ceil());
+    for (var i = 1; i < n; i++) {
+      if (f(a.x + dx * i / n, a.y + dy * i / n) >= 0) return false;
+    }
+    return true;
+  }
+
+  for (final o in spec.obstacles) {
+    switch (o) {
+      case TurretSpec t:
+        final at = '(${t.base.x},${t.base.y})';
+        final onWall = f(t.base.x, t.base.y);
+        if (onWall < -0.45 || onWall > 0.35) {
+          issues.add('TURRET: $at is not on a wall '
+              '(field ${onWall.toStringAsFixed(2)}, need -0.45..0.35)');
+        }
+        // Muzzle point (dome 0.5 m + barrel 0.6 m, see Turret).
+        final out = Pt(t.base.x + math.cos(t.facing) * 1.1, t.base.y + math.sin(t.facing) * 1.1);
+        if (f(out.x, out.y) > -0.3) {
+          issues.add('TURRET: $at faces into rock');
+        }
+        for (final (label, p) in [
+          ('ship spawn', spec.shipSpawn),
+          ('cargo', spec.cargoSpawn),
+          ('goal', spec.goal.center),
+        ]) {
+          final dx = p.x - out.x;
+          final dy = p.y - out.y;
+          final dist = math.sqrt(dx * dx + dy * dy);
+          var off = (math.atan2(dy, dx) - t.facing) % (2 * math.pi);
+          if (off > math.pi) off -= 2 * math.pi;
+          if (dist <= t.range + 0.5 && off.abs() <= t.aimArc + 0.1 && clearSight(out, p)) {
+            issues.add('TURRET: $at can see the $label');
+          }
+        }
+      case ReactorSpec r:
+        if (!ship.armed) {
+          issues.add('REACTOR: at (${r.center.x},${r.center.y}) but ${ship.name} is unarmed');
+        }
+        if (f(r.center.x, r.center.y) > -(r.radius + 0.5)) {
+          issues.add('REACTOR: (${r.center.x},${r.center.y}) needs open space around it');
+        }
+      case RotatingBarSpec() || PendulumSpec() || SlidingBlockSpec():
+        break;
+    }
+  }
   return issues;
 }
 
@@ -271,12 +343,24 @@ List<String> _fieldIssues(LevelSpec spec, ShipSpec ship) {
         math.max(s.from.x, s.to.x) + s.halfW,
         math.max(s.from.y, s.to.y) + s.halfH,
       );
+    case TurretSpec s:
+      // The dome plus barrel reach (static — shells are checked separately).
+      const r = 1.2;
+      return (s.base.x - r, s.base.y - r, s.base.x + r, s.base.y + r);
+    case ReactorSpec s:
+      return (
+        s.center.x - s.radius,
+        s.center.y - s.radius,
+        s.center.x + s.radius,
+        s.center.y + s.radius,
+      );
   }
 }
 
 /// Coarse ASCII picture of the carved cave for terminal authoring.
 /// `#` rock, `.` open, `S` ship, `c` cargo, `G` goal, `!` obstacle center,
-/// `~` wind, `z` gravity zone, `0` zero-g zone, `o` gravity well.
+/// `~` wind, `z` gravity zone, `0` zero-g zone, `o` gravity well,
+/// `T` turret, `R` reactor, `F` fuel canister.
 String asciiPreview(LevelSpec spec, {double res = 0.5}) {
   final cave = buildCave(spec);
   final cols = (spec.worldW / res).ceil();
@@ -322,8 +406,18 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
     if (f is GravityWellSpec) mark(f.center, 'o');
   }
   for (final o in spec.obstacles) {
-    final aabb = _obstacleSweepAabb(o);
-    mark(Pt((aabb.$1 + aabb.$3) / 2, (aabb.$2 + aabb.$4) / 2), '!');
+    switch (o) {
+      case TurretSpec t:
+        mark(t.base, 'T');
+      case ReactorSpec r:
+        mark(r.center, 'R');
+      default:
+        final aabb = _obstacleSweepAabb(o);
+        mark(Pt((aabb.$1 + aabb.$3) / 2, (aabb.$2 + aabb.$4) / 2), '!');
+    }
+  }
+  for (final p in spec.pickups) {
+    mark(p.pos, 'F');
   }
   mark(spec.shipSpawn, 'S');
   mark(spec.cargoSpawn, 'c');

@@ -20,6 +20,10 @@ class ShipSpec {
     this.ropeLengthMul = 1.0,
     this.autoLevel = false,
     this.hoverAssist = false,
+    this.armed = false,
+    this.fireCooldown = 0.25,
+    this.fuelPerShot = 0.6,
+    this.muzzleSpeed = 9,
     this.tint,
     this.blurb = '',
   });
@@ -53,6 +57,18 @@ class ShipSpec {
 
   /// Passive assist: thrust partly cancels the local force field.
   final bool hoverAssist;
+
+  /// Nose cannon: shows the FIRE button. Unarmed ships can only dodge turrets.
+  final bool armed;
+
+  /// Seconds between shots while FIRE is held.
+  final double fireCooldown;
+
+  /// Fuel units each shot costs — firing competes with flying for the tank.
+  final double fuelPerShot;
+
+  /// Shot speed (m/s) added to the ship's own velocity.
+  final double muzzleSpeed;
 
   /// ARGB tint over the sprite (placeholder livery until bespoke art lands).
   final int? tint;
@@ -162,12 +178,26 @@ const kVector = ShipSpec(
   blurb: 'Fly-by-wire. Cancels gravity while thrusting.',
 );
 
+/// Armed escort hauler for defended caves: Kestrel handling, a nose cannon
+/// to knock out turrets and reactor cores, and a slightly bigger tank to pay
+/// for the shells.
+const kTalon = ShipSpec(
+  id: 'talon',
+  name: 'Talon',
+  sprite: 'ship_talon.png',
+  maxFuel: 115,
+  armed: true,
+  tint: 0x66FF5252,
+  blurb: 'Armed escort. Nose cannon, shots cost fuel.',
+);
+
 const Map<String, ShipSpec> kShips = {
   'kestrel': kKestrel,
   'hopper': kHopper,
   'mule': kMule,
   'skate': kSkate,
   'vector': kVector,
+  'talon': kTalon,
 };
 
 ShipSpec shipById(String? id) => kShips[id] ?? kKestrel;

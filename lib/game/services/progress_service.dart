@@ -162,6 +162,17 @@ class ProgressService {
   static const statCrashes = 'crashes';
   static const statDeliveries = 'deliveries';
   static const statPlaytimeSeconds = 'playtime_s';
+  static const statTurretsDestroyed = 'turrets_destroyed';
+  static const statReactorEscapes = 'reactor_escapes';
+  static const statFuelCells = 'fuel_cells';
+
+  /// Sets a one-time flag; true only the first time (e.g. first reactor
+  /// escape on a level, which pays its bonus once).
+  Future<bool> markOnce(String key) async {
+    if (_prefs.getBool('once_$key') ?? false) return false;
+    await _prefs.setBool('once_$key', true);
+    return true;
+  }
 
   int getStat(String name) => _prefs.getInt('stat_$name') ?? 0;
   Future<void> incrementStat(String name, [int by = 1]) async =>
