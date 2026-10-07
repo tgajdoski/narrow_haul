@@ -85,7 +85,10 @@ lib/
 │   │   └── tiled_level_loader.dart    # TMX → LevelData via rootBundle
 │   └── services/
 │       ├── progress_service.dart      # shared_preferences: stars, times, unlocks
-│       ├── achievement_service.dart   # AchievementIds + metadata + unlock()
+│       ├── achievement_service.dart   # AchievementIds + metadata + unlock() + toast notifier
+│       ├── rank_service.dart          # Pilot ranks, XP math (computeRunXp), CareerService + save_v3 migration
+│       ├── contracts_service.dart     # Daily contracts (generation, progress, XP)
+│       ├── cosmetics_service.dart     # Garage items (currency- or rank-locked)
 │       ├── audio_service.dart         # flame_audio wrapper (silent fallback)
 │       ├── daily_challenge.dart       # Deterministic daily config (gravity/fuel mods)
 │       └── monetization_service.dart  # Rewarded ads / IAP stubs (ready for SDK)
@@ -131,6 +134,8 @@ assets/
 | `'gameOver'` | `_EndOverlay` | Ship hits wall (RunState.gameOver) |
 | `'levelComplete'` | `_LevelCompleteOverlay` | Cargo + ship on pad (RunState.won) |
 | `'achievements'` | `_AchievementsOverlay` | "Achievements" button on menu |
+| `'rankUp'` | `_RankUpOverlay` | On top of levelComplete when the run crossed a rank |
+| `'pilotProfile'` | `_PilotLogbookOverlay` | Tapping the rank card on the menu |
 
 ---
 
@@ -154,6 +159,11 @@ assets/
 | `level_10` | Reach level 10 |
 | `level_20` | Reach level 20 |
 | `daily_pilot` | Complete a daily challenge |
+
+Plus: `rank_commercial` (Fly for Hire), `rank_captain` (Left Seat), `rank_chief` (Chief Pilot), `full_manifest` (all daily contracts), `week_on_duty` (7-day daily streak), `century_hauler` (100 deliveries). Every achievement is worth +100 XP.
+
+### Pilot Career
+See `rank_service.dart` (`kRanks`) and the "Pilot Career" section of `CLAUDE.md`: XP from deliveries/stars/dailies/contracts/achievements drives 10 ranks (Student Pilot → Chief Pilot) with currency multipliers, promotion bonuses and rank-locked cosmetics. Daily contracts unlock at Commercial Pilot.
 
 ### Daily Challenge
 Deterministic config generated from today's date. Modifiers: gravity multiplier
@@ -248,6 +258,12 @@ Flat vector / cartoon style. No fill color — just the frame.
 - [ ] Configure `google_mobile_ads` with AdMob app IDs (Android + iOS plist/manifest)
 - [ ] Configure `in_app_purchase` SKUs in App Store Connect and Google Play Console
 - [ ] Replace stubs in `lib/game/services/monetization_service.dart`
+
+### Pilot career follow-ups
+- [ ] Rank stripes drawn on the ship sprite
+- [ ] Rank insignia on the in-flight HUD
+- [ ] "Expert" daily variant for Captain+ (double XP)
+- [ ] Device-test and tune XP thresholds / contract difficulty
 
 ### Future features
 - [ ] Online leaderboard for daily challenge (Firebase / Supabase)

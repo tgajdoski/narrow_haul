@@ -374,6 +374,11 @@ if (_cargoInside && _shipInside && !_fired) {
 - Displays "Mission complete" overlay
 - Shows level completion message
 
+**Rewards (computed in `_onGoalReached`, exposed as `lastRunReward`):**
+- Stars (fuel/time thresholds), best time, cosmetic currency for newly earned stars × rank multiplier
+- XP breakdown from `computeRunXp` (first clear, new stars, clean flight, PB, daily), completed daily contracts, and newly unlocked achievements (+100 each)
+- Promotion bonus currency for every rank crossed; `'rankUp'` overlay is shown after the XP bar animation
+
 **Player options:**
 - **Next level:** Progress to next level (or wrap to level 1 if on last level)
 - **Menu:** Return to main menu
@@ -482,8 +487,8 @@ With cargo attached:
 #### Level Complete Overlay
 **Displayed when:** Both ship and cargo land on pad
 **Content:**
-- Title: "Mission complete"
-- Subtitle: "Cargo and ship on the landing pad. Level {N} cleared."
+- Title: "Mission complete", level name, stars and time, currency earned
+- Right column: animated XP lines, total, rank bar filling (rolls over on promotion), new-achievement chips
 - **Next level button** (or "Replay" if last level) → Load next level
 - **Menu button** → Return to main menu
 

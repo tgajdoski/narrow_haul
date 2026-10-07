@@ -80,7 +80,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
           _accumulatedAngle += delta;
           if (_accumulatedAngle.abs() >= 2 * math.pi) {
             _swingerUnlocked = true;
-            AchievementService.unlock(AchievementIds.cargoSwinger);
+            AchievementService.unlock(AchievementIds.cargoSwinger, announce: true);
           }
         }
         _lastAngle = angle;

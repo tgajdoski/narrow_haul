@@ -73,11 +73,18 @@ Three collaborating files:
 | Service | Responsibility |
 |---|---|
 | `ProgressService` | Singleton backed by `shared_preferences`. Stars/best times are keyed by **string `LevelDef.saveId`** (`stars2_<id>` / `time2_<id>`) so reordering levels never corrupts saves; `init()` runs a one-time `save_v2` migration from the old index keys. Also: daily challenge completion, cosmetic currency. Call `ProgressService.init()` before `runApp`. |
+| `CareerService` / `rank_service.dart` | Pilot ranks & XP. Pure rank math (`kRanks`, `rankFor`, `computeRunXp`) + persistence glue. XP stored in `xp_total`; `save_v3` migration backfills XP from existing stars/achievements. |
 | `AchievementService` | Static class. `AchievementService.all` = full list; `unlocked` = Set of earned IDs. Call `unlock(id)` after win checks. |
 | `AudioService` | Wraps `flame_audio`. Silent fallback if audio files are missing. Audio files go in `assets/audio/`. |
 | `CosmeticsService` | Categories: `catShip`, `catRope`, `catPlume`. `isUnlocked`, `equip`, `unlock` (costs cosmetic currency). |
 | `DailyChallengeService` | `DailyChallengeConfig.forToday(totalLevels)` — deterministic gravity/fuel modifiers from date. |
 | `MonetizationService` | Stub only — rewarded ads / IAP not yet wired. |
+
+### Pilot Career (Ranks & XP)
+
+10 realistic civil-aviation ranks (`kRanks` in `rank_service.dart`): Student → Private → Commercial Pilot → Second Officer → First Officer → Senior First Officer → Captain → Senior Captain → Training Captain → Chief Pilot (+ prestige ★ every 3000 XP). XP is awarded in `_onGoalReached`: first clear 60×tier, new stars 30×tier each, clean flight +15, PB +20, daily 150 + streak, achievements +100; tier = 1 + 0.5×world index. Runs that earn nothing new share a 300 XP/day cap. Ranks grant a currency multiplier on payouts, a one-off promotion bonus, and unlock rank-locked cosmetics (`CosmeticItem.rankRequired`). Insignia (wings / epaulette bars) is drawn by `paintInsignia` in `components/rank_insignia.dart`. The win result is exposed as `NarrowHaulGame.lastRunReward`. Lifetime stats: `ProgressService.getStat(stat*)`.
+
+**Contracts** (`contracts_service.dart`, unlocked at Commercial Pilot): 3 daily tasks generated deterministically from the date (only feasible ones: unlocked worlds, stars left, daily not done), stored per day in `contracts_<date>` so they don't reshuffle; progress applied in `_onGoalReached` via `ContractsService.recordDelivery`, completed contracts + all-done bonus appear as XP lines. **Achievement toast:** `AchievementService.unlock(id, announce: true)` pushes to `AchievementService.announced`, shown by `_AchievementToastHost` (use only for mid-flight unlocks; win-time unlocks are listed on the level-complete screen). Mid-flight unlocks pay their XP with the delivery, or immediately on crash.
 
 ### Overlays (Flutter widgets, defined in `lib/main.dart`)
 
@@ -88,7 +95,9 @@ Three collaborating files:
 | `'achievements'` | "Achievements" button on menu |
 | `'cosmetics'` | "Garage" button on menu |
 | `'gameOver'` | Ship hits wall (`RunState.gameOver`) |
-| `'levelComplete'` | Both ship + cargo on pad (`RunState.won`) |
+| `'levelComplete'` | Both ship + cargo on pad (`RunState.won`); shows XP breakdown + animated rank bar |
+| `'rankUp'` | Pushed on top of levelComplete when the run crossed a rank |
+| `'pilotProfile'` | Pilot Logbook (rank ladder + lifetime stats), from the menu rank card |
 
 All overlays are plain Flutter `StatelessWidget`s registered in `GameWidget.overlayBuilderMap`. They call back into `NarrowHaulGame` methods (`restartLevel`, `backToMenu`, `nextLevel`, `startLevel(i)`).
 

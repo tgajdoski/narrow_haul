@@ -112,11 +112,71 @@ class ProgressService {
     await _prefs.setString('equipped_cosmetic_$category', id);
   }
 
+  // ── Pilot career (XP) ────────────────────────────────────────────────────
+
+  int getXp() => _prefs.getInt('xp_total') ?? 0;
+  Future<void> setXp(int v) async => _prefs.setInt('xp_total', v);
+  Future<void> addXp(int amount) async => setXp(getXp() + amount);
+
+  /// `save_v3`: XP backfilled from pre-rank progress (see CareerService).
+  bool get isXpMigrated => _prefs.getBool('save_v3') ?? false;
+  Future<void> markXpMigrated() async => _prefs.setBool('save_v3', true);
+
+  int getReplayXpToday() => _prefs.getInt('replay_xp_${_todayKey()}') ?? 0;
+  Future<void> addReplayXpToday(int amount) async =>
+      _prefs.setInt('replay_xp_${_todayKey()}', getReplayXpToday() + amount);
+
+  // ── Contracts (per day) ──────────────────────────────────────────────────
+
+  List<String>? getTodayContracts() =>
+      _prefs.getStringList('contracts_${_todayKey()}');
+  Future<void> setTodayContracts(List<String> encoded) async =>
+      _prefs.setStringList('contracts_${_todayKey()}', encoded);
+
+  int getContractProgress(int i) =>
+      _prefs.getInt('contract_${_todayKey()}_$i') ?? 0;
+  Future<void> setContractProgress(int i, int v) async =>
+      _prefs.setInt('contract_${_todayKey()}_$i', v);
+
+  // ── Lifetime stats ───────────────────────────────────────────────────────
+
+  static const statFlights = 'flights';
+  static const statCrashes = 'crashes';
+  static const statDeliveries = 'deliveries';
+  static const statPlaytimeSeconds = 'playtime_s';
+
+  int getStat(String name) => _prefs.getInt('stat_$name') ?? 0;
+  Future<void> incrementStat(String name, [int by = 1]) async =>
+      _prefs.setInt('stat_$name', getStat(name) + by);
+
   // ── Daily challenge ──────────────────────────────────────────────────────
 
-  String _todayKey() {
+  String _todayKey() => _dateKey(DateTime.now());
+
+  String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Consecutive days with a completed daily. Still shown as alive until a
+  /// full day is missed.
+  int getDailyStreak() {
+    final last = _prefs.getString('daily_last_date');
     final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final yesterday = _dateKey(DateTime(now.year, now.month, now.day - 1));
+    if (last == _todayKey() || last == yesterday) {
+      return _prefs.getInt('daily_streak') ?? 0;
+    }
+    return 0;
+  }
+
+  /// Call once on the first daily completion of a day; returns the new streak.
+  Future<int> advanceDailyStreak() async {
+    if (_prefs.getString('daily_last_date') == _todayKey()) {
+      return getDailyStreak();
+    }
+    final streak = getDailyStreak() + 1;
+    await _prefs.setInt('daily_streak', streak);
+    await _prefs.setString('daily_last_date', _todayKey());
+    return streak;
   }
 
   bool isDailyChallengeComplete() =>

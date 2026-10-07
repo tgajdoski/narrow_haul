@@ -57,6 +57,9 @@ class RopeLine extends Component {
     } else if (ropeId == 'rope_chain') {
       paint.color = Color.fromARGB(alphaInt, 180, 180, 180);
       paint.strokeWidth = attached() ? 0.09 : 0.06;
+    } else if (ropeId == 'rope_braided') {
+      paint.color = Color.fromARGB(alphaInt, 255, 209, 102);
+      paint.strokeWidth = attached() ? 0.08 : 0.055;
     } else {
       paint.color = Color.fromARGB(alphaInt, 148, 210, 189);
       paint.strokeWidth = attached() ? 0.06 : 0.045;
@@ -76,7 +79,7 @@ class RopeLine extends Component {
           ..strokeWidth = paint.strokeWidth * 0.4;
         c.drawPath(p, paint);
         c.drawPath(p, corePaint);
-      } else if (ropeId == 'rope_chain') {
+      } else if (ropeId == 'rope_chain' || ropeId == 'rope_braided') {
         c.drawPath(p, paint);
         final chainPaint = Paint()
           ..color = Color.fromARGB(alphaInt, 60, 60, 60)

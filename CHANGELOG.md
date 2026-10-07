@@ -1,5 +1,35 @@
 # Narrow Haul — Changelog
 
+## v2.1.0 — Pilot Career Update
+
+A long-term progression layer on top of stars: earn XP, climb a realistic civil-aviation career ladder, and take daily contracts.
+
+### Pilot Ranks & XP
+- 10 ranks modelled on real licences and airline seniority: Student Pilot → Private Pilot → Commercial Pilot → Second Officer → First Officer → Senior First Officer → Captain → Senior Captain → Training Captain → Chief Pilot, plus prestige ★ every 3000 XP beyond the top.
+- XP per delivery: first clear 60×tier, each new star 30×tier (tier = 1.0 Training → 3.0 Ember Core), clean flight +15, personal best +20, daily challenge 150 + streak bonus, achievements +100. Repeat runs that earn nothing new share a 300 XP/day cap.
+- Rank perks: currency multiplier on payouts (+5% → +20%), one-off promotion bonus (25 × rank), and five rank-locked cosmetics (Braided Gold rope, Carbon ship, Afterburner plume, Captain's Gold Trim ship, Aurora plume).
+- Insignia drawn procedurally: pilot wings for licence ranks, airline epaulettes with 1–4 gold bars, star and laurel for senior roles.
+- Save format v3: one-time migration backfills XP from existing stars and achievements so upgrading players start at a fair rank.
+
+### Daily Contracts
+- Unlocked at Commercial Pilot: 3 deterministic tasks per day (deliver in a world, land with high fuel, clean flights, beat a PB, earn stars, fast delivery, finish the daily), 75–150 XP each + 100 XP for completing all three. Only feasible contracts are offered; the day's set is stored so it never reshuffles.
+- Daily challenge streak (🔥) shown on the menu; streak raises daily XP (capped at 7 days).
+
+### UI
+- Menu rank card (insignia, title, XP bar) → new **Pilot Logbook** screen: rank ladder with perks and lifetime stats (flight hours, flights, deliveries, crashes, fuel burned).
+- Mission Complete shows an animated XP breakdown, the rank bar filling, currency earned and newly unlocked achievements; a full-screen **Promoted** overlay celebrates rank-ups.
+- Achievement toast for mid-flight unlocks (Cargo Swinger now also pays XP).
+- Garage shows "🔒 <rank>" on rank-locked items.
+
+### Achievements
+- New: Fly for Hire, Left Seat, Chief Pilot, Full Manifest, Week on Duty, Century Hauler.
+- Master Hauler now requires all missions (description was stuck at "20").
+
+### Fixes
+- The retried flag was reset on every reload, so a crash-then-retry still counted as a no-retry flight (No Scratch streak). Retries are now tracked correctly.
+
+---
+
 ## v2.0.0 — Worlds Update: Organic Caves
 
 The rectangle era is over. 32 hand-crafted organic cave levels across 4 themed worlds, on top of a trimmed 10-level tutorial — 42 missions total.

@@ -23,10 +23,33 @@ import 'package:narrow_haul/game/level/tiled_level_loader.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/rank_service.dart';
 
 enum RunState { menu, playing, gameOver, won }
+
+/// Everything a successful delivery paid out, for the level-complete screen.
+class RunReward {
+  const RunReward({
+    required this.xp,
+    required this.xpBefore,
+    required this.xpAfter,
+    required this.currency,
+    required this.newAchievements,
+  });
+
+  final XpBreakdown xp;
+  final int xpBefore;
+  final int xpAfter;
+  final int currency;
+  final List<AchievementMeta> newAchievements;
+
+  PilotRank get rankBefore => rankFor(xpBefore);
+  PilotRank get rankAfter => rankFor(xpAfter);
+  bool get rankedUp => rankAfter.index > rankBefore.index;
+}
 
 class NarrowHaulGame extends Forge2DGame {
   static const double _baseZoom = 28;
@@ -54,6 +77,7 @@ class NarrowHaulGame extends Forge2DGame {
   // ── Star / time tracking ─────────────────────────────────────────────────
   int lastLevelStars = 0;
   double lastLevelTimeSeconds = 0.0;
+  RunReward? lastRunReward;
   DateTime? _levelStartTime;
   bool _currentLevelRetried = false;
 
@@ -112,8 +136,16 @@ class NarrowHaulGame extends Forge2DGame {
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
 
+    AchievementService.announced.addListener(_onAchievementAnnounced);
+
     overlays.add('menu');
     pauseEngine();
+  }
+
+  @override
+  void onRemove() {
+    AchievementService.announced.removeListener(_onAchievementAnnounced);
+    super.onRemove();
   }
 
   @override
@@ -163,9 +195,12 @@ class NarrowHaulGame extends Forge2DGame {
     loadCurrentLevel();
   }
 
-  Future<void> loadCurrentLevel() async {
+  /// [retry] marks a reload of the same level after a crash or restart, so
+  /// clean-flight bonuses and the no-retry streak don't apply.
+  Future<void> loadCurrentLevel({bool retry = false}) async {
     _clearLevel();
-    _currentLevelRetried = false;
+    _currentLevelRetried = retry;
+    ProgressService.instance.incrementStat(ProgressService.statFlights);
     // In debug, rebuild caves every load so hot-reloaded spec edits show up.
     if (kDebugMode) clearCaveCache();
     final data = switch (currentLevelDef) {
@@ -382,8 +417,12 @@ class NarrowHaulGame extends Forge2DGame {
     if (runState != RunState.playing) return;
     _currentLevelRetried = true;
     _recordSpentFuel();
+    _recordPlaytime();
+    _payInFlightAchievementXp();
+    final progress = ProgressService.instance;
+    progress.incrementStat(ProgressService.statCrashes);
     // Reset no-retry streak
-    ProgressService.instance.setNoRetryStreak(0);
+    progress.setNoRetryStreak(0);
     AudioService.playCrash();
     _resetInputState();
     runState = RunState.gameOver;
@@ -391,8 +430,10 @@ class NarrowHaulGame extends Forge2DGame {
     overlays.add('gameOver');
   }
 
-  void _onGoalReached() {
+  Future<void> _onGoalReached() async {
     if (runState != RunState.playing) return;
+    // Claim the win before any await so a second contact can't re-enter.
+    runState = RunState.won;
 
     final elapsed = _levelStartTime != null
         ? DateTime.now().difference(_levelStartTime!).inMilliseconds / 1000.0
@@ -400,28 +441,57 @@ class NarrowHaulGame extends Forge2DGame {
     final fuelLeft = ship?.fuel ?? 0.0;
 
     _recordSpentFuel();
+    _recordPlaytime();
 
     final stars = _calculateStars(fuelLeft, elapsed);
     lastLevelStars = stars;
     lastLevelTimeSeconds = elapsed;
 
     final progress = ProgressService.instance;
+    final xpBefore = progress.getXp();
+    final currencyMul = CareerService.currencyMultiplier;
+    int currency = 0;
+    final XpBreakdown runXp;
+
+    progress.incrementStat(ProgressService.statDeliveries);
+    final (levelWorld, _) = LevelRegistry.worldOf(levelIndex);
+    final worldIndex = LevelRegistry.worlds.indexOf(levelWorld);
+    int earnedStars = 0;
+    bool personalBest = false;
 
     if (isChallengeMode) {
-      final wasAlreadyComplete = progress.isDailyChallengeComplete();
-      if (!wasAlreadyComplete) {
-        progress.addCosmeticCurrency(50); // Daily reward
+      final firstToday = !progress.isDailyChallengeComplete();
+      int streak = progress.getDailyStreak();
+      if (firstToday) {
+        currency += (50 * currencyMul).round(); // Daily reward
+        streak = await progress.advanceDailyStreak();
       }
       progress.markDailyChallengeComplete();
       progress.saveDailyBestTime(elapsed);
+      runXp = computeRunXp(
+        challenge: true,
+        firstClear: false,
+        newStars: 0,
+        tier: 1,
+        cleanFlight: !_currentLevelRetried,
+        personalBest: false,
+        dailyFirstToday: firstToday,
+        dailyStreak: streak,
+        replayXpUsedToday: progress.getReplayXpToday(),
+      );
+      if (!firstToday) progress.addReplayXpToday(runXp.total);
     } else {
       final def = currentLevelDef;
-      final (world, _) = LevelRegistry.worldOf(levelIndex);
+      final world = levelWorld;
+      final prevStars = progress.getStarsById(def.saveId);
+      final prevBest = progress.getBestTimeById(def.saveId);
 
-      // Newly earned stars pay out cosmetic currency, scaled by world.
-      final newStars = stars - progress.getStarsById(def.saveId);
+      // Newly earned stars pay out cosmetic currency, scaled by world + rank.
+      final newStars = stars - prevStars;
+      earnedStars = math.max(0, newStars);
+      personalBest = prevBest != null && elapsed < prevBest;
       if (newStars > 0) {
-        progress.addCosmeticCurrency(newStars * world.rewardPerStar);
+        currency += (newStars * world.rewardPerStar * currencyMul).round();
       }
 
       progress.saveStarsById(def.saveId, stars);
@@ -432,15 +502,74 @@ class NarrowHaulGame extends Forge2DGame {
         final streak = progress.getNoRetryStreak() + 1;
         progress.setNoRetryStreak(streak);
       }
+
+      runXp = computeRunXp(
+        challenge: false,
+        firstClear: prevStars == 0,
+        newStars: earnedStars,
+        tier: worldTier(worldIndex),
+        cleanFlight: !_currentLevelRetried,
+        personalBest: personalBest,
+        replayXpUsedToday: progress.getReplayXpToday(),
+      );
+      if (prevStars > 0 && newStars <= 0) {
+        progress.addReplayXpToday(runXp.total);
+      }
     }
 
-    _checkAchievements(stars, elapsed, fuelLeft);
+    final (contractLines, allContractsDone) =
+        await ContractsService.recordDelivery(DeliveryEvent(
+      worldIndex: worldIndex,
+      challenge: isChallengeMode,
+      clean: !_currentLevelRetried,
+      fuelFraction: fuelLeft / ShipBody.maxFuel,
+      seconds: elapsed,
+      newStars: earnedStars,
+      personalBest: personalBest,
+    ));
+
+    final unlocked = [
+      ..._inFlightAchievements,
+      ...await _checkAchievements(stars, elapsed, fuelLeft,
+          allContractsDone: allContractsDone),
+    ];
+    _inFlightAchievements.clear();
+    var xp = XpBreakdown([
+      ...runXp.lines,
+      ...contractLines,
+      for (final a in unlocked) XpLine('Achievement: ${a.title}', 100),
+    ]);
+
+    // Rank achievements depend on the XP just earned (and pay XP themselves).
+    final rankUnlocks = await _checkRankAchievements(rankFor(xpBefore + xp.total));
+    if (rankUnlocks.isNotEmpty) {
+      unlocked.addAll(rankUnlocks);
+      xp = XpBreakdown([
+        ...xp.lines,
+        for (final a in rankUnlocks) XpLine('Achievement: ${a.title}', 100),
+      ]);
+    }
+    final xpAfter = xpBefore + xp.total;
+    await progress.setXp(xpAfter);
+
+    // Each rank crossed pays its one-off bonus.
+    for (int i = rankFor(xpBefore).index + 1; i <= rankFor(xpAfter).index; i++) {
+      currency += rankUpBonus(kRanks[i]);
+    }
+    if (currency > 0) progress.addCosmeticCurrency(currency);
+
+    lastRunReward = RunReward(
+      xp: xp,
+      xpBefore: xpBefore,
+      xpAfter: xpAfter,
+      currency: currency,
+      newAchievements: unlocked,
+    );
 
     AudioService.playLand();
     if (stars >= 2) AudioService.playStar();
 
     _resetInputState();
-    runState = RunState.won;
     pauseEngine();
     overlays.add('levelComplete');
   }
@@ -453,17 +582,22 @@ class NarrowHaulGame extends Forge2DGame {
     return 1;
   }
 
-  void _checkAchievements(int stars, double timeSeconds, double fuelRemaining) {
+  /// Runs the post-win achievement checks; returns the newly unlocked ones.
+  Future<List<AchievementMeta>> _checkAchievements(
+    int stars,
+    double timeSeconds,
+    double fuelRemaining, {
+    required bool allContractsDone,
+  }) async {
     final progress = ProgressService.instance;
+    final candidates = <String>[AchievementIds.firstHaul];
 
-    AchievementService.unlock(AchievementIds.firstHaul);
-
-    if (fuelRemaining >= 90) AchievementService.unlock(AchievementIds.fuelMiser);
-    if (timeSeconds < 30) AchievementService.unlock(AchievementIds.speedHauler);
+    if (fuelRemaining >= 90) candidates.add(AchievementIds.fuelMiser);
+    if (timeSeconds < 30) candidates.add(AchievementIds.speedHauler);
 
     final streak = progress.getNoRetryStreak();
     if (!_currentLevelRetried && streak >= 5) {
-      AchievementService.unlock(AchievementIds.noScratch);
+      candidates.add(AchievementIds.noScratch);
     }
 
     int completed = 0;
@@ -473,12 +607,68 @@ class NarrowHaulGame extends Forge2DGame {
       if (s > 0) completed++;
       if (s < 3) allPerfect = false;
     }
-    if (completed >= 10) AchievementService.unlock(AchievementIds.level10);
-    if (completed >= 20) AchievementService.unlock(AchievementIds.level20);
+    if (completed >= 10) candidates.add(AchievementIds.level10);
+    if (completed >= LevelRegistry.totalLevels) {
+      candidates.add(AchievementIds.level20);
+    }
 
-    if (isChallengeMode) AchievementService.unlock(AchievementIds.dailyPilot);
+    if (isChallengeMode) candidates.add(AchievementIds.dailyPilot);
 
-    if (allPerfect) AchievementService.unlock(AchievementIds.perfectPilot);
+    if (allPerfect) candidates.add(AchievementIds.perfectPilot);
+
+    if (allContractsDone) candidates.add(AchievementIds.fullManifest);
+    if (progress.getDailyStreak() >= 7) candidates.add(AchievementIds.weekOnDuty);
+    if (progress.getStat(ProgressService.statDeliveries) >= 100) {
+      candidates.add(AchievementIds.centuryHauler);
+    }
+
+    final unlocked = <AchievementMeta>[];
+    for (final id in candidates) {
+      if (await AchievementService.unlock(id)) {
+        unlocked.add(AchievementService.all.firstWhere((a) => a.id == id));
+      }
+    }
+    return unlocked;
+  }
+
+  Future<List<AchievementMeta>> _checkRankAchievements(PilotRank rank) async {
+    final unlocked = <AchievementMeta>[];
+    for (final (id, minRank) in [
+      (AchievementIds.rankCommercial, 2),
+      (AchievementIds.rankCaptain, 6),
+      (AchievementIds.rankChief, 9),
+    ]) {
+      if (rank.index >= minRank && await AchievementService.unlock(id)) {
+        unlocked.add(AchievementService.byId(id));
+      }
+    }
+    return unlocked;
+  }
+
+  /// Achievements unlocked mid-flight (e.g. Cargo Swinger). Their XP is paid
+  /// with the delivery, or straight away if the flight ends in a crash.
+  final List<AchievementMeta> _inFlightAchievements = [];
+
+  void _onAchievementAnnounced() {
+    final a = AchievementService.announced.value;
+    if (a != null && runState == RunState.playing) _inFlightAchievements.add(a);
+  }
+
+  void _payInFlightAchievementXp() {
+    if (_inFlightAchievements.isEmpty) return;
+    ProgressService.instance.addXp(100 * _inFlightAchievements.length);
+    _inFlightAchievements.clear();
+  }
+
+  void _recordPlaytime() {
+    final start = _levelStartTime;
+    if (start == null) return;
+    final seconds = DateTime.now().difference(start).inSeconds;
+    if (seconds > 0) {
+      ProgressService.instance
+          .incrementStat(ProgressService.statPlaytimeSeconds, seconds);
+    }
+    _levelStartTime = null; // prevent double counting
   }
 
   void _recordSpentFuel() {
@@ -495,15 +685,14 @@ class NarrowHaulGame extends Forge2DGame {
 
   void restartLevel() {
     overlays.remove('gameOver');
-    _currentLevelRetried = true;
     _resetInputState();
     runState = RunState.playing;
     resumeEngine();
-    loadCurrentLevel();
+    loadCurrentLevel(retry: true);
   }
 
   Future<void> nextLevel() async {
-    overlays.remove('levelComplete');
+    overlays.removeAll(['levelComplete', 'rankUp']);
     _resetInputState();
     if (!isChallengeMode) {
       if (levelIndex < LevelRegistry.totalLevels - 1) {
@@ -519,7 +708,7 @@ class NarrowHaulGame extends Forge2DGame {
 
   void backToMenu() {
     overlays.remove('gameOver');
-    overlays.remove('levelComplete');
+    overlays.removeAll(['levelComplete', 'rankUp']);
     _recordSpentFuel();
     _resetInputState();
     _clearLevel();

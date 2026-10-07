@@ -62,7 +62,8 @@ assets/
 - **Automatic rope attachment** when approaching cargo
 - **Fuel system** - manage your fuel to complete levels
 - **Precision landing** - both ship and cargo must be on the pad
-- **Progressive difficulty** - 3 levels with increasing complexity
+- **Worlds & stars** - 42 missions across 5 star-gated worlds
+- **Pilot career** - earn XP to climb 10 real-world ranks (Student Pilot → Chief Pilot), unlocking perks, cosmetics and daily contracts
 
 ## Development
 

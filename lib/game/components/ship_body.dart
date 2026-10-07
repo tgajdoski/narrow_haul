@@ -98,6 +98,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         paint.colorFilter = const ColorFilter.mode(Color(0xCC000000), BlendMode.srcATop);
       } else if (skinId == 'ship_gold') {
         paint.colorFilter = const ColorFilter.mode(Color(0xAAFFD700), BlendMode.srcATop);
+      } else if (skinId == 'ship_carbon') {
+        paint.colorFilter = const ColorFilter.mode(Color(0x99404855), BlendMode.srcATop);
+      } else if (skinId == 'ship_gold_trim') {
+        paint.colorFilter = const ColorFilter.mode(Color(0x55FFD166), BlendMode.srcATop);
       }
       
       canvas.drawImageRect(
