@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 
 const _panelColor = Color(0xFF0D1B2A);
@@ -194,6 +195,8 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             value: _p.minimapEnabled,
             onChanged: (v) => _set(_p.setMinimapEnabled, v),
           ),
+          const Divider(color: Color(0x22FFFFFF), height: 20),
+          _PurchasesSection(onChanged: () => setState(() {})),
         ],
       ),
     );
@@ -221,6 +224,110 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               subtitle,
               style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
+    );
+  }
+}
+
+/// Remove-ads / Supporter Pack, Restore purchases and the UMP privacy entry
+/// point (only shown where consent rules require it).
+class _PurchasesSection extends StatelessWidget {
+  const _PurchasesSection({required this.onChanged});
+
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = MonetizationService.instance;
+    return ValueListenableBuilder<int>(
+      valueListenable: m.entitlements,
+      builder: (context, _, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!m.adsRemoved && m.canBuy(ProductIds.removeAds))
+            _row(
+              icon: Icons.block_rounded,
+              title: 'Remove ads',
+              subtitle:
+                  'No more ads between missions. '
+                  'Rewarded ads stay optional.',
+              trailing: m.priceOf(ProductIds.removeAds),
+              onTap: () => m.buy(ProductIds.removeAds),
+            ),
+          if (m.canBuy(ProductIds.supporterPack) &&
+              !ProgressService.instance.isProductGranted(
+                ProductIds.supporterPack,
+              ))
+            _row(
+              icon: Icons.diamond_outlined,
+              title: 'Supporter Pack',
+              subtitle:
+                  'Remove ads + Supporter Livery + '
+                  '${ProductIds.supporterCoins} 💰',
+              trailing: m.priceOf(ProductIds.supporterPack),
+              onTap: () => m.buy(ProductIds.supporterPack),
+            ),
+          if (m.adsRemoved)
+            _row(
+              icon: Icons.favorite_rounded,
+              title: 'Ads removed',
+              subtitle: 'Thanks for supporting Narrow Haul!',
+            ),
+          if (m.storeAvailable)
+            _row(
+              icon: Icons.restore_rounded,
+              title: 'Restore purchases',
+              onTap: m.restore,
+            ),
+          ValueListenableBuilder<bool>(
+            valueListenable: m.privacyOptionsRequired,
+            builder: (context, required, _) => !required
+                ? const SizedBox.shrink()
+                : _row(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy options',
+                    subtitle: 'Change your ad consent choices',
+                    onTap: m.showPrivacyOptions,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    String? trailing,
+    Future<void> Function()? onTap,
+  }) {
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: Icon(icon, color: Colors.white60),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle,
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+      trailing: trailing == null
+          ? null
+          : Text(
+              trailing,
+              style: const TextStyle(
+                color: _accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+      onTap: onTap == null
+          ? null
+          : () async {
+              await onTap();
+              onChanged();
+            },
     );
   }
 }

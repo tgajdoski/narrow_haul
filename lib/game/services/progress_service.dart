@@ -130,6 +130,40 @@ class ProgressService {
   bool get leftHanded => _prefs.getBool('left_handed') ?? false;
   Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
 
+  // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
+
+  /// Remove-ads entitlement (from `nh_remove_ads` or the supporter pack).
+  bool get adsRemoved => _prefs.getBool('ads_removed') ?? false;
+  Future<void> setAdsRemoved(bool v) async => _prefs.setBool('ads_removed', v);
+
+  /// Any IAP ever made — payers never see interstitials.
+  bool get hasPurchased => _prefs.getBool('iap_any_purchase') ?? false;
+  Future<void> setHasPurchased(bool v) async =>
+      _prefs.setBool('iap_any_purchase', v);
+
+  /// Non-consumable product ids already granted (supporter pack payout once).
+  bool isProductGranted(String id) => _prefs.getBool('iap_granted_$id') ?? false;
+  Future<void> markProductGranted(String id) async =>
+      _prefs.setBool('iap_granted_$id', true);
+
+  int get adClearsSinceInterstitial => _prefs.getInt('ads_clears_since_inter') ?? 0;
+  Future<void> setAdClearsSinceInterstitial(int v) async =>
+      _prefs.setInt('ads_clears_since_inter', v);
+
+  /// Epoch ms of the last interstitial / rewarded ad (0 = never).
+  int get lastInterstitialMs => _prefs.getInt('ads_last_inter_ms') ?? 0;
+  Future<void> setLastInterstitialMs(int v) async =>
+      _prefs.setInt('ads_last_inter_ms', v);
+
+  int get lastRewardedMs => _prefs.getInt('ads_last_rewarded_ms') ?? 0;
+  Future<void> setLastRewardedMs(int v) async =>
+      _prefs.setInt('ads_last_rewarded_ms', v);
+
+  /// Epoch ms the remove-ads offer was last shown on the result screen.
+  int get removeAdsOfferMs => _prefs.getInt('ads_offer_ms') ?? 0;
+  Future<void> setRemoveAdsOfferMs(int v) async =>
+      _prefs.setInt('ads_offer_ms', v);
+
   // ── Pilot career (XP) ────────────────────────────────────────────────────
 
   int getXp() => _prefs.getInt('xp_total') ?? 0;

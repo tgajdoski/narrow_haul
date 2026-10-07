@@ -14,6 +14,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
@@ -32,6 +33,8 @@ void main() async {
   ]);
   final game = NarrowHaulGame();
   runApp(_NarrowHaulApp(game: game));
+  // After runApp: the UMP consent form needs a live UI. Never blocks play.
+  MonetizationService.instance.init();
 }
 
 /// Dark theme; display/headline/title styles use the bundled RussoOne face
@@ -100,6 +103,15 @@ class _NarrowHaulApp extends StatelessWidget {
                         onPrimary: g.restartLevel,
                         secondaryLabel: 'Menu',
                         onSecondary: g.backToMenu,
+                        extra: g.canContinue
+                            ? _RewardedButton(
+                                label: 'Continue from before the crash',
+                                note: 'Watch an ad · this run can earn up to 2★',
+                                icon: Icons.play_circle_outline_rounded,
+                                placement: AdPlacement.continueAfterCrash,
+                                onReward: g.continueAfterCrash,
+                              )
+                            : null,
                       );
                     },
                     'levelComplete': (context, game) {
@@ -957,6 +969,34 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
     duration: const Duration(milliseconds: 1800),
   );
 
+  /// True while leaving (an interstitial may be showing) — blocks double taps.
+  bool _leaving = false;
+  late final bool _showRemoveAdsOffer = _shouldOfferRemoveAds();
+
+  /// Soft remove-ads offer: once the tutorial world is done (or after the
+  /// first interstitial), at most every 3 days, never to payers.
+  bool _shouldOfferRemoveAds() {
+    final p = ProgressService.instance;
+    final m = MonetizationService.instance;
+    if (m.adsRemoved || p.hasPurchased || !m.canBuy(ProductIds.removeAds)) {
+      return false;
+    }
+    final tutorialDone = p.getStarsById('tut_10') > 0;
+    if (!tutorialDone && p.lastInterstitialMs == 0) return false;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - p.removeAdsOfferMs < const Duration(days: 3).inMilliseconds) {
+      return false;
+    }
+    p.setRemoveAdsOfferMs(now);
+    return true;
+  }
+
+  Future<void> _leave(Future<void> Function() then) async {
+    if (_leaving) return;
+    setState(() => _leaving = true);
+    await widget.game.leaveResults(then);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1043,6 +1083,13 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
             style: const TextStyle(color: Color(0xCCFFD166), fontSize: 12),
           ),
         ],
+        if (game.continuedThisRun) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'Continued flight · max 2★',
+            style: TextStyle(color: Colors.white38, fontSize: 12),
+          ),
+        ],
         if (reward != null && reward.currency > 0) ...[
           const SizedBox(height: 8),
           Text(
@@ -1054,6 +1101,42 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
             ),
           ),
         ],
+        if (game.canDoubleCurrency) ...[
+          const SizedBox(height: 8),
+          _RewardedButton(
+            label: 'Double coins',
+            note: 'Watch an ad',
+            icon: Icons.ondemand_video_rounded,
+            placement: AdPlacement.doubleCoins,
+            onReward: () async {
+              await game.doubleRunCurrency();
+              if (mounted) setState(() {});
+            },
+          ),
+        ],
+        for (final id in CosmeticsService.activeTrials)
+          if (CosmeticsService.byId(id) case final item?
+              when !CosmeticsService.isUnlocked(item)) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Enjoying the ${item.name}? Own it in the Garage for ${item.cost} 💰',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xCCFFD166), fontSize: 12),
+            ),
+          ],
+        if (_showRemoveAdsOffer) ...[
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () async {
+              await MonetizationService.instance.buy(ProductIds.removeAds);
+              if (mounted) setState(() {});
+            },
+            child: Text(
+              'Remove ads · ${MonetizationService.instance.priceOf(ProductIds.removeAds)}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+        ],
       ],
     );
 
@@ -1061,7 +1144,9 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: game.backToMenu,
+            onPressed: _leaving
+                ? null
+                : () => _leave(() async => game.backToMenu()),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Color(0x5500B4D8)),
@@ -1072,7 +1157,7 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton(
-            onPressed: game.nextLevel,
+            onPressed: _leaving ? null : () => _leave(game.nextLevel),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               backgroundColor: const Color(0xFF00B4D8),
@@ -1291,7 +1376,11 @@ class _EndOverlay extends StatelessWidget {
     required this.onPrimary,
     required this.secondaryLabel,
     required this.onSecondary,
+    this.extra,
   });
+
+  /// Optional row above the buttons (e.g. the rewarded "continue").
+  final Widget? extra;
 
   final String title;
   final String subtitle;
@@ -1329,6 +1418,10 @@ class _EndOverlay extends StatelessWidget {
                     style: const TextStyle(color: Colors.white60, fontSize: 13),
                   ),
                   const SizedBox(height: 24),
+                  if (extra case final extra?) ...[
+                    extra,
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     children: [
                       Expanded(
@@ -1370,6 +1463,80 @@ class _EndOverlay extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Opt-in rewarded-ad button. Hidden until an ad is actually loaded, so a tap
+/// always pays out; runs [onReward] only when the reward was earned.
+class _RewardedButton extends StatefulWidget {
+  const _RewardedButton({
+    required this.label,
+    required this.note,
+    required this.icon,
+    required this.placement,
+    required this.onReward,
+  });
+
+  final String label;
+  final String note;
+  final IconData icon;
+  final String placement;
+  final VoidCallback onReward;
+
+  @override
+  State<_RewardedButton> createState() => _RewardedButtonState();
+}
+
+class _RewardedButtonState extends State<_RewardedButton> {
+  bool _busy = false;
+
+  Future<void> _watch() async {
+    setState(() => _busy = true);
+    await MonetizationService.instance.showRewarded(
+      widget.placement,
+      onReward: widget.onReward,
+    );
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: MonetizationService.instance.rewardedReady,
+      builder: (context, ready, _) {
+        if (!ready && !_busy) return const SizedBox.shrink();
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _busy ? null : _watch,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              side: const BorderSide(color: Color(0x88FFD166)),
+              foregroundColor: const Color(0xFFFFD166),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.label,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                Text(
+                  widget.note,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class _StarIcon extends StatelessWidget {
   const _StarIcon({required this.filled, required this.size});
@@ -1530,16 +1697,39 @@ class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
                   final item = items[i];
                   final unlocked = CosmeticsService.isUnlocked(item);
                   final equipped =
-                      CosmeticsService.getEquippedId(item.category) == item.id;
+                      CosmeticsService.getSavedEquippedId(item.category) ==
+                      item.id;
+                  final trying = CosmeticsService.trialOverride[item.category] ==
+                      item.id;
+                  // Coin items can be test-flown for one level via an ad.
+                  final canTry = !unlocked &&
+                      !trying &&
+                      !item.supporterOnly &&
+                      !CosmeticsService.isRankLocked(item);
                   return _CosmeticTile(
                     item: item,
                     unlocked: unlocked,
                     equipped: equipped,
+                    trying: trying,
+                    tryButton: canTry
+                        ? _TryButton(
+                            onReward: () =>
+                                setState(() => CosmeticsService.startTrial(item)),
+                          )
+                        : null,
                     onTap: () async {
                       if (equipped) return;
                       if (unlocked) {
                         await CosmeticsService.equip(item);
                         setState(() {});
+                      } else if (item.supporterOnly) {
+                        final bought = await MonetizationService.instance.buy(
+                          ProductIds.supporterPack,
+                        );
+                        if (bought) {
+                          await CosmeticsService.equip(item);
+                          if (mounted) setState(() {});
+                        }
                       } else {
                         final success = await CosmeticsService.unlock(item);
                         if (success) {
@@ -1595,17 +1785,53 @@ class _Tab extends StatelessWidget {
   }
 }
 
+/// Garage "Try" chip: a rewarded ad lends the item for the next level.
+class _TryButton extends StatelessWidget {
+  const _TryButton({required this.onReward});
+  final VoidCallback onReward;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: MonetizationService.instance.rewardedReady,
+      builder: (context, ready, _) => !ready
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: TextButton.icon(
+                onPressed: () => MonetizationService.instance.showRewarded(
+                  AdPlacement.cosmeticTrial,
+                  onReward: onReward,
+                ),
+                icon: const Icon(Icons.ondemand_video_rounded, size: 16),
+                label: const Text('Try', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFFFD166),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
 class _CosmeticTile extends StatelessWidget {
   const _CosmeticTile({
     required this.item,
     required this.unlocked,
     required this.equipped,
     required this.onTap,
+    this.trying = false,
+    this.tryButton,
   });
   final CosmeticItem item;
   final bool unlocked;
   final bool equipped;
   final VoidCallback onTap;
+
+  /// On loan for the next level (rewarded trial).
+  final bool trying;
+  final Widget? tryButton;
 
   @override
   Widget build(BuildContext context) {
@@ -1637,7 +1863,17 @@ class _CosmeticTile extends StatelessWidget {
                 ),
               ),
             ),
-            if (equipped)
+            ?tryButton,
+            if (trying)
+              const Text(
+                'ON TRIAL · NEXT LEVEL',
+                style: TextStyle(
+                  color: Color(0xFFFFD166),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            else if (equipped)
               const Text(
                 'EQUIPPED',
                 style: TextStyle(
@@ -1650,6 +1886,15 @@ class _CosmeticTile extends StatelessWidget {
               const Text(
                 'EQUIP',
                 style: TextStyle(color: Colors.white54, fontSize: 11),
+              )
+            else if (item.supporterOnly)
+              const Text(
+                '💎 Supporter Pack',
+                style: TextStyle(
+                  color: Color(0xFF33D6C9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               )
             else if (CosmeticsService.isRankLocked(item))
               Text(

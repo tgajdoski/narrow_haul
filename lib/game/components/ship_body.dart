@@ -99,6 +99,24 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     setInput(rotate: 0, thrust: false);
   }
 
+  /// Undo [wreck] for "continue after crash": back at [position] at rest,
+  /// still launched (gravity on, clock running).
+  void revive({
+    required Vector2 position,
+    required double angle,
+    required double fuel,
+  }) {
+    _wrecked = false;
+    setInput(rotate: 0, thrust: false);
+    _fireCooldown = 0;
+    this.fuel = fuel;
+    body
+      ..setTransform(position, angle)
+      ..linearVelocity.setZero()
+      ..angularVelocity = 0
+      ..setAwake(true);
+  }
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -146,6 +164,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         paint.colorFilter = const ColorFilter.mode(Color(0x99404855), BlendMode.srcATop);
       } else if (skinId == 'ship_gold_trim') {
         paint.colorFilter = const ColorFilter.mode(Color(0x55FFD166), BlendMode.srcATop);
+      } else if (skinId == kSupporterSkinId) {
+        paint.colorFilter = const ColorFilter.mode(Color(0x7733D6C9), BlendMode.srcATop);
       } else if (_usingFallbackArt && spec.tint != null) {
         // Placeholder livery until the ship's own sprite exists.
         paint.colorFilter = ColorFilter.mode(Color(spec.tint!), BlendMode.srcATop);

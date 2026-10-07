@@ -1,6 +1,9 @@
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 
+/// Exclusive ship skin granted by the Supporter Pack.
+const kSupporterSkinId = 'ship_supporter';
+
 class CosmeticItem {
   const CosmeticItem({
     required this.id,
@@ -9,6 +12,7 @@ class CosmeticItem {
     required this.cost,
     required this.icon,
     this.rankRequired = 0,
+    this.supporterOnly = false,
   });
 
   final String id;
@@ -19,6 +23,9 @@ class CosmeticItem {
 
   /// [kRanks] index needed. Rank items are free once that rank is reached.
   final int rankRequired;
+
+  /// Granted only by the Supporter Pack IAP — never sold for currency.
+  final bool supporterOnly;
 
   PilotRank get requiredRank => kRanks[rankRequired];
 }
@@ -36,6 +43,7 @@ class CosmeticsService {
     CosmeticItem(id: 'ship_gold', name: 'Golden Hauler', category: catShip, cost: 300, icon: '🏆'),
     CosmeticItem(id: 'ship_carbon', name: 'Carbon', category: catShip, cost: 0, icon: '🛩️', rankRequired: 4),
     CosmeticItem(id: 'ship_gold_trim', name: 'Captain\'s Gold Trim', category: catShip, cost: 0, icon: '🎖️', rankRequired: 6),
+    CosmeticItem(id: kSupporterSkinId, name: 'Supporter Livery', category: catShip, cost: 0, icon: '💎', supporterOnly: true),
 
     // Ropes
     CosmeticItem(id: 'rope_cable', name: 'Cable', category: catRope, cost: 0, icon: '🪢'),
@@ -56,6 +64,9 @@ class CosmeticsService {
       CareerService.rank.index < item.rankRequired;
 
   static bool isUnlocked(CosmeticItem item) {
+    if (item.supporterOnly) {
+      return ProgressService.instance.isCosmeticUnlocked(item.id);
+    }
     if (isRankLocked(item)) return false;
     if (item.cost == 0) return true;
     return ProgressService.instance.isCosmeticUnlocked(item.id);
@@ -63,7 +74,7 @@ class CosmeticsService {
 
   static Future<bool> unlock(CosmeticItem item) async {
     if (isUnlocked(item)) return true;
-    if (isRankLocked(item)) return false;
+    if (isRankLocked(item) || item.supporterOnly) return false;
     final balance = ProgressService.instance.getCosmeticCurrency();
     if (balance >= item.cost) {
       await ProgressService.instance.spendCosmeticCurrency(item.cost);
@@ -73,7 +84,32 @@ class CosmeticsService {
     return false;
   }
 
-  static String getEquippedId(String category) {
+  /// One-run trial items (rewarded ad in the Garage), by category. Checked
+  /// before the equipped item so ship, plume and rope rendering pick it up;
+  /// cleared by the game when the next level after the trial ends.
+  static final Map<String, String> trialOverride = {};
+
+  /// Item ids a trial is running for (empty when none).
+  static Iterable<String> get activeTrials => trialOverride.values;
+
+  static void startTrial(CosmeticItem item) =>
+      trialOverride[item.category] = item.id;
+
+  static void clearTrials() => trialOverride.clear();
+
+  static CosmeticItem? byId(String id) {
+    for (final item in all) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  /// Item actually rendered: a running trial wins over the saved choice.
+  static String getEquippedId(String category) =>
+      trialOverride[category] ?? getSavedEquippedId(category);
+
+  /// The player's own equipped item (Garage "EQUIPPED" badge).
+  static String getSavedEquippedId(String category) {
     String def = '';
     if (category == catShip) def = 'ship_standard';
     if (category == catRope) def = 'rope_cable';

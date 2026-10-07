@@ -86,7 +86,16 @@ Three collaborating files:
 | `AudioService` | Wraps `flame_audio`. Silent fallback if audio files are missing. Audio files go in `assets/audio/`. |
 | `CosmeticsService` | Categories: `catShip`, `catRope`, `catPlume`. `isUnlocked`, `equip`, `unlock` (costs cosmetic currency). |
 | `DailyChallengeService` | `DailyChallengeConfig.forToday(totalLevels, shipOptions:)` — deterministic gravity/fuel modifiers from date, or a "Test Flight" day flying another ship (`shipId`). Candidates come from `LevelRegistry.testFlightOptions`: smaller-or-equal hull, and on cave levels each must pass the full validator (TMX: ≥ 90% of the native ship's `deltaV`); none → standard run. |
-| `MonetizationService` | Stub only — rewarded ads / IAP not yet wired. |
+| `MonetizationService` | AdMob (`google_mobile_ads`, UMP consent) + `in_app_purchase`. Fail-safe wrapper; see Monetization below. |
+
+### Monetization
+
+Free with light ads (Alto's-style). `MonetizationService.init()` runs after `runApp`: UMP consent (GDPR; iOS ATT via the AdMob "IDFA message"), then `MobileAds.initialize`, preloads one interstitial + one rewarded. Ads exist only on Android/iOS; on macOS/tests debug builds grant rewarded placements instantly. Debug always uses Google test ad units; release builds use the real `AdIds._release*` units of the "Narrow_Haul" AdMob apps (same publisher account as zafrk; app ids in `AndroidManifest.xml` / `Info.plist`). They serve real ads only after each app is linked to its published store listing in AdMob.
+
+- **Interstitials:** only when leaving the result screen (`leaveResults`), never after a crash/retry/level start, the daily's first clear or a rank-up. Rules in pure `ad_pacing.dart` (`AdPacing`, tested in `test/monetization_test.dart`): ≥4 lifetime deliveries and ≥300 s flown, 90 s session grace, every 3 clears, 180 s apart, 240 s after a rewarded ad, ≤4 per session, never for payers. State persisted in `ProgressService` (`ads_*`, `iap_*` keys).
+- **Rewarded** (`_RewardedButton`, hidden until an ad is loaded): *continue after crash* (`continueAfterCrash` rewinds to a safe `_FlightSnapshot` ≥1.5 s before the crash — same tow state, ≥0.9 m clear, not in a strong pull; +25% fuel, enemy shells cleared, turrets quiet 3 s, world/meltdown state kept; once per attempt, not after a meltdown time-out; run capped at 2★ via `continuedThisRun`), *2× coins* on the result screen, *cosmetic trial* in the Garage (`CosmeticsService.trialOverride`, read by `getEquippedId`; cleared on `nextLevel`/`backToMenu`; `getSavedEquippedId` is the player's own choice).
+- **IAP** (non-consumables): `nh_remove_ads` (interstitials off; rewarded stays) and `nh_supporter_pack` (remove-ads + `ship_supporter` livery + 500 💰, paid once). Settings has buy rows (only when the store returned the product), Restore purchases and UMP "Privacy options". A soft remove-ads offer shows on the result screen after `tut_10` or the first interstitial, at most every 3 days.
+- **Debugging ads:** debug builds log every decision as `MonetizationService: …` (SDK ready, ads/products loaded, and each result-screen check: `interstitial check → allowed=… deliveries=4/4 flown=128s/300s session=… clears=…`). On a fresh install the first interstitial needs ≥4 clears and 300 s flown, which is the usual reason "no ad showed". iOS sandbox purchase sheets show a placeholder icon and "UNRATED" until a build is uploaded and an age rating is set; that's App Store Connect, not the app.
 
 ### Pilot Career (Ranks & XP)
 
@@ -144,6 +153,17 @@ Base zoom `_baseZoom = 28` (px/meter). Follows ship with 18% lerp per frame. Cla
 ### Debug Mode
 
 In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% and the HUD shows `rot?` / `thrust?` stall warnings when physics joints are fighting input.
+
+## Release builds & store setup
+
+- **App id:** `com.zafrk.narrowhaul` on Android (`applicationId`; the Kotlin `namespace` stays `com.narrowhaul.narrow_haul`) and iOS (team `4G9RSHCAJN`). Store records exist in App Store Connect and Play Console.
+- **Android signing:** `android/key.properties` (gitignored) points at the upload keystore `~/narrowhaul-upload.jks` (alias `upload`); without it release builds fall back to the debug key, which Play rejects. Play App Signing holds the app signing key.
+- **Versions:** bump the build number in `pubspec.yaml` (`1.0.0+N`) for every store upload; Play never reuses a version code, even from discarded drafts.
+- `flutter build appbundle --release` → `build/app/outputs/bundle/release/app-release.aab` for Play Internal testing.
+
+## Website
+
+`website/index.html` is the game's public site (home, `/support`, `/privacy`; one self-contained page, sprites inlined) served at https://zafrk.com/narrow-haul/. Contact/developer/date live in the `SITE` object at the top of its script. `website/deploy.sh` uploads it to the shared zafrk.com S3 bucket under each route's key (the CloudFront S3 origin has no index documents) and invalidates `/narrow-haul*`. The zafrk site's own `deploy.sh` must exclude `narrow-haul` and `narrow-haul/*` from its `sync --delete`. Store listings: privacy URL `…/narrow-haul/privacy`, support URL `…/narrow-haul/support`, developer website `https://zafrk.com` (its `app-ads.txt` already lists the AdMob publisher).
 
 ## Asset Notes
 

@@ -37,7 +37,9 @@ import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -63,6 +65,14 @@ class RunReward {
   final int xpAfter;
   final int currency;
   final List<AchievementMeta> newAchievements;
+
+  RunReward withCurrency(int value) => RunReward(
+    xp: xp,
+    xpBefore: xpBefore,
+    xpAfter: xpAfter,
+    currency: value,
+    newAchievements: newAchievements,
+  );
 
   PilotRank get rankBefore => rankFor(xpBefore);
   PilotRank get rankAfter => rankFor(xpAfter);
@@ -171,6 +181,32 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   Vector2? _currentWorldSize;
 
   final List<Component> _levelEntities = [];
+
+  // ── Continue after crash (rewarded ad) ───────────────────────────────────
+  /// Safe points sampled while flying; the newest few seconds only.
+  final List<_FlightSnapshot> _snapshots = [];
+  double _snapshotTimer = 0;
+  static const double _snapshotEvery = 0.5;
+  static const int _snapshotKeep = 10;
+
+  /// Restore at least this long before the crash (not the doomed approach).
+  static const double _continueRewind = 1.5;
+  static const double _continueFuelBonus = 0.25;
+  static const double _continueTurretGrace = 3;
+  static const double _safeClearance = 0.9;
+  bool _continueUsed = false;
+
+  /// This attempt was continued: capped at 2★, never a clean flight.
+  bool continuedThisRun = false;
+  bool _crashedByMeltdown = false;
+  double? _meltdownAtCrash;
+  double _crashElapsed = 0;
+  int _playtimeBooked = 0;
+  double _fuelBaseline = 0;
+
+  /// The last win paid the daily's first-clear reward (no interstitial then).
+  bool _lastWinDailyFirst = false;
+  bool _currencyDoubled = false;
 
   @override
   Color backgroundColor() => const Color(0xFF050816);
@@ -305,6 +341,13 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   Future<void> loadCurrentLevel({bool retry = false}) async {
     _clearLevel();
     _currentLevelRetried = retry;
+    _snapshots.clear();
+    _snapshotTimer = 0;
+    _continueUsed = false;
+    continuedThisRun = false;
+    _crashedByMeltdown = false;
+    _meltdownAtCrash = null;
+    _playtimeBooked = 0;
     ProgressService.instance.incrementStat(ProgressService.statFlights);
     // In debug, rebuild caves every load so hot-reloaded spec edits show up.
     if (kDebugMode) clearCaveCache();
@@ -515,6 +558,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
     elapsedSeconds = 0;
     _timing = true;
+    _fuelBaseline = shipBody.maxFuel;
     _thrustUsed = 0;
     _rotateUsed = 0;
     _tutorialHints =
@@ -668,6 +712,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     runState = RunState.gameOver;
     _pauseButton?.visible = false;
     _hint?.message = null;
+    _meltdownAtCrash = _meltdownLeft;
+    _crashElapsed = elapsedSeconds;
     _meltdownLeft = null;
     _turretsOfflineLeft = 0;
     _syncCombatHud();
@@ -735,6 +781,9 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     final XpBreakdown runXp;
 
     progress.incrementStat(ProgressService.statDeliveries);
+    MonetizationService.instance.recordLevelClear();
+    _lastWinDailyFirst = false;
+    _currencyDoubled = false;
     final (levelWorld, _) = LevelRegistry.worldOf(levelIndex);
     final worldIndex = LevelRegistry.worlds.indexOf(levelWorld);
     int earnedStars = 0;
@@ -742,6 +791,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
     if (isChallengeMode) {
       final firstToday = !progress.isDailyChallengeComplete();
+      _lastWinDailyFirst = firstToday;
       int streak = progress.getDailyStreak();
       if (firstToday) {
         currency += (50 * currencyMul).round(); // Daily reward
@@ -885,7 +935,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   int _calculateStars(double fuelRemaining, double timeSeconds) {
     final pct = fuelRemaining / _shipMaxFuel;
     final spec = currentLevelDef.stars;
-    if (pct >= spec.star3Fuel && timeSeconds <= spec.star3Time) return 3;
+    // A continued run (rewarded ad) can never buy a perfect rating.
+    if (pct >= spec.star3Fuel &&
+        timeSeconds <= spec.star3Time &&
+        !continuedThisRun) {
+      return 3;
+    }
     if (pct >= spec.star2Fuel) return 2;
     return 1;
   }
@@ -996,7 +1051,9 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   void _recordPlaytime() {
     if (!_timing) return;
     _timing = false; // stop the clock; also prevents double counting
-    final seconds = elapsedSeconds.floor();
+    // After a continue, only the seconds not yet booked at the crash count.
+    final seconds = elapsedSeconds.floor() - _playtimeBooked;
+    _playtimeBooked = elapsedSeconds.floor();
     if (seconds > 0) {
       ProgressService.instance.incrementStat(
         ProgressService.statPlaytimeSeconds,
@@ -1007,12 +1064,141 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   void _recordSpentFuel() {
     if (ship != null) {
-      final spent = ship!.maxFuel - ship!.fuel;
+      final spent = _fuelBaseline - ship!.fuel;
       if (spent > 0) {
         ProgressService.instance.addFuelSpent(spent);
         ship!.fuel = ship!.maxFuel; // prevent double counting
+        _fuelBaseline = ship!.maxFuel;
       }
     }
+  }
+
+  // ── Monetization hooks ────────────────────────────────────────────────────
+
+  /// Leaves the result screen via [then] (next mission / menu), showing an
+  /// interstitial first only when pacing allows. Never on the daily's first
+  /// clear or a rank-up, which are moments to celebrate, not interrupt.
+  Future<void> leaveResults(Future<void> Function() then) async {
+    final rankedUp = lastRunReward?.rankedUp ?? false;
+    if (!_lastWinDailyFirst && !rankedUp) {
+      await MonetizationService.instance.maybeShowInterstitial();
+    }
+    await then();
+  }
+
+  /// 2× coins on the result screen is offered once, when the run paid any.
+  bool get canDoubleCurrency =>
+      runState == RunState.won &&
+      !_currencyDoubled &&
+      (lastRunReward?.currency ?? 0) > 0;
+
+  /// Rewarded "2× coins": pays the run's currency a second time.
+  Future<void> doubleRunCurrency() async {
+    final reward = lastRunReward;
+    if (!canDoubleCurrency || reward == null) return;
+    _currencyDoubled = true;
+    await ProgressService.instance.addCosmeticCurrency(reward.currency);
+    lastRunReward = reward.withCurrency(reward.currency * 2);
+  }
+
+  /// Rewarded "continue": offered once per attempt after a mistake (not a
+  /// meltdown running out), when a safe point from before the crash exists.
+  bool get canContinue =>
+      runState == RunState.gameOver &&
+      !_continueUsed &&
+      !_crashedByMeltdown &&
+      (ship?.launched ?? false) &&
+      _pickSnapshot() != null;
+
+  /// Rewinds to the last safe point before the crash: same ship, same world
+  /// (destroyed turrets, collected fuel cells and a running meltdown stay as
+  /// they were), ship at rest with a fuel top-up and turrets briefly quiet.
+  /// The clock keeps running and the run is capped at 2★.
+  void continueAfterCrash() {
+    final snap = _pickSnapshot();
+    final s = ship;
+    final c = cargo;
+    if (!canContinue || snap == null || s == null || c == null) return;
+    _continueUsed = true;
+    continuedThisRun = true;
+    overlays.remove('gameOver');
+
+    // Shells in flight would make the respawn a trap.
+    for (final shell in world.children.whereType<Shell>().toList()) {
+      shell.removeFromParent();
+    }
+    s.revive(
+      position: snap.shipPos,
+      angle: snap.shipAngle,
+      fuel: math.min(s.maxFuel, snap.fuel + _continueFuelBonus * s.maxFuel),
+    );
+    c.body
+      ..setTransform(snap.cargoPos, snap.cargoAngle)
+      ..linearVelocity.setZero()
+      ..angularVelocity = 0;
+    _fuelBaseline = s.fuel;
+    elapsedSeconds = _crashElapsed;
+    _timing = true;
+    _meltdownLeft = _meltdownAtCrash;
+    _turretsOfflineLeft = math.max(_turretsOfflineLeft, _continueTurretGrace);
+    _syncCombatHud();
+    _snapshots.clear();
+    _snapshotTimer = 0;
+    _shakeTimer = 0;
+    _crashTimer = 0;
+    _resetInputState();
+    runState = RunState.playing;
+    _pauseButton?.visible = true;
+    resumeEngine();
+  }
+
+  /// Newest snapshot well before the crash with the same tow state (so the
+  /// rope never has to snap to a different length); else the newest one.
+  _FlightSnapshot? _pickSnapshot() {
+    final tow = cargoAttachment?.attached ?? false;
+    _FlightSnapshot? fallback;
+    for (final snap in _snapshots.reversed) {
+      if (snap.attached != tow) continue;
+      if (_crashElapsed - snap.time >= _continueRewind) return snap;
+      fallback ??= snap;
+    }
+    return fallback;
+  }
+
+  void _sampleSnapshot(double dt, ShipBody s) {
+    if (!s.launched || isPaused) return;
+    _snapshotTimer += dt;
+    if (_snapshotTimer < _snapshotEvery) return;
+    _snapshotTimer = 0;
+    final c = cargo;
+    if (c == null || !_isSafeSpot(s, c)) return;
+    _snapshots.add(
+      _FlightSnapshot(
+        time: elapsedSeconds,
+        shipPos: s.body.position.clone(),
+        shipAngle: s.body.angle,
+        fuel: s.fuel,
+        cargoPos: c.body.position.clone(),
+        cargoAngle: c.body.angle,
+        attached: cargoAttachment?.attached ?? false,
+      ),
+    );
+    if (_snapshots.length > _snapshotKeep) _snapshots.removeAt(0);
+  }
+
+  /// Clear of terrain/obstacles all round and not in a strong pull (well
+  /// cores, heavy zones) — the ship respawns at rest, so it must be able to
+  /// fly away from here.
+  bool _isSafeSpot(ShipBody s, CargoBody c) {
+    final base = world.gravity.length;
+    if (s.localAccel.length > math.max(1.6 * base, 0.6)) return false;
+    final p = s.body.position;
+    for (int i = 0; i < 8; i++) {
+      final a = i * math.pi / 4;
+      final to = p + Vector2(math.cos(a), math.sin(a)) * _safeClearance;
+      if (!hasLineOfSight(world, p, to, ignore: c.body)) return false;
+    }
+    return true;
   }
 
   // ── Public navigation ─────────────────────────────────────────────────────
@@ -1028,6 +1214,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   Future<void> nextLevel() async {
     overlays.removeAll(['levelComplete', 'rankUp']);
     _resetInputState();
+    CosmeticsService.clearTrials(); // a trial lasts until its level is won
     if (!isChallengeMode) {
       if (levelIndex < LevelRegistry.totalLevels - 1) {
         levelIndex++;
@@ -1042,6 +1229,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
   void backToMenu() {
     overlays.removeAll(['gameOver', 'pause', 'settings']);
+    CosmeticsService.clearTrials();
     // Quitting mid-flight still counts the time flown.
     _recordPlaytime();
     overlays.removeAll(['levelComplete', 'rankUp']);
@@ -1234,6 +1422,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
           (2 * amp);
       if (left <= 0) {
         _meltdownLeft = null;
+        _crashedByMeltdown = true;
         _onShipHitWall();
       }
     }
@@ -1292,6 +1481,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
       s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
       _updateCombat(dt);
+      _sampleSnapshot(dt, s);
 
       final tow = cargoAttachment?.attached == true;
 
@@ -1307,4 +1497,25 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         ..fuelFraction = s.fuel / s.maxFuel;
     }
   }
+}
+
+/// One safe point of a flight, for "continue after crash".
+class _FlightSnapshot {
+  _FlightSnapshot({
+    required this.time,
+    required this.shipPos,
+    required this.shipAngle,
+    required this.fuel,
+    required this.cargoPos,
+    required this.cargoAngle,
+    required this.attached,
+  });
+
+  final double time;
+  final Vector2 shipPos;
+  final double shipAngle;
+  final double fuel;
+  final Vector2 cargoPos;
+  final double cargoAngle;
+  final bool attached;
 }
