@@ -142,7 +142,10 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
     }
   }
 
-  // 5. Obstacle sweeps must not sit on the anchors.
+  // 5. Force fields: wind the ship can beat, and calm, "down" anchors.
+  issues.addAll(_fieldIssues(spec, ship));
+
+  // 6. Obstacle sweeps must not sit on the anchors.
   for (final o in spec.obstacles) {
     final sweep = _obstacleSweepAabb(o);
     for (final (label, p) in [
@@ -158,6 +161,68 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
     }
   }
 
+  return issues;
+}
+
+/// Wind may be at most this fraction of the loaded ship's thrust accel, and
+/// never gust past [kMaxWindG] — stronger reads as random shoving, not skill.
+const double kMaxWindFraction = 0.45;
+const double kMaxWindG = 1.0;
+
+/// At spawn, cargo and goal the local pull must point within this angle of
+/// straight down and be at least [kMinAnchorGravity] × base strength.
+const double kMaxAnchorTiltDeg = 25;
+const double kMinAnchorGravity = 0.3;
+
+List<String> _fieldIssues(LevelSpec spec, ShipSpec ship) {
+  if (spec.fields.isEmpty) return const [];
+  final issues = <String>[];
+  final cargoMass = math.pi * kCargoRadius * kCargoRadius * kCargoDensity *
+      spec.modifiers.cargoDensityMul;
+  final aLoaded = ship.thrustForce / (ship.mass + cargoMass);
+
+  var maxPeriod = 1.0;
+  for (final f in spec.fields) {
+    if (f is WindZoneSpec) {
+      final peakG = math.sqrt(f.ax * f.ax + f.ay * f.ay) * (1 + f.gustAmp.abs());
+      final peak = peakG * kGravityY;
+      if (peakG > kMaxWindG) {
+        issues.add('WIND: zone at (${f.center.x},${f.center.y}) gusts to '
+            '${peakG.toStringAsFixed(2)}g (max ${kMaxWindG}g)');
+      } else if (peak > kMaxWindFraction * aLoaded) {
+        issues.add('WIND: zone at (${f.center.x},${f.center.y}) peaks at '
+            '${(peak / aLoaded * 100).round()}% of thrust '
+            '(max ${(kMaxWindFraction * 100).round()}%)');
+      }
+      maxPeriod = math.max(maxPeriod, f.gustPeriod);
+    }
+  }
+
+  final sampler = FieldSampler(
+    fields: spec.fields,
+    g0: kGravityY,
+    gravityMul: spec.modifiers.gravityMul,
+  );
+  final minG = kMinAnchorGravity * kGravityY;
+  final maxTilt = kMaxAnchorTiltDeg * math.pi / 180;
+  for (final (label, p) in [
+    ('ship spawn', spec.shipSpawn),
+    ('cargo', spec.cargoSpawn),
+    ('goal', spec.goal.center),
+  ]) {
+    // Sample a full gust cycle so a peak gust can't upset an anchor.
+    for (var i = 0; i < 16; i++) {
+      final a = sampler.accelAt(p.x, p.y, t: maxPeriod * i / 16, cargo: label == 'cargo');
+      final mag = math.sqrt(a.x * a.x + a.y * a.y);
+      final tilt = mag < 1e-9 ? math.pi : math.acos((a.y / mag).clamp(-1.0, 1.0));
+      if (mag < minG || tilt > maxTilt) {
+        issues.add('FIELD: $label is not calm '
+            '(pull ${(mag / kGravityY).toStringAsFixed(2)}g, '
+            'tilt ${(tilt * 180 / math.pi).round()}°)');
+        break;
+      }
+    }
+  }
   return issues;
 }
 
@@ -187,7 +252,8 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
 }
 
 /// Coarse ASCII picture of the carved cave for terminal authoring.
-/// `#` rock, `.` open, `S` ship, `c` cargo, `G` goal, `!` obstacle center.
+/// `#` rock, `.` open, `S` ship, `c` cargo, `G` goal, `!` obstacle center,
+/// `~` wind, `z` gravity zone, `0` zero-g zone, `o` gravity well.
 String asciiPreview(LevelSpec spec, {double res = 0.5}) {
   final cave = buildCave(spec);
   final cols = (spec.worldW / res).ceil();
@@ -205,6 +271,31 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
     grid[r][c] = ch;
   }
 
+  // Fields over open cells: `~` wind, `z` gravity zone (`0` if zero-g),
+  // `o` well center. Zones are drawn by bounding box.
+  for (int r = 0; r < rows; r++) {
+    for (int c = 0; c < cols; c++) {
+      if (grid[r][c] != '.') continue;
+      final x = (c + 0.5) * res;
+      final y = (r + 0.5) * res;
+      for (final f in spec.fields) {
+        final inside = switch (f) {
+          WindZoneSpec() => (x - f.center.x).abs() < f.halfW && (y - f.center.y).abs() < f.halfH,
+          GravityZoneSpec() => (x - f.center.x).abs() < f.halfW && (y - f.center.y).abs() < f.halfH,
+          GravityWellSpec() => false,
+        };
+        if (!inside) continue;
+        grid[r][c] = switch (f) {
+          WindZoneSpec() => '~',
+          GravityZoneSpec() => (f.gx * f.gx + f.gy * f.gy) < 0.0025 ? '0' : 'z',
+          GravityWellSpec() => 'o',
+        };
+      }
+    }
+  }
+  for (final f in spec.fields) {
+    if (f is GravityWellSpec) mark(f.center, 'o');
+  }
   for (final o in spec.obstacles) {
     final aabb = _obstacleSweepAabb(o);
     mark(Pt((aabb.$1 + aabb.$3) / 2, (aabb.$2 + aabb.$4) / 2), '!');

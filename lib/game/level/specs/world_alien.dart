@@ -225,6 +225,10 @@ final List<LevelDef> alienLevels = [
         ChamberSpec(Pt(24, 15), 1.7),
         ChamberSpec(Pt(30, 26), 2.4),
       ],
+      fields: [
+        // Zero-g pocket across the top: momentum carries you.
+        GravityZoneSpec(Pt(14, 6.5), halfW: 4, halfH: 2.5, gx: 0, gy: 0, feather: 1.2),
+      ],
       shipSpawn: Pt(6, 26),
       cargoSpawn: Pt(24, 15.4),
       goal: GoalSpec(Pt(30, 27.2)),

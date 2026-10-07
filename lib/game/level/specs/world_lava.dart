@@ -59,6 +59,10 @@ final List<LevelDef> lavaLevels = [
         ChamberSpec(Pt(19, 12.5), 1.6),
         ChamberSpec(Pt(30, 10), 2.4),
       ],
+      fields: [
+        // Thermals rising up the climb.
+        WindZoneSpec(Pt(8, 15), halfW: 2.5, halfH: 5, ax: 0, ay: -0.6, gustAmp: 0.3, gustPeriod: 5),
+      ],
       shipSpawn: Pt(6, 23),
       cargoSpawn: Pt(19, 12.5),
       goal: GoalSpec(Pt(30, 11.2)),
@@ -186,6 +190,10 @@ final List<LevelDef> lavaLevels = [
       ],
       obstacles: [
         PendulumSpec(Pt(16, 15.8), length: 2.4, amplitudeRad: 0.8, periodSec: 2.6),
+      ],
+      fields: [
+        // The vent: gusting updraft in the central chamber.
+        WindZoneSpec(Pt(16, 21), halfW: 2, halfH: 2, ax: 0, ay: -0.7, gustAmp: 0.4, gustPeriod: 3),
       ],
       shipSpawn: Pt(16, 31),
       cargoSpawn: Pt(22, 24.4),

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() {
@@ -88,6 +89,55 @@ void main() {
       expect(right.x, closeTo(-10 / (9 + 0.25) * g0, 1e-9));
       final near = s.accelAt(0.1, 0);
       expect(near.x.abs(), closeTo(2 * g0, 1e-9)); // capped at maxG
+    });
+  });
+
+  group('field guardrails', () {
+    LevelSpec course(List<FieldSpec> fields) => LevelSpec(
+          id: 'test_course',
+          seed: 1,
+          name: 'Test',
+          themeId: 'ice',
+          worldW: 34,
+          worldH: 20,
+          tunnels: const [
+            TunnelSpec([Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)], width: 2.0),
+            TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
+          ],
+          chambers: const [
+            ChamberSpec(Pt(5, 9), 2.4),
+            ChamberSpec(Pt(17, 13), 1.8),
+            ChamberSpec(Pt(29, 9), 2.4),
+          ],
+          fields: fields,
+          shipSpawn: const Pt(5, 9),
+          cargoSpawn: const Pt(17, 13),
+          goal: const GoalSpec(Pt(29, 10.2)),
+        );
+
+    test('baseline course is valid', () {
+      expect(validateCaveSpec(course(const [])), isEmpty);
+    });
+
+    test('wind gusting past the readable cap is rejected', () {
+      final issues = validateCaveSpec(course(const [
+        WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.8, ay: 0, gustAmp: 0.5),
+      ]));
+      expect(issues.any((i) => i.startsWith('WIND')), isTrue, reason: '$issues');
+    });
+
+    test('wind over the cargo pocket is rejected', () {
+      final issues = validateCaveSpec(course(const [
+        WindZoneSpec(Pt(17, 13), halfW: 3, halfH: 3, ax: 0.8, ay: 0, feather: 0.2),
+      ]));
+      expect(issues.any((i) => i.startsWith('FIELD: cargo')), isTrue, reason: '$issues');
+    });
+
+    test('zero-g at the goal is rejected', () {
+      final issues = validateCaveSpec(course(const [
+        GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 0, gy: 0),
+      ]));
+      expect(issues.any((i) => i.startsWith('FIELD: goal')), isTrue, reason: '$issues');
     });
   });
 }

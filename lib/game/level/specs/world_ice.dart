@@ -4,11 +4,43 @@ import 'package:narrow_haul/game/level/level_def.dart';
 
 const _ice = LevelModifiers(wallFriction: 0.03);
 
-/// Ship flown in this world unless a level overrides it: the standard Kestrel.
-const iceShipId = 'kestrel';
+/// Ship flown in this world unless a level overrides it: the stabilised Skate for blizzard winds.
+const iceShipId = 'skate';
 
 /// World 3 — Glacier Deep. Everything is slippery; walls give no grip.
 final List<LevelDef> iceLevels = [
+  // Type rating: first flight in the Skate — wind, and letting it level.
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 55),
+    spec: const LevelSpec(
+      id: 'rating_skate',
+      seed: 390,
+      name: 'Skate Type Rating',
+      themeId: 'ice',
+      worldW: 34,
+      worldH: 20,
+      modifiers: _ice,
+      tunnels: [
+        TunnelSpec(
+          [Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)],
+          width: 2.0,
+        ),
+        TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
+      ],
+      chambers: [
+        ChamberSpec(Pt(5, 9), 2.4),
+        ChamberSpec(Pt(17, 13), 1.8),
+        ChamberSpec(Pt(29, 9), 2.4),
+      ],
+      fields: [
+        WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.2, ay: 0),
+        WindZoneSpec(Pt(23, 8.5), halfW: 3, halfH: 3, ax: -0.2, ay: 0, gustAmp: 0.5, gustPeriod: 4),
+      ],
+      shipSpawn: Pt(5, 9),
+      cargoSpawn: Pt(17, 13),
+      goal: GoalSpec(Pt(29, 10.2)),
+    ),
+  ),
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.3, star3Time: 70),
     spec: const LevelSpec(
@@ -90,6 +122,11 @@ final List<LevelDef> iceLevels = [
         PendulumSpec(Pt(16, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8),
         PendulumSpec(Pt(28, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8, phase: 1.4),
       ],
+      fields: [
+        // Tailwind out to the cargo, headwind on the haul back.
+        WindZoneSpec(Pt(12, 12.5), halfW: 3.5, halfH: 2.5, ax: 0.25, ay: 0),
+        WindZoneSpec(Pt(27.5, 12.5), halfW: 3.5, halfH: 2.5, ax: -0.25, ay: 0),
+      ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(20, 18),
       goal: GoalSpec(Pt(34, 14.2)),
@@ -119,6 +156,10 @@ final List<LevelDef> iceLevels = [
         ChamberSpec(Pt(7, 28), 2.4),
         ChamberSpec(Pt(14, 15), 1.6),
         ChamberSpec(Pt(24, 12), 2.4),
+      ],
+      fields: [
+        // Cold air pours down the flue in slow surges.
+        WindZoneSpec(Pt(7.5, 18), halfW: 2.5, halfH: 4.5, ax: 0, ay: 0.3, gustAmp: 0.4, gustPeriod: 5),
       ],
       shipSpawn: Pt(7, 28),
       cargoSpawn: Pt(14, 15.2),
@@ -211,6 +252,10 @@ final List<LevelDef> iceLevels = [
         ChamberSpec(Pt(25, 22.5), 1.6),
         ChamberSpec(Pt(40, 14), 2.4),
       ],
+      fields: [
+        // Blizzard: a gusting headwind across the whole zigzag.
+        WindZoneSpec(Pt(22.5, 13.5), halfW: 13.5, halfH: 6.5, ax: -0.3, ay: 0, gustAmp: 0.6, gustPeriod: 3.5),
+      ],
       shipSpawn: Pt(5, 14),
       cargoSpawn: Pt(25, 22.5),
       goal: GoalSpec(Pt(40, 15.2)),
@@ -249,6 +294,10 @@ final List<LevelDef> iceLevels = [
       obstacles: [
         PendulumSpec(Pt(23, 8.8), length: 2.6, amplitudeRad: 0.85, periodSec: 2.5),
         SlidingBlockSpec(Pt(39, 12), Pt(39, 19), halfW: 0.55, halfH: 0.7, periodSec: 3.2),
+      ],
+      fields: [
+        // Gusty updraft through the narrow neck before the crusher.
+        WindZoneSpec(Pt(31, 14.5), halfW: 4, halfH: 3.5, ax: 0, ay: -0.3, gustAmp: 0.5, gustPeriod: 3),
       ],
       shipSpawn: Pt(5, 16),
       cargoSpawn: Pt(17, 24),

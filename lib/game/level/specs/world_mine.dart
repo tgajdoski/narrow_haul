@@ -118,6 +118,10 @@ final List<LevelDef> mineLevels = [
       obstacles: [
         PendulumSpec(Pt(15, 12.5), length: 2.6, amplitudeRad: 0.9, periodSec: 2.6),
       ],
+      fields: [
+        // Ventilation fan blowing up the lower shaft — brakes the descent.
+        WindZoneSpec(Pt(15, 22.5), halfW: 2.2, halfH: 2.2, ax: 0, ay: -0.5),
+      ],
       shipSpawn: Pt(15, 5),
       cargoSpawn: Pt(21, 20.4),
       goal: GoalSpec(Pt(15, 27.2)),

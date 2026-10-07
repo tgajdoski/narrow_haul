@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/flame.dart';
@@ -32,6 +33,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   final Vector2 _initialPosition;
 
   ui.Image? _shipImage;
+  bool _usingFallbackArt = false;
   final void Function() onWallHit;
   final void Function()? onHookTouchesCargo;
 
@@ -46,6 +48,14 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   static const double releaseSpinDecay = 22;
 
   double get maxFuel => spec.maxFuel;
+
+  /// Local acceleration at the ship (m/s²), fed by the game each frame — the
+  /// "down" that passive assists level against.
+  final Vector2 localAccel = Vector2(0, 1);
+
+  /// Auto-level gain (1/s) and max correction as a fraction of turn rate.
+  static const double _levelGain = 2.5;
+  static const double _levelMaxRate = 0.7;
   double fuel;
 
   double _rotateInput = 0;
@@ -84,10 +94,15 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       isThrusting: () => isThrusting,
       flameStartY: rearLocalY,
     ));
-    try {
-      _shipImage = await Flame.images.load(spec.sprite);
-      renderBody = false;
-    } catch (_) {}
+    // Bespoke art if present, else the Kestrel sprite + the spec's tint.
+    for (final path in {spec.sprite, kKestrel.sprite}) {
+      try {
+        _shipImage = await Flame.images.load(path);
+        _usingFallbackArt = path != spec.sprite;
+        renderBody = false;
+        break;
+      } catch (_) {}
+    }
   }
 
   // Sprite is drawn at 3× the physics hull dimensions so the ship is clearly
@@ -118,8 +133,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         paint.colorFilter = const ColorFilter.mode(Color(0x99404855), BlendMode.srcATop);
       } else if (skinId == 'ship_gold_trim') {
         paint.colorFilter = const ColorFilter.mode(Color(0x55FFD166), BlendMode.srcATop);
-      } else if (spec.tint != null) {
-        // Placeholder livery so each ship model reads differently.
+      } else if (_usingFallbackArt && spec.tint != null) {
+        // Placeholder livery until the ship's own sprite exists.
         paint.colorFilter = ColorFilter.mode(Color(spec.tint!), BlendMode.srcATop);
       }
       
@@ -181,7 +196,16 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     super.update(dt);
 
     const rotateDeadzone = 0.01;
-    if (_rotateInput.abs() < rotateDeadzone) {
+    final idle = _rotateInput.abs() < rotateDeadzone;
+    if (idle && spec.autoLevel && _launched && !_thrustInput && localAccel.length2 > 1e-4) {
+      // Ease the nose to point against local gravity (θ where the nose
+      // (sin θ, −cos θ) = −â).
+      final target = math.atan2(-localAccel.x, localAccel.y);
+      var diff = (target - body.angle) % (2 * math.pi);
+      if (diff > math.pi) diff -= 2 * math.pi;
+      final maxRate = spec.rotationSpeedRadPerSec * _levelMaxRate;
+      body.angularVelocity = (diff * _levelGain).clamp(-maxRate, maxRate);
+    } else if (idle) {
       final t = (releaseSpinDecay * dt).clamp(0.0, 1.0);
       body.angularVelocity *= 1.0 - t;
     } else {

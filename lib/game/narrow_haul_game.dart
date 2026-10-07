@@ -434,6 +434,8 @@ class NarrowHaulGame extends Forge2DGame {
         sampler: FieldSampler(fields: data.fields, g0: g0, gravityMul: gravityMul),
         ship: shipBody,
         cargo: cargoBody,
+        accent: theme.uiAccent,
+        seed: levelIndex,
       );
       await world.add(forces);
       _levelEntities.add(forces);
@@ -1062,8 +1064,9 @@ class NarrowHaulGame extends Forge2DGame {
       // Update fuel gauge
       _fuelGauge?.fuelFraction = s.fuel / s.maxFuel;
       _fuelGauge?.towing = tow;
+      s.localAccel.setFrom(_forces?.shipAccel ?? world.gravity);
       _gravityHud?.accelG
-        ?..setFrom(_forces?.shipAccel ?? world.gravity)
+        ?..setFrom(s.localAccel)
         ..scale(1 / baseGravityY());
       _levelInfoHud
         ?..elapsed = elapsedSeconds

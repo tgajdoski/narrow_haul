@@ -27,7 +27,9 @@ class ShipSpec {
   final String id;
   final String name;
 
-  /// Sprite path relative to `assets/`.
+  /// Sprite path relative to `assets/`: 256×256 PNG, transparent, top-down,
+  /// nose up, framed like `ship.png` (hull in the upper ~70%, engine bell at
+  /// bottom center). Missing → Kestrel art tinted with [tint].
   final String sprite;
 
   /// Uniform scale applied to the hull, hook and engine anchor geometry.
@@ -101,6 +103,7 @@ const kKestrel = ShipSpec(
 const kHopper = ShipSpec(
   id: 'hopper',
   name: 'Hopper',
+  sprite: 'ship_hopper.png',
   hullScale: 0.8,
   thrustForce: 3.6,
   secondsPerFullRotation: 3.0,
@@ -115,6 +118,7 @@ const kHopper = ShipSpec(
 const kMule = ShipSpec(
   id: 'mule',
   name: 'Mule',
+  sprite: 'ship_mule.png',
   hullScale: 1.1,
   density: 1.3,
   thrustForce: 8.0,
@@ -126,10 +130,24 @@ const kMule = ShipSpec(
   blurb: 'Heavy lifter. Big engine and tank, slow to turn.',
 );
 
+/// Stabilised all-rounder for wind and ice: steadier hull, and it rights
+/// itself against local gravity whenever both controls are released.
+const kSkate = ShipSpec(
+  id: 'skate',
+  name: 'Skate',
+  sprite: 'ship_skate.png',
+  thrustForce: 5.4,
+  linearDamping: 0.32,
+  autoLevel: true,
+  tint: 0x6699DDFF,
+  blurb: 'Stabilised. Rights itself when you let go.',
+);
+
 const Map<String, ShipSpec> kShips = {
   'kestrel': kKestrel,
   'hopper': kHopper,
   'mule': kMule,
+  'skate': kSkate,
 };
 
 ShipSpec shipById(String? id) => kShips[id] ?? kKestrel;
