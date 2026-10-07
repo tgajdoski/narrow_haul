@@ -54,7 +54,7 @@ Three collaborating files:
 1. **`TmxLevelDef`** — the 10-level Tutorial world. `.tmx` files in `assets/tiles/` (level_01…level_10; files 11-20 exist but are retired). `TiledLevelLoader` parses object layer "walls" (rectangles → static bodies) and "markers" (`ship`, `goal`, `cargo_zone`, optional `fuel` canisters with float property `amount`).
 2. **`CaveLevelDef`** — 50 organic cave levels in 6 themed worlds (Alien/Mine/Ice/Lava/Orbit, 8 each; Redoubt, 5) plus a `rating_<ship>` type-rating level opening the Alien, Mine, Ice, Orbit and Redoubt worlds, defined as const `LevelSpec` data in `lib/game/level/specs/world_*.dart`. **No external editor** — hand-authored Dart data.
 
-**Cave pipeline** (`lib/game/level/cave/`): `LevelSpec` (tunnels = Catmull-Rom splines with per-point half-widths, chambers = ellipses, anchors, obstacles, modifiers) → `cave_builder.dart` samples a signed distance field (smooth-min union, seeded fbm noise for the ant-nest look, noise fades near anchors) on a 0.1 m grid → marching squares → Chaikin + Douglas-Peucker → contour loops. Loops become one static body with `ChainShape.createLoop` fixtures (`CaveTerrain` component) and an even-odd filled `Path` for rendering. Deterministic: noise seed is the spec's explicit `seed` int — levels are fixed, never random. Builder is pure Dart (headless-testable) and memoized per level id (cache cleared each load in debug for hot-reload authoring).
+**Cave pipeline** (`lib/game/level/cave/`): `LevelSpec` (tunnels = Catmull-Rom splines with per-point half-widths, chambers = ellipses, anchors, obstacles, modifiers) → `cave_builder.dart` samples a signed distance field (smooth-min union, seeded fbm noise for the ant-nest look, noise fades near anchors) on a 0.1 m grid → marching squares → Chaikin + Douglas-Peucker → contour loops. Loops become one static body with `ChainShape.createLoop` fixtures (`CaveTerrain` component) and an even-odd filled `Path` for rendering. The theme's blurred edge glow is pre-rendered once per level into a small bitmap (16 px/m), not blurred every frame. Deterministic: noise seed is the spec's explicit `seed` int — levels are fixed, never random. Builder is pure Dart (headless-testable) and memoized per level id (cache cleared each load in debug for hot-reload authoring). At level load `prebuildCave(spec)` builds it on a background isolate (`Isolate.run`) so the UI never freezes; later `buildCave` calls hit the cache.
 
 **Validation:** `test/cave_level_validation_test.dart` proves every cave level completable (anchor openness, BFS reachability with ship clearance, cargo rest-point approachability, obstacle sweeps clear of anchors, determinism, build-time budget). Authoring aid: `dart run tool/preview_levels.dart [id]` prints ASCII maps + issues. **Run this after any spec edit.** Common authoring gotcha: a cargo pocket must be a bowl — connect its tunnel at/above the pocket center, never as a slope under the cargo, or the cargo rolls out.
 
@@ -88,8 +88,8 @@ Three collaborating files:
 | `CareerService` / `rank_service.dart` | Pilot ranks & XP. Pure rank math (`kRanks`, `rankFor`, `computeRunXp`) + persistence glue. XP stored in `xp_total`; `save_v3` migration backfills XP from existing stars/achievements. |
 | `AchievementService` | Static class. `AchievementService.all` = full list; `unlocked` = Set of earned IDs. Call `unlock(id)` after win checks. |
 | `AudioService` | Wraps `flame_audio`. Silent fallback if audio files are missing. Audio files go in `assets/audio/`. |
-| `CosmeticsService` | Categories: `catShip`, `catRope`, `catPlume`. `isUnlocked`, `equip`, `unlock` (costs cosmetic currency). |
-| `DailyChallengeService` | `DailyChallengeConfig.forToday(totalLevels, shipOptions:)` — deterministic gravity/fuel modifiers from date, or a "Test Flight" day flying another ship (`shipId`). Candidates come from `LevelRegistry.testFlightOptions`: smaller-or-equal hull, and on cave levels each must pass the full validator (TMX: ≥ 90% of the native ship's `deltaV`); none → standard run. |
+| `CosmeticsService` | Categories: `catShip`, `catRope`, `catPlume`. `isUnlocked`, `equip`, `unlock` (costs cosmetic currency). The shop totals 4,180 coins (≈ a full playthrough's star + rank payouts plus some dailies); the premium tier is the world liveries (200–450), Cryo/Plasma plumes and Neon Line rope. Liveries are tints in `ShipBody._skinTints`; plumes/ropes are per-id colours in `thrust_plume.dart` / `rope_line.dart`. |
+| `DailyChallengeService` | `DailyChallengeConfig.forToday(levels, shipOptions:)` picks from the **unlocked** level indices only; `peekToday(levels)` gives the same level + whether it's a Test Flight day, so `beginChallenge` computes the (validator-backed) ship options on a background isolate first. Deterministic gravity/fuel modifiers from date, or a "Test Flight" day flying another ship (`shipId`). Candidates come from `LevelRegistry.testFlightOptions`: smaller-or-equal hull, and on cave levels each must pass the full validator (TMX: ≥ 90% of the native ship's `deltaV`); none → standard run. |
 | `ErrorReporter` | `install()` in `main()` routes `FlutterError.onError` / `PlatformDispatcher.onError` here; `report(e, st, context:)` for caught-but-unexpected errors. `sink` forwards to Firebase Crashlytics (project `narrow-haul`, `lib/firebase_options.dart` from `flutterfire configure`; Android/iOS only, collection off in debug). Firebase needs iOS ≥ 15.0. |
 | `MonetizationService` | AdMob (`google_mobile_ads`, UMP consent) + `in_app_purchase`. Fail-safe wrapper; see Monetization below. |
 
@@ -122,11 +122,17 @@ Free with light ads (Alto's-style). `MonetizationService.init()` runs after `run
 | `'pilotProfile'` | Pilot Logbook (rank ladder + lifetime stats), from the menu rank card |
 | `'demo'` | Demo flight running (`DemoFlightOverlay`: badge + *Take the controls*) |
 | `'pause'` | HUD pause button (top-center) or app backgrounded mid-flight (`pauseGame`/`resumeGame`; `isPaused`, runState stays `playing`) |
-| `'settings'` | From menu or pause; sound / vibration / left-handed / minimap, persisted in `ProgressService`, applied via `applySettings()` |
+| `'settings'` | From menu or pause; sound / vibration / left-handed / minimap, persisted in `ProgressService`, applied via `applySettings()`. Also purchases, Privacy policy / Support links (`url_launcher`), Licenses (`showLicensePage`, RussoOne OFL registered in `main()`), and Reset progress (menu only; `ProgressService.resetProgress` keeps settings, purchases and the Supporter Livery) |
 
 `pause`/`settings` live in `lib/ui/pause_settings_overlays.dart`. Crashes play `ExplosionBurst` + camera shake for 0.9 s before `'gameOver'` appears. Level time is `elapsedSeconds` (accumulated game time — pauses don't count). Vibration goes through `Haptics` (`services/haptics.dart`). The ship hovers on its start pad (`gravityScale` zero) until the first input (`ShipBody.launched`), and the level clock starts then. On delivery a `CelebrationBurst` plays ~1.1 s before `'levelComplete'`. `HintHud` shows the landing status (only one of ship/cargo on the pad) and, on tut_01–03 until first clear, onboarding steps. Titles use the bundled `RussoOne` font (`kDisplayFont`, `lib/ui/fonts.dart`) via the theme's display/headline/title styles.
 
 **Visual smoke test:** `flutter test integration_test/visual_smoke_test.dart -d macos` drives menus, levels, pause, crash and the result screen, saving screenshots to the app's sandbox temp dir (printed as `SHOTS_DIR=`). Uses mocked prefs, so it never touches real saves.
+
+**Android back:** a `PopScope` around the home calls `NarrowHaulGame.handleBack()`, which steps back one screen (mid-flight → pause, pause → resume, results/game-over/demo → menu, sub-menus → menu) and only lets the app close from the main menu (`test/back_navigation_test.dart`).
+
+**Safe areas & text:** `MaterialApp.builder` passes `MediaQuery.viewPadding` to `NarrowHaulGame.setSafeInsets`; the Flame HUD (gauges, minimap, joystick hint, THRUST/FIRE) keeps clear of notches and the home indicator while the world draws edge to edge. System text scale is capped at 1.3. HUD labels use `HudText` (`components/hud_text.dart`), which re-lays out only when the text changes.
+
+**Hints** (`_currentHint`): beyond the tut_01–03 onboarding, tut_02 explains the star rules while the ship waits on the pad; the first seconds of a flight explain an unfamiliar ship (until its type rating is earned) and fuel canisters (until the first one is collected).
 
 All overlays are plain Flutter `StatelessWidget`s registered in `GameWidget.overlayBuilderMap`. They call back into `NarrowHaulGame` methods (`restartLevel`, `backToMenu`, `nextLevel`, `startLevel(i)`).
 
@@ -159,14 +165,16 @@ Base zoom `_baseZoom = 28` (px/meter). Follows ship with 18% lerp per frame. Cla
 
 ### Debug Mode
 
-In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% and the HUD shows `rot?` / `thrust?` stall warnings when physics joints are fighting input.
+In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% (unless `--dart-define=STORE_CAPTURE=true`). Use `flutter run --profile` for real-feel playtests; if Xcode's debug attach times out, install with `xcrun devicectl device install app --device <id> build/ios/iphoneos/Runner.app` and launch with `xcrun devicectl device process launch --device <id> com.zafrk.narrowhaul`.
 
 ## Release builds & store setup
 
 - **App id:** `com.zafrk.narrowhaul` on Android (`applicationId`; the Kotlin `namespace` stays `com.narrowhaul.narrow_haul`) and iOS (team `4G9RSHCAJN`). Store records exist in App Store Connect and Play Console.
-- **Android signing:** `android/key.properties` (gitignored) points at the upload keystore `~/narrowhaul-upload.jks` (alias `upload`); without it release builds fall back to the debug key, which Play rejects. Play App Signing holds the app signing key.
+- **Android signing:** `android/key.properties` (gitignored) points at the upload keystore `~/narrowhaul-upload.jks` (alias `upload`); without it release APKs fall back to the debug key, and `bundleRelease` (the Play upload) fails on purpose. Play App Signing holds the app signing key.
 - **Versions:** bump the build number in `pubspec.yaml` (`1.0.0+N`) for every store upload; Play never reuses a version code, even from discarded drafts.
 - `flutter build appbundle --release` → `build/app/outputs/bundle/release/app-release.aab` for Play Internal testing.
+- **iOS:** minimum iOS 15.0 (Firebase). `Info.plist` has `UIRequiresFullScreen` (landscape-only iPad), `ITSAppUsesNonExemptEncryption = false` and Google's full SKAdNetwork list. Ads are capped at `MaxAdContentRating.pg`; the store audience is 13+.
+- **Launch checklist:** `docs/LAUNCH_READINESS.md` tracks what's done and what's left before release.
 
 ## Store assets
 
@@ -187,6 +195,5 @@ Sources live in `art_src/` (not bundled), and the scripts live in `tool/store/`.
 
 - All sprites live at `assets/` root (not `assets/images/`). The path prefix is set once in `main()`.
 - Ship sprites `ship_<id>.png` must be 256×256 RGBA framed like `ship.png` (hull inside x 58–198, bottom-aligned to the nozzle line at y 181 — the plume starts there). AI-generated art often has a *painted* checkerboard instead of transparency: run `python art_src/ships/fix_ships.py <src.png> <out.png> assets/ship.png` (needs Pillow) to strip it, crop and frame. 1024 px sources live in `art_src/ships/` (not bundled). Keep the generator output there as `ship_<id>_1024_src.png`.
-- `exhaust.png` may have a black background (not transparent) — flag this if visual artifacts appear.
-- Audio files (`thrust_loop.mp3`, `attach.mp3`, `crash.mp3`, `land.mp3`, `star.mp3`) belong in `assets/audio/`; `AudioService` silently skips missing files.
+- Audio files (`thrust_loop.mp3`, `attach.mp3`, `crash.mp3`, `land.mp3`, `star.mp3`; optional `shot.mp3`, `boom.mp3` not yet made) belong in `assets/audio/`; `AudioService` silently skips missing files.
 - `rope_segment_body.dart` exists but is unused (multi-segment rope system, not active).
