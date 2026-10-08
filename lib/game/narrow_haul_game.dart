@@ -42,6 +42,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/theme_assets.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/level/tiled_level_loader.dart';
+import 'package:narrow_haul/game/combat/intercept.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
@@ -841,6 +842,8 @@ class NarrowHaulGame extends Forge2DGame
     final landingStrip = LandingStripVisual(
       center: data.goalCenter,
       sizeMeters: Vector2(data.goalHalfWidth * 2, data.goalHalfHeight * 2),
+      // Cave pads land on the shelf the builder lays below the box.
+      floorDrop: data.caveLoops.isNotEmpty ? kPadFloorDrop : null,
     );
     await world.add(landingStrip);
     _levelEntities.add(landingStrip);
@@ -930,7 +933,7 @@ class NarrowHaulGame extends Forge2DGame
       padCenter: data.goalCenter,
       halfWidth: data.goalHalfWidth,
       halfHeight: data.goalHalfHeight,
-      onBothLanded: _onGoalReached,
+      onBothLanded: _onBothLanded,
     );
     await world.add(landing);
     _levelEntities.add(landing);
@@ -1297,6 +1300,14 @@ class NarrowHaulGame extends Forge2DGame
     _crashTimer = _crashDelay;
   }
 
+  /// Pad callback: accepts the delivery only mid-flight, so a wreck sliding
+  /// onto the pad (or a demo) leaves the zone armed for a later landing.
+  bool _onBothLanded() {
+    if (runState != RunState.playing || demoMode) return false;
+    _onGoalReached();
+    return true;
+  }
+
   Future<void> _onGoalReached() async {
     if (runState != RunState.playing || demoMode) return;
     // Claim the win before any await so a second contact can't re-enter.
@@ -1561,6 +1572,10 @@ class NarrowHaulGame extends Forge2DGame
     Analytics.setUserProperty('total_stars', '${LevelRegistry.totalStars()}');
     Analytics.setUserProperty('payer', p.hasPurchased ? '1' : '0');
   }
+
+  /// Tests: the delivery pad's sensors.
+  @visibleForTesting
+  DualLandingZone? get debugLandingZone => _landingZone;
 
   /// Tests: lands the run as if ship and pod had touched down.
   @visibleForTesting
@@ -1970,6 +1985,11 @@ class NarrowHaulGame extends Forge2DGame
     _resetInputState();
     runState = RunState.playing;
     _pauseButton?.visible = true;
+    // A wreck that slid onto the pad was refused; re-arm the pad, and land
+    // straight away if the rewind put ship and pod on it.
+    _landingZone
+      ?..reset()
+      ..recheck();
     resumeEngine();
   }
 
@@ -2674,6 +2694,13 @@ class NarrowHaulGame extends Forge2DGame
       ?..from = Offset(from.x, from.y)
       ..to = Offset(end.x, end.y)
       ..hitting = hit != null;
+    // The beam burns turret shells crossing it (every frame, not per tick).
+    for (final shell in _liveShells(fromPlayer: false)) {
+      if (sweptSegmentHit(shell.prevPos.x, shell.prevPos.y, shell.pos.x, shell.pos.y,
+          from.x, from.y, end.x, end.y, kLaserInterceptRadius)) {
+        _shootDown(shell);
+      }
+    }
     _laserTick += dt;
     if (hit == null || _laserTick < w.tick) return;
     _laserTick = 0;
@@ -2734,6 +2761,10 @@ class NarrowHaulGame extends Forge2DGame
   @override
   void detonate(Vector2 at, WeaponSpec weapon) {
     final r = weapon.blastRadius;
+    // The blast also swats turret shells out of the air.
+    for (final shell in _liveShells(fromPlayer: false)) {
+      if (shell.pos.distanceTo(at) <= r + Shell.radius) _shootDown(shell, quiet: true);
+    }
     for (final c in world.children.toList()) {
       if (c is! BodyComponent || c is! Shootable || !c.isMounted) continue;
       final target = c as Shootable;
@@ -2765,6 +2796,50 @@ class NarrowHaulGame extends Forge2DGame
     AudioService.playBoom();
     Haptics.medium();
     _rumble = 0.35;
+  }
+
+  Iterable<Shell> _liveShells({required bool fromPlayer}) => world.children
+      .whereType<Shell>()
+      .where((s) => s.fromPlayer == fromPlayer && !s.spent)
+      .toList();
+
+  /// Player rounds meet turret shells (`combat/intercept.dart`): equal
+  /// strength trades both, a stronger round flies on.
+  void _interceptShells() {
+    final enemies = _liveShells(fromPlayer: false);
+    if (enemies.isEmpty) return;
+    for (final mine in _liveShells(fromPlayer: true)) {
+      for (final shell in enemies) {
+        if (shell.spent || mine.spent) continue;
+        if (!sweptCircleHit(
+          mine.prevPos.x, mine.prevPos.y, mine.pos.x, mine.pos.y,
+          shell.prevPos.x, shell.prevPos.y, shell.pos.x, shell.pos.y,
+          kInterceptRadius,
+        )) {
+          continue;
+        }
+        switch (resolveIntercept(interceptStrength(mine.weapon))) {
+          case InterceptOutcome.trade:
+            mine.kill();
+            _shootDown(shell);
+          case InterceptOutcome.pierce:
+            _shootDown(shell);
+          case InterceptOutcome.blocked:
+            mine.kill();
+        }
+      }
+    }
+  }
+
+  /// A turret shell shot down: a small burst and a pop ([quiet] when a
+  /// blast already makes the noise).
+  void _shootDown(Shell shell, {bool quiet = false}) {
+    shell.kill();
+    _burstAt(Offset(shell.pos.x, shell.pos.y), ringRadius: 0.5);
+    ProgressService.instance.incrementStat(ProgressService.statShellsIntercepted);
+    if (quiet) return;
+    AudioService.playIntercept();
+    Haptics.light();
   }
 
   @override
@@ -2931,6 +3006,7 @@ class NarrowHaulGame extends Forge2DGame
       AudioService.setAlarm(_meltdownLeft != null);
       _updateCombat(dt);
       _updateWeapons(dt, s);
+      _interceptShells();
       _sampleSnapshot(dt, s);
       _recordFrame(dt, s);
 

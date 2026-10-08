@@ -323,6 +323,7 @@ class ProgressService {
   static const statPlaytimeSeconds = 'playtime_s';
   static const statTurretsDestroyed = 'turrets_destroyed';
   static const statObstaclesWrecked = 'obstacles_wrecked';
+  static const statShellsIntercepted = 'shells_intercepted';
   static const statReactorEscapes = 'reactor_escapes';
   static const statFuelCells = 'fuel_cells';
 

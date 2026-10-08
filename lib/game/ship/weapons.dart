@@ -101,7 +101,7 @@ const kCannon = WeaponSpec(
   id: 'cannon',
   name: 'Autocannon',
   blurb: 'The Talon\'s nose gun. Each round costs fuel; it knocks out turrets '
-      'but bounces off rock and machinery.',
+      'and shoots down their shells, but bounces off rock and machinery.',
   kind: WeaponKind.cannon,
   unit: 'fuel',
 );
@@ -110,8 +110,8 @@ const kDemoCharge = WeaponSpec(
   id: 'demo_charge',
   name: 'Demolition Charge',
   blurb: 'A shockwave around the ship: wrecks every obstacle and turret in '
-      'reach and blows a hole in the rock. Your hull is shielded; the pod '
-      'gets shoved.',
+      'reach, swats incoming fire and blows a hole in the rock. Your hull is '
+      'shielded; the pod gets shoved.',
   kind: WeaponKind.charge,
   unit: 'charges',
   damage: 6,
@@ -145,8 +145,8 @@ const kGravityBomb = WeaponSpec(
 const kMiningLaser = WeaponSpec(
   id: 'mining_laser',
   name: 'Mining Laser',
-  blurb: 'Hold to cut. A short beam from the nose that tunnels through rock '
-      'and slices machinery. Ammo is seconds of beam.',
+  blurb: 'Hold to cut. A short beam from the nose that tunnels through rock, '
+      'slices machinery and burns shells that cross it. Ammo is seconds of beam.',
   kind: WeaponKind.laser,
   unit: 's',
   damage: 1,

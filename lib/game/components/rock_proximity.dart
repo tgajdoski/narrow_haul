@@ -19,15 +19,14 @@ class RockNearby {
 }
 
 /// Finds the closest [WallTag] surface within [range] of the hull with
-/// [_rays] raycasts from the ship's centre. The hull is a triangle, so the
+/// [_rays] raycasts from the ship's centre. The hull isn't round, so the
 /// gap subtracts how far the hull itself reaches in each ray's direction.
 RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1.0}) {
   final body = ship.body;
   final spec = ship.spec;
   final hull = [
-    Vector2(0, spec.noseLocalY),
-    Vector2(-spec.rearHalfWidth, spec.rearLocalY),
-    Vector2(spec.rearHalfWidth, spec.rearLocalY),
+    for (final poly in spec.hullPolygons)
+      for (final (x, y) in poly) Vector2(x, y),
   ];
   final from = body.position;
   final ray = _NearRay(body);

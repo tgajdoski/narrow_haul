@@ -304,6 +304,9 @@ class AudioService {
 
   static void playShot() => _play('shot.wav', 0.5);
 
+  /// A turret shell shot down in flight: a soft boom.
+  static void playIntercept() => _play('boom.wav', 0.35);
+
   static void playEnemyShot() => _play('enemy_shot.wav', 0.55);
 
   static void playTap() => playUi(UiSound.tap);

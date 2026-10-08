@@ -212,15 +212,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     }
   }
 
-  // Sprite is drawn at 3× the physics hull dimensions so the ship is clearly
-  // visible on-screen. The hitbox remains at the original physics size.
-  static const double _visualScale = 4.5;
-  late final Rect _spriteRect = Rect.fromLTRB(
-    -0.23 * _visualScale * spec.hullScale, // left
-    -0.37 * _visualScale * spec.hullScale, // top  (nose)
-     0.23 * _visualScale * spec.hullScale, // right
-     0.29 * _visualScale * spec.hullScale, // bottom (rear)
-  );
+  // Same scale on both axes, nozzle row on the engine anchor: the hull
+  // polygons ([ShipSpec.hullPolygons]) are traced from this very framing.
+  late final Rect _spriteRect = shipSpriteRect(spec);
 
   /// Garage liveries: a tint over the ship's own art (srcATop).
   static const Map<String, Color> _skinTints = {
@@ -265,13 +259,6 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   @override
   Body createBody() {
-    final vertices = [
-      Vector2(0, spec.noseLocalY),
-      Vector2(-spec.rearHalfWidth, rearLocalY),
-      Vector2(spec.rearHalfWidth, rearLocalY),
-    ];
-    final shape = PolygonShape()..set(vertices);
-
     final def = BodyDef()
       ..position = _initialPosition
       ..type = BodyType.dynamic
@@ -282,16 +269,18 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       ..gravityScale = Vector2.zero();
 
     final b = world.createBody(def);
-    b.createFixture(
-      FixtureDef(
-        shape,
-        density: spec.density,
-        friction: 0.2,
-        restitution: 0.05,
-        filter: filterShip(),
-        userData: const ShipTag(),
-      ),
-    );
+    for (final poly in spec.hullPolygons) {
+      b.createFixture(
+        FixtureDef(
+          PolygonShape()..set([for (final (x, y) in poly) Vector2(x, y)]),
+          density: spec.density,
+          friction: 0.2,
+          restitution: 0.05,
+          filter: filterShip(),
+          userData: const ShipTag(),
+        ),
+      );
+    }
 
     b.createFixture(
       FixtureDef(
@@ -303,6 +292,15 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         userData: const HookTag(),
         filter: filterHook(),
       ),
+    );
+    // Flight mass, balance and inertia of the original triangle hull, so
+    // the traced outline changes what touches, not how the ship flies.
+    b.setMassData(
+      MassData()
+        ..mass = spec.mass
+        ..center.setValues(0, spec.massCenterY)
+        // Box2D takes the inertia about the body origin.
+        ..I = spec.massInertia + spec.mass * spec.massCenterY * spec.massCenterY,
     );
     return b;
   }
@@ -448,4 +446,11 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       }
     }
   }
+}
+
+/// The ship sprite's rect in body space (see [ShipSpec.spriteRect]); shared
+/// with the route guide's ghost ship.
+Rect shipSpriteRect(ShipSpec spec) {
+  final r = spec.spriteRect;
+  return Rect.fromLTRB(r.left, r.top, r.right, r.bottom);
 }

@@ -100,10 +100,24 @@ class Shell extends Component {
   double _age = 0;
   bool _spent = false;
 
+  /// Where the round was at the start of this frame's move (interception
+  /// sweeps from here to [pos]).
+  late final Vector2 prevPos = pos.clone();
+
+  /// Hit something, ran out or was shot down.
+  bool get spent => _spent;
+
+  /// Shot down in flight (interception): gone without a blast.
+  void kill() {
+    if (_spent) return;
+    _expire();
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
     if (_spent) return;
+    prevPos.setFrom(pos);
     _age += dt;
     if (_age > lifetime) {
       // A bomb or missile that runs out still goes off.

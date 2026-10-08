@@ -56,8 +56,31 @@ class CargoBody extends BodyComponent {
     } catch (_) {}
   }
 
-  // Sprite drawn with a proportional padding around the collision circle.
-  static const double _spriteHalf = (radius + 0.04) * 3.0;
+  // cargo.png's disc fills 80% of the image; drawn at 1.15× the collision
+  // radius it reads as the pod's real size (a little rim to spare).
+  static const double _spriteHalf = radius * 1.15 / 0.8;
+
+  /// Rolling resistance on rock (1/s): a ball on Box2D's frictionless-rolling
+  /// floor would roll forever, e.g. out of the pad sensors after the ship
+  /// settles on it. Spin decays at this rate while the pod touches rock.
+  static const double rollingDecay = 2.5;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (body.bodyType != BodyType.dynamic || !_onStaticGround()) return;
+    final t = (rollingDecay * dt).clamp(0.0, 1.0);
+    body.angularVelocity *= 1.0 - t;
+  }
+
+  bool _onStaticGround() {
+    for (final c in body.contacts) {
+      if (!c.isTouching() || c.fixtureA.isSensor || c.fixtureB.isSensor) continue;
+      final other = c.bodyA == body ? c.bodyB : c.bodyA;
+      if (other.bodyType == BodyType.static) return true;
+    }
+    return false;
+  }
 
   @override
   void render(Canvas canvas) {

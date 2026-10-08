@@ -14,14 +14,36 @@ void main() {
       expect(kKestrel.fuelDrainPerSecond, 12);
       expect(kKestrel.density, 1.15);
       expect(kKestrel.linearDamping, 0.22);
-      expect(kKestrel.noseLocalY, -0.51);
       expect(kKestrel.rearLocalY, 0.39);
-      expect(kKestrel.rearHalfWidth, 0.315);
-      expect(kKestrel.hookLocalY, -0.36);
       expect(kKestrel.hookRadius, 0.21);
       expect(kKestrel.ropeLengthMul, 1.0);
-      // Validator clearance stays at the legacy −0.55 threshold.
-      expect(kKestrel.circumradius + 0.04, closeTo(0.55, 1e-9));
+      // Flight mass is the original triangle hull's (base ±0.315 at +0.39,
+      // nose −0.51), whatever the traced outline.
+      expect(kKestrel.mass, closeTo(0.5 * 0.63 * 0.9 * 1.15, 1e-9));
+    });
+
+    test('hulls are traced from the art and stay inside the sprite', () {
+      for (final s in kShips.values) {
+        final r = s.spriteRect;
+        final polys = s.hullPolygons;
+        expect(polys, isNotEmpty, reason: s.id);
+        for (final poly in polys) {
+          expect(poly.length, inInclusiveRange(3, 8), reason: s.id);
+          for (final (x, y) in poly) {
+            expect(x, inInclusiveRange(r.left, r.right), reason: s.id);
+            expect(y, inInclusiveRange(r.top, r.bottom), reason: s.id);
+          }
+        }
+        // The base sits on the engine anchor, the nose tip is the hull's top.
+        final ys = [for (final p in polys) for (final (_, y) in p) y];
+        expect(ys.reduce((a, b) => a > b ? a : b), closeTo(s.rearLocalY, 1e-9), reason: s.id);
+        expect(ys.reduce((a, b) => a < b ? a : b), closeTo(s.noseLocalY, 1e-9), reason: s.id);
+        // Hook just behind the nose, inside the hull's reach.
+        expect(s.hookLocalY, greaterThan(s.noseLocalY), reason: s.id);
+        expect(s.circumradius, lessThan(0.7), reason: s.id);
+        // Balance point of the legacy hull, above the base.
+        expect(s.massCenterY, lessThan(s.rearLocalY), reason: s.id);
+      }
     });
 
     test('unknown id falls back to Kestrel', () {

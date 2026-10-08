@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/defences.dart';
+import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
@@ -179,13 +180,7 @@ class RouteGhost extends Component {
 
   ui.Image? _image;
 
-  static const double _visualScale = 4.5; // as in ShipBody
-  late final Rect _rect = Rect.fromLTRB(
-    -0.23 * _visualScale * ship.hullScale,
-    -0.37 * _visualScale * ship.hullScale,
-    0.23 * _visualScale * ship.hullScale,
-    0.29 * _visualScale * ship.hullScale,
-  );
+  late final Rect _rect = shipSpriteRect(ship); // as in ShipBody
 
   @override
   Future<void> onLoad() async {
