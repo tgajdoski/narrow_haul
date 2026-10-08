@@ -37,11 +37,27 @@ All of them are off in debug builds (collection disabled) and in tests (no sink)
 
 User properties (set at launch and after each delivery): `pilot_rank`, `total_stars`, `payer`.
 
+## Setup status (2026-10-08)
+
+| Item | Status |
+|---|---|
+| Events in the app | ✅ shipped (`analytics_service.dart`) |
+| Privacy policy §6 (Firebase Analytics) | ✅ live at zafrk.com/narrow-haul/privacy |
+| Custom dimensions / metrics | ✅ all registered (10 event dims, 3 user dims, 4 metrics) |
+| BigQuery | ✅ linked, region **EU**, daily export. ⚠ **Sandbox**: tables expire after 60 days until the project is on **Blaze** (do before launch; set a small budget alert) |
+| Google Play | ✅ linked (Analytics revenue + Crashlytics on, App Distribution off) |
+| iOS stream | ✅ "Tag quality: Excellent", sending data |
+| Apple in-app purchase key | ⏭ skipped: a key named "Firebase" exists in App Store Connect (Users and Access → Integrations → In-App Purchase), but neither Firebase nor the GA4 iOS stream offers an upload field for this property. Not needed: `in_app_purchase` and our purchase events arrive anyway; exact revenue is in App Store Connect Sales and Trends. The `.p8` is kept outside the repo |
+| AdMob ↔ Firebase | ⏳ link from AdMob → Apps → App settings → Linked services (may need the store listings live) |
+| Default consent settings (GA4 stream) | left at defaults: EEA ad signals follow the UMP / TCF consent. Open decision: gate basic analytics on consent too? |
+| Device check in DebugView | ⏳ not done yet (step 5 below) |
+| Store privacy forms | ⏳ at submission, see `docs/LAUNCH_READINESS.md` |
+
 ## One-time console setup
 
 1. **Firebase → Analytics → Custom definitions.** Add event-scoped custom dimensions: `level_name`, `cause`, `world`, `ship`, `mode`, `placement`, `product_id`, `status`, `reason`, `weapon`. Add custom metrics: `stars`, `attempt`, `seconds`, `fuel_left_pct`. Add user-scoped dimensions: `pilot_rank`, `total_stars`, `payer`. A param that isn't registered never shows in the Firebase reports (BigQuery still has it).
-2. **Project settings → Integrations → BigQuery → Link.** Turn on the daily export (free tier: 1 GB/day of events, 10 GB storage). The export only covers data from the day you link it, so link it before launch.
-3. **Integrations → AdMob** (ad revenue per user, `ad_impression`), **Google Play** (Play purchases and subscriptions) and, under **Project settings → iOS app → App Store Connect API key**, Apple purchases.
+2. **Project settings → Integrations → BigQuery → Link.** Turn on the daily export (free tier: 1 GB/day of events, 10 GB storage). The region can't be changed later (we use `EU`). The export only covers data from the day you link it, so link it before launch.
+3. **Integrations → Google Play → Link** (Play purchases and subscriptions). **AdMob** is linked from the AdMob side: the card's Android / Apple links open AdMob → App settings → Linked services → Firebase.
 4. **Funnels** (Analytics → Explore → Funnel): `first_open` → `level_start` (tut_01) → `tutorial_complete` → `world_unlocked` → `in_app_purchase`.
 5. **DebugView** to check a build: Android `adb shell setprop debug.firebase.analytics.app com.zafrk.narrowhaul`; iOS: add `-FIRDebugEnabled` to the scheme's launch arguments. In a debug build collection is off, so check with `flutter run --profile`.
 
