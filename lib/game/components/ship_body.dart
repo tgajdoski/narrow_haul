@@ -164,6 +164,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   void wreck() {
     _wrecked = true;
     setInput(rotate: 0, thrust: false);
+    throttle = 0;
   }
 
   /// Undo [wreck] for "continue after crash": back at [position] at rest,
@@ -175,6 +176,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   }) {
     _wrecked = false;
     setInput(rotate: 0, thrust: false);
+    throttle = 0;
     _fireCooldown = 0;
     this.fuel = fuel;
     body
@@ -332,17 +334,29 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
     _updateCannon(dt);
 
-    if (_thrustInput && fuel > 0) {
-      fuel -= spec.fuelDrainPerSecond * fuelDrainMultiplier * dt;
+    // Engine spool: the throttle eases toward the input, and thrust, fuel
+    // and the hover assist all follow it.
+    final firing = _thrustInput && fuel > 0;
+    final rate = firing ? 1 / spec.spoolUp : 2 / spec.spoolUp;
+    throttle = firing
+        ? math.min(1.0, throttle + rate * dt)
+        : math.max(0.0, throttle - rate * dt);
+    if (fuel <= 0) throttle = 0;
+    if (throttle > 0) {
+      fuel -= spec.fuelDrainPerSecond * fuelDrainMultiplier * throttle * dt;
       if (fuel < 0) fuel = 0;
-      final dir = body.worldVector(Vector2(0, -1))..scale(spec.thrustForce);
+      final dir = body.worldVector(Vector2(0, -1))
+        ..scale(spec.thrustForce * throttle);
       body.applyForce(dir);
       if (spec.hoverAssist) {
         // Fly-by-wire: cancel most of the local pull while the engine burns.
-        body.applyForce(localAccel * (-hoverAssistFraction * body.mass));
+        body.applyForce(localAccel * (-hoverAssistFraction * body.mass * throttle));
       }
     }
   }
+
+  /// Engine output 0…1 (see [ShipSpec.spoolUp]).
+  double throttle = 0;
 
   final WorldManifold _manifold = WorldManifold();
 
