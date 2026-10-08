@@ -140,6 +140,7 @@ class NarrowHaulGame extends Forge2DGame
   // Touch HUD and keyboard each keep their own state; the flight inputs
   // above are both combined (either one can steer, thrust or fire).
   double _touchAxis = 0; // raw stick deflection, shaped in [_combineInputs]
+  double _stickX = 0, _stickY = 0; // the stick as a direction (point mode)
   bool _touchThrust = false;
   bool _touchFire = false;
   final KeyboardFlightInput _keys = KeyboardFlightInput();
@@ -157,14 +158,27 @@ class NarrowHaulGame extends Forge2DGame
   /// rate, the stick's outer zone or a held key boosts past it.
   void _combineInputs() {
     final boost = ship?.maxRotateInput ?? 1.0;
-    final touch = FlightTuning.applyBoostCharge(
-      FlightTuning.shapeStick(_touchAxis, boost),
-      _boostCharge,
-    );
+    final s = ship;
+    final touch = FlightTuning.steer.isPointer
+        ? (s == null
+              ? 0.0
+              : FlightTuning.pointerAxis(
+                  x: _stickX,
+                  y: _stickY,
+                  shipAngle: s.body.angle,
+                  baseRate: s.turnRate,
+                  boost: boost,
+                ))
+        : FlightTuning.applyBoostCharge(
+            FlightTuning.shapeStick(_touchAxis, boost),
+            _boostCharge,
+          );
     final key = FlightTuning.keyAxis(_keys.rotateAxis, _keyHeld, boost);
     rotateAxis = (touch + key).clamp(-boost, boost);
     final boosting = rotateAxis.abs() > 1.001;
-    if (boosting && !_wasBoosting) Haptics.light();
+    if (boosting && !_wasBoosting && FlightTuning.steer.hasZones) {
+      Haptics.light();
+    }
     _wasBoosting = boosting;
     thrustHeld = _touchThrust || _keys.thrust;
     fireHeld = _touchFire || _keys.fire;
@@ -458,6 +472,11 @@ class NarrowHaulGame extends Forge2DGame
     _hudControls = HudTouchControls(
       onRotateAxis: (v) {
         _touchAxis = v;
+        _combineInputs();
+      },
+      onStick: (x, y) {
+        _stickX = x;
+        _stickY = y;
         _combineInputs();
       },
       onFire: (v) {
@@ -1112,6 +1131,8 @@ class NarrowHaulGame extends Forge2DGame
     thrustHeld = false;
     fireHeld = false;
     _touchAxis = 0;
+    _stickX = 0;
+    _stickY = 0;
     _touchThrust = false;
     _touchFire = false;
     _keys.reset();
@@ -2077,6 +2098,8 @@ class NarrowHaulGame extends Forge2DGame
     if (_rotateUsed < 0.5) {
       return _desktop
           ? 'Press ← → or A D to rotate the ship'
+          : FlightTuning.steer.isPointer
+          ? 'Drag on the $steerSide side toward where the nose should point'
           : 'Drag on the $steerSide side to rotate the ship';
     }
     if (!attached) {
@@ -2810,7 +2833,9 @@ class NarrowHaulGame extends Forge2DGame
         _boostCharge = FlightTuning.nextBoostCharge(_boostCharge, _touchAxis, dt);
         // Re-shape held input every frame: the key boost ramps with time
         // and the boost shrinks once the pod is hooked.
-        if (_touchAxis != 0 || _keys.rotateAxis != 0) _combineInputs();
+        if (_touchAxis != 0 || _stickX != 0 || _stickY != 0 || _keys.rotateAxis != 0) {
+          _combineInputs();
+        }
         s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
         _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;

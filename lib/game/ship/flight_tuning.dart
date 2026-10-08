@@ -21,7 +21,10 @@ enum SteerMode {
   smooth('Smooth', 'Two-speed with inertia, eases in and out'),
 
   /// Proportional over the whole throw up to the boost rate.
-  agile('Agile', 'Fast everywhere: half stick = ship turn rate');
+  agile('Agile', 'Fast everywhere: half stick = ship turn rate'),
+
+  /// The nose turns toward wherever the stick points (screen directions).
+  pointer('Point', 'The nose turns to where you point the stick');
 
   const SteerMode(this.label, this.blurb);
   final String label;
@@ -31,6 +34,9 @@ enum SteerMode {
 
   /// Gold notch on the dial (a distinct precise zone).
   bool get hasZones => this == twoSpeed || this == smooth;
+
+  /// The stick is a direction, not a left/right turn.
+  bool get isPointer => this == pointer;
 
   /// Seconds from rest to full boosted rate (0 = instant).
   double get spinUp => this == smooth ? 0.18 : 0;
@@ -140,6 +146,8 @@ abstract final class FlightTuning {
     switch (mode ?? steer) {
       case SteerMode.classic:
         return x.clamp(-1.0, 1.0);
+      case SteerMode.pointer:
+        return 0; // steered by direction, see [pointerAxis]
       case SteerMode.agile:
         return x.sign * math.min(1.0, span) * boost;
       case SteerMode.twoSpeed:
@@ -150,6 +158,33 @@ abstract final class FlightTuning {
         final t = math.min(1.0, (a - boostStart) / (boostFull - boostStart));
         return x.sign * (1 + (boost - 1) * t);
     }
+  }
+
+  /// Point-to-steer: below this stick deflection the ship holds its
+  /// heading (a resting thumb doesn't spin it).
+  static const double pointerMinStick = 0.3;
+
+  /// Seconds the heading controller takes to close an error: 0.12 s turns
+  /// a 20° error into a full boost and eases into the target without
+  /// overshoot (rate falls in proportion as the nose comes round).
+  static const double pointerResponse = 0.12;
+
+  /// Rotate input that turns a ship at angle [shipAngle] (rad, 0 = nose up,
+  /// clockwise) toward the stick direction ([x], [y], screen axes, y down).
+  /// [baseRate] is the ship's turn rate at input 1 (rad/s).
+  static double pointerAxis({
+    required double x,
+    required double y,
+    required double shipAngle,
+    required double baseRate,
+    required double boost,
+  }) {
+    if (x * x + y * y < pointerMinStick * pointerMinStick) return 0;
+    final target = math.atan2(x, -y);
+    var diff = (target - shipAngle) % (2 * math.pi);
+    if (diff > math.pi) diff -= 2 * math.pi;
+    if (diff.abs() < 0.01) return 0;
+    return (diff / (pointerResponse * baseRate)).clamp(-boost, boost);
   }
 
   /// Whether a raw stick deflection is past the gold notch (for the dial).

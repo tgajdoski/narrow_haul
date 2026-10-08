@@ -17,12 +17,16 @@ import 'package:narrow_haul/game/ship/flight_tuning.dart';
 class HudTouchControls extends PositionComponent {
   HudTouchControls({
     required this.onRotateAxis,
+    this.onStick,
     required this.onThrust,
     this.onFire,
     this.onCycleWeapon,
   }) : super(priority: 5000);
 
   final void Function(double axis) onRotateAxis;
+
+  /// The stick as a direction (x, y in −1…1, screen axes) for point-to-steer.
+  final void Function(double x, double y)? onStick;
   final void Function(bool pressed) onThrust;
   final void Function(bool pressed)? onFire;
 
@@ -94,6 +98,7 @@ class HudTouchControls extends PositionComponent {
       areaSize: Vector2(sz.x * 0.5, sz.y),
       position: Vector2(_leftHanded ? sz.x * 0.5 : 0, 0),
       onAxisChanged: onRotateAxis,
+      onStick: onStick,
       hintFraction: _leftHanded ? 0.78 : 0.22,
       // The joystick covers one half: only that half's outer edge is inset.
       hintInsets: _leftHanded
@@ -154,6 +159,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     required Vector2 areaSize,
     required Vector2 position,
     required this.onAxisChanged,
+    this.onStick,
     this.hintFraction = 0.22,
     this.hintInsets = EdgeInsets.zero,
   }) : super(
@@ -163,6 +169,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
         );
 
   final void Function(double axis) onAxisChanged;
+  final void Function(double x, double y)? onStick;
 
   /// Horizontal position of the idle hint within the joystick area.
   final double hintFraction;
@@ -183,10 +190,11 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   /// Last emitted axis, for lighting the side the pilot is turning to.
   double _axis = 0;
 
-  void _emit(double raw) {
+  void _emit(double raw, [double rawY = 0]) {
     final clamped = raw.clamp(-1.0, 1.0);
     _axis = clamped.abs() < _deadzone ? 0.0 : clamped;
     onAxisChanged(_axis);
+    onStick?.call(clamped, rawY.clamp(-1.0, 1.0));
   }
 
   @override
@@ -209,7 +217,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     final dx = delta.x.clamp(-_maxKnobRadius, _maxKnobRadius);
     final dy = delta.y.clamp(-_maxKnobRadius, _maxKnobRadius);
     _knobCenter = base + Vector2(dx, dy);
-    _emit(dx / _maxKnobRadius);
+    _emit(dx / _maxKnobRadius, dy / _maxKnobRadius);
   }
 
   @override
@@ -309,6 +317,10 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
         canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
       }
     }
+    if (FlightTuning.steer.isPointer) {
+      _drawPointer(canvas, c, active: active, alpha: a);
+      return;
+    }
     final boosting = FlightTuning.stickBoosting(axis);
     if (axis != 0) {
       final lit = Paint()
@@ -327,6 +339,32 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     }
     _drawTurnArrow(canvas, c, left: true, lit: axis < 0, boost: boosting, alpha: a);
     _drawTurnArrow(canvas, c, left: false, lit: axis > 0, boost: boosting, alpha: a);
+  }
+
+  /// Point-to-steer: a needle from the centre to the knob (the heading the
+  /// nose turns to) and a dashed ring where pointing starts to count.
+  void _drawPointer(Canvas canvas, Offset c, {required bool active, required double alpha}) {
+    final ring = Paint()
+      ..color = HudColors.cyan.withValues(alpha: 0.3 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    const r = FlightTuning.pointerMinStick * _maxKnobRadius;
+    for (var i = 0; i < 12; i++) {
+      final a0 = i * math.pi / 6;
+      canvas.drawArc(Rect.fromCircle(center: c, radius: r), a0, math.pi / 12, false, ring);
+    }
+    final knob = _knobCenter;
+    if (!active || knob == null) return;
+    final d = Offset(knob.x, knob.y) - c;
+    if (d.distance < r) return;
+    canvas.drawLine(
+      c,
+      c + d,
+      Paint()
+        ..color = HudColors.cyanBright.withValues(alpha: 0.85)
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   void _drawTurnArrow(

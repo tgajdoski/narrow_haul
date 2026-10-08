@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
@@ -115,6 +117,39 @@ void main() {
       expect(FlightTuning.shapeStick(1, 2, m), closeTo(2, 1e-9));
       final half = (1 + FlightTuning.stickDeadzone) / 2;
       expect(FlightTuning.shapeStick(half, 2, m), closeTo(1, 1e-9));
+    });
+
+    group('Point', () {
+      double axis(double x, double y, double angle) => FlightTuning.pointerAxis(
+        x: x,
+        y: y,
+        shipAngle: angle,
+        baseRate: kKestrel.rotationSpeedRadPerSec,
+        boost: 2,
+      );
+
+      test('turns the short way toward the stick, at most the boost', () {
+        expect(axis(1, 0, 0), 2); // point right: turn clockwise, full boost
+        expect(axis(-1, 0, 0), -2);
+        expect(axis(0, -1, 0), 0); // already pointing up
+        expect(axis(0.7, -0.7, 0.75), lessThan(0.3)); // ~0.04 rad off: gentle
+        // Nose at 170°, stick at -170° (= 190°): 20° clockwise, not 340°.
+        final a = axis(math.sin(-170 * math.pi / 180), -math.cos(-170 * math.pi / 180),
+            170 * math.pi / 180);
+        expect(a, greaterThan(0));
+        expect(axis(1, 0, 4 * math.pi), 2); // whole turns don't matter
+      });
+
+      test('a resting thumb holds the heading', () {
+        expect(axis(0.2, 0.1, 0), 0);
+      });
+
+      test('slows down as the nose comes round', () {
+        final far = axis(1, -1, 0).abs();
+        final near = axis(math.sin(0.1), -math.cos(0.1), 0).abs();
+        expect(near, lessThan(far));
+        expect(near, greaterThan(0));
+      });
     });
 
     test('only Smooth has inertia and a glide', () {
