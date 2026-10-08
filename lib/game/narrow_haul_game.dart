@@ -24,6 +24,7 @@ import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
+import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
@@ -1126,28 +1127,36 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Game events ───────────────────────────────────────────────────────────
 
-  /// A slow rock touch ([classifyHullContact]): sparks or a dust puff, a
-  /// soft knock, and the first time ever, a hint that slow touches are safe.
+  /// A slow rock touch ([classifyHullContact]): the shield flares (plus a
+  /// dust puff on a touchdown), a soft knock, and the first time ever, a
+  /// hint that slow touches are safe.
   void _onRockTouch(Vector2 point, Vector2 normal, HullContact kind) {
     if (runState != RunState.playing || demoMode) return;
     scrapesThisRun++;
     if (_scrapeFxCooldown > 0) return;
     _scrapeFxCooldown = 0.2;
     final touchdown = kind == HullContact.touchdown;
-    world.add(
-      SparkBurst(
-        center: Offset(point.x, point.y),
-        normal: Offset(normal.x, normal.y),
-        dust: touchdown,
-        seed: scrapesThisRun,
-      ),
-    );
+    final s = ship;
+    if (s != null) {
+      world.add(
+        ShieldFlash(ship: s, rockNormal: normal, strength: touchdown ? 0.55 : 1),
+      );
+    }
+    if (touchdown) {
+      world.add(
+        DustPuff(
+          center: Offset(point.x, point.y),
+          normal: Offset(normal.x, normal.y),
+          seed: scrapesThisRun,
+        ),
+      );
+    }
     AudioService.playScrape(touchdown: touchdown);
     touchdown ? Haptics.medium() : Haptics.light();
     final progress = ProgressService.instance;
     if (!progress.scrapeHintSeen) {
       progress.markScrapeHintSeen();
-      _weaponHint = 'Slow touches are safe — hit the rock fast and you crash';
+      _weaponHint = 'Shields hold on slow touches — hit the rock fast and you crash';
       _weaponHintLeft = 3.5;
     }
   }

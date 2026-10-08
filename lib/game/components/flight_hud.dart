@@ -229,39 +229,34 @@ class LevelIntroHud extends PositionComponent {
   }
 }
 
-/// Sparks where the hull scraped rock (world space, meters), thrown off the
-/// surface along [normal]. A touchdown kicks up a softer, greyer puff.
-class SparkBurst extends Component {
-  SparkBurst({
-    required this.center,
-    required Offset normal,
-    this.dust = false,
-    int seed = 0,
-  }) : super(priority: 1100) {
+/// Dust kicked up where the ship touched down on rock (world space,
+/// meters), thrown off the surface along [normal].
+class DustPuff extends Component {
+  DustPuff({required this.center, required Offset normal, int seed = 0})
+    : super(priority: 1100) {
     final rng = math.Random(seed);
     final base = math.atan2(normal.dy, normal.dx);
-    _sparks = List.generate(dust ? 10 : 9, (_) {
-      final ang = base + (rng.nextDouble() - 0.5) * (dust ? 2.6 : 1.6);
-      final speed = (dust ? 0.6 : 1.5) + rng.nextDouble() * (dust ? 0.8 : 2.5);
+    _grains = List.generate(10, (_) {
+      final ang = base + (rng.nextDouble() - 0.5) * 2.6;
+      final speed = 0.6 + rng.nextDouble() * 0.8;
       return _Debris(
         pos: center,
         vel: Offset(math.cos(ang), math.sin(ang)) * speed,
-        size: dust ? 0.05 + rng.nextDouble() * 0.06 : 0.025,
-        hot: !dust,
-        life: (dust ? 0.35 : 0.2) + rng.nextDouble() * 0.2,
+        size: 0.05 + rng.nextDouble() * 0.06,
+        hot: false,
+        life: 0.35 + rng.nextDouble() * 0.2,
       );
     });
   }
 
   final Offset center;
-  final bool dust;
-  late final List<_Debris> _sparks;
+  late final List<_Debris> _grains;
   double _t = 0;
 
   @override
   void update(double dt) {
     _t += dt;
-    for (final d in _sparks) {
+    for (final d in _grains) {
       d.vel = d.vel * math.pow(0.05, dt).toDouble() + Offset(0, 1.5 * dt);
       d.pos += d.vel * dt;
     }
@@ -270,23 +265,12 @@ class SparkBurst extends Component {
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()..strokeCap = StrokeCap.round;
-    for (final d in _sparks) {
+    final paint = Paint();
+    for (final d in _grains) {
       final k = 1 - (_t / d.life).clamp(0.0, 1.0);
       if (k <= 0) continue;
-      if (dust) {
-        paint.color = const Color(0xFFB8B0A0).withValues(alpha: 0.45 * k);
-        canvas.drawCircle(d.pos, d.size * (1.6 - k * 0.6), paint);
-      } else {
-        paint
-          ..color = Color.lerp(
-            const Color(0xFFFF8A3D),
-            const Color(0xFFFFF1B0),
-            k,
-          )!.withValues(alpha: k)
-          ..strokeWidth = d.size;
-        canvas.drawLine(d.pos, d.pos - d.vel * 0.035, paint);
-      }
+      paint.color = const Color(0xFFB8B0A0).withValues(alpha: 0.45 * k);
+      canvas.drawCircle(d.pos, d.size * (1.6 - k * 0.6), paint);
     }
   }
 }
