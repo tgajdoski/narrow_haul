@@ -16,6 +16,7 @@ import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/ui/career_overlays.dart';
 import 'package:narrow_haul/ui/delivered_by_screen.dart';
 import 'package:narrow_haul/ui/fonts.dart';
@@ -50,6 +51,10 @@ void main() async {
   // Point the global Flame image cache at assets/ (not the default assets/images/).
   Flame.images.prefix = 'assets/';
   await ProgressService.init();
+  if (!kReleaseMode) {
+    final p = ProgressService.instance;
+    FlightTuning.set(turn: p.devTurnMul, expo: p.devCurveExpo, spin: p.devSpinUp);
+  }
   try {
     await CareerService.migrateIfNeeded();
   } catch (e, st) {

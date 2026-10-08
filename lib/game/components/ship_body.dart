@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -75,6 +76,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   static const double releaseSpinDecay = 22;
 
   double get maxFuel => spec.maxFuel;
+
+  /// Full-input turn rate (rad/s): the spec's, times the dev [FlightTuning].
+  double get turnRate => spec.rotationSpeedRadPerSec * FlightTuning.turnMul;
 
   /// Local acceleration at the ship (m/s²), fed by the game each frame — the
   /// "down" that passive assists level against.
@@ -296,14 +300,23 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       final target = math.atan2(-localAccel.x, localAccel.y);
       var diff = (target - body.angle) % (2 * math.pi);
       if (diff > math.pi) diff -= 2 * math.pi;
-      final maxRate = spec.rotationSpeedRadPerSec * _levelMaxRate;
+      final maxRate = turnRate * _levelMaxRate;
       body.angularVelocity = (diff * _levelGain).clamp(-maxRate, maxRate);
     } else if (idle) {
       final t = (releaseSpinDecay * dt).clamp(0.0, 1.0);
       body.angularVelocity *= 1.0 - t;
     } else {
       // Constant turn rate: 360° in [secondsPerFullRotation] at |input| == 1.
-      body.angularVelocity = _rotateInput * spec.rotationSpeedRadPerSec;
+      final target = _rotateInput * turnRate;
+      final spinUp = FlightTuning.spinUp;
+      if (spinUp > 0) {
+        // Thruster spin-up: reach full rate from rest in [spinUp] seconds.
+        final step = turnRate / spinUp * dt;
+        final w = body.angularVelocity;
+        body.angularVelocity = w + (target - w).clamp(-step, step);
+      } else {
+        body.angularVelocity = target;
+      }
     }
 
     _updateCannon(dt);

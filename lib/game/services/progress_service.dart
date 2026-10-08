@@ -81,6 +81,9 @@ class ProgressService {
     'haptics_enabled',
     'left_handed',
     'minimap_enabled',
+    'dev_turn_mul',
+    'dev_curve_expo',
+    'dev_spin_up',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -230,6 +233,16 @@ class ProgressService {
   /// Mirrors the touch controls: thrust on the left, joystick on the right.
   bool get leftHanded => _bool('left_handed') ?? false;
   Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
+
+  /// Dev-only flight tuning (see `FlightTuning`); null = stock.
+  double? get devTurnMul => _double('dev_turn_mul');
+  double? get devCurveExpo => _double('dev_curve_expo');
+  double? get devSpinUp => _double('dev_spin_up');
+  Future<void> setDevFlightTuning(double turnMul, double curveExpo, double spinUp) async {
+    await _prefs.setDouble('dev_turn_mul', turnMul);
+    await _prefs.setDouble('dev_curve_expo', curveExpo);
+    await _prefs.setDouble('dev_spin_up', spinUp);
+  }
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 

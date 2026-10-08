@@ -4,6 +4,8 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
@@ -185,6 +187,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           value: _p.minimapEnabled,
           onChanged: (v) => _set(_p.setMinimapEnabled, v),
         ),
+        if (!kReleaseMode) _FlightTuningSection(game: widget.game),
       ],
     );
 
@@ -495,4 +498,205 @@ class _AboutSection extends StatelessWidget {
   }) {
     return HoloListRow(icon: icon, title: title, onTap: onTap, color: color);
   }
+}
+
+/// Dev builds only: live handling knobs ([FlightTuning]) to find the turn
+/// feel on a phone. Changes apply at once (open Settings from the pause menu
+/// mid-flight) and persist on release of the slider.
+class _FlightTuningSection extends StatefulWidget {
+  const _FlightTuningSection({required this.game});
+
+  final NarrowHaulGame game;
+
+  @override
+  State<_FlightTuningSection> createState() => _FlightTuningSectionState();
+}
+
+class _FlightTuningSectionState extends State<_FlightTuningSection> {
+  void _change({double? turn, double? expo, double? spin}) {
+    setState(() => FlightTuning.set(turn: turn, expo: expo, spin: spin));
+  }
+
+  Future<void> _save() => ProgressService.instance.setDevFlightTuning(
+    FlightTuning.turnMul,
+    FlightTuning.curveExpo,
+    FlightTuning.spinUp,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = widget.game.ship?.spec ?? kKestrel;
+    final secs = spec.secondsPerFullRotation / FlightTuning.turnMul;
+    final degPerSec = 360 / secs;
+    final half = FlightTuning.shapeAxis(0.5);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        const PanelTitle('Flight tuning (dev)', color: SpaceColors.gold),
+        _slider(
+          label: 'Turn speed ×${FlightTuning.turnMul.toStringAsFixed(2)}',
+          detail:
+              '${spec.name}: ${secs.toStringAsFixed(1)} s / 360° '
+              '(${degPerSec.round()}°/s)',
+          value: FlightTuning.turnMul,
+          min: FlightTuning.turnMulMin,
+          max: FlightTuning.turnMulMax,
+          divisions: 25,
+          onChanged: (v) => _change(turn: v),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: _slider(
+                label: 'Stick curve ${FlightTuning.curveExpo.toStringAsFixed(2)}',
+                detail: 'Half stick → ${(half * 100).round()}% turn',
+                value: FlightTuning.curveExpo,
+                min: 0,
+                max: 1,
+                divisions: 20,
+                onChanged: (v) => _change(expo: v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 44,
+              height: 36,
+              child: CustomPaint(
+                painter: _CurvePainter(FlightTuning.curveExpo),
+              ),
+            ),
+          ],
+        ),
+        _slider(
+          label:
+              'Spin-up ${(FlightTuning.spinUp * 1000).round()} ms',
+          detail: FlightTuning.spinUp == 0
+              ? 'Instant (stock)'
+              : 'Time to full turn rate',
+          value: FlightTuning.spinUp,
+          min: 0,
+          max: FlightTuning.spinUpMax,
+          divisions: 12,
+          onChanged: (v) => _change(spin: v),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: FlightTuning.isStock
+                ? null
+                : () {
+                    _change(turn: 1.0, expo: 0.0, spin: 0.0);
+                    _save();
+                  },
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            label: const Text('Reset to stock'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _slider({
+    required String label,
+    required String detail,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: SpaceColors.textFaint,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 3,
+              activeTrackColor: SpaceColors.gold,
+              inactiveTrackColor: SpaceColors.track,
+              thumbColor: SpaceColors.gold,
+              overlayShape: SliderComponentShape.noOverlay,
+            ),
+            child: SizedBox(
+              height: 26,
+              child: Slider(
+                value: value.clamp(min, max),
+                min: min,
+                max: max,
+                divisions: divisions,
+                onChanged: onChanged,
+                onChangeEnd: (_) => _save(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Stick → turn-rate response for the current curve (dashed: linear).
+class _CurvePainter extends CustomPainter {
+  _CurvePainter(this.expo);
+
+  final double expo;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final frame = Paint()
+      ..color = const Color(0x33FFFFFF)
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(Offset.zero & size, frame);
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(size.width, 0),
+      Paint()..color = const Color(0x33FFFFFF),
+    );
+    final path = Path();
+    const steps = 24;
+    for (var i = 0; i <= steps; i++) {
+      final x = i / steps;
+      final y = FlightTuning.shapeAxis(x, expo: expo);
+      final p = Offset(x * size.width, size.height * (1 - y));
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = SpaceColors.gold
+        ..strokeWidth = 1.6
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CurvePainter old) => old.expo != expo;
 }

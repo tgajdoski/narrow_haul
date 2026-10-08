@@ -57,6 +57,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -419,7 +420,7 @@ class NarrowHaulGame extends Forge2DGame
 
     _hudControls = HudTouchControls(
       onRotateAxis: (v) {
-        _touchAxis = v;
+        _touchAxis = FlightTuning.shapeAxis(v);
         _combineInputs();
       },
       onFire: (v) {
