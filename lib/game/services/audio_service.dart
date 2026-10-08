@@ -12,6 +12,7 @@ import 'thrust_envelope.dart';
 ///   attach.mp3      – rope attachment snap
 ///   crash.mp3       – hull breach / wall hit
 ///   land.wav        – successful landing
+///   shield_hit.wav  – hull shield meeting rock (scrape / touchdown)
 ///   star.wav        – star(s) earned jingle
 ///   shot.wav        – nose cannon shot (pooled for rapid fire)
 ///   boom.wav        – turret / reactor explosion
@@ -29,6 +30,7 @@ class AudioService {
     'attach.mp3',
     'crash.mp3',
     'land.wav',
+    'shield_hit.wav',
     'star.wav',
     'shot.wav',
     'boom.wav',
@@ -74,6 +76,7 @@ class AudioService {
     'attach.mp3': 1,
     'crash.mp3': 1,
     'land.wav': 1,
+    'shield_hit.wav': 2,
     'star.wav': 1,
     'start_level.m4a': 1,
     'countdown.wav': 1,
@@ -316,9 +319,10 @@ class AudioService {
     _play('land.wav', 0.9);
   }
 
-  /// Hull scraping rock, or a soft touchdown (keeps the engine loop going).
+  /// Hull shield meeting rock: a scrape, or softer for a touchdown (keeps
+  /// the engine loop going).
   static void playScrape({bool touchdown = false}) =>
-      _play('land.wav', touchdown ? 0.45 : 0.3);
+      _play('shield_hit.wav', touchdown ? 0.4 : 0.6);
 
   static void playStar() => _play('star.wav', 0.8);
 

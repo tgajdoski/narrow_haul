@@ -273,6 +273,11 @@ class NarrowHaulGame extends Forge2DGame
   int scrapesThisRun = 0;
   double _scrapeFxCooldown = 0;
 
+  /// A bounce or a slide re-touches within a moment: one shield sound per
+  /// [_scrapeSoundGap] seconds.
+  double _scrapeSoundCooldown = 0;
+  static const double _scrapeSoundGap = 0.4;
+
   // ── Star / time tracking ─────────────────────────────────────────────────
   int lastLevelStars = 0;
   double lastLevelTimeSeconds = 0.0;
@@ -1069,6 +1074,7 @@ class NarrowHaulGame extends Forge2DGame
     _weaponHintLeft = 0;
     scrapesThisRun = 0;
     _scrapeFxCooldown = 0;
+    _scrapeSoundCooldown = 0;
     _hudControls?.weapon = null;
     camera.stop();
     for (final c in _levelEntities.reversed) {
@@ -1151,7 +1157,10 @@ class NarrowHaulGame extends Forge2DGame
         ),
       );
     }
-    AudioService.playScrape(touchdown: touchdown);
+    if (_scrapeSoundCooldown <= 0) {
+      _scrapeSoundCooldown = _scrapeSoundGap;
+      AudioService.playScrape(touchdown: touchdown);
+    }
     touchdown ? Haptics.medium() : Haptics.light();
     final progress = ProgressService.instance;
     if (!progress.scrapeHintSeen) {
@@ -2574,6 +2583,7 @@ class NarrowHaulGame extends Forge2DGame
     if (!s.laserFiring) _laserTick = 0;
     if (_weaponHintLeft > 0) _weaponHintLeft -= dt;
     if (_scrapeFxCooldown > 0) _scrapeFxCooldown -= dt;
+    if (_scrapeSoundCooldown > 0) _scrapeSoundCooldown -= dt;
     if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
       _syncWeaponHud();
     }

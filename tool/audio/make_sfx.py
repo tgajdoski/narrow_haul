@@ -22,6 +22,7 @@ Python stdlib only. Deterministic: running it twice gives byte-identical files.
   ui_close.wav     panel slides out: the same scan falling, 0.18 s
   ui_toggle_on.wav / ui_toggle_off.wav  switch clicks, up / down, 50 ms
   ui_denied.wav    locked / can't afford: low double buzz, 0.2 s
+  shield_hit.wav   hull shield meets rock: soft thump + shimmer, one hit, 0.3 s
 
 attach.mp3 and crash.mp3 are hand-made and not generated here. A real file of
 the same name can replace any of these.
@@ -430,6 +431,27 @@ def ui_denied():
     write_wav('ui_denied.wav', out)
 
 
+# ── shield hit ──────────────────────────────────────────────────────────────
+
+def shield_hit():
+    """One soft deflector hit: a low thump, an electric shimmer falling
+    1100 -> 650 Hz with a 34 Hz flutter, and a quick band-passed fizz."""
+    rng = random.Random(11)
+    dur = 0.3
+    n = int(SR * dur)
+    thump = _sweep(dur, 170, 85, 18)
+    shimmer = _sweep(dur, 1100, 650, 11, harm=0.35)
+    fizz = _bandpass([rng.uniform(-1, 1) for _ in range(n)], 2500, 7000, _Q4)
+    out = []
+    for i in range(n):
+        t = i / SR
+        flutter = 0.65 + 0.35 * math.sin(2 * math.pi * 34 * t)
+        out.append(0.8 * thump[i] + 0.35 * shimmer[i] * flutter +
+                   0.18 * fizz[i] * math.exp(-t * 26))
+    _edges(out, 0.06)
+    write_wav('shield_hit.wav', out)
+
+
 def _edges(out, fade_s):
     """0.5 ms attack ramp and a linear fade-out of [fade_s]."""
     att, fade = max(1, int(0.0005 * SR)), int(fade_s * SR)
@@ -460,3 +482,4 @@ if __name__ == '__main__':
     ui_close()
     ui_toggles()
     ui_denied()
+    shield_hit()

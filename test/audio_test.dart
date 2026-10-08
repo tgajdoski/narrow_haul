@@ -71,7 +71,7 @@ void main() {
             .allMatches(File(f).readAsStringSync())
             .map((m) => m.group(1)!),
     };
-    expect(listed, hasLength(31));
+    expect(listed, hasLength(32));
     for (final f in listed) {
       expect(File('assets/audio/$f').existsSync(), isTrue, reason: f);
     }
