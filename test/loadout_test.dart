@@ -1,7 +1,10 @@
+import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/cargo_attachment.dart';
+import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() {
   test('stock cable is the original tow', () {
@@ -37,5 +40,41 @@ void main() {
         expect(v, inInclusiveRange(0.0, 1.0), reason: r.id);
       }
     }
+  });
+
+  group('handling kits', () {
+    ShipBody ship(KitSpec kit) => ShipBody(
+      initialPosition: Vector2.zero(),
+      onWallHit: () {},
+      kit: kit,
+    );
+
+    test('the standard fit is exactly the ship', () {
+      final b = ship(kStockKit);
+      expect(b.turnRate, kKestrel.rotationSpeedRadPerSec);
+      expect(b.maxFuel, kKestrel.maxFuel);
+      expect(b.fuel, kKestrel.maxFuel);
+      expect([kStockKit.dampingAdd, kStockKit.fuelDrainMul], [0, 1]);
+    });
+
+    test('every kit in the Garage has stats, and only those', () {
+      final kits = CosmeticsService.all.where((i) => i.category == CosmeticsService.catKit);
+      expect({for (final k in kits) k.id}, kKits.keys.toSet());
+      expect(kitById('nope'), same(kStockKit));
+      expect(kKits['kit_none'], same(kStockKit)); // the Garage default
+    });
+
+    test('every kit is a sidegrade: it pays in fuel or tank', () {
+      for (final k in kKits.values.where((k) => k != kStockKit)) {
+        expect(k.fuelDrainMul > 1 || k.tankMul < 1, isTrue, reason: k.id);
+      }
+    });
+
+    test('verniers turn faster and shrink the tank', () {
+      final b = ship(kKits['kit_verniers']!);
+      expect(b.turnRate, closeTo(kKestrel.rotationSpeedRadPerSec * 1.25, 1e-9));
+      expect(b.maxFuel, closeTo(kKestrel.maxFuel * 0.9, 1e-9));
+      expect(b.fuel, b.maxFuel);
+    });
   });
 }

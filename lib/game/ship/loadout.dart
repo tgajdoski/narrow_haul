@@ -165,3 +165,99 @@ class RopeStats {
     );
   }
 }
+
+/// Handling kits the player fits in the Garage (Handling tab). Sidegrades
+/// like the tow gear: each one makes flying easier in one way and costs
+/// fuel or tank for it. The autopilot, validator and 3★ checks fly stock.
+class KitSpec {
+  const KitSpec({
+    required this.id,
+    required this.name,
+    required this.blurb,
+    this.turnMul = 1,
+    this.levelAssist = false,
+    this.dampingAdd = 0,
+    this.fuelDrainMul = 1,
+    this.tankMul = 1,
+  });
+
+  final String id;
+  final String name;
+
+  /// One line for the Garage: what it's good at and what it costs.
+  final String blurb;
+
+  /// Multiplies the ship's turn rate (both stick speeds).
+  final double turnMul;
+
+  /// Eases the nose upright against local gravity when both controls are
+  /// released, at a gentler rate than the Skate's built-in stabiliser.
+  final bool levelAssist;
+
+  /// Added to the hull's linear damping: drift dies away sooner, which
+  /// makes stopping and hovering easier but caps top speed.
+  final double dampingAdd;
+
+  /// Multiplies fuel burn (assists draw power).
+  final double fuelDrainMul;
+
+  /// Multiplies tank size.
+  final double tankMul;
+}
+
+/// The stock fit: exactly the ship as specified.
+const kStockKit = KitSpec(id: 'kit_none', name: 'Standard Fit', blurb: 'The ship as delivered.');
+
+const Map<String, KitSpec> kKits = {
+  'kit_none': kStockKit,
+  // Skate-style auto-level for any ship. Lets a beginner let go and recover;
+  // the gyros cost 6% more fuel.
+  'kit_gyro': KitSpec(
+    id: 'kit_gyro',
+    name: 'Gyro Stabiliser',
+    blurb: 'Rights the ship when you let go. Burns 6% more fuel.',
+    levelAssist: true,
+    fuelDrainMul: 1.06,
+  ),
+  // +25% turn rate: a Kestrel flips in 0.8 s. The extra plumbing takes
+  // 10% of the tank.
+  'kit_verniers': KitSpec(
+    id: 'kit_verniers',
+    name: 'Vernier Thrusters',
+    blurb: 'Turns 25% faster. Tank 10% smaller.',
+    turnMul: 1.25,
+    tankMul: 0.9,
+  ),
+  // +0.25 damping roughly doubles the Kestrel's (0.22): a 2.5 m/s drift
+  // halves in ~1.5 s instead of ~3 s. Slower top speed, 8% more fuel.
+  'kit_dampers': KitSpec(
+    id: 'kit_dampers',
+    name: 'Inertial Dampers',
+    blurb: 'Drift dies away: easy stops and hovers. Slower, 8% more fuel.',
+    dampingAdd: 0.25,
+    fuelDrainMul: 1.08,
+  ),
+};
+
+KitSpec kitById(String id) => kKits[id] ?? kStockKit;
+
+/// Garage stat bars for a kit, each 0..1 (stock sits mid-scale).
+class KitStats {
+  const KitStats({
+    required this.turn,
+    required this.steady,
+    required this.economy,
+  });
+  final double turn;
+  final double steady;
+  final double economy;
+
+  static KitStats of(KitSpec k) {
+    double c(double v) => v.clamp(0.05, 1.0);
+    return KitStats(
+      turn: c(0.5 * k.turnMul + (k.levelAssist ? 0.1 : 0)),
+      steady: c(0.5 + k.dampingAdd * 1.4 + (k.levelAssist ? 0.25 : 0)),
+      economy: c(0.6 - (k.fuelDrainMul - 1) * 4 - (1 - k.tankMul) * 3),
+    );
+  }
+}

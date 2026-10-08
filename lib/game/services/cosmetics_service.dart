@@ -35,6 +35,7 @@ class CosmeticsService {
   static const String catShip = 'ship';
   static const String catRope = 'rope';
   static const String catPlume = 'plume';
+  static const String catKit = 'kit';
 
   static const List<CosmeticItem> all = [
     // Ships
@@ -61,6 +62,11 @@ class CosmeticsService {
     CosmeticItem(id: 'rope_neon', name: 'Shock Cord', category: catRope, cost: 350, icon: '💗'),
     CosmeticItem(id: 'rope_braided', name: 'Long Line', category: catRope, cost: 0, icon: '🧶', rankRequired: 3),
     CosmeticItem(id: 'rope_tractor', name: 'Tractor Beam', category: catRope, cost: 500, icon: '🛸'),
+    // Handling kits: sidegrades (stats in ship/loadout.dart).
+    CosmeticItem(id: 'kit_none', name: 'Standard Fit', category: catKit, cost: 0, icon: '🛠️'),
+    CosmeticItem(id: 'kit_gyro', name: 'Gyro Stabiliser', category: catKit, cost: 150, icon: '🧭'),
+    CosmeticItem(id: 'kit_verniers', name: 'Vernier Thrusters', category: catKit, cost: 200, icon: '🌀'),
+    CosmeticItem(id: 'kit_dampers', name: 'Inertial Dampers', category: catKit, cost: 250, icon: '🛡️'),
     // Plumes
     CosmeticItem(id: 'plume_blue', name: 'Standard Blue', category: catPlume, cost: 0, icon: '🔥'),
     CosmeticItem(id: 'plume_green', name: 'Toxic Green', category: catPlume, cost: 50, icon: '🧪'),
@@ -127,6 +133,7 @@ class CosmeticsService {
     if (category == catShip) def = 'ship_standard';
     if (category == catRope) def = 'rope_cable';
     if (category == catPlume) def = 'plume_blue';
+    if (category == catKit) def = 'kit_none';
     return ProgressService.instance.getEquippedCosmetic(category, def);
   }
 

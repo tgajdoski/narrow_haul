@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -25,8 +26,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     this.rack,
     this.fuelDrainMultiplier = 1.0,
     this.spec = kKestrel,
+    this.kit = kStockKit,
   }) : _initialPosition = initialPosition,
-       fuel = spec.maxFuel,
+       fuel = spec.maxFuel * kit.tankMul,
        super(
          paint: Paint()..color = const Color(0xFF00B4D8),
        );
@@ -36,6 +38,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   /// Flight characteristics (hull, engine, tank). Chosen by the level.
   final ShipSpec spec;
+
+  /// Handling kit fitted in the Garage ([kStockKit] = none).
+  final KitSpec kit;
 
   final Vector2 _initialPosition;
 
@@ -78,10 +83,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   Vector2 get hookLocal => Vector2(0, spec.hookLocalY);
   double get hookRadius => spec.hookRadius;
 
-  double get maxFuel => spec.maxFuel;
+  double get maxFuel => spec.maxFuel * kit.tankMul;
 
   /// Turn rate at rotate input 1 (rad/s).
-  double get turnRate => spec.rotationSpeedRadPerSec;
+  double get turnRate => spec.rotationSpeedRadPerSec * kit.turnMul;
 
   /// Set by the game each frame: towing trims the turn boost.
   bool towing = false;
@@ -97,6 +102,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// Auto-level gain (1/s) and max correction as a fraction of turn rate.
   static const double _levelGain = 2.5;
   static const double _levelMaxRate = 0.7;
+
+  /// The Gyro Stabiliser kit: a gentler version of the Skate's.
+  static const double _kitLevelGain = 1.6;
+  static const double _kitLevelMaxRate = 0.5;
 
   /// Fraction of the local pull the hover assist cancels while thrusting.
   static const double hoverAssistFraction = 0.75;
@@ -271,7 +280,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       // Rotation rate is set directly in [update]; keep 0 so we hit exactly
       // [ShipSpec.secondsPerFullRotation] per turn without fighting damping.
       ..angularDamping = 0
-      ..linearDamping = spec.linearDamping
+      ..linearDamping = spec.linearDamping + kit.dampingAdd
       ..gravityScale = Vector2.zero();
 
     final b = world.createBody(def);
@@ -306,14 +315,17 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
     const rotateDeadzone = 0.01;
     final idle = _rotateInput.abs() < rotateDeadzone;
-    if (idle && spec.autoLevel && _launched && !_thrustInput && localAccel.length2 > 1e-4) {
+    final levels = spec.autoLevel || kit.levelAssist;
+    if (idle && levels && _launched && !_thrustInput && localAccel.length2 > 1e-4) {
       // Ease the nose to point against local gravity (θ where the nose
       // (sin θ, −cos θ) = −â).
       final target = math.atan2(-localAccel.x, localAccel.y);
       var diff = (target - body.angle) % (2 * math.pi);
       if (diff > math.pi) diff -= 2 * math.pi;
-      final maxRate = turnRate * _levelMaxRate;
-      body.angularVelocity = (diff * _levelGain).clamp(-maxRate, maxRate);
+      final builtIn = spec.autoLevel;
+      final maxRate = turnRate * (builtIn ? _levelMaxRate : _kitLevelMaxRate);
+      final gain = builtIn ? _levelGain : _kitLevelGain;
+      body.angularVelocity = (diff * gain).clamp(-maxRate, maxRate);
     } else if (idle) {
       final t = (FlightTuning.steer.releaseDecay * dt).clamp(0.0, 1.0);
       body.angularVelocity *= 1.0 - t;
@@ -343,7 +355,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         : math.max(0.0, throttle - rate * dt);
     if (fuel <= 0) throttle = 0;
     if (throttle > 0) {
-      fuel -= spec.fuelDrainPerSecond * fuelDrainMultiplier * throttle * dt;
+      fuel -= spec.fuelDrainPerSecond * kit.fuelDrainMul * fuelDrainMultiplier * throttle * dt;
       if (fuel < 0) fuel = 0;
       final dir = body.worldVector(Vector2(0, -1))
         ..scale(spec.thrustForce * throttle);

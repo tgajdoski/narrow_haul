@@ -866,6 +866,7 @@ class NarrowHaulGame extends Forge2DGame
       rack: rack,
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
       spec: shipSpec,
+      kit: kitById(CosmeticsService.getEquippedId(CosmeticsService.catKit)),
     );
     final cargoBody = CargoBody(
       initialPosition: Vector2.copy(data.cargoSpawn),

@@ -32,6 +32,7 @@ class _GarageOverlayState extends State<GarageOverlay> {
   static const _tabs = [
     (CosmeticsService.catShip, 'Liveries', Icons.rocket_rounded),
     (CosmeticsService.catRope, 'Tow gear', Icons.link_rounded),
+    (CosmeticsService.catKit, 'Handling', Icons.tune_rounded),
     (CosmeticsService.catPlume, 'Plumes', Icons.local_fire_department_outlined),
     (_armory, 'Armory', Icons.gps_fixed_rounded),
   ];
@@ -354,6 +355,8 @@ class CosmeticTile extends StatelessWidget {
                     ),
                     if (item.category == CosmeticsService.catRope)
                       RopeStatsView(rope: ropeById(item.id)),
+                    if (item.category == CosmeticsService.catKit)
+                      KitStatsView(kit: kitById(item.id)),
                   ],
                 ),
               ),
@@ -449,6 +452,39 @@ class RopeStatsView extends StatelessWidget {
               _StatBar(label: 'REACH', value: st.reach),
               _StatBar(label: 'GIVE', value: st.give),
               _StatBar(label: 'STEADY', value: st.steadiness),
+              _StatBar(label: 'FUEL', value: st.economy),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Handling kit stats on a Garage tile: the trade-off line and three bars.
+class KitStatsView extends StatelessWidget {
+  const KitStatsView({super.key, required this.kit});
+  final KitSpec kit;
+
+  @override
+  Widget build(BuildContext context) {
+    final st = KitStats.of(kit);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            kit.blurb,
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              _StatBar(label: 'TURN', value: st.turn),
+              _StatBar(label: 'STEADY', value: st.steady),
               _StatBar(label: 'FUEL', value: st.economy),
             ],
           ),
