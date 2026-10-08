@@ -52,6 +52,21 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   if (f(g.center.x, g.center.y - g.halfH - 0.7) > -0.42) {
     issues.add('no approach clearance above goal pad');
   }
+  // A flat floor right under the pad (the builder's shelf), so a landed ship
+  // and pod rest inside the win sensors instead of rolling off a slope.
+  final floorY = padFloorY(g);
+  for (int k = 0; k <= 6; k++) {
+    final x = g.center.x - g.halfW + 0.3 + k * (2 * g.halfW - 0.6) / 6;
+    var y = g.center.y;
+    while (y < floorY + 1.0 && f(x, y) < 0) {
+      y += 0.02;
+    }
+    if ((y - floorY).abs() > 0.1) {
+      issues.add('pad not grounded at x ${x.toStringAsFixed(1)}: floor '
+          '${(y - floorY).toStringAsFixed(2)} m off the pad floor');
+      break;
+    }
+  }
 
   // 2. BFS reachability with ship clearance on the sampled grid.
   final nx = cave.nx;

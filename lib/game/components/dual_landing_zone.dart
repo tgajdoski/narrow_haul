@@ -6,6 +6,8 @@ import 'package:narrow_haul/game/tags.dart';
 typedef LandingCompleteCallback = void Function();
 
 /// Landing strip: win when **both** cargo and ship are inside the pad sensors.
+/// The sensors cover the drawn pad box plus [kPadSensorDrop] below it, down
+/// into the pad's floor, so whatever rests on that floor counts.
 class DualLandingZone extends Component {
   DualLandingZone({
     required this.padCenter,
@@ -96,12 +98,12 @@ class _PadSensor extends BodyComponent with ContactCallbacks {
   @override
   Body createBody() {
     final def = BodyDef()
-      ..position = padCenter
+      ..position = padCenter + Vector2(0, kPadSensorDrop / 2)
       ..type = BodyType.static;
     final b = world.createBody(def);
     b.createFixture(
       FixtureDef(
-        PolygonShape()..setAsBoxXY(halfWidth, halfHeight),
+        PolygonShape()..setAsBoxXY(halfWidth, halfHeight + kPadSensorDrop / 2),
         isSensor: true,
         filter: filter,
       ),

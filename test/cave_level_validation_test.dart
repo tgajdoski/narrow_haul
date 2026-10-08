@@ -3,6 +3,8 @@ import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
@@ -62,6 +64,37 @@ void main() {
       expect(offered, greaterThan(LevelRegistry.totalLevels),
           reason: 'Test Flight should usually have a ship to offer');
     });
+  });
+
+  // The win sensors (DualLandingZone) span the pad box plus kPadSensorDrop.
+  // Whatever rests on the pad's floor — any ship's hull, or the tiny pod —
+  // must overlap them, or a delivery isn't recognised (rating_mule's pad
+  // used to hang over a slope).
+  group('landing pads', () {
+    for (final def in allCaveDefs) {
+      test(def.spec.id, () {
+        final g = def.spec.goal;
+        final cave = buildCave(def.spec);
+        final floorY = padFloorY(g);
+        final sensorBottom = g.center.y + g.halfH + kPadSensorDrop;
+        for (int k = 0; k <= 8; k++) {
+          final x = g.center.x - g.halfW + 0.2 + k * (2 * g.halfW - 0.4) / 8;
+          expect(cave.fieldAt(x, floorY - 0.05), lessThan(0),
+              reason: '${def.spec.id}: no air just above the pad floor at x $x');
+          expect(cave.fieldAt(x, floorY + 0.05), greaterThan(0),
+              reason: '${def.spec.id}: no rock under the pad at x $x');
+        }
+        // Resting pod: its top edge is inside the sensor.
+        expect(floorY - 2 * kCargoRadius, lessThan(sensorBottom - 0.1));
+        // Resting hull of every ship: its rear edge sits on the floor, its
+        // nose points up — the overlap is the hull height below the sensor bottom.
+        for (final ship in kShips.values) {
+          final top = floorY - (ship.rearLocalY - ship.noseLocalY);
+          expect(top, lessThan(sensorBottom - 0.1), reason: ship.id);
+          expect(floorY, greaterThan(g.center.y - g.halfH), reason: ship.id);
+        }
+      });
+    }
   });
 
   group('builder invariants', () {

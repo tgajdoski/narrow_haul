@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 
 /// Result of carving a [LevelSpec] into geometry. Pure data — no Flame/dart:ui
 /// so tests can run it headless.
@@ -183,6 +184,8 @@ BuiltCave _build(LevelSpec spec) {
     }
   }
 
+  _layPadShelf(field, nx, ny, cell, spec.goal);
+
   // 4–5. Contours → smoothed, simplified loops.
   final cleaned = extractCaveLoops(field, nx, ny, cell);
 
@@ -195,6 +198,43 @@ BuiltCave _build(LevelSpec spec) {
     worldW: spec.worldW,
     worldH: spec.worldH,
   );
+}
+
+/// Depth of the rock shelf under the delivery pad (m).
+const double _padShelfDepth = 1.5;
+
+/// Every delivery pad gets a flat floor: open air from the top of the pad box
+/// down to [kPadFloorDrop] below it, then [_padShelfDepth] of rock a little
+/// wider than the pad. A tunnel's slope or bowl under the pad would otherwise
+/// leave the landed ship and pod outside the win sensors.
+void _layPadShelf(Float32List field, int nx, int ny, double cell, GoalSpec g) {
+  final floorY = padFloorY(g);
+  final shelfHalfW = g.halfW + 0.4;
+  final topY = g.center.y - g.halfH;
+  final i0 = math.max(1, ((g.center.x - shelfHalfW - 0.3) / cell).floor());
+  final i1 = math.min(nx - 1, ((g.center.x + shelfHalfW + 0.3) / cell).ceil());
+  final j0 = math.max(1, ((topY - 0.3) / cell).floor());
+  final j1 = math.min(ny - 1, ((floorY + _padShelfDepth + 0.3) / cell).ceil());
+  for (int j = j0; j <= j1; j++) {
+    final y = j * cell;
+    for (int i = i0; i <= i1; i++) {
+      final x = i * cell;
+      final idx = j * (nx + 1) + i;
+      final open = _sdBox(x, y, g.center.x, (topY + floorY) / 2, g.halfW, (floorY - topY) / 2);
+      final rock = _sdBox(
+          x, y, g.center.x, floorY + _padShelfDepth / 2, shelfHalfW, _padShelfDepth / 2);
+      field[idx] = math.max(math.min(field[idx], open), -rock);
+    }
+  }
+}
+
+/// Signed distance to an axis-aligned box (negative inside).
+double _sdBox(double px, double py, double cx, double cy, double hw, double hh) {
+  final dx = (px - cx).abs() - hw;
+  final dy = (py - cy).abs() - hh;
+  final ox = math.max(dx, 0.0);
+  final oy = math.max(dy, 0.0);
+  return math.sqrt(ox * ox + oy * oy) + math.min(math.max(dx, dy), 0.0);
 }
 
 /// Rock/air boundary loops of a sampled [field] (negative = open): marching

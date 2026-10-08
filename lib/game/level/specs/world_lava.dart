@@ -186,7 +186,7 @@ final List<LevelDef> lavaLevels = [
         ChamberSpec(Pt(16, 31), 2.4),
         ChamberSpec(Pt(16, 19), 2.4),
         ChamberSpec(Pt(22, 24), 1.7),
-        ChamberSpec(Pt(16, 7), 2.4),
+        ChamberSpec(Pt(19, 7), 4.4, 2.6),
       ],
       obstacles: [
         PendulumSpec(Pt(16, 15.8), length: 2.4, amplitudeRad: 0.8, periodSec: 2.6),
@@ -197,7 +197,7 @@ final List<LevelDef> lavaLevels = [
       ],
       shipSpawn: Pt(16, 31),
       cargoSpawn: Pt(22, 24.4),
-      goal: GoalSpec(Pt(16, 8.2)),
+      goal: GoalSpec(Pt(20.5, 8.2)),
     ),
   ),
   CaveLevelDef(

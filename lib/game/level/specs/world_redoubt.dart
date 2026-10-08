@@ -174,11 +174,13 @@ final List<LevelDef> redoubtLevels = [
         TunnelSpec([Pt(21, 21), Pt(28, 23), Pt(34, 21)], width: 1.8),
         TunnelSpec([Pt(34, 21), Pt(38, 16), Pt(38, 11)], width: 1.8),
         TunnelSpec([Pt(28, 23), Pt(28, 27)], width: 1.2),
+        TunnelSpec([Pt(38, 10), Pt(33, 9)], width: 1.6),
       ],
       chambers: [
         ChamberSpec(Pt(5, 8), 2.4),
         ChamberSpec(Pt(28, 27.5), 1.6),
         ChamberSpec(Pt(38, 10), 2.4),
+        ChamberSpec(Pt(33, 9), 2.4),
       ],
       obstacles: [
         TurretSpec(Pt(25.5, 19.9), facing: kFaceDown, range: 6, aimArc: 1.0),
@@ -195,7 +197,7 @@ final List<LevelDef> redoubtLevels = [
       ],
       shipSpawn: Pt(5, 8),
       cargoSpawn: Pt(28, 27.9),
-      goal: GoalSpec(Pt(38, 11.2)),
+      goal: GoalSpec(Pt(33, 10.2)),
     ),
   ),
   // Finale: the reactor sits past the cargo. Grab the pod, blow the core,
@@ -217,7 +219,7 @@ final List<LevelDef> redoubtLevels = [
       ],
       chambers: [
         ChamberSpec(Pt(5, 9), 2.4),
-        ChamberSpec(Pt(12, 5.5), 2.6, 2.0),
+        ChamberSpec(Pt(14, 5.5), 4.0, 2.0),
         ChamberSpec(Pt(26, 20), 1.7),
         ChamberSpec(Pt(47, 16), 4.0, 3.2),
       ],
@@ -236,7 +238,7 @@ final List<LevelDef> redoubtLevels = [
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(26, 20.4),
-      goal: GoalSpec(Pt(12, 6.5)),
+      goal: GoalSpec(Pt(15.6, 6.2)),
     ),
   ),
 ];

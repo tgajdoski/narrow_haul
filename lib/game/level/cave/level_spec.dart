@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:narrow_haul/game/level/cave/geom.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 
 /// Hand-authored organic cave level. Everything is const data; the terrain
 /// shape is a pure function of this spec (noise seeded by [seed]), so a level
@@ -84,6 +85,9 @@ class GoalSpec {
   final double halfW;
   final double halfH;
 }
+
+/// World y of the flat rock shelf the builder lays under [g].
+double padFloorY(GoalSpec g) => g.center.y + g.halfH + kPadFloorDrop;
 
 /// Per-level physics tweaks. Multipliers compose with daily-challenge ones.
 class LevelModifiers {
