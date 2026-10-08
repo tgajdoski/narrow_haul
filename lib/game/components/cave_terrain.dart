@@ -15,21 +15,24 @@ import 'package:narrow_haul/game/tags.dart';
 /// backdrop and parallax.
 class CaveTerrain extends BodyComponent {
   CaveTerrain({
-    required this.loops,
+    required List<List<Pt>> loops,
     required this.worldSize,
     required this.theme,
     this.assets = ThemeAssets.empty,
     this.friction = 0.35,
-  }) : super(priority: -1700, renderBody: false);
+  })  : _loops = loops,
+        super(priority: -1700, renderBody: false);
 
-  final List<List<Pt>> loops;
+  /// Current rock/air contours (replaced by [applyLoops] when rock is blasted).
+  List<List<Pt>> get loops => _loops;
+  List<List<Pt>> _loops;
   final Vector2 worldSize;
   final ThemeSpec theme;
   final ThemeAssets assets;
   final double friction;
 
-  late final ui.Path _rockPath;
-  late final List<ui.Path> _edgePaths;
+  late ui.Path _rockPath;
+  late List<ui.Path> _edgePaths;
   late final Paint _rockPaint;
   late final Paint _edgePaint;
   late final Paint _highlightPaint;
@@ -44,12 +47,14 @@ class CaveTerrain extends BodyComponent {
   static const double _glowPxPerMeter = 16;
   static final Paint _glowBlit = Paint()..filterQuality = FilterQuality.medium;
 
+  static List<ui.Path> _pathsOf(List<List<Pt>> loops) => [
+        for (final loop in loops)
+          ui.Path()..addPolygon([for (final pt in loop) Offset(pt.x, pt.y)], true),
+      ];
+
   @override
   Future<void> onLoad() async {
-    _edgePaths = [
-      for (final loop in loops)
-        ui.Path()..addPolygon([for (final pt in loop) Offset(pt.x, pt.y)], true),
-    ];
+    _edgePaths = _pathsOf(loops);
     _rockPath = buildRockPath(_edgePaths, worldSize);
 
     _rockPaint = Paint()..color = theme.rockFill;
@@ -96,6 +101,42 @@ class CaveTerrain extends BodyComponent {
       }
     }
     await super.onLoad();
+  }
+
+  /// Blasted rock: swaps the collision chains and the drawing for the carved
+  /// [next] loops. Call from `update` (never inside a physics step or contact
+  /// callback). The glow bitmap is re-rendered at most every
+  /// [_glowRefreshSeconds] (a laser cuts many small holes in a row).
+  void applyLoops(List<List<Pt>> next) {
+    _loops = next;
+    for (final f in body.fixtures.toList()) {
+      body.destroyFixture(f);
+    }
+    _createChains(body);
+    _edgePaths = _pathsOf(next);
+    _rockPath = buildRockPath(_edgePaths, worldSize);
+    if (_specks.isNotEmpty) {
+      _specks.removeWhere((s) => !_rockPath.contains(s.$1));
+    }
+    _glowStale = _glowPaint != null;
+  }
+
+  bool _glowStale = false;
+  double _sinceGlow = 0;
+  static const double _glowRefreshSeconds = 0.4;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _sinceGlow += dt;
+    final glow = _glowPaint;
+    if (_glowStale && glow != null && _sinceGlow >= _glowRefreshSeconds) {
+      _glowStale = false;
+      _sinceGlow = 0;
+      final old = _glowImage;
+      _glowImage = _rasterizeGlow(glow);
+      old?.dispose();
+    }
   }
 
   /// Draws the blurred edge glow once into a small bitmap: a per-frame blur
@@ -147,6 +188,11 @@ class CaveTerrain extends BodyComponent {
       ..position = Vector2.zero()
       ..type = BodyType.static;
     final body = world.createBody(def);
+    _createChains(body);
+    return body;
+  }
+
+  void _createChains(Body body) {
     for (final loop in loops) {
       final vertices = [for (final pt in loop) Vector2(pt.x, pt.y)];
       body.createFixture(
@@ -158,7 +204,6 @@ class CaveTerrain extends BodyComponent {
         ),
       );
     }
-    return body;
   }
 
   @override

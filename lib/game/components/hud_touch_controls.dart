@@ -17,11 +17,19 @@ class HudTouchControls extends PositionComponent {
     required this.onRotateAxis,
     required this.onThrust,
     this.onFire,
+    this.onCycleWeapon,
   }) : super(priority: 5000);
 
   final void Function(double axis) onRotateAxis;
   final void Function(bool pressed) onThrust;
   final void Function(bool pressed)? onFire;
+
+  /// Tap on the weapon chip: next weapon.
+  final void Function()? onCycleWeapon;
+
+  /// What the FIRE button fires, e.g. ('BOMB', '×3', true); null = the
+  /// plain cannon. The flag says whether there's another weapon to cycle to.
+  (String label, String? count, bool canCycle)? weapon;
 
   /// Show the FIRE button (only for armed ships).
   bool get showFire => _showFire;
@@ -53,6 +61,7 @@ class HudTouchControls extends PositionComponent {
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
   _FireButton? _fireBtn;
+  _WeaponChip? _chip;
 
   @override
   Future<void> onLoad() async {
@@ -76,6 +85,8 @@ class HudTouchControls extends PositionComponent {
     if (_fireBtn?.pressed == true) onFire?.call(false);
     _fireBtn?.removeFromParent();
     _fireBtn = null;
+    _chip?.removeFromParent();
+    _chip = null;
 
     _joystick = _FloatingJoystick(
       areaSize: Vector2(sz.x * 0.5, sz.y),
@@ -106,12 +117,28 @@ class HudTouchControls extends PositionComponent {
     if (_showFire && onFire != null) {
       // Directly above thrust: the same thumb rocks between the two.
       const fireRadius = 40.0;
+      final fireCenter = Vector2(btnX, btnY - btnRadius - 18 - fireRadius);
       _fireBtn = _FireButton(
-        center: Vector2(btnX, btnY - btnRadius - 18 - fireRadius),
+        center: fireCenter,
         radius: fireRadius,
         onChanged: onFire!,
+        weapon: () => weapon,
       );
       add(_fireBtn!);
+      // Weapon chip beside FIRE, on the screen-centre side.
+      const chipW = 74.0;
+      const chipH = 30.0;
+      final side = _leftHanded ? 1.0 : -1.0;
+      _chip = _WeaponChip(
+        position: Vector2(
+          fireCenter.x + side * (fireRadius + 12 + chipW / 2) - chipW / 2,
+          fireCenter.y - chipH / 2,
+        ),
+        size: Vector2(chipW, chipH),
+        weapon: () => weapon,
+        onTap: () => onCycleWeapon?.call(),
+      );
+      add(_chip!);
     }
   }
 }
@@ -529,8 +556,14 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
 
 /// Cannon trigger: the thrust button's touch handling with a crosshair face.
 class _FireButton extends _ThrustButton {
-  _FireButton({required super.center, required super.radius, required super.onChanged});
+  _FireButton({
+    required super.center,
+    required super.radius,
+    required super.onChanged,
+    required this.weapon,
+  });
 
+  final (String, String?, bool)? Function() weapon;
   final _label = HudText();
 
   bool get pressed => _pressed;
@@ -567,7 +600,7 @@ class _FireButton extends _ThrustButton {
     }
     final tp = _label.layout(
       TextSpan(
-        text: 'FIRE',
+        text: weapon()?.$1 ?? 'FIRE',
         style: TextStyle(
           color: Colors.white.withValues(alpha: _pressed ? 0.95 : 0.7),
           fontSize: 9,
@@ -577,6 +610,62 @@ class _FireButton extends _ThrustButton {
       ),
     );
     tp.paint(canvas, Offset(radius - tp.width / 2, radius + r + 2));
+  }
+}
+
+/// Shows the loaded weapon's ammo; tap cycles weapons (hidden for the plain
+/// cannon with nothing else on board).
+class _WeaponChip extends PositionComponent with TapCallbacks {
+  _WeaponChip({
+    required super.position,
+    required super.size,
+    required this.weapon,
+    required this.onTap,
+  });
+
+  final (String, String?, bool)? Function() weapon;
+  final void Function() onTap;
+  final _text = HudText();
+
+  bool get _visible {
+    final w = weapon();
+    return w != null && (w.$2 != null || w.$3);
+  }
+
+  @override
+  bool containsLocalPoint(Vector2 point) => _visible && super.containsLocalPoint(point);
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    final w = weapon();
+    if (w != null && w.$3) onTap();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final w = weapon();
+    if (w == null || !_visible) return;
+    final r = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(15));
+    canvas.drawRRect(r, Paint()..color = const Color(0x991B263B));
+    canvas.drawRRect(
+      r,
+      Paint()
+        ..color = const Color(0xFFFFC857).withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+    final label = '${w.$2 ?? ''}${w.$3 ? '  ⟳' : ''}'.trim();
+    final tp = _text.layout(
+      TextSpan(
+        text: label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    tp.paint(canvas, Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2));
   }
 }
 

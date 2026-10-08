@@ -183,17 +183,8 @@ BuiltCave _build(LevelSpec spec) {
     }
   }
 
-  // 4. Marching squares → segment soup keyed by integer edge ids → loops.
-  final loops = _marchingSquares(field, nx, ny, cell);
-
-  // 5. Smooth, simplify, drop specks.
-  final cleaned = <List<Pt>>[];
-  for (var loop in loops) {
-    if (loopPerimeter(loop) < 1.2) continue;
-    loop = chaikinClosed(loop);
-    loop = simplifyClosed(loop, 0.04);
-    if (loop.length >= 4) cleaned.add(loop);
-  }
+  // 4–5. Contours → smoothed, simplified loops.
+  final cleaned = extractCaveLoops(field, nx, ny, cell);
 
   return BuiltCave(
     loops: cleaned,
@@ -204,6 +195,21 @@ BuiltCave _build(LevelSpec spec) {
     worldW: spec.worldW,
     worldH: spec.worldH,
   );
+}
+
+/// Rock/air boundary loops of a sampled [field] (negative = open): marching
+/// squares, then Chaikin smoothing and Douglas-Peucker, dropping specks.
+/// Shared by the builder and the runtime [TerrainCarver] re-extract.
+List<List<Pt>> extractCaveLoops(Float32List field, int nx, int ny, double cell) {
+  final loops = _marchingSquares(field, nx, ny, cell);
+  final cleaned = <List<Pt>>[];
+  for (var loop in loops) {
+    if (loopPerimeter(loop) < 1.2) continue;
+    loop = chaikinClosed(loop);
+    loop = simplifyClosed(loop, 0.04);
+    if (loop.length >= 4) cleaned.add(loop);
+  }
+  return cleaned;
 }
 
 // Edge key: horizontal edge (between (i,j)-(i+1,j)) → id = (j*(nx+1)+i)*2;

@@ -22,6 +22,8 @@ void main() {
 
   test('non-flight keys are not swallowed', () {
     expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyW), isTrue);
-    expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyQ), isFalse);
+    expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyQ), isTrue,
+        reason: 'Q switches weapons');
+    expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyZ), isFalse);
   });
 }

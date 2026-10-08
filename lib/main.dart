@@ -23,6 +23,7 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/ui/armory.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
@@ -181,7 +182,7 @@ class _NarrowHaulApp extends StatelessWidget {
                           onPrimary: g.restartLevel,
                           secondaryLabel: 'Menu',
                           onSecondary: g.backToMenu,
-                          extra: g.canContinue || g.canShowRoute
+                          extra: g.canContinue || g.canShowRoute || g.canOfferAmmo
                               ? Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -193,7 +194,17 @@ class _NarrowHaulApp extends StatelessWidget {
                                         placement: AdPlacement.continueAfterCrash,
                                         onReward: g.continueAfterCrash,
                                       ),
-                                    if (g.canContinue && g.canShowRoute)
+                                    if (g.canContinue && g.canOfferAmmo)
+                                      const SizedBox(height: 12),
+                                    if (g.canOfferAmmo)
+                                      _RewardedButton(
+                                        label: 'Take a Demolition Charge',
+                                        note: 'Watch an ad · blast a way through · that run can earn up to 2★',
+                                        icon: Icons.local_fire_department_rounded,
+                                        placement: AdPlacement.ammo,
+                                        onReward: g.grantRewardedCharge,
+                                      ),
+                                    if ((g.canContinue || g.canOfferAmmo) && g.canShowRoute)
                                       const SizedBox(height: 12),
                                     RouteHelpButtons(game: g),
                                   ],
@@ -1196,6 +1207,13 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
             style: TextStyle(color: Colors.white38, fontSize: 12),
           ),
         ],
+        if (game.carriedWeaponUsedThisRun) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'Carried weapons used · max 2★ (crate finds are free)',
+            style: TextStyle(color: Colors.white38, fontSize: 12),
+          ),
+        ],
         if (reward != null && reward.currency > 0) ...[
           const SizedBox(height: 8),
           Text(
@@ -1315,6 +1333,9 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
       if (game.lastLevelFuelFraction < spec.star3Fuel) {
         return '★★★ needs ${(spec.star3Fuel * 100).round()}% fuel left (you had $fuelPct%)';
       }
+      // Fuel and time were enough: a cap (continue, guide, carried weapons)
+      // took the third star, and its own note says so.
+      if (time <= spec.star3Time) return null;
       return '★★★ needs a time under ${spec.star3Time.round()}s';
     }
     return '★★ needs ${(spec.star2Fuel * 100).round()}% fuel left (you had $fuelPct%)';
@@ -1753,6 +1774,8 @@ class _CosmeticsOverlay extends StatefulWidget {
 }
 
 class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
+  /// The weapons tab (not a cosmetics category).
+  static const _armory = 'armory';
   String _selectedCategory = CosmeticsService.catShip;
 
   @override
@@ -1826,66 +1849,76 @@ class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
                     () => _selectedCategory = CosmeticsService.catPlume,
                   ),
                 ),
+                _Tab(
+                  label: 'Armory',
+                  selected: _selectedCategory == _armory,
+                  onTap: () => setState(() => _selectedCategory = _armory),
+                ),
               ],
             ),
             const Divider(color: Color(0x22FFFFFF), height: 1),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final item = items[i];
-                  final unlocked = CosmeticsService.isUnlocked(item);
-                  final equipped =
-                      CosmeticsService.getSavedEquippedId(item.category) ==
-                      item.id;
-                  final trying = CosmeticsService.trialOverride[item.category] ==
-                      item.id;
-                  // Coin items can be test-flown for one level via an ad.
-                  final canTry = !unlocked &&
-                      !trying &&
-                      !item.supporterOnly &&
-                      !CosmeticsService.isRankLocked(item);
-                  return _CosmeticTile(
-                    item: item,
-                    unlocked: unlocked,
-                    equipped: equipped,
-                    trying: trying,
-                    tryButton: canTry
-                        ? _TryButton(
-                            onReward: () =>
-                                setState(() => CosmeticsService.startTrial(item)),
-                          )
-                        : null,
-                    onTap: () async {
-                      if (equipped) return;
-                      if (unlocked) {
-                        await CosmeticsService.equip(item);
-                        setState(() {});
-                      } else if (item.supporterOnly) {
-                        final bought = await buyWithFeedback(
-                          context,
-                          ProductIds.supporterPack,
-                        );
-                        if (bought) {
-                          await CosmeticsService.equip(item);
-                          if (mounted) setState(() {});
-                        }
-                      } else {
-                        final success = await CosmeticsService.unlock(item);
-                        if (success) {
+            if (_selectedCategory == _armory)
+              Expanded(
+                child: ArmoryList(onCoinsChanged: () => setState(() {})),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, i) {
+                    final item = items[i];
+                    final unlocked = CosmeticsService.isUnlocked(item);
+                    final equipped =
+                        CosmeticsService.getSavedEquippedId(item.category) ==
+                        item.id;
+                    final trying = CosmeticsService.trialOverride[item.category] ==
+                        item.id;
+                    // Coin items can be test-flown for one level via an ad.
+                    final canTry = !unlocked &&
+                        !trying &&
+                        !item.supporterOnly &&
+                        !CosmeticsService.isRankLocked(item);
+                    return _CosmeticTile(
+                      item: item,
+                      unlocked: unlocked,
+                      equipped: equipped,
+                      trying: trying,
+                      tryButton: canTry
+                          ? _TryButton(
+                              onReward: () =>
+                                  setState(() => CosmeticsService.startTrial(item)),
+                            )
+                          : null,
+                      onTap: () async {
+                        if (equipped) return;
+                        if (unlocked) {
                           await CosmeticsService.equip(item);
                           setState(() {});
+                        } else if (item.supporterOnly) {
+                          final bought = await buyWithFeedback(
+                            context,
+                            ProductIds.supporterPack,
+                          );
+                          if (bought) {
+                            await CosmeticsService.equip(item);
+                            if (mounted) setState(() {});
+                          }
+                        } else {
+                          final success = await CosmeticsService.unlock(item);
+                          if (success) {
+                            await CosmeticsService.equip(item);
+                            setState(() {});
+                          }
                         }
-                      }
-                    },
-                  );
-                },
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
           ],
         ),
       ),

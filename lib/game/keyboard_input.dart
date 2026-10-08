@@ -2,7 +2,8 @@ import 'package:flutter/services.dart';
 
 /// Keyboard flight controls (desktop): the same inputs the touch HUD gives.
 ///
-/// ← → / A D rotate, ↑ / W / Space thrust, F / Enter fire.
+/// ← → / A D rotate, ↑ / W / Space thrust, F / Enter fire, Q / Tab switch
+/// weapon.
 class KeyboardFlightInput {
   static final Set<LogicalKeyboardKey> rotateLeftKeys = {
     LogicalKeyboardKey.arrowLeft,
@@ -21,6 +22,12 @@ class KeyboardFlightInput {
     LogicalKeyboardKey.keyF,
     LogicalKeyboardKey.enter,
     LogicalKeyboardKey.numpadEnter,
+  };
+
+  /// Next weapon (a key press, handled by the game on key down).
+  static final Set<LogicalKeyboardKey> cycleKeys = {
+    LogicalKeyboardKey.keyQ,
+    LogicalKeyboardKey.tab,
   };
 
   double rotateAxis = 0;
@@ -47,5 +54,6 @@ class KeyboardFlightInput {
       rotateLeftKeys.contains(key) ||
       rotateRightKeys.contains(key) ||
       thrustKeys.contains(key) ||
-      fireKeys.contains(key);
+      fireKeys.contains(key) ||
+      cycleKeys.contains(key);
 }

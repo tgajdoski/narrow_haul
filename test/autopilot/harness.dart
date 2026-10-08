@@ -128,6 +128,8 @@ class GameHarness {
   /// Loads [index] fresh; obstacles start moving from this moment.
   Future<void> loadLevel(int index, {bool skipHazards = false}) async {
     game.debugSkipHazards = skipHazards;
+    // Fixed levels: no random supply crates in the bot's flights.
+    game.debugNoCrates = true;
     // ROPE=<cosmetic id> flies every level with that tow gear.
     if (kBotRope.isNotEmpty) CosmeticsService.trialOverride[CosmeticsService.catRope] = kBotRope;
     game.overlays.removeAll(game.overlays.activeOverlays.toList());

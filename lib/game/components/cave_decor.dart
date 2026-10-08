@@ -52,6 +52,16 @@ class CaveDecor extends Component {
     for (final p in _props)
       p.base + Offset(math.sin(p.angle), -math.cos(p.angle)) * p.height,
   ];
+  /// Blasted rock: drops every prop whose root is now open space ([isOpen]),
+  /// so nothing floats in a fresh hole.
+  void removeFloating(bool Function(Offset p) isOpen) {
+    _props.removeWhere((p) {
+      final tipDir = Offset(math.sin(p.angle), -math.cos(p.angle));
+      final root = p.base + tipDir * (p.height * _sink * 0.5);
+      return isOpen(p.base) || isOpen(root);
+    });
+  }
+
   late final Paint _spritePaint = Paint()..filterQuality = FilterQuality.medium;
 
   @override

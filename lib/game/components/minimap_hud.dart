@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -46,17 +47,31 @@ class MinimapHud extends PositionComponent
     _scale = math.min(_maxW / w.x, _maxH / w.y);
     _mapSize = Vector2(w.x * _scale, w.y * _scale);
 
+    _recordTerrain(data, data.caveLoops);
+    _relayout();
+  }
+
+  /// Blasted rock: re-records the terrain from the carved [loops].
+  void updateCaveLoops(List<List<Pt>> loops) {
+    final data = _level;
+    if (data == null) return;
+    _terrain?.dispose();
+    _recordTerrain(data, loops);
+  }
+
+  void _recordTerrain(LevelData data, List<List<Pt>> loops) {
+    final w = data.worldSize;
     final rock = Paint()
       ..color = Color.lerp(data.theme.rockFill, Colors.white, 0.3)!
           .withValues(alpha: 0.85);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(_scale);
-    if (data.caveLoops.isNotEmpty) {
+    if (loops.isNotEmpty) {
       // Even-odd: rock everywhere, cave interiors cut out (as in CaveTerrain).
       final path = ui.Path()
         ..fillType = ui.PathFillType.evenOdd
         ..addRect(Rect.fromLTWH(0, 0, w.x, w.y));
-      for (final loop in data.caveLoops) {
+      for (final loop in loops) {
         path.addPolygon([for (final p in loop) Offset(p.x, p.y)], true);
       }
       canvas.drawPath(path, rock);
@@ -72,7 +87,6 @@ class MinimapHud extends PositionComponent
       );
     }
     _terrain = recorder.endRecording();
-    _relayout();
   }
 
   @override

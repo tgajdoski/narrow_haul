@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 /// Rocket with rear thrust along local −Y (nose at −Y). [onWallHit] from contacts.
@@ -17,6 +18,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     required this.onWallHit,
     this.onHookTouchesCargo,
     this.onFire,
+    this.onWeapon,
+    this.rack,
     this.fuelDrainMultiplier = 1.0,
     this.spec = kKestrel,
   }) : _initialPosition = initialPosition,
@@ -40,6 +43,26 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   /// Armed ships: spawn a shell at [muzzle] with [velocity] (world, m, m/s).
   final void Function(Vector2 muzzle, Vector2 velocity)? onFire;
+
+  /// A special weapon fired (ammo already taken). Continuous weapons call
+  /// this every frame the trigger is held, with that frame's [dt].
+  final void Function(WeaponSpec weapon, double dt)? onWeapon;
+
+  /// This flight's weapons (cannon + special ammo); null = none.
+  final WeaponRack? rack;
+
+  /// The mining laser is cutting this frame.
+  bool get laserFiring => _laserFiring;
+  bool _laserFiring = false;
+
+  /// Unit vector along the nose (world).
+  Vector2 get noseDir => body.worldVector(Vector2(0, -1));
+
+  /// Where shells leave the nose (world).
+  Vector2 get muzzleWorld => body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
+
+  /// Where bombs drop from (world, just behind the engine bell).
+  Vector2 get bellyWorld => body.worldPoint(Vector2(0, rearLocalY + 0.25));
 
   /// Local +Y anchor at engine bell (rope + plume).
   double get rearLocalY => spec.rearLocalY;
@@ -76,7 +99,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   void setInput({required double rotate, required bool thrust, bool fire = false}) {
     _rotateInput = rotate.clamp(-1.0, 1.0);
     _thrustInput = thrust;
-    _fireInput = fire && spec.armed;
+    _fireInput = fire && (spec.armed || (rack?.canFire ?? false));
     if (!_launched && (thrust || _fireInput || rotate.abs() > 0.05)) {
       _launched = true;
       body.gravityScale = null; // gravity on from the first input
@@ -299,7 +322,26 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   void _updateCannon(double dt) {
     if (_fireCooldown > 0) _fireCooldown -= dt;
-    if (!_fireInput || _fireCooldown > 0 || _wrecked || !_launched) return;
+    _laserFiring = false;
+    if (!_fireInput || _wrecked || !_launched) return;
+    final r = rack;
+    final weapon = r?.selected ?? (spec.armed ? kCannon : null);
+    if (weapon == null) return;
+    if (weapon.kind != WeaponKind.cannon) {
+      if (weapon.continuous) {
+        if (r!.spend(weapon.id, dt)) {
+          _laserFiring = true;
+          onWeapon?.call(weapon, dt);
+        }
+        return;
+      }
+      if (_fireCooldown > 0 || !r!.spend(weapon.id, 1)) return;
+      _fireCooldown = weapon.cooldown;
+      shotsFired++;
+      onWeapon?.call(weapon, dt);
+      return;
+    }
+    if (!spec.armed || _fireCooldown > 0) return;
     final shot = spec.fuelPerShot * fuelDrainMultiplier;
     if (fuel < shot) return;
     fuel -= shot;

@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/services/ad_pacing.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _start = 1000000000;
@@ -153,6 +155,45 @@ void main() {
       expect(CosmeticsService.isUnlocked(livery), isFalse);
       await ProgressService.instance.unlockCosmetic(kSupporterSkinId);
       expect(CosmeticsService.isUnlocked(livery), isTrue);
+    });
+  });
+
+  group('Ammo packs', () {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({'save_v2': true, 'save_v3': true});
+      await ProgressService.init();
+    });
+
+    test('a pack adds ammo, never removes ads, and pays once per transaction',
+        () async {
+      final m = MonetizationService.instance;
+      final p = ProgressService.instance;
+      await m.grant(ProductIds.demolitionKit, purchaseId: 'tx-1');
+      expect(p.getAmmo(kDemoCharge.id), 10);
+      expect(p.getAmmo(kMiningLaser.id), 60);
+      expect(p.adsRemoved, isFalse);
+      // The store re-delivers the same transaction: nothing more.
+      await m.grant(ProductIds.demolitionKit, purchaseId: 'tx-1');
+      expect(p.getAmmo(kDemoCharge.id), 10);
+      // A second purchase is a new transaction.
+      await m.grant(ProductIds.demolitionKit, purchaseId: 'tx-2');
+      expect(p.getAmmo(kDemoCharge.id), 20);
+    });
+
+    test('every pack holds only real weapons', () {
+      expect(ProductIds.ammoPacks.keys.toSet(), ProductIds.consumables);
+      for (final pack in ProductIds.ammoPacks.values) {
+        for (final id in pack.keys) {
+          expect(weaponById(id), isNotNull, reason: id);
+        }
+      }
+    });
+
+    test('ammo survives a progress reset', () async {
+      final p = ProgressService.instance;
+      await p.addAmmo(kFlak.id, 4);
+      await p.resetProgress();
+      expect(p.getAmmo(kFlak.id), 4);
     });
   });
 }

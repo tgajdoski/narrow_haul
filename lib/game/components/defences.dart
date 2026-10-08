@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/route_planner.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 /// Shell color for enemy fire — warm and readable on every theme.
@@ -44,6 +45,7 @@ class Turret extends BodyComponent implements Shootable {
   double _windup = 0;
   double _flash = 1;
   int _hits = 0;
+  @override
   bool destroyed = false;
 
   Vector2 get _base => Vector2(spec.base.x, spec.base.y);
@@ -73,9 +75,9 @@ class Turret extends BodyComponent implements Shootable {
   }
 
   @override
-  void takeHit() {
+  void takeHit({int damage = 1, bool heavy = false}) {
     if (destroyed) return;
-    _hits++;
+    _hits += damage;
     _flash = 0;
     if (_hits >= spec.hp) {
       destroyed = true;
@@ -228,9 +230,10 @@ class Reactor extends BodyComponent implements Shootable {
   int _hits = 0;
   double _t = 0;
   double _flash = 1;
+  @override
   bool destroyed = false;
 
-  double get health => 1 - _hits / spec.hp;
+  double get health => (1 - _hits / spec.hp).clamp(0.0, 1.0);
 
   @override
   Body createBody() {
@@ -247,11 +250,12 @@ class Reactor extends BodyComponent implements Shootable {
   }
 
   @override
-  void takeHit() {
+  void takeHit({int damage = 1, bool heavy = false}) {
     if (destroyed) return;
-    _hits++;
+    final before = _hits;
+    _hits = math.min(spec.hp, _hits + damage);
     _flash = 0;
-    if (_hits == spec.disableHits && _hits < spec.hp) {
+    if (before < spec.disableHits && _hits >= spec.disableHits && _hits < spec.hp) {
       host.onReactorDisabledTurrets(spec.disableSeconds);
     }
     if (_hits >= spec.hp) {
@@ -394,6 +398,90 @@ class FuelCell extends Component {
     canvas.drawRect(
       Rect.fromCenter(center: c.translate(0, -0.27), width: 0.14, height: 0.07),
       Paint()..color = accent,
+    );
+    canvas.restore();
+  }
+}
+
+/// Supply crate: a random weapon's ammo, found mid-level on flights with an
+/// unarmed ship. Fly through it like a fuel canister; the ammo lasts this
+/// flight only (and, being found, never costs a star).
+class SupplyCrate extends Component {
+  SupplyCrate({
+    required this.pos,
+    required this.weapon,
+    required this.units,
+    required this.host,
+    required this.accent,
+    required this.onCollected,
+  }) : super(priority: 6);
+
+  final Offset pos;
+  final WeaponSpec weapon;
+  final double units;
+  final CombatHost host;
+  final Color accent;
+  final void Function(SupplyCrate crate) onCollected;
+
+  static const double pickupRadius = 0.9;
+
+  double _t = 0;
+  bool collected = false;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+    if (collected) return;
+    final ship = host.combatShip;
+    if (ship == null || !ship.isMounted || !host.combatLive) return;
+    final p = ship.body.position;
+    final dx = p.x - pos.dx;
+    final dy = p.y - pos.dy;
+    if (dx * dx + dy * dy <= pickupRadius * pickupRadius) {
+      collected = true;
+      onCollected(this);
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final bob = math.sin(_t * 2.0) * 0.08;
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy + bob);
+    canvas.rotate(math.sin(_t * 1.3) * 0.12);
+    canvas.scale(1.6);
+    const c = Offset.zero;
+    canvas.drawCircle(
+      c,
+      0.5,
+      Paint()
+        ..color = accent.withValues(alpha: 0.2 + 0.1 * math.sin(_t * 3.4))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.22),
+    );
+    final box = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: c, width: 0.5, height: 0.36),
+      const Radius.circular(0.04),
+    );
+    canvas.drawRRect(box, Paint()..color = const Color(0xFF3B3326));
+    final edge = Paint()
+      ..color = const Color(0xFFFFC857)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.035;
+    canvas.drawRRect(box, edge);
+    // Banding + a warning chevron: reads as "ordnance", not fuel.
+    canvas.drawLine(const Offset(-0.25, -0.06), const Offset(0.25, -0.06), edge);
+    final chevron = Path()
+      ..moveTo(-0.09, 0.12)
+      ..lineTo(0, 0.02)
+      ..lineTo(0.09, 0.12);
+    canvas.drawPath(
+      chevron,
+      Paint()
+        ..color = const Color(0xFFFF5252)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.04,
     );
     canvas.restore();
   }

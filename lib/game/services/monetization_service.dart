@@ -9,9 +9,11 @@ import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 
-/// Store product ids (create the same ids in App Store Connect / Play Console,
-/// both as non-consumables).
+/// Store product ids (create the same ids in App Store Connect / Play Console:
+/// [removeAds] and [supporterPack] as non-consumables, the [ammoPacks] as
+/// consumables).
 class ProductIds {
   /// Removes interstitials. Rewarded ads stay available (opt-in).
   static const removeAds = 'nh_remove_ads';
@@ -19,8 +21,37 @@ class ProductIds {
   /// Remove-ads + exclusive [kSupporterSkinId] livery + [supporterCoins].
   static const supporterPack = 'nh_supporter_pack';
 
-  static const all = {removeAds, supporterPack};
+  /// Weapon ammo, bought again and again (consumables).
+  static const demolitionKit = 'nh_demo_kit';
+  static const arsenalCrate = 'nh_arsenal_crate';
+
+  static const nonConsumables = {removeAds, supporterPack};
+  static const consumables = {demolitionKit, arsenalCrate};
+  static const all = {...nonConsumables, ...consumables};
   static const supporterCoins = 500;
+
+  /// What each ammo pack adds to the carried stock (weapon id → units;
+  /// laser units are seconds).
+  static final Map<String, Map<String, double>> ammoPacks = {
+    demolitionKit: {
+      kDemoCharge.id: 10,
+      kGravityBomb.id: 10,
+      kMiningLaser.id: 60,
+    },
+    arsenalCrate: {
+      kDemoCharge.id: 30,
+      kGravityBomb.id: 30,
+      kMiningLaser.id: 180,
+      kSeeker.id: 30,
+      kFlak.id: 30,
+    },
+  };
+
+  /// Store-facing names (Settings / Armory rows).
+  static const names = {
+    demolitionKit: 'Demolition Kit',
+    arsenalCrate: 'Arsenal Crate',
+  };
 }
 
 /// AdMob ad-unit ids. Debug builds always use Google's public test units so
@@ -55,6 +86,9 @@ class AdPlacement {
   static const continueAfterCrash = 'continue';
   static const doubleCoins = 'double_coins';
   static const cosmeticTrial = 'cosmetic_trial';
+
+  /// Armory / game-over: a free charge or two of a special weapon.
+  static const ammo = 'ammo';
 }
 
 /// Ads (AdMob + UMP consent) and purchases (in_app_purchase).
@@ -107,7 +141,11 @@ class MonetizationService {
   /// Localized store price, or a fallback before the store answers.
   String priceOf(String productId) =>
       _products[productId]?.price ??
-      (productId == ProductIds.supporterPack ? r'$4.99' : r'$2.99');
+      switch (productId) {
+        ProductIds.supporterPack || ProductIds.arsenalCrate => r'$4.99',
+        ProductIds.demolitionKit => r'$1.99',
+        _ => r'$2.99',
+      };
 
   // ── Startup ──────────────────────────────────────────────────────────────
 
@@ -385,9 +423,10 @@ class MonetizationService {
     final pending = _pendingBuy = Completer<BuyOutcome>();
     bool started;
     try {
-      started = await InAppPurchase.instance.buyNonConsumable(
-        purchaseParam: PurchaseParam(productDetails: product),
-      );
+      final param = PurchaseParam(productDetails: product);
+      started = ProductIds.consumables.contains(productId)
+          ? await InAppPurchase.instance.buyConsumable(purchaseParam: param)
+          : await InAppPurchase.instance.buyNonConsumable(purchaseParam: param);
     } catch (e) {
       // e.g. StoreKit still finishing an earlier transaction for this product.
       _log('MonetizationService: buy $productId failed ($e)');
@@ -424,7 +463,7 @@ class MonetizationService {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           if (purchase.status == PurchaseStatus.restored) _restoredCount++;
-          await _grant(purchase.productID);
+          await grant(purchase.productID, purchaseId: purchase.purchaseID);
           _pendingBuy?.complete(BuyOutcome.purchased);
           _pendingBuy = null;
         case PurchaseStatus.error:
@@ -443,9 +482,23 @@ class MonetizationService {
     }
   }
 
-  /// Applies an entitlement. Idempotent: restores never pay coins twice.
-  Future<void> _grant(String productId) async {
+  /// Applies a purchase. Idempotent: restores never pay coins twice, and an
+  /// ammo pack is paid once per store transaction ([purchaseId]) even if the
+  /// store re-delivers it. Ammo packs never remove ads.
+  @visibleForTesting
+  Future<void> grant(String productId, {String? purchaseId}) async {
     if (!ProductIds.all.contains(productId)) return;
+    final pack = ProductIds.ammoPacks[productId];
+    if (pack != null) {
+      if (purchaseId != null && _p.isTransactionGranted(purchaseId)) return;
+      for (final e in pack.entries) {
+        await _p.addAmmo(e.key, e.value);
+      }
+      if (purchaseId != null) await _p.markTransactionGranted(purchaseId);
+      await _p.setHasPurchased(true);
+      entitlements.value++;
+      return;
+    }
     await _p.setHasPurchased(true);
     await _p.setAdsRemoved(true);
     _interstitial?.dispose();

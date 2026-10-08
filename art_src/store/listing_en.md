@@ -64,4 +64,14 @@ Use the App Store description above. Play allows the same plain text and bullets
 
 - `nh_remove_ads`, "Remove Ads": turns off interstitial ads for good. Optional rewarded ads stay available.
 - `nh_supporter_pack`, "Supporter Pack": Remove Ads, plus the Supporter ship livery and 500 coins.
+- `nh_demo_kit`, "Demolition Kit" (**consumable**, $1.99): 10 Demolition Charges, 10 Gravity Bombs and 60 s of Mining Laser, added to the pilot's ammo. Can be bought again.
+  - App Store display name [30]: `Demolition Kit`
+  - App Store description [45]: `10 charges, 10 bombs and 60 s of laser.` (39)
+  - Play description [200]: `Ammo for your ship: 10 Demolition Charges, 10 Gravity Bombs and 60 seconds of Mining Laser. Blast obstacles and carve through rock. Can be bought again.`
+- `nh_arsenal_crate`, "Arsenal Crate" (**consumable**, $4.99): 30 of every weapon (Demolition Charges, Gravity Bombs, Seeker Missiles, Flak Bursts) and 180 s of Mining Laser. Can be bought again.
+  - App Store display name [30]: `Arsenal Crate`
+  - App Store description [45]: `30 of every weapon and 3 min of laser.` (38)
+  - Play description [200]: `The full arsenal: 30 Demolition Charges, 30 Gravity Bombs, 30 Seeker Missiles, 30 Flak Bursts and 3 minutes of Mining Laser. Can be bought again.`
+- Ammo-pack review note: "Ammo packs add weapon ammo to the player's stock (Garage → Armory). Ammo is used up in flight, so the pack can be bought again. Not restorable, by design (consumable)."
+- Ammo-pack review screenshot: Garage → Armory, scrolled to AMMO PACKS (rows show only when the store returns the products).
 - Review screenshot: Settings with the buy rows. These only appear when the store returns the products, so take this screenshot on a device with a sandbox account. The macOS capture shows only "Restore purchases".

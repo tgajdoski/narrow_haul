@@ -88,13 +88,15 @@ class ProgressService {
 
   /// Wipes the career (stars, times, XP, coins, achievements, Garage,
   /// dailies, contracts, stats) but keeps settings, purchases (`iap_*`,
-  /// `ads_removed`), ad pacing and the cosmetics in [keepCosmeticIds]
+  /// `ads_removed`), weapon ammo (`ammo_*`), ad pacing and the cosmetics in
+  /// [keepCosmeticIds]
   /// (paid items such as the Supporter Livery).
   Future<void> resetProgress({Set<String> keepCosmeticIds = const {}}) async {
     for (final key in _prefs.getKeys().toList()) {
       final kept = _keptOnReset.contains(key) ||
           key.startsWith('iap_') ||
           key.startsWith('ads_') ||
+          key.startsWith('ammo_') ||
           keepCosmeticIds.any((id) => key == 'cosmetic_unlocked_$id');
       if (!kept) await _prefs.remove(key);
     }
@@ -162,6 +164,22 @@ class ProgressService {
     if (current >= amount) {
       await _prefs.setInt('cosmetic_currency', current - amount);
     }
+  }
+
+  /// A consumable purchase (store transaction id) was already paid out.
+  bool isTransactionGranted(String purchaseId) => _bool('iap_tx_$purchaseId') ?? false;
+  Future<void> markTransactionGranted(String purchaseId) async =>
+      _prefs.setBool('iap_tx_$purchaseId', true);
+
+  // ── Weapon ammo (carried stock) ──────────────────────────────────────────
+
+  /// Carried units of a special weapon (charges, bombs, laser seconds).
+  /// Kept across a progress reset: most of it was paid for.
+  double getAmmo(String weaponId) => math.max(0, _double('ammo_$weaponId') ?? 0);
+
+  Future<void> addAmmo(String weaponId, double units) async {
+    final next = math.max(0.0, getAmmo(weaponId) + units);
+    await _prefs.setDouble('ammo_$weaponId', next);
   }
 
   // ── Route guide ──────────────────────────────────────────────────────────
@@ -280,6 +298,7 @@ class ProgressService {
   static const statDeliveries = 'deliveries';
   static const statPlaytimeSeconds = 'playtime_s';
   static const statTurretsDestroyed = 'turrets_destroyed';
+  static const statObstaclesWrecked = 'obstacles_wrecked';
   static const statReactorEscapes = 'reactor_escapes';
   static const statFuelCells = 'fuel_cells';
 

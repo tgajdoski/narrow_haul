@@ -18,6 +18,7 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
 | IAP review screenshot (both products) | — | ⏳ Settings on the iPhone with a sandbox account: the buy rows only show when the store returns products |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
+| Ammo pack images (`nh_demo_kit`, `nh_arsenal_crate`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
 
 Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `04_lava_03`,
 `05_orbit_02`, `06_redoubt_02`, `03_ice_03`, `10_level_complete`, `02_mine_03`, `08_missions`,
@@ -33,7 +34,7 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 3. **Build:** upload from Xcode/Transporter. The icon comes from the binary; you don't upload it separately.
 4. **App Information:** subtitle, category Games → Arcade (secondary Action), age rating questionnaire, copyright.
 5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising) and the privacy URL.
-6. **In-App Purchases:** for each of `nh_remove_ads` and `nh_supporter_pack`: display name, description, review screenshot. Submit them together with the first version.
+6. **In-App Purchases:** for each of `nh_remove_ads` and `nh_supporter_pack` (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**: display name, description, review screenshot (Garage → Armory). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
 ## Play Console → Narrow Haul → Grow users → Store presence → Main store listing
 

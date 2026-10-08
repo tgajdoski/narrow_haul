@@ -239,12 +239,19 @@ class LevelIntroHud extends PositionComponent {
 /// Crash explosion in world space (meters): a flash, a shock ring and hull
 /// debris under gravity. Removes itself when finished.
 class ExplosionBurst extends Component {
-  ExplosionBurst({required this.center, required this.accent, int seed = 0})
-    : _rng = math.Random(seed),
-      super(priority: 1100);
+  ExplosionBurst({
+    required this.center,
+    required this.accent,
+    int seed = 0,
+    this.ringRadius = 2.7,
+  }) : _rng = math.Random(seed),
+       super(priority: 1100);
 
   final Offset center;
   final Color accent;
+
+  /// Where the shock ring ends (m): a weapon's blast radius shows its reach.
+  final double ringRadius;
   final math.Random _rng;
 
   static const double _life = 1.1;
@@ -290,7 +297,7 @@ class ExplosionBurst extends Component {
       );
       canvas.drawCircle(
         center,
-        0.3 + k * 2.4,
+        0.3 + k * (ringRadius - 0.3),
         Paint()
           ..color = accent.withValues(alpha: (1 - k) * 0.8)
           ..style = PaintingStyle.stroke
@@ -309,6 +316,63 @@ class ExplosionBurst extends Component {
             )!.withValues(alpha: a)
           : const Color(0xFF9AA5B1).withValues(alpha: a);
       canvas.drawCircle(d.pos, d.size * (d.hot ? a : 1), paint);
+    }
+  }
+}
+
+/// Mining laser beam (world space): drawn while [active], from [from] to
+/// [to] (where it meets rock or machinery), with sparks at the cut.
+class MiningLaserBeam extends Component {
+  MiningLaserBeam({required this.color}) : super(priority: 1060);
+
+  final Color color;
+  bool active = false;
+  bool hitting = false;
+  Offset from = Offset.zero;
+  Offset to = Offset.zero;
+  final math.Random _rng = math.Random(7);
+  double _t = 0;
+
+  @override
+  void update(double dt) => _t += dt;
+
+  @override
+  void render(Canvas canvas) {
+    if (!active) return;
+    final flicker = 0.8 + 0.2 * math.sin(_t * 70);
+    canvas.drawLine(
+      from,
+      to,
+      Paint()
+        ..color = color.withValues(alpha: 0.35 * flicker)
+        ..strokeWidth = 0.22
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.08),
+    );
+    canvas.drawLine(
+      from,
+      to,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.9)
+        ..strokeWidth = 0.05
+        ..strokeCap = StrokeCap.round,
+    );
+    if (!hitting) return;
+    canvas.drawCircle(
+      to,
+      0.18 + 0.06 * math.sin(_t * 50),
+      Paint()
+        ..color = const Color(0xFFFFE8B0).withValues(alpha: 0.8)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.08),
+    );
+    final spark = Paint()
+      ..color = const Color(0xFFFFB347)
+      ..strokeWidth = 0.03
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 5; i++) {
+      final a = _rng.nextDouble() * math.pi * 2;
+      final l = 0.15 + _rng.nextDouble() * 0.35;
+      canvas.drawLine(to, to + Offset(math.cos(a), math.sin(a)) * l, spark);
     }
   }
 }

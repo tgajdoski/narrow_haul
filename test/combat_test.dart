@@ -14,6 +14,7 @@ import 'package:narrow_haul/game/level/specs/world_redoubt.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 
 /// Records what the defences report, without a running game.
 class _FakeHost implements CombatHost {
@@ -40,6 +41,10 @@ class _FakeHost implements CombatHost {
       events.add('meltdown $escapeSeconds');
   @override
   void onFuelCollected(double amount, Offset at) => events.add('fuel $amount');
+  @override
+  void detonate(Vector2 at, WeaponSpec weapon) => events.add('blast ${weapon.id}');
+  @override
+  void onObstacleDestroyed(Offset at) => events.add('wrecked');
 }
 
 LevelSpec _withDefences(
@@ -149,6 +154,20 @@ void main() {
       turret.takeHit();
       expect(turret.destroyed, isTrue);
       expect(host.events, ['turret']);
+    });
+
+    test('a heavy hit can cross the reactor threshold and its hp at once', () {
+      final host = _FakeHost();
+      final reactor = Reactor(
+        spec: const ReactorSpec(Pt(0, 0), hp: 8, disableHits: 3),
+        theme: redoubtTheme,
+        host: host,
+      );
+      reactor.takeHit(damage: 4, heavy: true);
+      expect(host.events, ['disable 10.0']);
+      reactor.takeHit(damage: 6, heavy: true);
+      expect(host.events.last, 'meltdown 30.0');
+      expect(reactor.health, 0);
     });
   });
 

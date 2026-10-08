@@ -29,6 +29,9 @@ import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
 import 'package:narrow_haul/game/keyboard_input.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
+import 'package:narrow_haul/game/level/cave/crate_spots.dart';
+import 'package:narrow_haul/game/level/cave/geom.dart';
+import 'package:narrow_haul/game/level/cave/terrain_carver.dart';
 import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
@@ -54,6 +57,8 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
+import 'package:narrow_haul/game/tags.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
@@ -156,6 +161,12 @@ class NarrowHaulGame extends Forge2DGame
       }
     }
     final flying = runState == RunState.playing && !isPaused && !demoMode;
+    if (flying &&
+        event is KeyDownEvent &&
+        KeyboardFlightInput.cycleKeys.contains(event.logicalKey)) {
+      cycleWeapon();
+      return KeyEventResult.handled;
+    }
     if (!flying) {
       _keys.reset();
       return KeyEventResult.ignored;
@@ -181,6 +192,52 @@ class NarrowHaulGame extends Forge2DGame
   int _turretsDestroyed = 0;
   bool _reactorDestroyed = false;
   final math.Random _combatRng = math.Random();
+
+  // ── Weapons, blasts & supply crates ──────────────────────────────────────
+  /// This flight's weapons (the Talon's cannon + special ammo).
+  WeaponRack? get weaponRack => _rack;
+  WeaponRack? _rack;
+
+  /// Carried (bought / coin / ad) ammo was used: the run is capped at 2★.
+  bool get carriedWeaponUsedThisRun => _rack?.usedCarried ?? false;
+
+  /// Runtime rock removal (cave levels only).
+  TerrainCarver? _carver;
+  CaveTerrain? _terrain;
+  CaveDecor? _decor;
+  bool _carveBusy = false;
+
+  /// Bumped on every level teardown, so a late off-thread carve result for
+  /// the previous level is dropped.
+  int _levelGen = 0;
+  MiningLaserBeam? _laserBeam;
+  double _laserTick = 0;
+  double _rumble = 0;
+
+  /// Chance per attempt of a supply crate on a level flown by an unarmed
+  /// ship. `--dart-define=CRATES=always` (or `never`) overrides it.
+  static const double kCrateChance = 0.35;
+  static const String _cratesDefine = String.fromEnvironment('CRATES');
+
+  /// Test-only: no supply crates (the autopilot flies a fixed level).
+  @visibleForTesting
+  bool debugNoCrates = false;
+
+  /// Test-only: carve on the calling thread instead of a background isolate.
+  @visibleForTesting
+  bool debugSyncCarve = false;
+
+  /// Source of crate odds/contents/spots (seedable in tests).
+  @visibleForTesting
+  math.Random crateRng = math.Random();
+
+  /// The crate on the current level, if any (tests, hints).
+  SupplyCrate? get supplyCrate => _crate;
+  SupplyCrate? _crate;
+
+  /// A short line shown in the hint slot after picking up a crate.
+  String? _weaponHint;
+  double _weaponHintLeft = 0;
 
   // ── Star / time tracking ─────────────────────────────────────────────────
   int lastLevelStars = 0;
@@ -352,6 +409,7 @@ class NarrowHaulGame extends Forge2DGame
         _touchThrust = v;
         _combineInputs();
       },
+      onCycleWeapon: cycleWeapon,
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -490,6 +548,7 @@ class NarrowHaulGame extends Forge2DGame
 
   Future<void> _loadCurrentLevel({required bool retry}) async {
     _clearLevel();
+    if (_ammoOfferedLevel != currentLevelDef.saveId) _ammoOffered = false;
     _currentLevelRetried = retry;
     _snapshots.clear();
     _snapshotTimer = 0;
@@ -587,6 +646,19 @@ class NarrowHaulGame extends Forge2DGame
       );
       await world.add(terrain);
       _levelEntities.add(terrain);
+      _terrain = terrain;
+      final def = currentLevelDef;
+      if (def is CaveLevelDef) {
+        _carver = TerrainCarver(
+          buildCave(def.spec),
+          guards: padGuards(
+            shipSpawn: Pt(data.shipSpawn.x, data.shipSpawn.y),
+            goalCenter: Pt(data.goalCenter.x, data.goalCenter.y),
+            goalHalfW: data.goalHalfWidth,
+            goalHalfH: data.goalHalfHeight,
+          ),
+        );
+      }
 
       final decor = CaveDecor(
         loops: data.caveLoops,
@@ -600,6 +672,7 @@ class NarrowHaulGame extends Forge2DGame
       );
       await world.add(decor);
       _levelEntities.add(decor);
+      _decor = decor;
     }
 
     if (theme.ambient != AmbientKind.none) {
@@ -655,11 +728,23 @@ class NarrowHaulGame extends Forge2DGame
         ? shipById(challengeShip)
         : LevelRegistry.shipFor(levelIndex);
     _levelGravityG = g0 * gravityMul / baseGravityY();
+    // Carried ammo stays home in a daily (a skill run) and in demos.
+    final carryAmmo = !isChallengeMode && !demoMode;
+    final rack = _rack = WeaponRack(
+      hasCannon: shipSpec.armed,
+      carried: {
+        if (carryAmmo)
+          for (final w in kWeapons) w.id: ProgressService.instance.getAmmo(w.id),
+      },
+    );
+    await _maybeSpawnCrate(shipSpec, theme);
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: _onShipHitWall,
       onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
       onFire: _onShipFired,
+      onWeapon: _onWeaponFired,
+      rack: rack,
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
       spec: shipSpec,
     );
@@ -689,7 +774,10 @@ class NarrowHaulGame extends Forge2DGame
     ship = shipBody;
     cargo = cargoBody;
     cargoAttachment = cargoLink;
-    _hudControls?.showFire = shipSpec.armed;
+    final beam = _laserBeam = MiningLaserBeam(color: theme.uiAccent);
+    await world.add(beam);
+    _levelEntities.add(beam);
+    _syncWeaponHud();
     _recorder = FlightRecorder(saveId: currentLevelDef.saveId, shipId: shipSpec.id);
     if (demoMode) cargoLink.scriptedTow = () => _demoTowing;
 
@@ -824,6 +912,19 @@ class NarrowHaulGame extends Forge2DGame
   // ── Level cleanup ─────────────────────────────────────────────────────────
 
   void _clearLevel() {
+    _flushAmmo();
+    _levelGen++;
+    _rack = null;
+    _carver = null;
+    _terrain = null;
+    _decor = null;
+    _carveBusy = false;
+    _laserBeam = null;
+    _crate = null;
+    _rumble = 0;
+    _weaponHint = null;
+    _weaponHintLeft = 0;
+    _hudControls?.weapon = null;
     camera.stop();
     for (final c in _levelEntities.reversed) {
       c.removeFromParent();
@@ -1149,7 +1250,8 @@ class NarrowHaulGame extends Forge2DGame
     if (pct >= spec.star3Fuel &&
         timeSeconds <= spec.star3Time &&
         !continuedThisRun &&
-        !guidedThisRun) {
+        !guidedThisRun &&
+        !carriedWeaponUsedThisRun) {
       return 3;
     }
     if (pct >= spec.star2Fuel) return 2;
@@ -1469,6 +1571,27 @@ class NarrowHaulGame extends Forge2DGame
 
   /// Rewarded "continue": offered once per attempt after a mistake (not a
   /// meltdown running out), when a safe point from before the crash exists.
+  /// After two crashes in a row on a cave level, the game-over screen offers
+  /// a Demolition Charge for a rewarded ad (once per level visit).
+  bool get canOfferAmmo =>
+      runState == RunState.gameOver &&
+      !isChallengeMode &&
+      !demoMode &&
+      !_ammoOffered &&
+      currentLevelDef is CaveLevelDef &&
+      crashStreak.levelId == currentLevelDef.saveId &&
+      crashStreak.count >= 2;
+  bool _ammoOffered = false;
+  String? _ammoOfferedLevel;
+
+  /// Rewarded: one Demolition Charge into the carried stock (it's on the
+  /// rack from the next attempt).
+  Future<void> grantRewardedCharge() async {
+    _ammoOffered = true;
+    _ammoOfferedLevel = currentLevelDef.saveId;
+    await ProgressService.instance.addAmmo(kDemoCharge.id, 1);
+  }
+
   bool get canContinue =>
       runState == RunState.gameOver &&
       !_continueUsed &&
@@ -1616,6 +1739,7 @@ class NarrowHaulGame extends Forge2DGame
   /// Landing status beats tutorial steps: it explains the both-on-pad rule
   /// at exactly the moment a player is confused by it.
   String? _currentHint() {
+    if (_weaponHintLeft > 0 && _weaponHint != null) return _weaponHint;
     final zone = _landingZone;
     if (zone != null && zone.shipInside != zone.cargoInside) {
       return zone.shipInside
@@ -1763,7 +1887,10 @@ class NarrowHaulGame extends Forge2DGame
   void lifecycleStateChange(AppLifecycleState state) {
     // Leaving the app mid-flight opens the pause menu, rather than letting
     // Flame silently auto-resume the flight on return.
-    if (state != AppLifecycleState.resumed) pauseGame();
+    if (state != AppLifecycleState.resumed) {
+      pauseGame();
+      _flushAmmo();
+    }
     if (state == AppLifecycleState.resumed) {
       MusicService.onForeground();
     } else {
@@ -1887,14 +2014,349 @@ class NarrowHaulGame extends Forge2DGame
     Haptics.light();
   }
 
-  void _burstAt(Offset at) {
+  void _burstAt(Offset at, {double ringRadius = 2.7}) {
     final burst = ExplosionBurst(
       center: at,
       accent: currentLevel?.theme.uiAccent ?? const Color(0xFFFF6B35),
       seed: _combatRng.nextInt(1 << 20),
+      ringRadius: ringRadius,
     );
     world.add(burst);
     _levelEntities.add(burst);
+  }
+
+  // ── Weapons (special ammo, blasts, rock carving, supply crates) ──────────
+
+  /// Next weapon on the rack (HUD chip tap, Q / Tab).
+  void cycleWeapon() {
+    final r = _rack;
+    if (r == null || r.available.length < 2) return;
+    r.cycle();
+    _syncWeaponHud();
+    Haptics.light();
+  }
+
+  static String _weaponLabel(WeaponSpec w) => switch (w.kind) {
+        WeaponKind.cannon => 'FIRE',
+        WeaponKind.charge => 'CHARGE',
+        WeaponKind.bomb => 'BOMB',
+        WeaponKind.laser => 'LASER',
+        WeaponKind.seeker => 'SEEKER',
+        WeaponKind.flak => 'FLAK',
+      };
+
+  void _syncWeaponHud() {
+    final hud = _hudControls;
+    final r = _rack;
+    if (hud == null) return;
+    hud.showFire = r?.canFire ?? false;
+    final w = r?.selected;
+    if (r == null || w == null) {
+      hud.weapon = null;
+      return;
+    }
+    final String? count;
+    if (w.kind == WeaponKind.cannon) {
+      count = null;
+    } else if (w.continuous) {
+      count = '${r.ammo(w.id).ceil()}s';
+    } else {
+      count = '×${r.ammo(w.id).round()}';
+    }
+    hud.weapon = (_weaponLabel(w), count, r.available.length > 1);
+  }
+
+  /// Writes carried ammo spent this flight back to the save.
+  void _flushAmmo() {
+    final r = _rack;
+    if (r == null) return;
+    r.takeCarriedSpent().forEach((id, units) {
+      ProgressService.instance.addAmmo(id, -units);
+    });
+  }
+
+  /// Maybe drops a supply crate: only cave levels flown by an unarmed ship
+  /// (the Talon has its gun), never in demos or test flights of the bot.
+  Future<void> _maybeSpawnCrate(ShipSpec shipSpec, ThemeSpec theme) async {
+    final def = currentLevelDef;
+    if (def is! CaveLevelDef ||
+        shipSpec.armed ||
+        demoMode ||
+        debugSkipHazards ||
+        debugNoCrates ||
+        _cratesDefine == 'never') {
+      return;
+    }
+    final always = _cratesDefine == 'always';
+    if (!always && crateRng.nextDouble() >= kCrateChance) return;
+    final spots = crateSpots(def.spec, ship: shipSpec);
+    if (spots.isEmpty) return;
+    final spot = spots[crateRng.nextInt(spots.length)];
+    // Seekers and flak need machinery to aim at.
+    final hasTargets = def.spec.obstacles.isNotEmpty;
+    final pool = [
+      for (final w in kWeapons)
+        if (hasTargets || w.carvesRock) w,
+    ];
+    final w = pool[crateRng.nextInt(pool.length)];
+    final units = w.crateMin + crateRng.nextInt(w.crateMax - w.crateMin + 1);
+    final crate = _crate = SupplyCrate(
+      pos: Offset(spot.x, spot.y),
+      weapon: w,
+      units: units.toDouble(),
+      host: this,
+      accent: theme.uiAccent,
+      onCollected: _onCrateCollected,
+    );
+    await world.add(crate);
+    _levelEntities.add(crate);
+  }
+
+  void _onCrateCollected(SupplyCrate crate) {
+    final r = _rack;
+    if (r == null) return;
+    r.addFound(crate.weapon.id, crate.units);
+    _syncWeaponHud();
+    final w = crate.weapon;
+    final amount = w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}';
+    final fire = _desktop ? 'press F' : 'tap ${_weaponLabel(w)}';
+    _weaponHint = '${w.name} $amount — $fire';
+    _weaponHintLeft = 3.5;
+    AudioService.playPickup();
+    Haptics.medium();
+  }
+
+  /// Local acceleration at [p] (bombs fall along it): fields included.
+  Vector2 _accelAt(Vector2 p) {
+    final forces = _forces;
+    if (forces == null) return world.gravity.clone();
+    final a = forces.sampler.accelAt(p.x, p.y, t: forces.time);
+    return Vector2(a.x, a.y);
+  }
+
+  /// Seeker target: the nearest live shootable in sight, within 14 m.
+  Vector2? _seekTarget(Vector2 from) {
+    Vector2? best;
+    var bestD = 14.0 * 14.0;
+    for (final c in world.children) {
+      if (c is! BodyComponent || c is! Shootable || !c.isMounted) continue;
+      if ((c as Shootable).destroyed) continue;
+      final p = c.body.position;
+      final d = (p - from).length2;
+      if (d >= bestD) continue;
+      if (!hasLineOfSight(world, from, p, ignore: c.body)) continue;
+      bestD = d;
+      best = p.clone();
+    }
+    return best;
+  }
+
+  void _onWeaponFired(WeaponSpec w, double dt) {
+    final s = ship;
+    if (s == null) return;
+    final accent = currentLevel?.theme.uiAccent ?? const Color(0xFFFFD166);
+    final v = s.body.linearVelocity;
+    final nose = s.noseDir;
+    switch (w.kind) {
+      case WeaponKind.charge:
+        detonate(s.body.position.clone(), w);
+      case WeaponKind.bomb:
+        spawnShell(Shell(
+          position: s.bellyWorld,
+          velocity: v - nose * w.speed,
+          fromPlayer: true,
+          host: this,
+          world: world,
+          color: accent,
+          weapon: w,
+          gravity: _accelAt,
+          lifetime: 8,
+        ));
+        AudioService.playShot();
+      case WeaponKind.seeker:
+        spawnShell(Shell(
+          position: s.muzzleWorld,
+          velocity: v * 0.5 + nose * w.speed,
+          fromPlayer: true,
+          host: this,
+          world: world,
+          color: accent,
+          weapon: w,
+          homing: _seekTarget,
+          lifetime: 5,
+        ));
+        AudioService.playShot();
+      case WeaponKind.flak:
+        final base = math.atan2(nose.y, nose.x);
+        for (var k = 0; k < w.pellets; k++) {
+          final a = base + w.spread * (k / (w.pellets - 1) - 0.5);
+          spawnShell(Shell(
+            position: s.muzzleWorld,
+            velocity: v + Vector2(math.cos(a), math.sin(a)) * w.speed,
+            fromPlayer: true,
+            host: this,
+            world: world,
+            color: accent,
+            weapon: w,
+            lifetime: 0.9,
+          ));
+        }
+        AudioService.playShot();
+      case WeaponKind.laser:
+        _fireLaser(w, dt, s);
+      case WeaponKind.cannon:
+        return;
+    }
+    if (!w.continuous) Haptics.light();
+    _syncWeaponHud();
+  }
+
+  void _fireLaser(WeaponSpec w, double dt, ShipBody s) {
+    final from = s.muzzleWorld;
+    final dir = s.noseDir;
+    final to = from + dir * w.range;
+    final ray = _LaserRay(cargo: combatCargo);
+    world.raycast(ray, from, to);
+    final hit = ray.fixture;
+    final end = ray.point ?? to;
+    _laserBeam
+      ?..from = Offset(from.x, from.y)
+      ..to = Offset(end.x, end.y)
+      ..hitting = hit != null;
+    _laserTick += dt;
+    if (hit == null || _laserTick < w.tick) return;
+    _laserTick = 0;
+    final owner = hit.body.userData;
+    if (owner is Shootable) {
+      owner.takeHit(damage: w.damage, heavy: true);
+    } else if (hit.body == _terrain?.body) {
+      // Just inside the face: each tick cuts ~0.45 m deeper (≈2 m/s).
+      final c = end + dir * 0.1;
+      if (_carver?.carve(c.x, c.y, w.carveRadius) ?? false) _scheduleCarve();
+    }
+  }
+
+  void _updateWeapons(double dt, ShipBody s) {
+    _laserBeam?.active = s.laserFiring;
+    if (!s.laserFiring) _laserTick = 0;
+    if (_weaponHintLeft > 0) _weaponHintLeft -= dt;
+    if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
+      _syncWeaponHud();
+    }
+    if (_rumble > 0) {
+      _rumble = math.max(0, _rumble - dt);
+      final amp = 0.14 * (_rumble / 0.35);
+      camera.viewfinder.position += Vector2(
+            _combatRng.nextDouble() - 0.5,
+            _combatRng.nextDouble() - 0.5,
+          ) *
+          (2 * amp);
+    }
+  }
+
+  /// How far [p] is from the surface of a shootable body (m).
+  static double _reachTo(BodyComponent c, Vector2 p) {
+    final pos = c.body.position;
+    return switch (c) {
+      RotatingBar b => () {
+          final half = Vector2(math.cos(b.body.angle), math.sin(b.body.angle))
+            ..scale(b.spec.halfLength);
+          return _segmentDistance(pos - half, pos + half, p) - b.spec.thickness;
+        }(),
+      Pendulum q => (pos - p).length - q.spec.bobRadius,
+      SlidingBlock k => (pos - p).length - math.min(k.spec.halfW, k.spec.halfH),
+      Turret() => (pos - p).length - Turret.domeRadius,
+      Reactor r => (pos - p).length - r.spec.radius,
+      _ => (pos - p).length,
+    };
+  }
+
+  static double _segmentDistance(Vector2 a, Vector2 b, Vector2 p) {
+    final ab = b - a;
+    final l2 = ab.length2;
+    final t = l2 == 0 ? 0.0 : ((p - a).dot(ab) / l2).clamp(0.0, 1.0);
+    return (a + ab * t - p).length;
+  }
+
+  @override
+  void detonate(Vector2 at, WeaponSpec weapon) {
+    final r = weapon.blastRadius;
+    for (final c in world.children.toList()) {
+      if (c is! BodyComponent || c is! Shootable || !c.isMounted) continue;
+      final target = c as Shootable;
+      if (target.destroyed) continue;
+      if (_reachTo(c, at) <= r) target.takeHit(damage: weapon.damage, heavy: true);
+    }
+    // Shove the pod (and the ship, unless the blast is its own charge).
+    final shove = r * 1.6;
+    void push(Body body, double strength) {
+      final d = body.worldCenter - at;
+      final dist = d.length;
+      if (dist >= shove || dist < 1e-4) return;
+      final dv = strength * (1 - dist / shove);
+      body
+        ..setAwake(true)
+        ..applyLinearImpulse(d.normalized()..scale(dv * body.mass));
+    }
+
+    final pod = combatCargo;
+    if (pod != null && pod.bodyType == BodyType.dynamic) push(pod, 2.4);
+    final s = ship;
+    if (s != null && s.isMounted && weapon.kind != WeaponKind.charge) {
+      push(s.body, 1.6);
+    }
+    if (weapon.carvesRock && (_carver?.carve(at.x, at.y, weapon.carveRadius) ?? false)) {
+      _scheduleCarve();
+    }
+    _burstAt(Offset(at.x, at.y), ringRadius: r);
+    AudioService.playBoom();
+    Haptics.medium();
+    _rumble = 0.35;
+  }
+
+  @override
+  void onObstacleDestroyed(Offset at) {
+    _burstAt(at);
+    AudioService.playBoom();
+    Haptics.medium();
+    ProgressService.instance.incrementStat(ProgressService.statObstaclesWrecked);
+  }
+
+  /// Re-extracts the carved rock (off the UI thread unless [debugSyncCarve])
+  /// and swaps it in. One job at a time; holes carved meanwhile are picked
+  /// up by the next run.
+  void _scheduleCarve() {
+    final carver = _carver;
+    if (carver == null || _carveBusy || !carver.dirty) return;
+    final gen = _levelGen;
+    final field = carver.snapshot();
+    final (nx, ny, cell) = (carver.nx, carver.ny, carver.cell);
+    if (debugSyncCarve) {
+      _applyCarvedLoops(extractCaveLoops(field, nx, ny, cell));
+      return;
+    }
+    _carveBusy = true;
+    Isolate.run(() => extractCaveLoops(field, nx, ny, cell)).then((loops) {
+      if (gen != _levelGen) return;
+      _carveBusy = false;
+      _applyCarvedLoops(loops);
+      _scheduleCarve();
+    }, onError: (Object e, StackTrace st) {
+      if (gen == _levelGen) _carveBusy = false;
+      ErrorReporter.report(e, st, context: 'carving rock');
+    });
+  }
+
+  void _applyCarvedLoops(List<List<Pt>> loops) {
+    final terrain = _terrain;
+    final carver = _carver;
+    if (terrain == null || carver == null || !terrain.isMounted) return;
+    terrain.applyLoops(loops);
+    _decor?.removeFloating((p) => carver.fieldAt(p.dx, p.dy) < 0);
+    _minimap?.updateCaveLoops(loops);
+    // Whatever rested on the old rock must notice it's gone.
+    ship?.body.setAwake(true);
+    combatCargo?.setAwake(true);
   }
 
   /// 3 · 2 · 1 · GO, then the ship launches by itself. Input during the
@@ -2010,6 +2472,7 @@ class NarrowHaulGame extends Forge2DGame
       AudioService.updateEngine(thrusting: s.isThrusting, dt: dt);
       AudioService.setAlarm(_meltdownLeft != null);
       _updateCombat(dt);
+      _updateWeapons(dt, s);
       _sampleSnapshot(dt, s);
       _recordFrame(dt, s);
 
@@ -2048,4 +2511,22 @@ class _FlightSnapshot {
   final Vector2 cargoPos;
   final double cargoAngle;
   final bool attached;
+}
+
+/// Laser path: the first solid thing along the beam. The ship, the pod and
+/// sensors don't stop it (a beam that cut the pod loose would be a trap).
+class _LaserRay extends RayCastCallback {
+  _LaserRay({this.cargo});
+  final Body? cargo;
+  Fixture? fixture;
+  Vector2? point;
+
+  @override
+  double reportFixture(Fixture f, Vector2 p, Vector2 normal, double fraction) {
+    if (f.isSensor || f.body == cargo) return -1;
+    if (f.userData is ShipTag || f.body.userData is ShipBody) return -1;
+    fixture = f;
+    point = p.clone();
+    return fraction;
+  }
 }

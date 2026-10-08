@@ -1,0 +1,116 @@
+"""Store images for the ammo packs (nh_demo_kit, nh_arsenal_crate).
+
+    python tool/store/make_pack_images.py
+
+Draws the in-game supply crate (amber box, red chevron) on the game's
+backdrop with the pack name, in 1024x1024 (App Store promotional image) and
+512x512 (Play), RGB without alpha. Writes art_src/store/iap/<id>_<size>.png.
+"""
+import math
+import os
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, 'art_src', 'store', 'iap')
+FONT = os.path.join(ROOT, 'assets', 'fonts', 'RussoOne-Regular.ttf')
+S = 1024
+
+BACK = (11, 19, 43)
+AMBER = (255, 200, 87)
+RED = (255, 82, 82)
+CRATE = (59, 51, 38)
+
+PACKS = {
+    'nh_demo_kit': ('DEMOLITION KIT', '10 CHARGES · 10 BOMBS · 60s LASER', 1),
+    'nh_arsenal_crate': ('ARSENAL CRATE', '30 OF EVERY WEAPON · 3 MIN LASER', 3),
+}
+
+
+def glow(size, center, radius, color, alpha):
+    layer = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    cx, cy = center
+    d.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=color + (alpha,))
+    return layer.filter(ImageFilter.GaussianBlur(radius * 0.45))
+
+
+def crate(d, cx, cy, w):
+    h = w * 0.72
+    r = w * 0.06
+    box = (cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
+    d.rounded_rectangle(box, r, fill=CRATE, outline=AMBER, width=max(4, int(w * 0.05)))
+    band = cy - h * 0.17
+    d.line((cx - w / 2, band, cx + w / 2, band), fill=AMBER, width=max(4, int(w * 0.05)))
+    # Corner rivets.
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            px, py = cx + sx * w * 0.38, cy + sy * h * 0.36
+            d.ellipse((px - w * 0.025, py - w * 0.025, px + w * 0.025, py + w * 0.025), fill=AMBER)
+    # Warning chevron.
+    cw = w * 0.2
+    top = cy + h * 0.0
+    d.line(
+        [(cx - cw, top + cw * 0.95), (cx, top), (cx + cw, top + cw * 0.95)],
+        fill=RED, width=max(5, int(w * 0.06)), joint='curve',
+    )
+
+
+def bomb(d, cx, cy, r):
+    # Fuse with a spark, so it reads as a bomb (not a wheel).
+    fx, fy = cx + r * 0.75, cy - r * 0.75
+    d.line((cx + r * 0.5, cy - r * 0.5, fx, fy), fill=AMBER, width=max(3, int(r * 0.2)))
+    burst(d, fx + r * 0.2, fy - r * 0.2, r * 0.45)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(43, 48, 59), outline=AMBER, width=max(3, int(r * 0.22)))
+    d.ellipse((cx - r * 0.35, cy - r * 0.35, cx + r * 0.35, cy + r * 0.35), fill=RED)
+
+
+def burst(d, cx, cy, r):
+    pts = []
+    for k in range(16):
+        a = k * math.pi / 8
+        rr = r if k % 2 == 0 else r * 0.45
+        pts.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
+    d.polygon(pts, fill=(255, 232, 176))
+
+
+def make(pid, title, line, crates):
+    ss = 2
+    size = S * ss
+    im = Image.new('RGBA', (size, size), BACK + (255,))
+    im.alpha_composite(glow(size, (size // 2, int(size * 0.44)), int(size * 0.34), AMBER, 70))
+    d = ImageDraw.Draw(im)
+
+    cy = size * 0.44
+    if crates == 1:
+        burst(d, size * 0.8, size * 0.17, size * 0.08)
+        crate(d, size / 2, cy, size * 0.46)
+        bomb(d, size * 0.16, size * 0.36, size * 0.055)
+        bomb(d, size * 0.85, size * 0.5, size * 0.045)
+    else:
+        burst(d, size * 0.2, size * 0.2, size * 0.07)
+        burst(d, size * 0.82, size * 0.22, size * 0.06)
+        crate(d, size * 0.33, cy + size * 0.06, size * 0.3)
+        crate(d, size * 0.67, cy + size * 0.06, size * 0.3)
+        crate(d, size * 0.5, cy - size * 0.13, size * 0.3)
+        bomb(d, size * 0.1, size * 0.42, size * 0.045)
+        bomb(d, size * 0.9, size * 0.42, size * 0.045)
+
+    tf = ImageFont.truetype(FONT, int(size * 0.095))
+    lf = ImageFont.truetype(FONT, int(size * 0.038))
+    tw = d.textlength(title, font=tf)
+    d.text(((size - tw) / 2, size * 0.73), title, font=tf, fill=(255, 255, 255))
+    lw = d.textlength(line, font=lf)
+    d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=AMBER)
+
+    final = im.convert('RGB').resize((S, S), Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    for px in (1024, 512):
+        path = os.path.join(OUT, f'{pid}_{px}.png')
+        (final if px == S else final.resize((px, px), Image.LANCZOS)).save(path, optimize=True)
+        print(path)
+
+
+if __name__ == '__main__':
+    for pid, (title, line, crates) in PACKS.items():
+        make(pid, title, line, crates)
