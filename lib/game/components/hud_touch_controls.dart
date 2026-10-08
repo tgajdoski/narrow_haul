@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 
 /// On-screen controls for landscape play.
@@ -178,23 +179,13 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   Vector2? _knobCenter;
   bool _active = false;
 
-  Sprite? _baseSprite;
-  Sprite? _knobSprite;
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    try {
-      _baseSprite = await Sprite.load('joystick_base.png');
-    } catch (_) {}
-    try {
-      _knobSprite = await Sprite.load('joystick_knob.png');
-    } catch (_) {}
-  }
+  /// Last emitted axis, for lighting the side the pilot is turning to.
+  double _axis = 0;
 
   void _emit(double raw) {
     final clamped = raw.clamp(-1.0, 1.0);
-    onAxisChanged(clamped.abs() < _deadzone ? 0.0 : clamped);
+    _axis = clamped.abs() < _deadzone ? 0.0 : clamped;
+    onAxisChanged(_axis);
   }
 
   @override
@@ -251,8 +242,8 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     }
   }
 
-  /// Resting position hint: show the full joystick (base + centred knob)
-  /// at a fixed bottom-left location so the player always sees it.
+  /// Resting position hint: the full dial (base + centred knob) at a fixed
+  /// bottom corner so the player always sees where to steer.
   void _drawHint(Canvas canvas) {
     const edge = _baseOuterRadius + 12;
     final cx = (size.x * hintFraction).clamp(
@@ -260,104 +251,113 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
       math.max(hintInsets.left + edge, size.x - hintInsets.right - edge),
     ).toDouble();
     final cy = size.y - hintInsets.bottom - _baseOuterRadius - 16;
-
-    if (_baseSprite != null) {
-      final d = _baseOuterRadius * 2;
-      _baseSprite!.render(
-        canvas,
-        position: Vector2(cx - _baseOuterRadius, cy - _baseOuterRadius),
-        size: Vector2(d, d),
-      );
-    } else {
-      _drawFallbackBase(canvas, Vector2(cx, cy));
-    }
-
-    if (_knobSprite != null) {
-      final kd = _knobRadius * 2;
-      _knobSprite!.render(
-        canvas,
-        position: Vector2(cx - _knobRadius, cy - _knobRadius),
-        size: Vector2(kd, kd),
-      );
-    } else {
-      _drawFallbackKnob(canvas, Vector2(cx, cy));
-    }
+    final c = Offset(cx, cy);
+    _drawBase(canvas, c, active: false);
+    _drawKnob(canvas, c, active: false);
   }
 
   void _drawJoystick(Canvas canvas) {
     final base = _baseCenter!;
     final knob = _knobCenter!;
-    final baseDiam = _baseOuterRadius * 2;
-    final knobDiam = _knobRadius * 2;
-
-    if (_baseSprite != null) {
-      _baseSprite!.render(
-        canvas,
-        position: Vector2(base.x - _baseOuterRadius, base.y - _baseOuterRadius),
-        size: Vector2(baseDiam, baseDiam),
-      );
-    } else {
-      _drawFallbackBase(canvas, base);
-    }
-
-    if (_knobSprite != null) {
-      _knobSprite!.render(
-        canvas,
-        position: Vector2(knob.x - _knobRadius, knob.y - _knobRadius),
-        size: Vector2(knobDiam, knobDiam),
-      );
-    } else {
-      _drawFallbackKnob(canvas, knob);
-    }
+    _drawBase(canvas, Offset(base.x, base.y), active: true);
+    _drawKnob(canvas, Offset(knob.x, knob.y), active: true);
   }
 
-  void _drawFallbackBase(Canvas canvas, Vector2 base) {
+  /// Rotation dial: ring with ticks, a horizontal track lit toward the
+  /// current turn, and curved arrows that light on the side being turned to.
+  void _drawBase(Canvas canvas, Offset c, {required bool active}) {
+    const r = _baseOuterRadius;
+    final a = active ? 1.0 : 0.6;
+    final axis = active ? _axis : 0.0;
     canvas.drawCircle(
-      Offset(base.x, base.y),
-      _baseOuterRadius,
-      Paint()..color = const Color(0x331B263B),
+      c,
+      r,
+      Paint()..color = HudColors.plate.withValues(alpha: active ? 0.7 : 0.4),
     );
-    canvas.drawCircle(
-      Offset(base.x, base.y),
-      _baseOuterRadius,
+    final ring = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    drawGlow(canvas, ring, HudColors.cyan, active ? 0.45 : 0.12);
+    drawStroke(canvas, ring, HudColors.cyan.withValues(alpha: 0.75 * a), 1.6);
+
+    final tick = Paint()
+      ..color = HudColors.cyan.withValues(alpha: 0.35 * a)
+      ..strokeWidth = 1.2;
+    for (var i = 0; i < 36; i++) {
+      final ang = i * math.pi / 18;
+      final d = Offset(math.cos(ang), math.sin(ang));
+      final major = i % 9 == 0;
+      canvas.drawLine(c + d * (r - (major ? 11 : 6)), c + d * (r - 3), tick);
+    }
+
+    canvas.drawLine(
+      c + const Offset(-_maxKnobRadius, 0),
+      c + const Offset(_maxKnobRadius, 0),
       Paint()
-        ..color = const Color(0xAA00B4D8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
+        ..color = const Color(0x14FFFFFF)
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round,
     );
-    canvas.drawCircle(
-      Offset(base.x, base.y),
-      _maxKnobRadius,
-      Paint()
-        ..color = const Color(0x2200B4D8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    if (axis != 0) {
+      canvas.drawLine(
+        c,
+        c + Offset(axis * _maxKnobRadius, 0),
+        Paint()
+          ..color = HudColors.cyanBright.withValues(alpha: 0.85)
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    _drawTurnArrow(canvas, c, left: true, lit: axis < 0, alpha: a);
+    _drawTurnArrow(canvas, c, left: false, lit: axis > 0, alpha: a);
   }
 
-  void _drawFallbackKnob(Canvas canvas, Vector2 knob) {
-    canvas.drawCircle(
-      Offset(knob.x + 2, knob.y + 2),
-      _knobRadius,
-      Paint()..color = const Color(0x44000000),
-    );
-    canvas.drawCircle(
-      Offset(knob.x, knob.y),
-      _knobRadius,
-      Paint()..color = const Color(0xFF00B4D8),
-    );
-    canvas.drawCircle(
-      Offset(knob.x - 5, knob.y - 5),
-      _knobRadius * 0.5,
-      Paint()..color = const Color(0x4487E8FF),
-    );
-    canvas.drawCircle(
-      Offset(knob.x, knob.y),
-      _knobRadius,
+  void _drawTurnArrow(
+    Canvas canvas,
+    Offset c, {
+    required bool left,
+    required bool lit,
+    required double alpha,
+  }) {
+    const r = _baseOuterRadius * 0.7;
+    final start = left ? -math.pi * 0.62 : -math.pi * 0.38;
+    final sweep = left ? -0.5 : 0.5;
+    final color = lit
+        ? HudColors.cyanBright
+        : HudColors.cyan.withValues(alpha: 0.45 * alpha);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = lit ? 3 : 2.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: c, radius: r), start, sweep, false, paint);
+    final end = start + sweep;
+    final tip = c + Offset(math.cos(end), math.sin(end)) * r;
+    final tangent = Offset(-math.sin(end), math.cos(end)) * sweep.sign;
+    final normal = Offset(-tangent.dy, tangent.dx);
+    canvas.drawLine(tip, tip - tangent * 7 + normal * 5, paint);
+    canvas.drawLine(tip, tip - tangent * 7 - normal * 5, paint);
+  }
+
+  /// Hexagonal puck with a glowing core.
+  void _drawKnob(Canvas canvas, Offset c, {required bool active}) {
+    const r = _knobRadius;
+    final hex = hexPath(c, r);
+    drawGlow(canvas, hex, HudColors.cyanBright, active ? 0.9 : 0.3);
+    canvas.drawPath(
+      hex,
       Paint()
-        ..color = const Color(0xCC87E8FF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
+        ..shader = RadialGradient(
+          colors: active
+              ? const [HudColors.cyanBright, HudColors.cyan, Color(0xFF075A73)]
+              : const [Color(0xCC5CE1FF), Color(0xAA00B4D8), Color(0x88075A73)],
+          stops: const [0, 0.55, 1],
+        ).createShader(Rect.fromCircle(center: c, radius: r)),
+    );
+    drawStroke(canvas, hex, Colors.white.withValues(alpha: active ? 0.9 : 0.5), 1.4);
+    drawStroke(
+      canvas,
+      hexPath(c, r * 0.48),
+      Colors.white.withValues(alpha: active ? 0.55 : 0.3),
+      1.2,
     );
   }
 }
@@ -383,18 +383,16 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
   bool _pressed = false;
   int? _pointerId;
 
-  Sprite? _idleSprite;
-  Sprite? _pressedSprite;
+  /// Seconds alive (pulse rings) and 0–1 smoothed press state.
+  double _t = 0;
+  double _heat = 0;
+  final _thrustLabel = HudText();
 
   @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    try {
-      _idleSprite = await Sprite.load('thrust_idle.png');
-    } catch (_) {}
-    try {
-      _pressedSprite = await Sprite.load('thrust_press.png');
-    } catch (_) {}
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+    _heat += ((_pressed ? 1.0 : 0.0) - _heat) * math.min(1.0, dt * 14);
   }
 
   @override
@@ -453,103 +451,77 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
 
   @override
   void render(Canvas canvas) {
-    final sprite = _pressed ? (_pressedSprite ?? _idleSprite) : _idleSprite;
-    if (sprite != null) {
-      sprite.render(
-        canvas,
-        position: Vector2.zero(),
-        size: Vector2(radius * 2, radius * 2),
-      );
-      return;
-    }
-    _drawFallback(canvas);
+    _drawPad(canvas, HudColors.thrust, flatTop: true);
+    final c = Offset(radius, radius);
+    final flicker = _pressed ? 1 + 0.07 * math.sin(_t * 42) : 1.0;
+    drawFlameGlyph(
+      canvas,
+      c + Offset(0, -radius * 0.12),
+      radius * 0.6 * flicker,
+      hot: _pressed,
+    );
+    final tp = _thrustLabel.layout(
+      TextSpan(
+        text: 'THRUST',
+        style: hudFont(
+          9.5,
+          Colors.white.withValues(alpha: 0.55 + 0.4 * _heat),
+          spacing: 1.8,
+        ),
+      ),
+    );
+    tp.paint(canvas, Offset(radius - tp.width / 2, radius + radius * 0.42));
   }
 
-  void _drawFallback(Canvas canvas) {
-    final cx = radius;
-    final cy = radius;
-    final alpha = _pressed ? 1.0 : 0.72;
+  /// Hexagonal pad: pulse rings while held, glow, heated fill, rim and
+  /// corner ticks, all in [accent].
+  void _drawPad(Canvas canvas, Color accent, {required bool flatTop}) {
+    final c = Offset(radius, radius);
+    final rot = flatTop ? math.pi / 6 : 0.0;
+    final hex = hexPath(c, radius, rotation: rot);
 
-    if (_pressed) {
-      canvas.drawCircle(
-        Offset(cx, cy),
-        radius + 8,
-        Paint()
-          ..color = const Color(0x33FF6B35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-      );
+    if (_heat > 0.05) {
+      for (var k = 0; k < 2; k++) {
+        final phase = (_t * 1.8 + k * 0.5) % 1.0;
+        drawStroke(
+          canvas,
+          hexPath(c, radius * (1 + 0.35 * phase), rotation: rot),
+          accent.withValues(alpha: (1 - phase) * 0.45 * _heat),
+          2,
+        );
+      }
     }
-
-    canvas.drawCircle(
-      Offset(cx, cy),
-      radius,
-      Paint()..color = Color.fromARGB((_pressed ? 220 : 80).round(), 27, 38, 59),
-    );
-
-    canvas.drawCircle(
-      Offset(cx, cy),
-      radius,
+    drawGlow(canvas, hex, accent, 0.2 + 0.8 * _heat);
+    canvas.drawPath(
+      hex,
       Paint()
-        ..color = Color.fromARGB(
-          (255 * alpha).round(),
-          _pressed ? 0xFF : 0xE0,
-          _pressed ? 0x6B : 0xA0,
-          _pressed ? 0x35 : 0x50,
-        )
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = _pressed ? 3.5 : 2.5,
+        ..shader = RadialGradient(
+          colors: [
+            Color.lerp(HudColors.plate, accent.withValues(alpha: 0.75), _heat)!,
+            Color.lerp(HudColors.plateDark, const Color(0xE61A0C06), _heat)!,
+          ],
+        ).createShader(Rect.fromCircle(center: c, radius: radius)),
     );
-
-    _drawFlameIcon(canvas, Offset(cx, cy), radius * 0.55, alpha);
-    _drawLabel(canvas, Offset(cx, cy + radius * 0.62), alpha);
-  }
-
-  void _drawFlameIcon(Canvas canvas, Offset center, double size, double alpha) {
-    final baseColor = _pressed ? const Color(0xFFFF6B35) : const Color(0xFFE07A5F);
-    final paint = Paint()
-      ..color = Color.fromARGB(
-        (255 * alpha).round(),
-        (baseColor.r * 255).round(),
-        (baseColor.g * 255).round(),
-        (baseColor.b * 255).round(),
-      )
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
+    drawStroke(
+      canvas,
+      hex,
+      accent.withValues(alpha: 0.65 + 0.35 * _heat),
+      2 + 1.2 * _heat,
+    );
+    drawStroke(
+      canvas,
+      hexPath(c, radius * 0.82, rotation: rot),
+      accent.withValues(alpha: 0.18 + 0.2 * _heat),
+      1,
+    );
+    final tick = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35 + 0.5 * _heat)
+      ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-
-    final path = Path();
-    path.moveTo(center.dx - size * 0.4, center.dy + size * 0.55);
-    path.cubicTo(
-      center.dx - size * 0.5, center.dy - size * 0.1,
-      center.dx - size * 0.1, center.dy - size * 0.8,
-      center.dx, center.dy - size,
-    );
-    path.cubicTo(
-      center.dx + size * 0.1, center.dy - size * 0.8,
-      center.dx + size * 0.5, center.dy - size * 0.1,
-      center.dx + size * 0.4, center.dy + size * 0.55,
-    );
-    canvas.drawPath(path, paint);
-
-    if (_pressed) {
-      canvas.drawCircle(
-        Offset(center.dx, center.dy - size * 0.2),
-        size * 0.18,
-        Paint()..color = const Color(0xFFFFD166),
-      );
-    }
-  }
-
-  void _drawLabel(Canvas canvas, Offset pos, double alpha) {
-    final linePaint = Paint()
-      ..color = Color.fromARGB((180 * alpha).round(), 255, 255, 255)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    for (int i = 0; i < 3; i++) {
-      final y = pos.dy + (i - 1) * 4.0;
-      final w = (i == 1) ? 18.0 : 12.0;
-      canvas.drawLine(Offset(pos.dx - w / 2, y), Offset(pos.dx + w / 2, y), linePaint);
+    for (var i = 0; i < 6; i++) {
+      final a = rot + math.pi / 6 + i * math.pi / 3;
+      final d = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(c + d * (radius * 0.86), c + d * (radius * 0.97), tick);
     }
   }
 }
@@ -569,47 +541,31 @@ class _FireButton extends _ThrustButton {
   bool get pressed => _pressed;
 
   @override
-  Future<void> onLoad() async {} // no sprites: always the drawn face
-
-  @override
   void render(Canvas canvas) {
-    final c = Offset(radius, radius);
-    const accent = Color(0xFFFF5252);
-    canvas.drawCircle(
-      c,
-      radius,
-      Paint()..color = Color.fromARGB(_pressed ? 220 : 80, 27, 38, 59),
-    );
-    canvas.drawCircle(
-      c,
-      radius,
-      Paint()
-        ..color = accent.withValues(alpha: _pressed ? 1 : 0.7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = _pressed ? 3.5 : 2.5,
-    );
+    _drawPad(canvas, HudColors.fire, flatTop: false);
+    final c = Offset(radius, radius - radius * 0.1);
     final line = Paint()
-      ..color = accent.withValues(alpha: _pressed ? 1 : 0.8)
-      ..strokeWidth = 2.2
+      ..color = Colors.white.withValues(alpha: 0.7 + 0.3 * _heat)
+      ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    final r = radius * 0.42;
-    canvas.drawCircle(c, r * 0.62, line);
+    final r = radius * 0.4;
+    canvas.drawCircle(c, r * 0.6, line);
+    canvas.drawCircle(c, 1.8, Paint()..color = HudColors.fire);
     for (final d in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
       canvas.drawLine(c + d * (r * 0.35), c + d * r, line);
     }
     final tp = _label.layout(
       TextSpan(
         text: weapon()?.$1 ?? 'FIRE',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: _pressed ? 0.95 : 0.7),
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
+        style: hudFont(
+          8.5,
+          Colors.white.withValues(alpha: 0.6 + 0.35 * _heat),
+          spacing: 1.2,
         ),
       ),
     );
-    tp.paint(canvas, Offset(radius - tp.width / 2, radius + r + 2));
+    tp.paint(canvas, Offset(radius - tp.width / 2, c.dy + r + 2));
   }
 }
 
@@ -645,24 +601,15 @@ class _WeaponChip extends PositionComponent with TapCallbacks {
   void render(Canvas canvas) {
     final w = weapon();
     if (w == null || !_visible) return;
-    final r = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(15));
-    canvas.drawRRect(r, Paint()..color = const Color(0x991B263B));
-    canvas.drawRRect(
-      r,
-      Paint()
-        ..color = const Color(0xFFFFC857).withValues(alpha: 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
+    final plate = chamferRect(size.toRect(), 9);
+    drawGlow(canvas, plate, HudColors.gold, 0.35);
+    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, plate, HudColors.gold.withValues(alpha: 0.85), 1.4);
     final label = '${w.$2 ?? ''}${w.$3 ? '  ⟳' : ''}'.trim();
     final tp = _text.layout(
       TextSpan(
         text: label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        style: hudFont(12, Colors.white, spacing: 1),
       ),
     );
     tp.paint(canvas, Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2));
@@ -692,100 +639,62 @@ class FuelGaugeHud extends PositionComponent {
     _t += dt;
   }
 
-  Sprite? _frameSprite;
+  final _fuelLabel = HudText();
+  final _lowLabel = HudText();
 
   static const double _barW = 220.0;
   static const double _barH = 26.0;
   static const double _left = 12.0;
   static const double _top = 8.0;
-  static const double _fillInset = 5.0;
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    try {
-      _frameSprite = await Sprite.load('fuel_bar.png');
-    } catch (_) {}
-  }
+  static const int _segments = 24;
 
   @override
   void render(Canvas canvas) {
     final fillColor = fuelFraction > 0.4
-        ? const Color(0xFF00B4D8)
+        ? HudColors.cyan
         : fuelFraction > 0.15
             ? const Color(0xFFFFD166)
             : const Color(0xFFFF6B35);
     // Low fuel: the fill blinks so it's noticed in peripheral vision.
     final low = fuelFraction > 0 && fuelFraction < lowFuel;
     final blink = low ? 0.35 + 0.65 * (math.sin(_t * 9) * 0.5 + 0.5) : 1.0;
-    final fillPaint = Paint()..color = fillColor.withValues(alpha: blink);
-    final double innerLeft;
-    final double innerW;
-    final double innerTop;
-    final double innerH;
 
-    if (_frameSprite != null) {
-      // Sprite-based frame
-      _frameSprite!.render(
-        canvas,
-        position: Vector2(_left, _top),
-        size: Vector2(_barW, _barH),
-      );
+    // Cockpit plate.
+    final plate = chamferRect(
+      const Rect.fromLTWH(_left, _top, _barW, _barH),
+      9,
+    );
+    drawGlow(canvas, plate, low ? const Color(0xFFFF6B35) : HudColors.cyan,
+        low ? 0.6 * blink : 0.25);
+    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, plate, HudColors.cyan.withValues(alpha: 0.7), 1.4);
 
-      // Dynamic fill drawn inside the frame
-      if (fuelFraction > 0) {
-        final fillW = (_barW - _fillInset * 2) * fuelFraction;
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(_left + _fillInset, _top + _fillInset, fillW, _barH - _fillInset * 2),
-            const Radius.circular(3),
-          ),
-          fillPaint,
-        );
+    final label = _fuelLabel.layout(
+      TextSpan(text: 'FUEL', style: hudFont(9, const Color(0xB3FFFFFF))),
+    );
+    label.paint(
+      canvas,
+      Offset(_left + 10, _top + (_barH - label.height) / 2),
+    );
+
+    // Segmented cells.
+    const innerLeft = _left + 46;
+    const innerW = _barW - 46 - 8;
+    const innerTop = _top + 7;
+    const innerH = _barH - 14;
+    const gap = 2.0;
+    const cellW = (innerW - gap * (_segments - 1)) / _segments;
+    final lit = fuelFraction.clamp(0.0, 1.0) * _segments;
+    final on = Paint()..color = fillColor.withValues(alpha: blink);
+    final off = Paint()..color = const Color(0x1FFFFFFF);
+    for (var i = 0; i < _segments; i++) {
+      final x = innerLeft + i * (cellW + gap);
+      final cell = Rect.fromLTWH(x, innerTop, cellW, innerH);
+      canvas.drawRect(cell, off);
+      if (i < lit) {
+        final w = cellW * math.min(1.0, lit - i);
+        canvas.drawRect(Rect.fromLTWH(x, innerTop, w, innerH), on);
       }
-      innerLeft = _left + _fillInset;
-      innerW = _barW - _fillInset * 2;
-      innerTop = _top + _fillInset;
-      innerH = _barH - _fillInset * 2;
-    } else {
-      // Fallback: pure canvas bar
-      const barW = 120.0;
-      const barH = 8.0;
-      const left = 12.0;
-      const top = 10.0;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(left, top, barW, barH),
-          const Radius.circular(4),
-        ),
-        Paint()..color = const Color(0x441B263B),
-      );
-
-      if (fuelFraction > 0) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(left, top, barW * fuelFraction, barH),
-            const Radius.circular(4),
-          ),
-          fillPaint,
-        );
-      }
-      innerLeft = left;
-      innerW = barW;
-      innerTop = top;
-      innerH = barH;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(left, top, barW, barH),
-          const Radius.circular(4),
-        ),
-        Paint()
-          ..color = const Color(0x8800B4D8)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
     }
 
     // Star thresholds: a tick per mark, lit while fuel is still above it.
@@ -793,8 +702,8 @@ class FuelGaugeHud extends PositionComponent {
       final x = innerLeft + innerW * mark;
       final kept = fuelFraction >= mark;
       canvas.drawLine(
-        Offset(x, innerTop - 2),
-        Offset(x, innerTop + innerH + 2),
+        Offset(x, innerTop - 3),
+        Offset(x, innerTop + innerH + 3),
         Paint()
           ..color = kept ? const Color(0xFFFFD166) : const Color(0x66FFFFFF)
           ..strokeWidth = 2,
@@ -802,40 +711,28 @@ class FuelGaugeHud extends PositionComponent {
     }
 
     if (low) {
-      final tp = TextPainter(
-        text: TextSpan(
+      final tp = _lowLabel.layout(
+        TextSpan(
           text: 'LOW FUEL',
-          style: TextStyle(
-            color: const Color(0xFFFF6B35).withValues(alpha: blink),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
+          style: hudFont(
+            11,
+            const Color(0xFFFF6B35).withValues(alpha: blink),
+            spacing: 1.5,
           ),
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      final x = (_frameSprite != null ? _left + _barW : 12.0 + 120.0) + 24;
-      tp.paint(canvas, Offset(x, innerTop + innerH / 2 - tp.height / 2));
+      );
+      tp.paint(
+        canvas,
+        Offset(_left + _barW + 24, innerTop + innerH / 2 - tp.height / 2),
+      );
     }
 
-    // Tow indicator dot (always code-drawn)
+    // Tow indicator: a lit hex beside the gauge.
     if (towing) {
-      final towX = _frameSprite != null ? _left + _barW + 10 : 12.0 + 120.0 + 10;
-      const towY = _top + _barH / 2;
-      canvas.drawCircle(
-        Offset(towX, towY),
-        4,
-        Paint()..color = const Color(0xFF4ADE80),
-      );
-      canvas.drawCircle(
-        Offset(towX, towY),
-        4,
-        Paint()
-          ..color = const Color(0xFF4ADE80)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+      const towC = Offset(_left + _barW + 10, _top + _barH / 2);
+      final hex = hexPath(towC, 4.5);
+      drawGlow(canvas, hex, const Color(0xFF4ADE80), 0.8);
+      canvas.drawPath(hex, Paint()..color = const Color(0xFF4ADE80));
     }
   }
 }
@@ -980,15 +877,9 @@ class GravityIndicatorHud extends PositionComponent {
   void render(Canvas canvas) {
     if (!show) return;
     const center = Offset(_cx, _cy);
-    canvas.drawCircle(center, _r, Paint()..color = const Color(0xAA0D1B2A));
-    canvas.drawCircle(
-      center,
-      _r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = accent.withValues(alpha: 0.6),
-    );
+    final hex = hexPath(center, _r + 1);
+    canvas.drawPath(hex, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, hex, accent.withValues(alpha: 0.7), 1.4);
 
     final g = accelG.length;
     if (g < 0.03) {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 
@@ -35,22 +36,14 @@ class PauseButtonHud extends PositionComponent with TapCallbacks {
   void render(Canvas canvas) {
     if (!visible) return;
     const c = Offset(_size / 2, _size / 2);
-    canvas.drawCircle(c, _size / 2, Paint()..color = const Color(0x661B263B));
-    canvas.drawCircle(
-      c,
-      _size / 2,
-      Paint()
-        ..color = const Color(0x8800B4D8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-    final bar = Paint()..color = const Color(0xDDFFFFFF);
+    final plate = chamferRect(Offset.zero & const Size(_size, _size), 11);
+    drawGlow(canvas, plate, HudColors.cyan, 0.25);
+    canvas.drawPath(plate, Paint()..color = HudColors.plate);
+    drawStroke(canvas, plate, HudColors.cyan.withValues(alpha: 0.7), 1.4);
+    final bar = Paint()..color = const Color(0xE6FFFFFF);
     for (final dx in [-5.0, 5.0]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: c + Offset(dx, 0), width: 4.5, height: 15),
-          const Radius.circular(1.5),
-        ),
+      canvas.drawRect(
+        Rect.fromCenter(center: c + Offset(dx, 0), width: 4.5, height: 15),
         bar,
       );
     }
