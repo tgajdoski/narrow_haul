@@ -5,7 +5,7 @@ import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() {
-  tearDown(FlightTuning.reset);
+  tearDown(() => FlightTuning.load());
 
   group('two-speed stick', () {
     const start = FlightTuning.boostStart;
@@ -72,23 +72,46 @@ void main() {
       expect(b.maxRotateInput, 1.5);
     });
 
-    test('turnScale scales the rate and is clamped', () {
-      FlightTuning.set(turn: 1.5);
-      expect(ship(kKestrel).turnRate, closeTo(kKestrel.rotationSpeedRadPerSec * 1.5, 1e-9));
-      FlightTuning.set(turn: 9);
-      expect(FlightTuning.turnScale, FlightTuning.turnScaleMax);
+    test('Classic has no boost, so it flies like the original stick', () {
+      FlightTuning.steer = SteerMode.classic;
+      expect(ship(kKestrel).maxRotateInput, 1);
+      expect(FlightTuning.shapeStick(1, 2), 1);
+      expect(FlightTuning.shapeStick(0.5, 2), 0.5);
+      expect(FlightTuning.stickBoosting(0.9), isFalse);
     });
   });
 
-  test('saved knobs load back, missing ones keep the shipped value', () {
-    FlightTuning.set(turn: 1.3, lead: 0.2, towZoom: 0.05);
-    final saved = FlightTuning.values;
-    FlightTuning.reset();
-    expect(FlightTuning.isShipped, isTrue);
-    FlightTuning.load((k) => saved[k]);
-    expect(FlightTuning.values, saved);
-    FlightTuning.reset();
-    FlightTuning.load((_) => null);
-    expect(FlightTuning.isShipped, isTrue);
+  group('presets', () {
+    test('Agile is proportional up to the boost', () {
+      const m = SteerMode.agile;
+      expect(FlightTuning.shapeStick(1, 2, m), closeTo(2, 1e-9));
+      final half = (1 + FlightTuning.stickDeadzone) / 2;
+      expect(FlightTuning.shapeStick(half, 2, m), closeTo(1, 1e-9));
+    });
+
+    test('only Smooth has inertia and a glide', () {
+      for (final m in SteerMode.values) {
+        expect(m.spinUp > 0, m == SteerMode.smooth, reason: m.name);
+        expect(m.releaseDecay < 22, m == SteerMode.smooth, reason: m.name);
+      }
+    });
+
+    test('Centred camera is the original camera', () {
+      const c = CameraMode.centered;
+      expect([c.lead, c.towZoomOut, c.zoomMul], [0, 0, 1]);
+      for (final m in CameraMode.values) {
+        expect(m.zoomMul, inInclusiveRange(0.8, 1.0));
+        expect(m.towZoomOut, inInclusiveRange(0.0, 0.15));
+      }
+    });
+
+    test('saved names load back; unknown or missing ones use the defaults', () {
+      FlightTuning.load(steerName: 'smooth', cameraName: 'wide');
+      expect(FlightTuning.steer, SteerMode.smooth);
+      expect(FlightTuning.camera, CameraMode.wide);
+      FlightTuning.load(steerName: 'bogus');
+      expect(FlightTuning.steer, SteerMode.twoSpeed);
+      expect(FlightTuning.camera, CameraMode.lookAhead);
+    });
   });
 }

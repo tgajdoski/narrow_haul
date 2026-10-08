@@ -297,15 +297,17 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
         ..strokeWidth = 6
         ..strokeCap = StrokeCap.round,
     );
-    // Boost zone: gold notches where the precise zone ends.
+    // Two-speed modes: gold notches where the precise zone ends.
     const boostX = FlightTuning.boostStart * _maxKnobRadius;
     final notch = Paint()
       ..color = HudColors.gold.withValues(alpha: 0.55 * a)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    for (final side in const [-1.0, 1.0]) {
-      final x = c.dx + side * boostX;
-      canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
+    if (FlightTuning.steer.hasZones) {
+      for (final side in const [-1.0, 1.0]) {
+        final x = c.dx + side * boostX;
+        canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
+      }
     }
     final boosting = FlightTuning.stickBoosting(axis);
     if (axis != 0) {

@@ -5,7 +5,6 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
-import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
@@ -187,7 +186,30 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           value: _p.minimapEnabled,
           onChanged: (v) => _set(_p.setMinimapEnabled, v),
         ),
-        if (!kReleaseMode) _FlightTuningSection(game: widget.game),
+        _PresetRow<SteerMode>(
+          icon: Icons.rotate_right_rounded,
+          title: 'Steering',
+          values: SteerMode.values,
+          value: FlightTuning.steer,
+          label: (m) => m.label,
+          blurb: (m) => m.blurb,
+          onChanged: (m) {
+            setState(() => FlightTuning.steer = m);
+            _p.setSteerMode(m.name);
+          },
+        ),
+        _PresetRow<CameraMode>(
+          icon: Icons.videocam_outlined,
+          title: 'Camera',
+          values: CameraMode.values,
+          value: FlightTuning.camera,
+          label: (m) => m.label,
+          blurb: (m) => m.blurb,
+          onChanged: (m) {
+            setState(() => FlightTuning.camera = m);
+            _p.setCameraMode(m.name);
+          },
+        ),
       ],
     );
 
@@ -500,153 +522,71 @@ class _AboutSection extends StatelessWidget {
   }
 }
 
-/// Dev builds only: live overrides of the shipped handling and camera
-/// values ([FlightTuning]). Changes apply at once (open Settings from the
-/// pause menu mid-flight) and persist on release of the slider.
-class _FlightTuningSection extends StatefulWidget {
-  const _FlightTuningSection({required this.game});
+/// Cockpit preset row: tap cycles through [values]; the chip shows the
+/// current one, the subtitle says what it does.
+class _PresetRow<T> extends StatelessWidget {
+  const _PresetRow({
+    required this.icon,
+    required this.title,
+    required this.values,
+    required this.value,
+    required this.label,
+    required this.blurb,
+    required this.onChanged,
+  });
 
-  final NarrowHaulGame game;
-
-  @override
-  State<_FlightTuningSection> createState() => _FlightTuningSectionState();
-}
-
-class _FlightTuningSectionState extends State<_FlightTuningSection> {
-  void _change({double? turn, double? lead, double? towZoom}) {
-    setState(() => FlightTuning.set(turn: turn, lead: lead, towZoom: towZoom));
-  }
-
-  Future<void> _save() =>
-      ProgressService.instance.setDevTuning(FlightTuning.values);
+  final IconData icon;
+  final String title;
+  final List<T> values;
+  final T value;
+  final String Function(T) label;
+  final String Function(T) blurb;
+  final ValueChanged<T> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final spec = widget.game.ship?.spec ?? kKestrel;
-    final precise = 360 / spec.secondsPerFullRotation * FlightTuning.turnScale;
-    final boosted = precise * spec.turnBoost;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        const PanelTitle('Flight tuning (dev)', color: SpaceColors.gold),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Text(
-            '${spec.name}: ${precise.round()}°/s precise, '
-            '${boosted.round()}°/s past the gold notch on the dial',
-            style: const TextStyle(color: SpaceColors.textDim, fontSize: 11),
-          ),
-        ),
-        _slider(
-          label: 'Turn scale ×${FlightTuning.turnScale.toStringAsFixed(2)}',
-          detail: FlightTuning.turnScale == 1 ? 'Shipped' : 'Both speeds',
-          value: FlightTuning.turnScale,
-          min: FlightTuning.turnScaleMin,
-          max: FlightTuning.turnScaleMax,
-          divisions: 25,
-          onChanged: (v) => _change(turn: v),
-        ),
-        _slider(
-          label: 'Camera lead ${FlightTuning.cameraLead.toStringAsFixed(2)} s',
-          detail: FlightTuning.cameraLead == 0
-              ? 'Centred on the ship'
-              : 'Looks ahead, max ${FlightTuning.cameraLeadMaxMeters} m',
-          value: FlightTuning.cameraLead,
-          min: 0,
-          max: FlightTuning.cameraLeadMax,
-          divisions: 16,
-          onChanged: (v) => _change(lead: v),
-        ),
-        _slider(
-          label: 'Tow zoom-out ${(FlightTuning.towZoomOut * 100).round()}%',
-          detail: FlightTuning.towZoomOut == 0
-              ? 'Same view while towing'
-              : 'Wider view with the pod on',
-          value: FlightTuning.towZoomOut,
-          min: 0,
-          max: FlightTuning.towZoomOutMax,
-          divisions: 10,
-          onChanged: (v) => _change(towZoom: v),
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: FlightTuning.isShipped
-                ? null
-                : () {
-                    setState(FlightTuning.reset);
-                    _save();
-                  },
-            icon: const Icon(Icons.restart_alt_rounded, size: 18),
-            label: const Text('Reset to shipped'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _slider({
-    required String label,
-    required String detail,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+    return Semantics(
+      button: true,
+      label: '$title: ${label(value)}',
+      child: InkWell(
+        onTap: () {
+          onChanged(values[(values.indexOf(value) + 1) % values.length]);
+          AudioService.playUi(UiSound.select);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+          child: Row(
             children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
+              Icon(icon, size: 20, color: SpaceColors.cyan),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 14)),
+                    Text(
+                      blurb(value),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
               Flexible(
-                child: Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: SpaceColors.textFaint,
-                    fontSize: 11,
-                  ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: HoloChip(label: '${label(value)}  ›', highlight: true),
                 ),
               ),
             ],
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              activeTrackColor: SpaceColors.gold,
-              inactiveTrackColor: SpaceColors.track,
-              thumbColor: SpaceColors.gold,
-              overlayShape: SliderComponentShape.noOverlay,
-            ),
-            child: SizedBox(
-              height: 26,
-              child: Slider(
-                value: value.clamp(min, max),
-                min: min,
-                max: max,
-                divisions: divisions,
-                onChanged: onChanged,
-                onChangeEnd: (_) => _save(),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

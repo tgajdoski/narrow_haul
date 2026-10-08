@@ -81,6 +81,8 @@ class ProgressService {
     'haptics_enabled',
     'left_handed',
     'minimap_enabled',
+    'steer_mode',
+    'camera_mode',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -94,7 +96,6 @@ class ProgressService {
   Future<void> resetProgress({Set<String> keepCosmeticIds = const {}}) async {
     for (final key in _prefs.getKeys().toList()) {
       final kept = _keptOnReset.contains(key) ||
-          key.startsWith('dev_') ||
           key.startsWith('iap_') ||
           key.startsWith('ads_') ||
           key.startsWith('ammo_') ||
@@ -232,14 +233,12 @@ class ProgressService {
   bool get leftHanded => _bool('left_handed') ?? false;
   Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
 
-  /// Dev-only flight tuning (see `FlightTuning`): `dev_<knob>` doubles,
-  /// null = stock.
-  double? devTuning(String knob) => _double('dev_$knob');
-  Future<void> setDevTuning(Map<String, double> knobs) async {
-    for (final e in knobs.entries) {
-      await _prefs.setDouble('dev_${e.key}', e.value);
-    }
-  }
+  /// Steering and camera presets (`SteerMode` / `CameraMode` names).
+  String? get steerMode => _string('steer_mode');
+  Future<void> setSteerMode(String v) async => _prefs.setString('steer_mode', v);
+  String? get cameraMode => _string('camera_mode');
+  Future<void> setCameraMode(String v) async =>
+      _prefs.setString('camera_mode', v);
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 

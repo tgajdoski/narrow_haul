@@ -955,17 +955,22 @@ class NarrowHaulGame extends Forge2DGame
     final minZoomX = viewportSize.x / worldSize.x;
     final minZoomY = viewportSize.y / worldSize.y;
     _minContainZoom = math.max(minZoomX, minZoomY) * 1.01;
-    camera.viewfinder.zoom = math.max(_baseZoom, _minContainZoom);
+    camera.viewfinder.zoom = _restZoom;
   }
+
+  /// Normal zoom for the camera mode, never showing outside the world.
+  double get _restZoom =>
+      math.max(_baseZoom * FlightTuning.camera.zoomMul, _minContainZoom);
 
   void _followCamera(ShipBody s, Vector2 worldSize, double dt) {
     final frames = dt * 60;
     double ease(double perFrame) =>
         1 - math.pow(1 - perFrame, frames).toDouble();
 
-    // Dev tuning: look ahead along the velocity and zoom out a little while
-    // towing. Both are 0 by default, which is exactly the stock camera.
-    final leadSeconds = FlightTuning.cameraLead;
+    // Camera mode (Settings): look ahead along the velocity and open up a
+    // little while towing. Centred mode is the original camera.
+    final mode = FlightTuning.camera;
+    final leadSeconds = mode.lead;
     final desiredLead = Vector2.zero();
     if (leadSeconds > 0 && s.launched) {
       desiredLead.setFrom(s.body.linearVelocity * leadSeconds);
@@ -976,10 +981,10 @@ class NarrowHaulGame extends Forge2DGame
     _cameraLead.add((desiredLead - _cameraLead) * ease(0.04));
 
     final towing = cargoAttachment?.attached ?? false;
-    final restZoom = math.max(_baseZoom, _minContainZoom);
+    final restZoom = _restZoom;
     final zoomTarget = math.max(
       _minContainZoom,
-      towing ? restZoom * (1 - FlightTuning.towZoomOut) : restZoom,
+      towing ? restZoom * (1 - mode.towZoomOut) : restZoom,
     );
     final zoom = camera.viewfinder.zoom;
     if ((zoomTarget - zoom).abs() > 1e-3) {

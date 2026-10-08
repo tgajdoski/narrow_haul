@@ -72,14 +72,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   Vector2 get hookLocal => Vector2(0, spec.hookLocalY);
   double get hookRadius => spec.hookRadius;
 
-  /// Extra spin decay per second when no rotate input (release feels like “stop”).
-  static const double releaseSpinDecay = 22;
-
   double get maxFuel => spec.maxFuel;
 
-  /// Turn rate at rotate input 1 (rad/s): the spec's, times the dev
-  /// [FlightTuning.turnScale].
-  double get turnRate => spec.rotationSpeedRadPerSec * FlightTuning.turnScale;
+  /// Turn rate at rotate input 1 (rad/s).
+  double get turnRate => spec.rotationSpeedRadPerSec;
 
   /// Set by the game each frame: towing trims the turn boost.
   bool towing = false;
@@ -311,12 +307,21 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       final maxRate = turnRate * _levelMaxRate;
       body.angularVelocity = (diff * _levelGain).clamp(-maxRate, maxRate);
     } else if (idle) {
-      final t = (releaseSpinDecay * dt).clamp(0.0, 1.0);
+      final t = (FlightTuning.steer.releaseDecay * dt).clamp(0.0, 1.0);
       body.angularVelocity *= 1.0 - t;
     } else {
       // Constant turn rate: 360° in [secondsPerFullRotation] at |input| == 1,
       // up to [ShipSpec.turnBoost] × that in the stick's boost zone.
-      body.angularVelocity = _rotateInput * turnRate;
+      final target = _rotateInput * turnRate;
+      final spinUp = FlightTuning.steer.spinUp;
+      if (spinUp > 0) {
+        // Thruster inertia (Smooth): full boosted rate after [spinUp] s.
+        final step = turnRate * spec.turnBoost / spinUp * dt;
+        final w = body.angularVelocity;
+        body.angularVelocity = w + (target - w).clamp(-step, step);
+      } else {
+        body.angularVelocity = target;
+      }
     }
 
     _updateCannon(dt);

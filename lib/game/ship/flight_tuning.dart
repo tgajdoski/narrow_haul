@@ -1,40 +1,94 @@
 import 'dart:math' as math;
 
-/// Handling and camera feel: the two-speed steering stick and the camera
-/// lead / tow zoom. Pure Dart, no Flame imports. The defaults are the
-/// shipped values; non-release builds can override them live (Settings →
-/// Flight tuning, see `main.dart`).
+/// Steering and camera presets the player picks in Settings → Cockpit
+/// ([steer] / [camera], loaded in `main.dart`). Pure Dart, no Flame imports.
 ///
-/// Steering has two speeds. The inner part of the stick turns at the ship's
-/// own rate ([ShipSpec.rotationSpeedRadPerSec]): at ~90°/s a 0.15 s reaction
-/// overshoots ~13°, fine for lining up thrust beside a wall. Past
-/// [boostStart] it ramps up to [ShipSpec.turnBoost] × that rate by
-/// [boostFull], for flips: a Kestrel 180° takes 1.0 s instead of 2.0 s, and
-/// falls ~0.7 m during it instead of ~2.75 m. Rotate input runs −boost…+boost;
-/// ±1 is the ship's base rate, so the autopilot (always |input| ≤ 1), the
-/// validator and the 3★ calibration are unchanged.
+/// Turn rates come from the ship: rotate input ±1 is
+/// [ShipSpec.rotationSpeedRadPerSec] (precise: at ~90°/s a 0.15 s reaction
+/// overshoots ~13°, fine for lining up thrust beside a wall), and up to
+/// ±[ShipSpec.turnBoost] for flips (a Kestrel 180° in 1.0 s instead of
+/// 2.0 s, falling ~0.7 m during it instead of ~2.75 m). The autopilot always
+/// sends |input| ≤ 1, so the validator and 3★ calibration don't depend on
+/// the preset.
+enum SteerMode {
+  /// The original stick: one speed, the ship's rate at full deflection.
+  classic('Classic', 'One speed, full stick = ship turn rate'),
+
+  /// Precise inner zone, boost past the gold notch on the dial.
+  twoSpeed('Two-speed', 'Precise inside, fast past the gold notch'),
+
+  /// Two-speed with thruster inertia: spins up and glides to a stop.
+  smooth('Smooth', 'Two-speed with inertia, eases in and out'),
+
+  /// Proportional over the whole throw up to the boost rate.
+  agile('Agile', 'Fast everywhere: half stick = ship turn rate');
+
+  const SteerMode(this.label, this.blurb);
+  final String label;
+  final String blurb;
+
+  bool get hasBoost => this != classic;
+
+  /// Gold notch on the dial (a distinct precise zone).
+  bool get hasZones => this == twoSpeed || this == smooth;
+
+  /// Seconds from rest to full boosted rate (0 = instant).
+  double get spinUp => this == smooth ? 0.18 : 0;
+
+  /// Spin decay per second once the stick is released (higher = stops
+  /// sooner): ~0.05 s to stop normally, ~0.25 s gliding in Smooth.
+  double get releaseDecay => this == smooth ? 8 : 22;
+}
+
+enum CameraMode {
+  /// The original camera: centred on the ship, same view while towing.
+  centered('Centred', 'Locked on the ship', lead: 0, towZoomOut: 0, zoomMul: 1),
+
+  /// Leads 0.4 s of velocity (1 m at a 2.5 m/s cruise, ~15% of a phone's
+  /// half-height, capped at 2 m) and opens 12% while towing (~0.9 m more
+  /// below the pod).
+  lookAhead(
+    'Look-ahead',
+    'Leads where you fly, opens up while towing',
+    lead: 0.4,
+    towZoomOut: 0.12,
+    zoomMul: 1,
+  ),
+
+  /// 15% further out at all times, a smaller lead.
+  wide(
+    'Wide',
+    'See more of the cave, smaller ship',
+    lead: 0.3,
+    towZoomOut: 0.08,
+    zoomMul: 0.85,
+  );
+
+  const CameraMode(
+    this.label,
+    this.blurb, {
+    required this.lead,
+    required this.towZoomOut,
+    required this.zoomMul,
+  });
+  final String label;
+  final String blurb;
+
+  /// Seconds of the ship's velocity to lead by.
+  final double lead;
+
+  /// Zoom-out while towing, as a fraction of the normal zoom.
+  final double towZoomOut;
+
+  /// Normal zoom relative to the base zoom (< 1 = further out).
+  final double zoomMul;
+}
+
 abstract final class FlightTuning {
-  /// Scales every ship's turn rate, base and boost (dev only; 1 = shipped).
-  static double turnScale = 1.0;
+  static SteerMode steer = SteerMode.twoSpeed;
+  static CameraMode camera = CameraMode.lookAhead;
 
-  /// Camera look-ahead: seconds of the ship's velocity to lead by, capped at
-  /// [cameraLeadMaxMeters]. 0.4 s at a 2.5 m/s cruise leads 1 m (~15% of a
-  /// phone's half-height at zoom 28), enough to see the next bend without
-  /// pushing the ship toward the screen edge.
-  static double cameraLead = defaultCameraLead;
-
-  /// Zoom-out while towing, as a fraction of the normal zoom: 12% shows
-  /// ~0.9 m more below the pod on a landscape phone.
-  static double towZoomOut = defaultTowZoomOut;
-
-  static const double defaultCameraLead = 0.4;
-  static const double defaultTowZoomOut = 0.12;
-
-  static const double cameraLeadMax = 0.8;
-  static const double cameraLeadMaxMeters = 2.0;
-  static const double towZoomOutMax = 0.25;
-  static const double turnScaleMin = 0.75;
-  static const double turnScaleMax = 2.0;
+  static const cameraLeadMaxMeters = 2.0;
 
   /// The joystick's own dead zone (`_FloatingJoystick._deadzone`).
   static const double stickDeadzone = 0.06;
@@ -53,48 +107,35 @@ abstract final class FlightTuning {
   static const double keyBoostDelay = 0.3;
   static const double keyBoostRamp = 0.2;
 
-  static bool get isShipped =>
-      turnScale == 1.0 &&
-      cameraLead == defaultCameraLead &&
-      towZoomOut == defaultTowZoomOut;
-
-  static void set({double? turn, double? lead, double? towZoom}) {
-    if (turn != null) turnScale = turn.clamp(turnScaleMin, turnScaleMax);
-    if (lead != null) cameraLead = lead.clamp(0.0, cameraLeadMax);
-    if (towZoom != null) towZoomOut = towZoom.clamp(0.0, towZoomOutMax);
+  /// Restores saved preset names; unknown or missing ones keep the default.
+  static void load({String? steerName, String? cameraName}) {
+    steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
+    camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
   }
-
-  /// Every knob by its save key (`dev_<key>` in ProgressService).
-  static Map<String, double> get values => {
-    'turn_scale': turnScale,
-    'cam_lead': cameraLead,
-    'tow_zoom_out': towZoomOut,
-  };
-
-  /// Restores knobs saved with [values]; missing ones keep the shipped value.
-  static void load(double? Function(String key) read) => set(
-    turn: read('turn_scale'),
-    lead: read('cam_lead'),
-    towZoom: read('tow_zoom_out'),
-  );
-
-  static void reset() =>
-      set(turn: 1.0, lead: defaultCameraLead, towZoom: defaultTowZoomOut);
 
   /// Maps a raw stick axis (−1…1, after the joystick's dead zone) to rotate
-  /// input: 0…1 linear across the precise zone, then a ramp to [boost].
-  static double shapeStick(double x, double boost) {
+  /// input for [mode]: ±1 is the ship's rate, up to ±[boost].
+  static double shapeStick(double x, double boost, [SteerMode? mode]) {
     final a = x.abs();
     if (a <= stickDeadzone) return 0;
-    if (a <= boostStart) {
-      return x.sign * (a - stickDeadzone) / (boostStart - stickDeadzone);
+    final span = (a - stickDeadzone) / (1 - stickDeadzone);
+    switch (mode ?? steer) {
+      case SteerMode.classic:
+        return x.clamp(-1.0, 1.0);
+      case SteerMode.agile:
+        return x.sign * math.min(1.0, span) * boost;
+      case SteerMode.twoSpeed:
+      case SteerMode.smooth:
+        if (a <= boostStart) {
+          return x.sign * (a - stickDeadzone) / (boostStart - stickDeadzone);
+        }
+        final t = math.min(1.0, (a - boostStart) / (boostFull - boostStart));
+        return x.sign * (1 + (boost - 1) * t);
     }
-    final t = math.min(1.0, (a - boostStart) / (boostFull - boostStart));
-    return x.sign * (1 + (boost - 1) * t);
   }
 
-  /// Whether a raw stick deflection is in the boost zone (for the dial).
-  static bool stickBoosting(double x) => x.abs() > boostStart;
+  /// Whether a raw stick deflection is past the gold notch (for the dial).
+  static bool stickBoosting(double x) => steer.hasZones && x.abs() > boostStart;
 
   /// Keyboard rotate input for a turn key held [heldSeconds].
   static double keyAxis(double direction, double heldSeconds, double boost) {
@@ -103,7 +144,9 @@ abstract final class FlightTuning {
     return direction * (1 + (boost - 1) * t);
   }
 
-  /// The boost a ship actually gets: reduced while towing.
-  static double effectiveBoost(double boost, {required bool towing}) =>
-      towing ? 1 + (boost - 1) * towBoostShare : boost;
+  /// The boost a ship actually gets: none in Classic, reduced while towing.
+  static double effectiveBoost(double boost, {required bool towing}) {
+    if (!steer.hasBoost) return 1;
+    return towing ? 1 + (boost - 1) * towBoostShare : boost;
+  }
 }
