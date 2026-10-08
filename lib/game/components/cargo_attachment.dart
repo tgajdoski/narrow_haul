@@ -4,17 +4,27 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_line.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
+import 'package:narrow_haul/game/components/combat.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/components/tractor_beam_coupling.dart';
+import 'package:narrow_haul/game/components/tractor_beam_line.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 
 /// Rope preview near cargo, then [RopePhysicsCoupling] (tow). Attach uses hook proximity or ship–cargo distance.
+/// With a tractor beam ([RopeSpec.isBeam]) it locks on from [RopeSpec.beamRange]
+/// through clear line of sight instead, and drops the pod when the beam breaks.
 class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   CargoAttachment({
     required this.ship,
     required this.cargo,
     required this.ropeMaxLengthMeters,
+    this.rope = kStockRope,
     this.onAttached,
   });
+
+  /// Tow gear equipped for this flight.
+  final RopeSpec rope;
 
   /// Called once when the rope successfully attaches to cargo.
   final void Function()? onAttached;
@@ -25,7 +35,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   /// Design max tow length from level ([LevelData.ropeMaxLength]).
   final double ropeMaxLengthMeters;
 
-  /// Rope UI fades in while ship–cargo centers are within this range.
+  /// Rope UI fades in while ship–cargo centers are within this range (stock rope).
   static const double approachDistanceMeters = 2.5;
 
   static const double ropeRevealDuration = 1.15;
@@ -46,7 +56,12 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   bool Function()? scriptedTow;
 
   RopePhysicsCoupling? _coupling;
+  TractorBeamCoupling? _beam;
   bool _attaching = false;
+
+  /// After a beam breaks it can't re-lock straight away.
+  double _relockIn = 0;
+  static const double _relockDelay = 0.6;
 
   double _accumulatedAngle = 0;
   double? _lastAngle;
@@ -56,13 +71,22 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   Future<void> onLoad() async {
     await super.onLoad();
     await add(
-      RopeLine(
-        ship: ship,
-        cargo: cargo,
-        progress: () => ropeRevealProgress,
-        attached: () => attached,
-        getCoupling: () => _coupling,
-      ),
+      rope.isBeam
+          ? TractorBeamLine(
+              ship: ship,
+              cargo: cargo,
+              progress: () => ropeRevealProgress,
+              attached: () => attached,
+              getCoupling: () => _beam,
+            )
+          : RopeLine(
+              ship: ship,
+              cargo: cargo,
+              progress: () => ropeRevealProgress,
+              attached: () => attached,
+              getCoupling: () => _coupling,
+              rope: rope,
+            ),
     );
   }
 
@@ -72,12 +96,14 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     final scripted = scriptedTow;
     if (scripted != null) {
       attached = scripted();
-      final near = (ship.body.position - cargo.body.position).length < approachDistanceMeters;
+      final near = (ship.body.position - cargo.body.position).length < rope.approachDistance;
       ropeRevealProgress = attached
           ? 1.0
           : (ropeRevealProgress + (near ? dt / ropeRevealDuration : -dt * 0.55)).clamp(0.0, 1.0);
       return;
     }
+    if (attached && (_beam?.broken ?? false)) _dropBeam();
+    if (_relockIn > 0) _relockIn -= dt;
     if (attached) {
       if (!_swingerUnlocked) {
         final diff = cargo.body.position - ship.body.position;
@@ -102,30 +128,42 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     }
 
     final centerDist = (ship.body.position - cargo.body.position).length;
-    if (centerDist < approachDistanceMeters) {
+    if (centerDist < rope.approachDistance) {
       ropeRevealProgress = (ropeRevealProgress + dt / ropeRevealDuration).clamp(0.0, 1.0);
     } else {
       ropeRevealProgress = (ropeRevealProgress - dt * 0.55).clamp(0.0, 1.0);
     }
 
-    if (_attaching) return;
+    if (_attaching || _relockIn > 0) return;
     if (ropeRevealProgress < minRevealToAttach) return;
+
+    if (rope.isBeam) {
+      final winch = ship.body.worldPoint(Vector2(0, ship.rearLocalY));
+      final pod = cargo.body.worldCenter;
+      if ((pod - winch).length <= rope.beamRange &&
+          ship.fuel > 0 &&
+          hasLineOfSight(game.world, winch, pod, ignore: cargo.body)) {
+        _attach();
+      }
+      return;
+    }
 
     final hookWorld = ship.body.worldPoint(ship.hookLocal);
     final cargoCenter = cargo.body.worldCenter;
     final hookToCargo = (hookWorld - cargoCenter).length;
-    final catchRadius = ship.hookRadius + CargoBody.radius + hookCatchExtraMeters;
+    final catchRadius = ship.hookRadius + CargoBody.radius + rope.hookReach;
 
     final hookOk = hookToCargo <= catchRadius;
-    final centerOk = centerDist <= attachCenterDistanceMax;
+    final centerOk = centerDist <= rope.attachCenterDistance;
     if (hookOk || centerOk) {
       _attach();
     }
   }
 
   void onHookCargoTouch() {
-    if (attached || _attaching || scriptedTow != null) return;
+    if (attached || _attaching || scriptedTow != null || _relockIn > 0) return;
     if (ropeRevealProgress < minRevealToAttach) return;
+    if (rope.isBeam && ship.fuel <= 0) return;
     _attach();
   }
 
@@ -134,10 +172,20 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     _attaching = true;
     try {
       cargo.release(); // a locked pod comes free once hooked
+      if (rope.isBeam) {
+        final beam = TractorBeamCoupling(ship: ship, cargo: cargo, rope: rope);
+        await add(beam);
+        _beam = beam;
+        attached = true;
+        ropeRevealProgress = 1.0;
+        onAttached?.call();
+        return;
+      }
       final coupling = RopePhysicsCoupling(
         ship: ship,
         cargo: cargo,
         ropeMaxLengthMeters: ropeMaxLengthMeters,
+        rope: rope,
       );
       await add(coupling);
       if (!coupling.isTethered) return;
@@ -150,4 +198,18 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
       _attaching = false;
     }
   }
+
+  /// Beam lost: the pod falls free and can be locked again shortly.
+  void _dropBeam() {
+    _beam?.removeFromParent();
+    _beam = null;
+    attached = false;
+    _relockIn = _relockDelay;
+    _lastAngle = null;
+    _accumulatedAngle = 0;
+    onBeamLost?.call();
+  }
+
+  /// Called when a tractor beam breaks (sound / haptics).
+  void Function()? onBeamLost;
 }

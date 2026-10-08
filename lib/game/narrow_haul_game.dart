@@ -49,6 +49,7 @@ import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 enum RunState { menu, playing, gameOver, won }
@@ -612,11 +613,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       ship: shipBody,
       cargo: cargoBody,
       ropeMaxLengthMeters: data.ropeMaxLength * shipSpec.ropeLengthMul,
+      rope: ropeById(CosmeticsService.getEquippedId(CosmeticsService.catRope)),
       onAttached: () {
         AudioService.playAttach();
         Haptics.light();
       },
-    );
+    )..onBeamLost = Haptics.medium;
 
     await world.add(shipBody);
     await world.add(cargoBody);

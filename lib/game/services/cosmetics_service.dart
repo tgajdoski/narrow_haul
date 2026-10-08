@@ -53,13 +53,13 @@ class CosmeticsService {
     CosmeticItem(id: 'ship_redoubt', name: 'Redoubt Olive', category: catShip, cost: 450, icon: '🎯'),
     CosmeticItem(id: kSupporterSkinId, name: 'Supporter Livery', category: catShip, cost: 0, icon: '💎', supporterOnly: true),
 
-    // Ropes
-    CosmeticItem(id: 'rope_cable', name: 'Cable', category: catRope, cost: 0, icon: '🪢'),
-    CosmeticItem(id: 'rope_chain', name: 'Chain', category: catRope, cost: 80, icon: '🔗'),
-    CosmeticItem(id: 'rope_energy', name: 'Energy Beam', category: catRope, cost: 200, icon: '⚡'),
-    CosmeticItem(id: 'rope_neon', name: 'Neon Line', category: catRope, cost: 350, icon: '💗'),
-    CosmeticItem(id: 'rope_braided', name: 'Braided Gold', category: catRope, cost: 0, icon: '🧶', rankRequired: 3),
-
+    // Tow gear: each one flies differently (stats in ship/loadout.dart).
+    CosmeticItem(id: 'rope_cable', name: 'Steel Winch Cable', category: catRope, cost: 0, icon: '🪢'),
+    CosmeticItem(id: 'rope_chain', name: 'Tow Chain', category: catRope, cost: 80, icon: '🔗'),
+    CosmeticItem(id: 'rope_energy', name: 'Magnetic Grapple', category: catRope, cost: 200, icon: '🧲'),
+    CosmeticItem(id: 'rope_neon', name: 'Shock Cord', category: catRope, cost: 350, icon: '💗'),
+    CosmeticItem(id: 'rope_braided', name: 'Long Line', category: catRope, cost: 0, icon: '🧶', rankRequired: 3),
+    CosmeticItem(id: 'rope_tractor', name: 'Tractor Beam', category: catRope, cost: 500, icon: '🛸'),
     // Plumes
     CosmeticItem(id: 'plume_blue', name: 'Standard Blue', category: catPlume, cost: 0, icon: '🔥'),
     CosmeticItem(id: 'plume_green', name: 'Toxic Green', category: catPlume, cost: 50, icon: '🧪'),

@@ -224,7 +224,11 @@ class Autopilot {
           lastEvent = 'pod moved';
         }
         if (game.cargoAttachment?.attached ?? false) {
-          _ropeLength = (_cargo.body.position - _ship.body.position).length;
+          final rope = game.cargoAttachment!.rope;
+          // A beam reels the pod in to its hold length under the winch.
+          _ropeLength = rope.isBeam
+              ? rope.beamHoldLength + _ship.spec.rearLocalY
+              : (_cargo.body.position - _ship.body.position).length;
           if (!_planTow()) {
             lastEvent = 'no tow route';
             gaveUp = true;

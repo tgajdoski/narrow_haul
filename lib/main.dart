@@ -20,6 +20,7 @@ import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
@@ -1978,13 +1979,20 @@ class _CosmeticTile extends StatelessWidget {
             Text(item.icon, style: const TextStyle(fontSize: 24)),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                item.name,
-                style: TextStyle(
-                  color: unlocked ? Colors.white : Colors.white54,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: TextStyle(
+                      color: unlocked ? Colors.white : Colors.white54,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                  if (item.category == CosmeticsService.catRope)
+                    _RopeStatsView(rope: ropeById(item.id)),
+                ],
               ),
             ),
             ?tryButton,
@@ -2041,6 +2049,85 @@ class _CosmeticTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Tow gear stats on a Garage tile: the trade-off line and four bars.
+class _RopeStatsView extends StatelessWidget {
+  const _RopeStatsView({required this.rope});
+  final RopeSpec rope;
+
+  @override
+  Widget build(BuildContext context) {
+    final st = RopeStats.of(rope);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            rope.blurb,
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              _StatBar(label: 'REACH', value: st.reach),
+              _StatBar(label: 'GIVE', value: st.give),
+              _StatBar(label: 'STEADY', value: st.steadiness),
+              _StatBar(label: 'FUEL', value: st.economy),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatBar extends StatelessWidget {
+  const _StatBar({required this.label, required this.value});
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 44,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white38,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        Container(
+          width: 52,
+          height: 5,
+          decoration: BoxDecoration(
+            color: const Color(0x22FFFFFF),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: value.clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF7DD3C0),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

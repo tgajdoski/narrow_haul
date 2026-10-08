@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/rope_physics_coupling.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
-import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 
 /// Preview: hook → cargo. When attached: winch → cargo with Bézier slack under [RopeJoint] max length.
 class RopeLine extends Component {
@@ -15,7 +15,11 @@ class RopeLine extends Component {
     required this.progress,
     required this.attached,
     required this.getCoupling,
+    this.rope = kStockRope,
   }) : super(priority: -380);
+
+  /// Look follows the equipped rope's id.
+  final RopeSpec rope;
 
   final ShipBody ship;
   final CargoBody cargo;
@@ -45,7 +49,7 @@ class RopeLine extends Component {
 
     final baseAlpha = p * (attached() ? 1.0 : 0.55);
     final alphaInt = (baseAlpha * 230).round().clamp(0, 255);
-    final ropeId = CosmeticsService.getEquippedId(CosmeticsService.catRope);
+    final ropeId = rope.id;
 
     final paint = Paint()
       ..style = PaintingStyle.stroke;
@@ -69,6 +73,12 @@ class RopeLine extends Component {
     }
 
     final coupling = getCoupling();
+    // A stretched elastic line thins and brightens.
+    final stretch = attached() ? (coupling?.stretch ?? 0) : 0.0;
+    if (stretch > 0) {
+      paint.strokeWidth *= 1 - 0.4 * stretch;
+      paint.color = Color.lerp(paint.color, Colors.white, 0.35 * stretch)!;
+    }
     final maxLen = coupling?.tetherLengthMeters;
     final chord = b - a;
     final chordLen = chord.length;

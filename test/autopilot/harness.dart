@@ -5,8 +5,12 @@ import 'package:flame/components.dart';
 import 'package:flutter/widgets.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Tow gear for every flight (`--dart-define=ROPE=rope_tractor`); empty = stock.
+const kBotRope = String.fromEnvironment('ROPE');
 
 const double kStepDt = 1 / 60;
 
@@ -124,6 +128,8 @@ class GameHarness {
   /// Loads [index] fresh; obstacles start moving from this moment.
   Future<void> loadLevel(int index, {bool skipHazards = false}) async {
     game.debugSkipHazards = skipHazards;
+    // ROPE=<cosmetic id> flies every level with that tow gear.
+    if (kBotRope.isNotEmpty) CosmeticsService.trialOverride[CosmeticsService.catRope] = kBotRope;
     game.overlays.removeAll(game.overlays.activeOverlays.toList());
     game.levelIndex = index;
     game.runState = RunState.playing;
