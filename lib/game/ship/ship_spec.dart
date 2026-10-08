@@ -15,7 +15,6 @@ class ShipSpec {
     this.thrustForce = 5.1,
     this.secondsPerFullRotation = 4.0,
     this.turnBoost = 2.0,
-    this.spoolUp = 0.12,
     this.maxFuel = 100,
     this.fuelDrainPerSecond = 12,
     this.linearDamping = 0.22,
@@ -51,12 +50,6 @@ class ShipSpec {
 
   /// Turn-rate multiplier in the stick's boost zone (see `FlightTuning`).
   final double turnBoost;
-
-  /// Seconds for the engine to reach full thrust (spool-down is half). A
-  /// 0.1 s tap then gives ~60% of an instant tap's push for the same fuel
-  /// (fuel burns with the throttle), which makes hovering easier; a long
-  /// burn loses only ~0.03 s. Light ships spool faster, heavy ones slower.
-  final double spoolUp;
   final double maxFuel;
   final double fuelDrainPerSecond;
   final double linearDamping;
@@ -139,7 +132,6 @@ const kHopper = ShipSpec(
   thrustForce: 3.6,
   secondsPerFullRotation: 3.0,
   turnBoost: 2.0,
-  spoolUp: 0.08,
   maxFuel: 60,
   linearDamping: 0.18,
   tint: 0x6650FF9A,
@@ -157,7 +149,6 @@ const kMule = ShipSpec(
   thrustForce: 8.0,
   secondsPerFullRotation: 5.5,
   turnBoost: 1.6,
-  spoolUp: 0.18,
   maxFuel: 150,
   linearDamping: 0.3,
   ropeLengthMul: 1.25,
@@ -189,7 +180,6 @@ const kVector = ShipSpec(
   thrustForce: 4.4,
   secondsPerFullRotation: 3.6,
   turnBoost: 2.0,
-  spoolUp: 0.1,
   maxFuel: 110,
   linearDamping: 0.35,
   hoverAssist: true,
@@ -206,7 +196,6 @@ const kTalon = ShipSpec(
   sprite: 'ship_talon.png',
   maxFuel: 115,
   turnBoost: 2.2,
-  spoolUp: 0.1,
   armed: true,
   tint: 0x66FF5252,
   blurb: 'Armed escort. Nose cannon, shots cost fuel.',
