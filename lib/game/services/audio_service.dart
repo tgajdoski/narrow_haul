@@ -57,13 +57,35 @@ class AudioService {
   static bool _thrustStarting = false;
   static bool _engineRunning = false;
   static final ThrustEnvelope _envelope = ThrustEnvelope();
-  static AudioPool? _shotPool;
-  static AudioPool? _enemyShotPool;
-  static AudioPool? _tapPool;
   static AudioPlayer? _alarmPlayer;
 
-  /// One-shot players still sounding, so [dispose] can stop them.
-  static final Set<AudioPlayer> _oneShots = {};
+  /// Files that loaded; a missing or broken one is skipped on its own.
+  static final Set<String> _loaded = {};
+
+  /// Preloaded players per one-shot sound (size = how many may overlap).
+  /// Pooled players recycle on completion, unlike `FlameAudio.play`'s
+  /// low-latency players, which Android never reports as complete.
+  static const _poolSizes = {
+    'shot.wav': 4,
+    'enemy_shot.wav': 4,
+    'ui_tap.wav': 2,
+    'boom.wav': 3,
+    'pickup.wav': 2,
+    'attach.mp3': 1,
+    'crash.mp3': 1,
+    'land.wav': 1,
+    'star.wav': 1,
+    'start_level.m4a': 1,
+    'countdown.wav': 1,
+    'countdown_go.wav': 1,
+  };
+  static final Map<String, AudioPool> _pools = {};
+
+  @visibleForTesting
+  static List<String> get files => _files;
+
+  @visibleForTesting
+  static Map<String, int> get poolSizes => _poolSizes;
   static bool _alarmWanted = false;
   static bool _alarmStarting = false;
 
@@ -101,22 +123,26 @@ class AudioService {
     } catch (e) {
       _log('audio context not applied', e);
     }
-    try {
-      await FlameAudio.audioCache.loadAll(_files);
-      await _prewarmThrustLoop();
-      _shotPool = await _pool('shot.wav', 4);
-      _enemyShotPool = await _pool('enemy_shot.wav', 4);
-      _tapPool = await _pool('ui_tap.wav', 2);
-      _ready = true;
-      _log('initialized ${_files.length} sounds');
-    } catch (e) {
-      _log('init failed, audio disabled', e);
-      _ready = false;
+    _loaded.clear();
+    for (final file in _files) {
+      try {
+        await FlameAudio.audioCache.load(file);
+        _loaded.add(file);
+      } catch (e) {
+        _log('$file failed to load, skipped', e);
+      }
     }
+    if (_loaded.contains('thrust_loop.wav')) await _prewarmThrustLoop();
+    for (final MapEntry(key: file, value: size) in _poolSizes.entries) {
+      if (!_loaded.contains(file)) continue;
+      final pool = await _pool(file, size);
+      if (pool != null) _pools[file] = pool;
+    }
+    _ready = _loaded.isNotEmpty;
+    _log('initialized ${_loaded.length}/${_files.length} sounds');
   }
 
-  /// Preloaded players for sounds that repeat fast; null falls back to
-  /// one-off players.
+  /// Preloaded players for a one-shot; null falls back to one-off players.
   static Future<AudioPool?> _pool(String file, int maxPlayers) async {
     try {
       return await FlameAudio.createPool(
@@ -195,11 +221,11 @@ class AudioService {
 
   /// Releases the players (app shutdown / test teardown).
   static Future<void> dispose() async {
-    final players = [_thrustPlayer, _alarmPlayer, ..._oneShots];
-    _oneShots.clear();
-    final pools = [_shotPool, _enemyShotPool, _tapPool];
+    final players = [_thrustPlayer, _alarmPlayer];
+    final pools = [..._pools.values];
+    _pools.clear();
+    _loaded.clear();
     _thrustPlayer = _alarmPlayer = null;
-    _shotPool = _enemyShotPool = _tapPool = null;
     _engineRunning = false;
     _alarmWanted = false;
     _ready = false;
@@ -207,7 +233,7 @@ class AudioService {
       await p?.dispose();
     }
     for (final p in pools) {
-      await p?.dispose();
+      await p.dispose();
     }
     await MusicService.dispose();
   }
@@ -216,7 +242,9 @@ class AudioService {
 
   /// Idempotent: call every frame with whether the alarm should sound.
   static void setAlarm(bool on) {
-    if (on && (!_ready || !_enabled)) on = false;
+    if (on && (!_ready || !_enabled || !_loaded.contains('alarm.wav'))) {
+      on = false;
+    }
     if (on == _alarmWanted) return;
     _alarmWanted = on;
     final player = _alarmPlayer;
@@ -243,17 +271,21 @@ class AudioService {
   // ── One-shots ─────────────────────────────────────────────────────────────
 
   static void _play(String file, double volume) {
-    if (!_ready || !_enabled) return;
+    if (!_ready || !_enabled || !_loaded.contains(file)) return;
+    final pool = _pools[file];
+    if (pool != null) {
+      pool.start(volume: volume).then<void>(
+        (_) {},
+        onError: (Object e, StackTrace _) => _log('failed to play $file', e),
+      );
+      return;
+    }
+    // No pool: a one-off player, released after a while (completion events
+    // aren't reliable for low-latency players).
     FlameAudio.play(file, volume: volume, audioContext: _context).then<void>(
-      (p) {
-        _oneShots.add(p);
-        // A stream, not .first: dispose() closes it without a completion.
-        p.onPlayerComplete.listen(
-          (_) => _oneShots.remove(p),
-          onDone: () => _oneShots.remove(p),
-          onError: (Object _) => _oneShots.remove(p),
-        );
-      },
+      (p) => Future<void>.delayed(const Duration(seconds: 8), () {
+        _quietly(p.dispose(), 'dispose $file');
+      }),
       onError: (Object e, StackTrace _) => _log('failed to play $file', e),
     );
   }
@@ -267,24 +299,11 @@ class AudioService {
     _play('crash.mp3', 0.9);
   }
 
-  static void _playPooled(AudioPool? pool, String file, double volume) {
-    if (!_ready || !_enabled) return;
-    if (pool == null) {
-      _play(file, volume);
-      return;
-    }
-    pool.start(volume: volume).then<void>(
-      (_) {},
-      onError: (Object e, StackTrace _) => _log('failed to play $file', e),
-    );
-  }
+  static void playShot() => _play('shot.wav', 0.5);
 
-  static void playShot() => _playPooled(_shotPool, 'shot.wav', 0.5);
+  static void playEnemyShot() => _play('enemy_shot.wav', 0.55);
 
-  static void playEnemyShot() =>
-      _playPooled(_enemyShotPool, 'enemy_shot.wav', 0.55);
-
-  static void playTap() => _playPooled(_tapPool, 'ui_tap.wav', 0.35);
+  static void playTap() => _play('ui_tap.wav', 0.35);
 
   /// Explosion that isn't the player's crash (keeps the engine loop going).
   static void playBoom() => _play('boom.wav', 0.7);

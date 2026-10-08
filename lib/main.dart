@@ -25,6 +25,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -1213,7 +1214,7 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
           const SizedBox(height: 4),
           TextButton(
             onPressed: withTapSound(() async {
-              await MonetizationService.instance.buy(ProductIds.removeAds);
+              await buyWithFeedback(context, ProductIds.removeAds);
               if (mounted) setState(() {});
             }),
             child: Text(
@@ -1845,7 +1846,8 @@ class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
                         await CosmeticsService.equip(item);
                         setState(() {});
                       } else if (item.supporterOnly) {
-                        final bought = await MonetizationService.instance.buy(
+                        final bought = await buyWithFeedback(
+                          context,
                           ProductIds.supporterPack,
                         );
                         if (bought) {

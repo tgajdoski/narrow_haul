@@ -47,6 +47,9 @@ Earn up to 3 stars per level for fuel and time. Chase your best times, take on a
 BUILD A PILOT CAREER
 Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achievements and customise your ship, rope and engine plume in the Garage.
 
+SOUND OF SPACE
+A spacey soundtrack that changes from flight to flight, a battle theme in The Redoubt, and crisp engine, rope and cannon sounds.
+
 Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. A one-time purchase removes the ads between missions.
 
 ## Google Play

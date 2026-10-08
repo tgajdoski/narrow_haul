@@ -68,6 +68,11 @@ class MusicService {
   static bool _enabled = true;
   static bool _backgrounded = false;
 
+  /// A full-screen ad is up (its own audio plays).
+  static bool _adShowing = false;
+
+  static bool get _silenced => _backgrounded || _adShowing;
+
   /// What should be playing (kept while disabled or backgrounded).
   static String? _wantTrack;
   static double _wantVolume = 0;
@@ -102,18 +107,40 @@ class MusicService {
   static void onBackground() {
     if (_backgrounded) return;
     _backgrounded = true;
-    _current?.pause();
+    _pauseAll();
   }
 
   static void onForeground() {
     if (!_backgrounded) return;
     _backgrounded = false;
+    _resumeIfAudible();
+  }
+
+  /// A full-screen ad is about to show / was closed.
+  static void setAdShowing(bool showing) {
+    if (showing == _adShowing) return;
+    _adShowing = showing;
+    showing ? _pauseAll() : _resumeIfAudible();
+  }
+
+  /// Tracks still fading out are paused too (they're disposed when done).
+  static final Set<_Track> _fadingOut = {};
+
+  static void _pauseAll() {
+    _current?.pause();
+    for (final t in _fadingOut) {
+      t.pause();
+    }
+  }
+
+  static void _resumeIfAudible() {
+    if (_silenced) return;
     _current?.resume();
     _apply();
   }
 
   static void _apply() {
-    if (_backgrounded) return;
+    if (_silenced) return;
     final want = (_enabled && AudioService.isReady) ? _wantTrack : null;
     final current = _current;
     if (current != null && current.file == want) {
@@ -122,7 +149,13 @@ class MusicService {
     }
     if (current != null) {
       _current = null;
-      current.fadeTo(0, _fadeOut, then: current.dispose);
+      _fadingOut.add(current);
+      current.fadeTo(0, _fadeOut, then: () {
+        _fadingOut.remove(current);
+        current.dispose().catchError((Object e) {
+          _log('failed to release ${current.file}', e);
+        });
+      });
     }
     if (want != null) {
       _current = _Track(want)..start(_wantVolume, _fadeIn);
@@ -134,7 +167,12 @@ class MusicService {
     final current = _current;
     _current = null;
     _wantTrack = null;
+    final fading = [..._fadingOut];
+    _fadingOut.clear();
     await current?.dispose();
+    for (final t in fading) {
+      await t.dispose();
+    }
   }
 }
 
@@ -161,6 +199,12 @@ class _Track {
         return;
       }
       _player = p;
+      // Started while the app went to the background or an ad came up:
+      // hold it paused; resuming fades it in from where it is.
+      if (MusicService._silenced) {
+        p.pause().catchError((Object _) {});
+        return;
+      }
       fadeTo(_target, fade);
     }).catchError((Object e) {
       MusicService._log('failed to start $file', e);

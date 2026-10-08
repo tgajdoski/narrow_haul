@@ -11,11 +11,12 @@ VoidCallback? withTapSound(VoidCallback? action) => action == null
         action();
       };
 
-/// [withTapSound] for value callbacks (switches).
+/// [withTapSound] for value callbacks (switches). The tap plays after the
+/// change, so switching Sound on clicks and switching it off is silent.
 ValueChanged<T>? withTapSoundValue<T>(ValueChanged<T>? action) =>
     action == null
         ? null
         : (v) {
-            AudioService.playTap();
             action(v);
+            AudioService.playTap();
           };

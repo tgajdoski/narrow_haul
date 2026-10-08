@@ -4,6 +4,7 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -269,7 +270,7 @@ class _PurchasesSection extends StatelessWidget {
                   'No more ads between missions. '
                   'Rewarded ads stay optional.',
               trailing: m.priceOf(ProductIds.removeAds),
-              onTap: () => m.buy(ProductIds.removeAds),
+              onTap: () => buyWithFeedback(context, ProductIds.removeAds),
             ),
           if (m.canBuy(ProductIds.supporterPack) &&
               !ProgressService.instance.isProductGranted(
@@ -282,7 +283,7 @@ class _PurchasesSection extends StatelessWidget {
                   'Remove ads + Supporter Livery + '
                   '${ProductIds.supporterCoins} 💰',
               trailing: m.priceOf(ProductIds.supporterPack),
-              onTap: () => m.buy(ProductIds.supporterPack),
+              onTap: () => buyWithFeedback(context, ProductIds.supporterPack),
             ),
           if (m.adsRemoved)
             _row(
@@ -294,7 +295,7 @@ class _PurchasesSection extends StatelessWidget {
             _row(
               icon: Icons.restore_rounded,
               title: 'Restore purchases',
-              onTap: m.restore,
+              onTap: () => restoreWithFeedback(context),
             ),
           ValueListenableBuilder<bool>(
             valueListenable: m.privacyOptionsRequired,

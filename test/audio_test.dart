@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
 import 'package:narrow_haul/game/services/thrust_envelope.dart';
 
@@ -74,6 +75,22 @@ void main() {
     for (final f in listed) {
       expect(File('assets/audio/$f').existsSync(), isTrue, reason: f);
     }
+  });
+
+  test('every one-shot sound plays from a pool (loops excepted)', () {
+    // Pooled players recycle on completion; one-off low-latency players
+    // pile up on Android.
+    const loops = {'thrust_loop.wav', 'alarm.wav'};
+    expect(AudioService.poolSizes.keys.toSet(), AudioService.files.toSet().difference(loops));
+  });
+
+  test('ads and backgrounding toggle music safely with nothing playing', () {
+    MusicService.setAdShowing(true);
+    MusicService.onBackground();
+    MusicService.setAdShowing(false);
+    MusicService.onForeground();
+    MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
+    MusicService.stop();
   });
 
   group('MusicService rotation', () {

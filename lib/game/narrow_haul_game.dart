@@ -1108,7 +1108,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       candidates.add(AchievementIds.holdFire);
     }
 
-    if (fuelRemaining >= 0.9 * _shipMaxFuel) candidates.add(AchievementIds.fuelMiser);
+    if (fuelRemaining >= 0.85 * _shipMaxFuel) candidates.add(AchievementIds.fuelMiser);
     if (timeSeconds < 30) candidates.add(AchievementIds.speedHauler);
 
     final streak = progress.getNoRetryStreak();
@@ -1540,6 +1540,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _resetInputState();
     _clearLevel();
     _resetChallenge();
+    _countdown = null;
+    _countdownHud?.text = null;
     runState = RunState.menu;
     pauseEngine();
     overlays.add('menu');

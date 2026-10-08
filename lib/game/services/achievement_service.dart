@@ -53,7 +53,7 @@ class AchievementService {
     AchievementMeta(
       id: AchievementIds.fuelMiser,
       title: 'Fuel Miser',
-      description: 'Complete a level with over 90% fuel remaining.',
+      description: 'Complete a level with 85% or more fuel remaining.',
       icon: '⚡',
     ),
     AchievementMeta(

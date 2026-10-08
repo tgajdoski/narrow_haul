@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:narrow_haul/game/services/ad_pacing.dart';
+import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/music_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 
 /// Store product ids (create the same ids in App Store Connect / Play Console,
@@ -92,7 +94,7 @@ class MonetizationService {
   final Map<String, ProductDetails> _products = {};
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   bool _storeAvailable = false;
-  Completer<bool>? _pendingBuy;
+  Completer<BuyOutcome>? _pendingBuy;
 
   ProgressService get _p => ProgressService.instance;
 
@@ -215,14 +217,25 @@ class MonetizationService {
         if (!done.isCompleted) done.complete(false);
       },
     );
-    _showingFullScreen = true;
+    _setShowingFullScreen(true);
     try {
       await ad.show();
       return await done.future;
     } finally {
-      _showingFullScreen = false;
+      _setShowingFullScreen(false);
       _loadInterstitial();
     }
+  }
+
+  /// Full-screen ads play their own audio: the music pauses and the engine
+  /// loop and alarm stop while one is up.
+  void _setShowingFullScreen(bool showing) {
+    _showingFullScreen = showing;
+    if (showing) {
+      AudioService.stopEngine();
+      AudioService.setAlarm(false);
+    }
+    MusicService.setAdShowing(showing);
   }
 
   /// Debug only: why the result screen did or didn't show an interstitial.
@@ -294,12 +307,12 @@ class MonetizationService {
         if (!done.isCompleted) done.complete();
       },
     );
-    _showingFullScreen = true;
+    _setShowingFullScreen(true);
     try {
       await ad.show(onUserEarnedReward: (_, _) => earned = true);
       await done.future;
     } finally {
-      _showingFullScreen = false;
+      _setShowingFullScreen(false);
       _loadRewarded();
     }
     if (earned) {
@@ -364,11 +377,16 @@ class MonetizationService {
   }
 
   /// Starts a purchase; completes true once it is delivered.
-  Future<bool> buy(String productId) async {
+  Future<bool> buy(String productId) async =>
+      await purchase(productId) == BuyOutcome.purchased;
+
+  /// Starts a purchase and reports how it ended, so the UI can explain a
+  /// pending (e.g. Ask to Buy) or unavailable purchase.
+  Future<BuyOutcome> purchase(String productId) async {
     final product = _products[productId];
-    if (!_storeAvailable || product == null) return false;
-    _pendingBuy?.complete(false);
-    final pending = _pendingBuy = Completer<bool>();
+    if (!_storeAvailable || product == null) return BuyOutcome.unavailable;
+    _pendingBuy?.complete(BuyOutcome.failed);
+    final pending = _pendingBuy = Completer<BuyOutcome>();
     bool started;
     try {
       started = await InAppPurchase.instance.buyNonConsumable(
@@ -381,35 +399,47 @@ class MonetizationService {
     }
     if (!started) {
       _pendingBuy = null;
-      return false;
+      return BuyOutcome.failed;
     }
     return pending.future;
   }
 
-  /// Settings → "Restore purchases" (required by Apple).
-  Future<void> restore() async {
-    if (!_storeAvailable) return;
+  /// Settings → "Restore purchases" (required by Apple). Returns how many
+  /// purchases came back, or null if the store couldn't be reached.
+  Future<int?> restore() async {
+    if (!_storeAvailable) return null;
+    _restoredCount = 0;
     try {
       await InAppPurchase.instance.restorePurchases();
+      // Restored purchases arrive on the purchase stream just after.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      return _restoredCount;
     } catch (e) {
       _log('MonetizationService: restore failed ($e)');
+      return null;
     }
   }
+
+  int _restoredCount = 0;
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          if (purchase.status == PurchaseStatus.restored) _restoredCount++;
           await _grant(purchase.productID);
-          _pendingBuy?.complete(true);
+          _pendingBuy?.complete(BuyOutcome.purchased);
           _pendingBuy = null;
         case PurchaseStatus.error:
         case PurchaseStatus.canceled:
-          _pendingBuy?.complete(false);
+          _pendingBuy?.complete(BuyOutcome.failed);
           _pendingBuy = null;
         case PurchaseStatus.pending:
-          break;
+          // Waiting on approval (Ask to Buy, slow card): it's granted when
+          // the store later reports it purchased.
+          _pendingBuy?.complete(BuyOutcome.pending);
+          _pendingBuy = null;
       }
       if (purchase.pendingCompletePurchase) {
         await InAppPurchase.instance.completePurchase(purchase);
@@ -441,4 +471,18 @@ class MonetizationService {
 /// "Debugging ads"); release builds stay quiet.
 void _log(String message) {
   if (kDebugMode) debugPrint(message);
+}
+
+/// How a [MonetizationService.purchase] ended.
+enum BuyOutcome {
+  purchased,
+
+  /// Started but waiting on approval; delivered later.
+  pending,
+
+  /// Cancelled or failed.
+  failed,
+
+  /// The store or the product isn't available right now.
+  unavailable,
 }
