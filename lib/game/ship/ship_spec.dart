@@ -14,6 +14,7 @@ class ShipSpec {
     this.density = 1.15,
     this.thrustForce = 5.1,
     this.secondsPerFullRotation = 4.0,
+    this.turnBoost = 2.0,
     this.maxFuel = 100,
     this.fuelDrainPerSecond = 12,
     this.linearDamping = 0.22,
@@ -43,8 +44,12 @@ class ShipSpec {
   /// Main engine strength (N), along local −Y.
   final double thrustForce;
 
-  /// Seconds to complete one full 360° at full rotate input.
+  /// Seconds to complete one full 360° at rotate input 1 (the precise
+  /// inner zone of the stick; what the autopilot and validator fly).
   final double secondsPerFullRotation;
+
+  /// Turn-rate multiplier in the stick's boost zone (see `FlightTuning`).
+  final double turnBoost;
   final double maxFuel;
   final double fuelDrainPerSecond;
   final double linearDamping;
@@ -126,6 +131,7 @@ const kHopper = ShipSpec(
   hullScale: 0.8,
   thrustForce: 3.6,
   secondsPerFullRotation: 3.0,
+  turnBoost: 2.0,
   maxFuel: 60,
   linearDamping: 0.18,
   tint: 0x6650FF9A,
@@ -142,6 +148,7 @@ const kMule = ShipSpec(
   density: 1.3,
   thrustForce: 8.0,
   secondsPerFullRotation: 5.5,
+  turnBoost: 1.6,
   maxFuel: 150,
   linearDamping: 0.3,
   ropeLengthMul: 1.25,
@@ -156,6 +163,7 @@ const kSkate = ShipSpec(
   name: 'Skate',
   sprite: 'ship_skate.png',
   thrustForce: 5.4,
+  turnBoost: 1.8,
   linearDamping: 0.32,
   autoLevel: true,
   tint: 0x6699DDFF,
@@ -171,6 +179,7 @@ const kVector = ShipSpec(
   sprite: 'ship_vector.png',
   thrustForce: 4.4,
   secondsPerFullRotation: 3.6,
+  turnBoost: 2.0,
   maxFuel: 110,
   linearDamping: 0.35,
   hoverAssist: true,
@@ -186,6 +195,7 @@ const kTalon = ShipSpec(
   name: 'Talon',
   sprite: 'ship_talon.png',
   maxFuel: 115,
+  turnBoost: 2.2,
   armed: true,
   tint: 0x66FF5252,
   blurb: 'Armed escort. Nose cannon, shots cost fuel.',

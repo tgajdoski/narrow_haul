@@ -5,6 +5,7 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 
 /// On-screen controls for landscape play.
 ///
@@ -172,7 +173,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   static const double _maxKnobRadius = 56.0;
   static const double _baseOuterRadius = 68.0;
   static const double _knobRadius = 28.0;
-  static const double _deadzone = 0.06;
+  static const double _deadzone = FlightTuning.stickDeadzone;
 
   int? _trackingPointerId;
   Vector2? _baseCenter;
@@ -296,18 +297,34 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
         ..strokeWidth = 6
         ..strokeCap = StrokeCap.round,
     );
-    if (axis != 0) {
-      canvas.drawLine(
-        c,
-        c + Offset(axis * _maxKnobRadius, 0),
-        Paint()
-          ..color = HudColors.cyanBright.withValues(alpha: 0.85)
-          ..strokeWidth = 4
-          ..strokeCap = StrokeCap.round,
-      );
+    // Boost zone: gold notches where the precise zone ends.
+    const boostX = FlightTuning.boostStart * _maxKnobRadius;
+    final notch = Paint()
+      ..color = HudColors.gold.withValues(alpha: 0.55 * a)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (final side in const [-1.0, 1.0]) {
+      final x = c.dx + side * boostX;
+      canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
     }
-    _drawTurnArrow(canvas, c, left: true, lit: axis < 0, alpha: a);
-    _drawTurnArrow(canvas, c, left: false, lit: axis > 0, alpha: a);
+    final boosting = FlightTuning.stickBoosting(axis);
+    if (axis != 0) {
+      final lit = Paint()
+        ..color = HudColors.cyanBright.withValues(alpha: 0.85)
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round;
+      final reach = axis.sign * math.min(axis.abs(), FlightTuning.boostStart);
+      canvas.drawLine(c, c + Offset(reach * _maxKnobRadius, 0), lit);
+      if (boosting) {
+        canvas.drawLine(
+          c + Offset(axis.sign * boostX, 0),
+          c + Offset(axis * _maxKnobRadius, 0),
+          lit..color = HudColors.gold,
+        );
+      }
+    }
+    _drawTurnArrow(canvas, c, left: true, lit: axis < 0, boost: boosting, alpha: a);
+    _drawTurnArrow(canvas, c, left: false, lit: axis > 0, boost: boosting, alpha: a);
   }
 
   void _drawTurnArrow(
@@ -316,17 +333,18 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     required bool left,
     required bool lit,
     required double alpha,
+    bool boost = false,
   }) {
     const r = _baseOuterRadius * 0.7;
     final start = left ? -math.pi * 0.62 : -math.pi * 0.38;
     final sweep = left ? -0.5 : 0.5;
     final color = lit
-        ? HudColors.cyanBright
+        ? (boost ? HudColors.gold : HudColors.cyanBright)
         : HudColors.cyan.withValues(alpha: 0.45 * alpha);
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = lit ? 3 : 2.2
+      ..strokeWidth = lit ? (boost ? 4 : 3) : 2.2
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(Rect.fromCircle(center: c, radius: r), start, sweep, false, paint);
     final end = start + sweep;

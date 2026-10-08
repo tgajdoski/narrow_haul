@@ -137,13 +137,26 @@ class NarrowHaulGame extends Forge2DGame
 
   // Touch HUD and keyboard each keep their own state; the flight inputs
   // above are both combined (either one can steer, thrust or fire).
-  double _touchAxis = 0;
+  double _touchAxis = 0; // raw stick deflection, shaped in [_combineInputs]
   bool _touchThrust = false;
   bool _touchFire = false;
   final KeyboardFlightInput _keys = KeyboardFlightInput();
 
+  /// How long the current turn key has been held (keyboard boost).
+  double _keyHeld = 0;
+  double _keyDir = 0;
+  bool _wasBoosting = false;
+
+  /// Two-speed steering (see [FlightTuning]): ±1 is the ship's precise turn
+  /// rate, the stick's outer zone or a held key boosts past it.
   void _combineInputs() {
-    rotateAxis = (_touchAxis + _keys.rotateAxis).clamp(-1.0, 1.0);
+    final boost = ship?.maxRotateInput ?? 1.0;
+    final touch = FlightTuning.shapeStick(_touchAxis, boost);
+    final key = FlightTuning.keyAxis(_keys.rotateAxis, _keyHeld, boost);
+    rotateAxis = (touch + key).clamp(-boost, boost);
+    final boosting = rotateAxis.abs() > 1.001;
+    if (boosting && !_wasBoosting) Haptics.light();
+    _wasBoosting = boosting;
     thrustHeld = _touchThrust || _keys.thrust;
     fireHeld = _touchFire || _keys.fire;
   }
@@ -174,6 +187,10 @@ class NarrowHaulGame extends Forge2DGame
       return KeyEventResult.ignored;
     }
     _keys.update(keysPressed);
+    if (_keys.rotateAxis != _keyDir) {
+      _keyDir = _keys.rotateAxis;
+      _keyHeld = 0;
+    }
     _combineInputs();
     return KeyboardFlightInput.isFlightKey(event.logicalKey)
         ? KeyEventResult.handled
@@ -420,7 +437,7 @@ class NarrowHaulGame extends Forge2DGame
 
     _hudControls = HudTouchControls(
       onRotateAxis: (v) {
-        _touchAxis = FlightTuning.shapeAxis(v);
+        _touchAxis = v;
         _combineInputs();
       },
       onFire: (v) {
@@ -1069,6 +1086,9 @@ class NarrowHaulGame extends Forge2DGame
     _touchThrust = false;
     _touchFire = false;
     _keys.reset();
+    _keyHeld = 0;
+    _keyDir = 0;
+    _wasBoosting = false;
     AudioService.stopEngine();
     AudioService.setAlarm(false);
   }
@@ -2716,6 +2736,11 @@ class NarrowHaulGame extends Forge2DGame
       if (demoMode) {
         _updateDemo(dt, s);
       } else {
+        s.towing = cargoAttachment?.attached ?? false;
+        if (_keys.rotateAxis != 0) _keyHeld += dt;
+        // Re-shape held input every frame: the key boost ramps with time
+        // and the boost shrinks once the pod is hooked.
+        if (_touchAxis != 0 || _keys.rotateAxis != 0) _combineInputs();
         s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
         _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;

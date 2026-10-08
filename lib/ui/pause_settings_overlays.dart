@@ -500,9 +500,9 @@ class _AboutSection extends StatelessWidget {
   }
 }
 
-/// Dev builds only: live handling knobs ([FlightTuning]) to find the turn
-/// feel on a phone. Changes apply at once (open Settings from the pause menu
-/// mid-flight) and persist on release of the slider.
+/// Dev builds only: live overrides of the shipped handling and camera
+/// values ([FlightTuning]). Changes apply at once (open Settings from the
+/// pause menu mid-flight) and persist on release of the slider.
 class _FlightTuningSection extends StatefulWidget {
   const _FlightTuningSection({required this.game});
 
@@ -513,24 +513,8 @@ class _FlightTuningSection extends StatefulWidget {
 }
 
 class _FlightTuningSectionState extends State<_FlightTuningSection> {
-  void _change({
-    double? turn,
-    double? expo,
-    double? spin,
-    double? reach,
-    double? lead,
-    double? towZoom,
-  }) {
-    setState(
-      () => FlightTuning.set(
-        turn: turn,
-        expo: expo,
-        spin: spin,
-        reach: reach,
-        lead: lead,
-        towZoom: towZoom,
-      ),
-    );
+  void _change({double? turn, double? lead, double? towZoom}) {
+    setState(() => FlightTuning.set(turn: turn, lead: lead, towZoom: towZoom));
   }
 
   Future<void> _save() =>
@@ -539,81 +523,36 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
   @override
   Widget build(BuildContext context) {
     final spec = widget.game.ship?.spec ?? kKestrel;
-    final secs = spec.secondsPerFullRotation / FlightTuning.turnMul;
-    final degPerSec = 360 / secs;
-    final half = FlightTuning.shapeAxis(0.5);
+    final precise = 360 / spec.secondsPerFullRotation * FlightTuning.turnScale;
+    final boosted = precise * spec.turnBoost;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 8),
         const PanelTitle('Flight tuning (dev)', color: SpaceColors.gold),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Text(
+            '${spec.name}: ${precise.round()}°/s precise, '
+            '${boosted.round()}°/s past the gold notch on the dial',
+            style: const TextStyle(color: SpaceColors.textDim, fontSize: 11),
+          ),
+        ),
         _slider(
-          label: 'Turn speed ×${FlightTuning.turnMul.toStringAsFixed(2)}',
-          detail:
-              '${spec.name}: ${secs.toStringAsFixed(1)} s / 360° '
-              '(${degPerSec.round()}°/s)',
-          value: FlightTuning.turnMul,
-          min: FlightTuning.turnMulMin,
-          max: FlightTuning.turnMulMax,
-          divisions: 45,
+          label: 'Turn scale ×${FlightTuning.turnScale.toStringAsFixed(2)}',
+          detail: FlightTuning.turnScale == 1 ? 'Shipped' : 'Both speeds',
+          value: FlightTuning.turnScale,
+          min: FlightTuning.turnScaleMin,
+          max: FlightTuning.turnScaleMax,
+          divisions: 25,
           onChanged: (v) => _change(turn: v),
-        ),
-        _slider(
-          label: 'Stick reach ${(FlightTuning.stickReach * 56).round()} px',
-          detail: FlightTuning.stickReach >= 1
-              ? 'Full turn at full drag (stock)'
-              : 'Full turn after a short drag',
-          value: FlightTuning.stickReach,
-          min: FlightTuning.stickReachMin,
-          max: 1,
-          divisions: 13,
-          onChanged: (v) => _change(reach: v),
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: _slider(
-                label:
-                    'Stick curve ${FlightTuning.curveExpo.toStringAsFixed(2)}',
-                detail: 'Half stick → ${(half * 100).round()}% turn',
-                value: FlightTuning.curveExpo,
-                min: 0,
-                max: 1,
-                divisions: 20,
-                onChanged: (v) => _change(expo: v),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 44,
-              height: 36,
-              child: CustomPaint(
-                painter: _CurvePainter(
-                  FlightTuning.curveExpo,
-                  FlightTuning.stickReach,
-                ),
-              ),
-            ),
-          ],
-        ),
-        _slider(
-          label: 'Spin-up ${(FlightTuning.spinUp * 1000).round()} ms',
-          detail: FlightTuning.spinUp == 0
-              ? 'Instant (stock)'
-              : 'Time to full turn rate',
-          value: FlightTuning.spinUp,
-          min: 0,
-          max: FlightTuning.spinUpMax,
-          divisions: 12,
-          onChanged: (v) => _change(spin: v),
         ),
         _slider(
           label: 'Camera lead ${FlightTuning.cameraLead.toStringAsFixed(2)} s',
           detail: FlightTuning.cameraLead == 0
-              ? 'Centred on the ship (stock)'
-              : 'Looks ahead where you fly, max '
-                    '${FlightTuning.cameraLeadMaxMeters} m',
+              ? 'Centred on the ship'
+              : 'Looks ahead, max ${FlightTuning.cameraLeadMaxMeters} m',
           value: FlightTuning.cameraLead,
           min: 0,
           max: FlightTuning.cameraLeadMax,
@@ -623,8 +562,8 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
         _slider(
           label: 'Tow zoom-out ${(FlightTuning.towZoomOut * 100).round()}%',
           detail: FlightTuning.towZoomOut == 0
-              ? 'Same view while towing (stock)'
-              : 'Wider view with the pod on the line',
+              ? 'Same view while towing'
+              : 'Wider view with the pod on',
           value: FlightTuning.towZoomOut,
           min: 0,
           max: FlightTuning.towZoomOutMax,
@@ -634,14 +573,14 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: FlightTuning.isStock
+            onPressed: FlightTuning.isShipped
                 ? null
                 : () {
                     setState(FlightTuning.reset);
                     _save();
                   },
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
-            label: const Text('Reset to stock'),
+            label: const Text('Reset to shipped'),
           ),
         ),
       ],
@@ -711,44 +650,4 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
       ),
     );
   }
-}
-
-/// Stick → turn-rate response for the current curve (dashed: linear).
-class _CurvePainter extends CustomPainter {
-  _CurvePainter(this.expo, this.reach);
-
-  final double expo;
-  final double reach;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final frame = Paint()
-      ..color = const Color(0x33FFFFFF)
-      ..style = PaintingStyle.stroke;
-    canvas.drawRect(Offset.zero & size, frame);
-    canvas.drawLine(
-      Offset(0, size.height),
-      Offset(size.width, 0),
-      Paint()..color = const Color(0x33FFFFFF),
-    );
-    final path = Path();
-    const steps = 24;
-    for (var i = 0; i <= steps; i++) {
-      final x = i / steps;
-      final y = FlightTuning.shapeAxis(x, expo: expo, reach: reach);
-      final p = Offset(x * size.width, size.height * (1 - y));
-      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = SpaceColors.gold
-        ..strokeWidth = 1.6
-        ..style = PaintingStyle.stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CurvePainter old) =>
-      old.expo != expo || old.reach != reach;
 }

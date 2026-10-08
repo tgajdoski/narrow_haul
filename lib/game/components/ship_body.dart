@@ -77,8 +77,16 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   double get maxFuel => spec.maxFuel;
 
-  /// Full-input turn rate (rad/s): the spec's, times the dev [FlightTuning].
-  double get turnRate => spec.rotationSpeedRadPerSec * FlightTuning.turnMul;
+  /// Turn rate at rotate input 1 (rad/s): the spec's, times the dev
+  /// [FlightTuning.turnScale].
+  double get turnRate => spec.rotationSpeedRadPerSec * FlightTuning.turnScale;
+
+  /// Set by the game each frame: towing trims the turn boost.
+  bool towing = false;
+
+  /// Largest rotate input right now (the stick's boost zone).
+  double get maxRotateInput =>
+      FlightTuning.effectiveBoost(spec.turnBoost, towing: towing);
 
   /// Local acceleration at the ship (m/s²), fed by the game each frame — the
   /// "down" that passive assists level against.
@@ -101,7 +109,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   int shotsFired = 0;
 
   void setInput({required double rotate, required bool thrust, bool fire = false}) {
-    _rotateInput = rotate.clamp(-1.0, 1.0);
+    _rotateInput = rotate.clamp(-maxRotateInput, maxRotateInput);
     _thrustInput = thrust;
     _fireInput = fire && (spec.armed || (rack?.canFire ?? false));
     if (!_launched && (thrust || _fireInput || rotate.abs() > 0.05)) {
@@ -306,17 +314,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       final t = (releaseSpinDecay * dt).clamp(0.0, 1.0);
       body.angularVelocity *= 1.0 - t;
     } else {
-      // Constant turn rate: 360° in [secondsPerFullRotation] at |input| == 1.
-      final target = _rotateInput * turnRate;
-      final spinUp = FlightTuning.spinUp;
-      if (spinUp > 0) {
-        // Thruster spin-up: reach full rate from rest in [spinUp] seconds.
-        final step = turnRate / spinUp * dt;
-        final w = body.angularVelocity;
-        body.angularVelocity = w + (target - w).clamp(-step, step);
-      } else {
-        body.angularVelocity = target;
-      }
+      // Constant turn rate: 360° in [secondsPerFullRotation] at |input| == 1,
+      // up to [ShipSpec.turnBoost] × that in the stick's boost zone.
+      body.angularVelocity = _rotateInput * turnRate;
     }
 
     _updateCannon(dt);
