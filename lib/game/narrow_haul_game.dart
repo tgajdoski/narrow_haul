@@ -359,6 +359,11 @@ class NarrowHaulGame extends Forge2DGame
 
   /// The guide was showing during this flight: capped at 2★.
   bool guidedThisRun = false;
+
+  /// Mission shown by the 'briefing' popup (a flat level index), and whether
+  /// it is today's daily challenge rather than a mission from the map.
+  int briefingLevel = 0;
+  bool briefingDaily = false;
   final List<Component> _guideComponents = [];
 
   /// Kinematic replay of [currentRoute]: no input, no crash, no rewards.
@@ -501,12 +506,9 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   Future<void> beginChallenge() async {
-    overlays.remove('menu');
+    overlays.removeAll(['menu', 'briefing']);
     isChallengeMode = true;
-    final levels = [
-      for (var i = 0; i < LevelRegistry.totalLevels; i++)
-        if (LevelRegistry.isLevelUnlocked(i)) i,
-    ];
+    final levels = unlockedLevelIndices();
     // Test Flight ship options run the full validator per ship (up to a few
     // hundred ms on a phone): do it on a background isolate, and only then.
     final (dailyLevel, testFlight) = DailyChallengeConfig.peekToday(levels);
@@ -530,10 +532,13 @@ class NarrowHaulGame extends Forge2DGame
     await loadCurrentLevel();
   }
 
-  void startLevel(int index) {
+  /// [withRoute] (from the briefing) switches the route guide on or off for
+  /// this level; null keeps it as it was (on across retries).
+  void startLevel(int index, {bool? withRoute}) {
     overlays.removeAll([
       'menu',
       'levelSelect',
+      'briefing',
       'gameOver',
       'levelComplete',
       'rankUp',
@@ -543,6 +548,11 @@ class NarrowHaulGame extends Forge2DGame
     _leaveDemo();
     _resetChallenge();
     levelIndex = index;
+    if (withRoute != null) {
+      _routeGuideLevel = withRoute
+          ? LevelRegistry.defAt(index).saveId
+          : null;
+    }
     _resetInputState();
     runState = RunState.playing;
     resumeEngine();
@@ -1959,10 +1969,39 @@ class NarrowHaulGame extends Forge2DGame
     overlays.add('menu');
   }
 
+  /// Star chart → the mission briefing popup (over the map).
+  void openBriefing(int index) {
+    briefingLevel = index;
+    briefingDaily = false;
+    overlays.add('briefing');
+  }
+
+  /// Hangar Daily → today's challenge briefing (over the hangar).
+  void openDailyBriefing() {
+    briefingLevel = DailyChallengeConfig.peekToday(unlockedLevelIndices()).$1;
+    briefingDaily = true;
+    overlays.add('briefing');
+  }
+
+  void closeBriefing() => overlays.remove('briefing');
+
+  /// Flat indices of every unlocked level (the daily's candidates).
+  static List<int> unlockedLevelIndices() => [
+    for (var i = 0; i < LevelRegistry.totalLevels; i++)
+      if (LevelRegistry.isLevelUnlocked(i)) i,
+  ];
+
   /// Android back / system back. Returns false only on the main menu, where
   /// the app may close; everywhere else it steps back one screen.
   bool handleBack() {
     final active = overlays.activeOverlays;
+    // The briefing pops over the hangar too, so it goes before the
+    // hangar's "let the app close" check.
+    if (!creditsVisible.value && active.contains('briefing')) {
+      AudioService.playUi(UiSound.back);
+      closeBriefing();
+      return true;
+    }
     if (!creditsVisible.value && active.contains('menu')) return false;
     AudioService.playUi(UiSound.back);
     if (creditsVisible.value) {

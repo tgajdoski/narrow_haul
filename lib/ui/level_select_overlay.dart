@@ -37,8 +37,7 @@ class LevelSelectOverlay extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.only(bottom: 6),
             child: Text(
-              '▼ heavy gravity   ▲ light gravity   ⛽ fast fuel burn   '
-              '⚓ heavy cargo   ❄ icy walls   ✛ turrets   ☢ reactor',
+              'Tap a mission for its briefing: ship, hazards and star targets',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white38, fontSize: 11),
             ),
@@ -169,7 +168,7 @@ class _WorldMapState extends State<_WorldMap> {
                         stars: progress.getStarsById(flatDefs[i].saveId),
                         bestTime: progress.getBestTimeById(flatDefs[i].saveId),
                         isNext: i == next,
-                        onTap: () => game.startLevel(i),
+                        onTap: () => game.openBriefing(i),
                       ),
                     ),
                   ),
@@ -218,6 +217,11 @@ class _WorldHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = (gameThemes[world.themeId] ?? tutorialTheme).uiAccent;
+    final progress = ProgressService.instance;
+    final worldStars = world.levels.fold<int>(
+      0,
+      (sum, l) => sum + progress.getStarsById(l.saveId),
+    );
     return SizedBox(
       width: 126,
       child: Center(
@@ -240,11 +244,15 @@ class _WorldHeader extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               if (unlocked) ...[
-                Text(
-                  '${world.levels.length} missions',
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                HoloRing(
+                  value: worldStars / (world.levels.length * 3),
+                  color: accent,
+                  child: Text(
+                    '$worldStars/${world.levels.length * 3}',
+                    style: hudLabel(9.5, color: accent, spacing: 0),
+                  ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -269,8 +277,16 @@ class _WorldHeader extends StatelessWidget {
                   ],
                 ),
               ] else ...[
-                const Icon(Icons.lock_outline, size: 16, color: Colors.white30),
-                const SizedBox(height: 2),
+                HoloRing(
+                  value: totalStars / world.starsRequired,
+                  color: Colors.white38,
+                  child: const Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Colors.white30,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   '$totalStars / ${world.starsRequired} ★',
                   style: const TextStyle(color: Colors.white38, fontSize: 10),
@@ -396,7 +412,6 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
 
   void _tap() {
     if (widget.unlocked) {
-      AudioService.playUi(UiSound.launch);
       widget.onTap();
     } else {
       AudioService.playUi(UiSound.denied);

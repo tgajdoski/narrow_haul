@@ -22,6 +22,7 @@ import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/garage_overlay.dart';
 import 'package:narrow_haul/ui/level_select_overlay.dart';
 import 'package:narrow_haul/ui/menu_overlay.dart';
+import 'package:narrow_haul/ui/mission_briefing.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
@@ -180,6 +181,8 @@ class _NarrowHaulApp extends StatelessWidget {
                           SettingsOverlay(game: game as NarrowHaulGame),
                       'pilotProfile': (context, game) =>
                           PilotLogbookOverlay(game: game as NarrowHaulGame),
+                      'briefing': (context, game) =>
+                          MissionBriefingOverlay(game: game as NarrowHaulGame),
                     },
                   ),
                 ),

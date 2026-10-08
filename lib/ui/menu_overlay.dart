@@ -328,10 +328,7 @@ class _DailyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levels = [
-      for (var i = 0; i < LevelRegistry.totalLevels; i++)
-        if (LevelRegistry.isLevelUnlocked(i)) i,
-    ];
+    final levels = NarrowHaulGame.unlockedLevelIndices();
     final (_, testFlight) = DailyChallengeConfig.peekToday(levels);
     final name = testFlight
         ? DailyChallengeConfig.testFlightName
@@ -341,10 +338,10 @@ class _DailyButton extends StatelessWidget {
       subtitle: streak > 0 ? '$name · 🔥$streak' : name,
       icon: Icons.bolt_rounded,
       accent: SpaceColors.gold,
-      sound: UiSound.launch,
+      sound: UiSound.select,
       height: 60,
       fontSize: 16,
-      onPressed: game.beginChallenge,
+      onPressed: game.openDailyBriefing,
     );
   }
 }

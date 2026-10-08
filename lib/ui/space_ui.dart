@@ -1360,6 +1360,83 @@ class _GaugePainter extends CustomPainter {
       o.value != value || o.color != color || o.segments != segments;
 }
 
+/// Progress ring with [value] in 0–1 and a [child] (label/icon) inside.
+class HoloRing extends StatelessWidget {
+  const HoloRing({
+    super.key,
+    required this.value,
+    this.color = SpaceColors.cyan,
+    this.size = 44,
+    this.stroke = 3.5,
+    this.child,
+  });
+
+  final double value;
+  final Color color;
+  final double size;
+  final double stroke;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(
+      painter: _RingPainter(value.clamp(0.0, 1.0), color, stroke),
+      child: Center(child: child),
+    ),
+  );
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.value, this.color, this.stroke);
+  final double value;
+  final Color color;
+  final double stroke;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(stroke / 2 + 1);
+    canvas.drawArc(
+      rect,
+      0,
+      math.pi * 2,
+      false,
+      Paint()
+        ..color = SpaceColors.track
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
+    );
+    if (value <= 0) return;
+    final sweep = math.pi * 2 * value;
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..color = color.withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke + 3
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter o) =>
+      o.value != value || o.color != color || o.stroke != stroke;
+}
+
 /// `1m02s` / `12.4s`.
 String formatFlightTime(double seconds) {
   if (seconds.isInfinite || seconds.isNaN) return '--';

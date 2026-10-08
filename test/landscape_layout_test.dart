@@ -8,12 +8,14 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
+import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/ui/career_overlays.dart';
 import 'package:narrow_haul/ui/garage_overlay.dart';
 import 'package:narrow_haul/ui/level_select_overlay.dart';
 import 'package:narrow_haul/ui/menu_overlay.dart';
+import 'package:narrow_haul/ui/mission_briefing.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -193,6 +195,45 @@ void main() {
       () => LevelCompleteOverlay(game: won()),
     );
     expect(find.text('NEXT MISSION'), findsOneWidget);
+  });
+
+  testWidgets('mission briefing fits, busiest level with the route', (
+    tester,
+  ) async {
+    // The level with the most facts, its route unlocked and stars flown.
+    var busiest = 0;
+    for (var i = 0; i < LevelRegistry.totalLevels; i++) {
+      if (briefingFacts(i).length > briefingFacts(busiest).length) busiest = i;
+    }
+    final def = LevelRegistry.defAt(busiest);
+    await ProgressService.instance.setRouteUnlocked(def.saveId);
+    await ProgressService.instance.saveStarsById(def.saveId, 2);
+    await each(
+      tester,
+      'briefing',
+      () => MissionBriefingOverlay(
+        game: NarrowHaulGame()..briefingLevel = busiest,
+      ),
+    );
+    expect(find.text('LAUNCH'), findsOneWidget);
+    expect(find.text('WITH ROUTE'), findsOneWidget);
+  });
+
+  testWidgets('daily briefing fits', (tester) async {
+    await each(
+      tester,
+      'daily briefing',
+      () => MissionBriefingOverlay(
+        game: NarrowHaulGame()
+          ..briefingDaily = true
+          ..briefingLevel = DailyChallengeConfig.peekToday(
+            NarrowHaulGame.unlockedLevelIndices(),
+          ).$1,
+      ),
+    );
+    expect(find.text('LAUNCH'), findsOneWidget);
+    expect(find.text('WITH ROUTE'), findsNothing, reason: 'never in a daily');
+    expect(find.textContaining('XP'), findsOneWidget);
   });
 
   testWidgets('XP breakdown folds into five lines', (tester) async {

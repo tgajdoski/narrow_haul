@@ -22,7 +22,7 @@ void main() {
         overlayBuilderMap: {
           for (final k in [
             'menu', 'levelSelect', 'achievements', 'cosmetics',
-            'pilotProfile', 'settings', 'pause',
+            'pilotProfile', 'settings', 'pause', 'briefing',
           ])
             k: blank,
         },
@@ -37,6 +37,22 @@ void main() {
       ..clear()
       ..add('levelSelect');
     expect(game.handleBack(), isTrue);
+    expect(active, ['menu']);
+
+    // The briefing closes alone: over the map, the map stays…
+    game.overlays
+      ..clear()
+      ..add('levelSelect');
+    game.openBriefing(3);
+    expect(game.handleBack(), isTrue);
+    expect(active, ['levelSelect']);
+
+    // …and over the hangar (the daily), back must not close the app.
+    game.overlays
+      ..clear()
+      ..add('menu');
+    game.openDailyBriefing();
+    expect(game.handleBack(), isTrue, reason: 'daily briefing over the hangar');
     expect(active, ['menu']);
 
     game.overlays

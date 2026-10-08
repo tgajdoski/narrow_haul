@@ -119,6 +119,16 @@ class XpBreakdown {
   int get total => lines.fold(0, (sum, l) => sum + l.xp);
 }
 
+/// XP for the first daily challenge cleared today.
+const int kDailyXp = 150;
+
+/// Streak bonus on top of [kDailyXp]: 25 per day, from the second day,
+/// counting at most a week.
+int dailyStreakBonusXp(int streak) {
+  final days = math.min(streak, 7);
+  return days > 1 ? 25 * days : 0;
+}
+
 /// Pure XP calculation for one successful delivery.
 ///
 /// Runs that earn nothing new (replays, repeat dailies) draw from a shared
@@ -140,10 +150,10 @@ XpBreakdown computeRunXp({
   if (challenge) {
     progressRun = dailyFirstToday;
     if (dailyFirstToday) {
-      lines.add(const XpLine('Daily challenge', 150));
-      final streakDays = math.min(dailyStreak, 7);
-      if (streakDays > 1) {
-        lines.add(XpLine('Streak ×$streakDays', 25 * streakDays));
+      lines.add(const XpLine('Daily challenge', kDailyXp));
+      final bonus = dailyStreakBonusXp(dailyStreak);
+      if (bonus > 0) {
+        lines.add(XpLine('Streak ×${math.min(dailyStreak, 7)}', bonus));
       }
     }
   } else {
