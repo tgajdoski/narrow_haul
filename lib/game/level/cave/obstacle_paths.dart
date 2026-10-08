@@ -24,6 +24,3 @@ Pt slidingBlockAt(SlidingBlockSpec spec, double t) {
     spec.from.y + (spec.to.y - spec.from.y) * s,
   );
 }
-
-/// Rotating bar angle (rad).
-double rotatingBarAngleAt(RotatingBarSpec spec, double t) => spec.initialAngle + spec.radPerSec * t;

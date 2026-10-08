@@ -376,10 +376,6 @@ class MonetizationService {
     }
   }
 
-  /// Starts a purchase; completes true once it is delivered.
-  Future<bool> buy(String productId) async =>
-      await purchase(productId) == BuyOutcome.purchased;
-
   /// Starts a purchase and reports how it ended, so the UI can explain a
   /// pending (e.g. Ask to Buy) or unavailable purchase.
   Future<BuyOutcome> purchase(String productId) async {

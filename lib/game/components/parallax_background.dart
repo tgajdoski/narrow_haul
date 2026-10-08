@@ -19,7 +19,7 @@ import 'package:flutter/material.dart';
 class ParallaxBackground extends PositionComponent with HasGameReference<Forge2DGame> {
   ParallaxBackground() : super(priority: -9999);
 
-  static const _files = ['far.png', 'mid.png', 'near.png'];
+  static const _files = ['far.webp', 'mid.webp', 'near.webp'];
 
   // Fraction of camera displacement applied to each layer.
   static const _speedX = [0.04, 0.15, 0.38];

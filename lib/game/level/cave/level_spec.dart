@@ -100,12 +100,6 @@ class LevelModifiers {
 
   /// Terrain friction override — ice caverns use ~0.03. Null → default 0.35.
   final double? wallFriction;
-
-  bool get isDefault =>
-      gravityMul == 1.0 &&
-      fuelDrainMul == 1.0 &&
-      cargoDensityMul == 1.0 &&
-      wallFriction == null;
 }
 
 /// Organic boundary roughness. Amplitude is capped by the validation test,

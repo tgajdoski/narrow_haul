@@ -169,14 +169,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
-  cupertino_icons:
-    dependency: "direct main"
-    description:
-      name: cupertino_icons
-      sha256: ba631d1c7f7bef6b729a622b7b752645a2d076dba9976925b8f25725a30e1ee6
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -273,14 +265,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.19.2+5"
-  flame_tiled:
-    dependency: "direct main"
-    description:
-      name: flame_tiled
-      sha256: a93303d0a13fd45fe1b1c5f48d08d2a726fac09dac5e0f3314d16b2c06a93f8c
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.1.0"
   flutter:
     dependency: "direct main"
     description: flutter

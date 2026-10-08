@@ -86,6 +86,4 @@ class DailyChallengeConfig {
     final mod = _modifiers[rng.nextInt(_modifiers.length)];
     return (levelIndex, mod.$1 == testFlightName);
   }
-
-  String get levelDisplay => 'Mission ${levelIndex + 1}';
 }

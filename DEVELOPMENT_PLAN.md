@@ -34,10 +34,10 @@
 | `thrust_press.png` | 256×256 | `hud_touch_controls.dart` | Shown while held |
 | `fuel_bar.png` | 320×48 | `hud_touch_controls.dart` | Frame sprite; dynamic fill drawn on top |
 | `landing.png` | 256×64 | `world_dromes.dart` | Background of `LandingStripVisual`; animated overlays on top |
-| `far.png` | 1920×1080 | `parallax_background.dart` | Layer 0 — 4%/2% camera speed |
-| `mid.png` | 1920×1080 | `parallax_background.dart` | Layer 1 — 15%/7% camera speed |
-| `near.png` | 1920×1080 | `parallax_background.dart` | Layer 2 — 38%/18% camera speed |
-| `tiles.png` | 512×512 | Tiled map loader | Cave wall tile set |
+| `far.webp` | 1920×1080 | `parallax_background.dart` | Layer 0 — 4%/2% camera speed |
+| `mid.webp` | 1920×1080 | `parallax_background.dart` | Layer 1 — 15%/7% camera speed |
+| `near.webp` | 1920×1080 | `parallax_background.dart` | Layer 2 — 38%/18% camera speed |
+| `themes/<world>/rock.png` | 256×256 | `cave_terrain.dart`, `wall_box.dart` | Generated from the cave wall tile set (`art_src/tiles/`) by `tool/store/make_rock_textures.sh` |
 
 ### ⚠️ Wired but needs re-export
 

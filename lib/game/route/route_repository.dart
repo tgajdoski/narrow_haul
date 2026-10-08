@@ -33,7 +33,4 @@ class RouteRepository {
 
   @visibleForTesting
   static void debugSet(String saveId, FlightRoute? route) => _cache[saveId] = route;
-
-  @visibleForTesting
-  static void debugClear() => _cache.clear();
 }

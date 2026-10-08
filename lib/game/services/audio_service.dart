@@ -93,7 +93,6 @@ class AudioService {
 
   /// Shared with [MusicService].
   static AudioContext get context => _context;
-  static bool get isEnabled => _enabled;
 
   static void setEnabled(bool enabled) {
     _enabled = enabled;

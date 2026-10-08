@@ -227,20 +227,22 @@ class _NarrowHaulApp extends StatelessWidget {
                 ),
                 const _AchievementToastHost(),
                 // "Delivered by" credits: above everything, so on the first
-                // launch they also cover the game while it loads.
-                ValueListenableBuilder<bool>(
-                  valueListenable: game.creditsVisible,
-                  builder: (context, visible, _) => visible
-                      ? Positioned.fill(
-                          child: DeliveredByScreen(
+                // launch they also cover the game while it loads. Always
+                // positioned: a non-positioned child would size the Stack to
+                // itself and collapse the GameWidget to 0×0.
+                Positioned.fill(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: game.creditsVisible,
+                    builder: (context, visible, _) => visible
+                        ? DeliveredByScreen(
                             ready: game.loaded,
                             onDone: () {
                               game.creditsVisible.value = false;
                               ProgressService.instance.markCreditsSeen();
                             },
-                          ),
-                        )
-                      : const SizedBox.shrink(),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ),
               ],
             ),
