@@ -211,6 +211,11 @@ class ProgressService {
 
   /// The "Delivered by" credits play on the first launch only.
   bool get creditsSeen => _bool('credits_seen') ?? false;
+
+  /// "Slow touches are safe" shows on the first scrape only.
+  bool get scrapeHintSeen => _bool('scrape_hint_seen') ?? false;
+  Future<void> markScrapeHintSeen() async =>
+      _prefs.setBool('scrape_hint_seen', true);
   Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
 
   bool get minimapEnabled => _bool('minimap_enabled') ?? true;

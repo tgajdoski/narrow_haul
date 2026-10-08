@@ -199,7 +199,7 @@ class CaveTerrain extends BodyComponent {
         FixtureDef(
           ChainShape()..createLoop(vertices),
           friction: friction,
-          userData: const WallTag(),
+          userData: const RockTag(),
           filter: filterWall(),
         ),
       );

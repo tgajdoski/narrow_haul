@@ -1,6 +1,13 @@
-/// Fixture [userData] for static terrain — ship contact ends the run.
+/// Fixture [userData] for anything solid the ship must not hit — ship
+/// contact ends the run (moving obstacles, turrets, reactors, well cores).
 class WallTag {
   const WallTag();
+}
+
+/// Static rock (cave walls, tutorial walls): a slow touch only scrapes or
+/// lands the ship, a fast one crashes (`classifyHullContact`).
+class RockTag extends WallTag {
+  const RockTag();
 }
 
 /// Body [userData] for the cargo — landing pad cargo sensor detects this.

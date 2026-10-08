@@ -54,7 +54,7 @@ class WallBox extends BodyComponent {
       FixtureDef(
         PolygonShape()..setAsBoxXY(halfWidth, halfHeight),
         friction: 0.35,
-        userData: const WallTag(),
+        userData: const RockTag(),
         filter: filterWall(),
       ),
     );

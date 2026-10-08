@@ -58,6 +58,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/ship/hull_contact.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -262,8 +263,14 @@ class NarrowHaulGame extends Forge2DGame
   SupplyCrate? _crate;
 
   /// A short line shown in the hint slot after picking up a crate.
+  // Timed hint: a picked-up weapon, or the first scrape ever.
   String? _weaponHint;
   double _weaponHintLeft = 0;
+
+  /// Rock touches this flight that didn't crash, and the cooldown that keeps
+  /// a slide along a wall from machine-gunning sound and haptics.
+  int scrapesThisRun = 0;
+  double _scrapeFxCooldown = 0;
 
   // ── Star / time tracking ─────────────────────────────────────────────────
   int lastLevelStars = 0;
@@ -822,6 +829,7 @@ class NarrowHaulGame extends Forge2DGame
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: () => _onShipHitWall(),
+      onRockTouch: _onRockTouch,
       onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
       onFire: _onShipFired,
       onWeapon: _onWeaponFired,
@@ -1058,6 +1066,8 @@ class NarrowHaulGame extends Forge2DGame
     _rumble = 0;
     _weaponHint = null;
     _weaponHintLeft = 0;
+    scrapesThisRun = 0;
+    _scrapeFxCooldown = 0;
     _hudControls?.weapon = null;
     camera.stop();
     for (final c in _levelEntities.reversed) {
@@ -1115,6 +1125,32 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   // ── Game events ───────────────────────────────────────────────────────────
+
+  /// A slow rock touch ([classifyHullContact]): sparks or a dust puff, a
+  /// soft knock, and the first time ever, a hint that slow touches are safe.
+  void _onRockTouch(Vector2 point, Vector2 normal, HullContact kind) {
+    if (runState != RunState.playing || demoMode) return;
+    scrapesThisRun++;
+    if (_scrapeFxCooldown > 0) return;
+    _scrapeFxCooldown = 0.2;
+    final touchdown = kind == HullContact.touchdown;
+    world.add(
+      SparkBurst(
+        center: Offset(point.x, point.y),
+        normal: Offset(normal.x, normal.y),
+        dust: touchdown,
+        seed: scrapesThisRun,
+      ),
+    );
+    AudioService.playScrape(touchdown: touchdown);
+    touchdown ? Haptics.medium() : Haptics.light();
+    final progress = ProgressService.instance;
+    if (!progress.scrapeHintSeen) {
+      progress.markScrapeHintSeen();
+      _weaponHint = 'Slow touches are safe — hit the rock fast and you crash';
+      _weaponHintLeft = 3.5;
+    }
+  }
 
   void _onShipHitWall({String cause = 'wall'}) {
     if (runState != RunState.playing || demoMode) return;
@@ -2528,6 +2564,7 @@ class NarrowHaulGame extends Forge2DGame
     _laserBeam?.active = s.laserFiring;
     if (!s.laserFiring) _laserTick = 0;
     if (_weaponHintLeft > 0) _weaponHintLeft -= dt;
+    if (_scrapeFxCooldown > 0) _scrapeFxCooldown -= dt;
     if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
       _syncWeaponHud();
     }

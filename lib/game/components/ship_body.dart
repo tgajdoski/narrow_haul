@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/ship/hull_contact.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
@@ -17,6 +18,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   ShipBody({
     required Vector2 initialPosition,
     required this.onWallHit,
+    this.onRockTouch,
     this.onHookTouchesCargo,
     this.onFire,
     this.onWeapon,
@@ -40,6 +42,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   ui.Image? _shipImage;
   bool _usingFallbackArt = false;
   final void Function() onWallHit;
+
+  /// A slow rock touch that didn't crash: world point, rock normal, kind.
+  final void Function(Vector2 point, Vector2 normal, HullContact kind)?
+  onRockTouch;
   final void Function()? onHookTouchesCargo;
 
   /// Armed ships: spawn a shell at [muzzle] with [velocity] (world, m, m/s).
@@ -338,6 +344,43 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     }
   }
 
+  final WorldManifold _manifold = WorldManifold();
+
+  /// Rock is forgiving: slow touches scrape or land ([classifyHullContact]),
+  /// fast ones crash. Runs before the solver, so the velocity is the one
+  /// the ship hit with.
+  void _onRockContact(Contact contact) {
+    if (_wrecked) return;
+    contact.getWorldManifold(_manifold);
+    final count = contact.manifold.pointCount;
+    if (count == 0) return;
+    // The manifold normal points from fixture A to B; flip it so it points
+    // out of the rock toward the ship.
+    final shipIsA = contact.fixtureA.body == body;
+    final normal = shipIsA ? -_manifold.normal : _manifold.normal.clone();
+    final point = count > 1
+        ? (_manifold.points[0] + _manifold.points[1]) * 0.5
+        : _manifold.points[0].clone();
+
+    final approach = -body.linearVelocity.dot(normal);
+    final up = localAccel.length2 > 1e-4
+        ? -(localAccel.normalized())
+        : normal; // zero-g: any surface you settle on is "down"
+    final nose = body.worldVector(Vector2(0, -1));
+    final onBase = body.localPoint(point).y >= rearLocalY * 0.5;
+    final kind = classifyHullContact(
+      approachSpeed: approach,
+      onBase: onBase,
+      tiltCos: nose.dot(up),
+      groundCos: normal.dot(up),
+    );
+    if (kind == HullContact.crash) {
+      onWallHit();
+    } else {
+      onRockTouch?.call(point, normal, kind);
+    }
+  }
+
   void _updateCannon(double dt) {
     if (_fireCooldown > 0) _fireCooldown -= dt;
     _laserFiring = false;
@@ -380,7 +423,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   @override
   void beginContact(Object other, Contact contact) {
-    if (other is WallTag) {
+    if (other is RockTag) {
+      _onRockContact(contact);
+    } else if (other is WallTag) {
       onWallHit();
     }
     if (other is CargoTag) {

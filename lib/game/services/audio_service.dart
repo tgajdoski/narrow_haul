@@ -316,6 +316,10 @@ class AudioService {
     _play('land.wav', 0.9);
   }
 
+  /// Hull scraping rock, or a soft touchdown (keeps the engine loop going).
+  static void playScrape({bool touchdown = false}) =>
+      _play('land.wav', touchdown ? 0.45 : 0.3);
+
   static void playStar() => _play('star.wav', 0.8);
 
   /// Level-start sting (Goose Ninja, Space Music Pack).
