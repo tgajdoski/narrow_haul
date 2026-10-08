@@ -1,7 +1,10 @@
+import 'package:flame/game.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
+import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -109,5 +112,38 @@ void main() {
       ).total;
       expect(xp, kDailyXp + dailyStreakBonusXp(streak), reason: '$streak');
     }
+  });
+
+  testWidgets('hangar LAUNCH briefs a new mission once per session', (
+    tester,
+  ) async {
+    final game = NarrowHaulGame();
+    Widget blank(BuildContext _, Game _) => const SizedBox.shrink();
+    await tester.pumpWidget(
+      GameWidget(
+        game: game,
+        overlayBuilderMap: {for (final k in ['menu', 'briefing']) k: blank},
+      ),
+    );
+    game.overlays
+      ..clear()
+      ..add('menu');
+    final next = LevelRegistry.nextLevelIndex();
+    expect(game.needsBriefing(next), isTrue, reason: 'never flown');
+
+    await game.beginPlay();
+    expect(game.overlays.activeOverlays, ['menu', 'briefing']);
+    expect(game.briefingLevel, next);
+    expect(game.briefingDaily, isFalse);
+    expect(game.needsBriefing(next), isFalse, reason: 'briefed this session');
+
+    // A flown mission never needs the briefing on LAUNCH / NEXT MISSION.
+    final other = next + 1;
+    expect(game.needsBriefing(other), isTrue);
+    await ProgressService.instance.saveStarsById(
+      LevelRegistry.defAt(other).saveId,
+      1,
+    );
+    expect(game.needsBriefing(other), isFalse);
   });
 }

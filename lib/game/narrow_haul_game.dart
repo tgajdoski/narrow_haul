@@ -364,6 +364,9 @@ class NarrowHaulGame extends Forge2DGame
   /// it is today's daily challenge rather than a mission from the map.
   int briefingLevel = 0;
   bool briefingDaily = false;
+
+  /// Missions briefed this app session (see [needsBriefing]).
+  final Set<String> _briefed = {};
   final List<Component> _guideComponents = [];
 
   /// Kinematic replay of [currentRoute]: no input, no crash, no rewards.
@@ -493,12 +496,18 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Level lifecycle ───────────────────────────────────────────────────────
 
-  /// Menu LAUNCH: flies the career's next mission.
+  /// Menu LAUNCH: flies the career's next mission, after its briefing when
+  /// it's a first attempt ([needsBriefing]).
   Future<void> beginPlay() async {
+    final next = LevelRegistry.nextLevelIndex();
+    if (needsBriefing(next)) {
+      openBriefing(next);
+      return;
+    }
     overlays.remove('menu');
     overlays.remove('levelSelect');
     _resetChallenge();
-    levelIndex = LevelRegistry.nextLevelIndex();
+    levelIndex = next;
     _resetInputState();
     runState = RunState.playing;
     resumeEngine();
@@ -1817,6 +1826,17 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   Future<void> nextLevel() async {
+    if (!isChallengeMode) {
+      final next = levelIndex < LevelRegistry.totalLevels - 1
+          ? levelIndex + 1
+          : 0;
+      // A mission never flown: brief it over the hangar (Back stays there).
+      if (needsBriefing(next)) {
+        backToMenu();
+        openBriefing(next);
+        return;
+      }
+    }
     overlays.removeAll(['levelComplete', 'rankUp']);
     _resetInputState();
     CosmeticsService.clearTrials(); // a trial lasts until its level is won
@@ -1969,10 +1989,21 @@ class NarrowHaulGame extends Forge2DGame
     overlays.add('menu');
   }
 
-  /// Star chart → the mission briefing popup (over the map).
+  /// LAUNCH and NEXT MISSION brief a mission first only when it's new: no
+  /// stars yet and not briefed this session, so a crash → hangar → LAUNCH
+  /// loop doesn't brief it every time. The star chart always briefs.
+  bool needsBriefing(int index) {
+    final id = LevelRegistry.defAt(index).saveId;
+    return ProgressService.instance.getStarsById(id) == 0 &&
+        !_briefed.contains(id);
+  }
+
+  /// Star chart / LAUNCH / NEXT MISSION → the mission briefing popup (over
+  /// the map or the hangar).
   void openBriefing(int index) {
     briefingLevel = index;
     briefingDaily = false;
+    _briefed.add(LevelRegistry.defAt(index).saveId);
     overlays.add('briefing');
   }
 
