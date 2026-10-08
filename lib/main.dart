@@ -25,6 +25,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
@@ -37,6 +38,15 @@ void main() async {
     yield LicenseEntryWithLineBreaks(
       ['RussoOne'],
       await rootBundle.loadString('assets/fonts/OFL.txt'),
+    );
+  });
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(
+      ['Music'],
+      'Music and level-start sound: "Space Music Pack" by Goose Ninja '
+      '(https://gooseninja.itch.io/space-music-pack). Additional music by '
+      'maksymmalko, paulyudin, starostin and tatamusic via Pixabay '
+      '(Pixabay Content License).',
     );
   });
   // Point the global Flame image cache at assets/ (not the default assets/images/).
@@ -293,7 +303,7 @@ class _MenuOverlay extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: () => game.beginPlay(),
+                      onPressed: withTapSound(() => game.beginPlay()),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         backgroundColor: const Color(0xFF00B4D8),
@@ -314,10 +324,10 @@ class _MenuOverlay extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
+                          onPressed: withTapSound(() {
                             game.overlays.remove('menu');
                             game.overlays.add('levelSelect');
-                          },
+                          }),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             side: const BorderSide(color: Color(0x5500B4D8)),
@@ -328,9 +338,9 @@ class _MenuOverlay extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: challengeComplete
+                          onPressed: withTapSound(challengeComplete
                               ? null
-                              : () => game.beginChallenge(),
+                              : () => game.beginChallenge()),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             side: BorderSide(
@@ -373,10 +383,10 @@ class _MenuOverlay extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: () {
+                        onPressed: withTapSound(() {
                           game.overlays.remove('menu');
                           game.overlays.add('achievements');
-                        },
+                        }),
                         child: const Text(
                           'Achievements',
                           style: TextStyle(color: Colors.white38, fontSize: 13),
@@ -384,10 +394,10 @@ class _MenuOverlay extends StatelessWidget {
                       ),
                       const Text('·', style: TextStyle(color: Colors.white24)),
                       TextButton(
-                        onPressed: () {
+                        onPressed: withTapSound(() {
                           game.overlays.remove('menu');
                           game.overlays.add('cosmetics');
-                        },
+                        }),
                         child: const Text(
                           'Garage (Skins)',
                           style: TextStyle(color: Colors.white38, fontSize: 13),
@@ -395,10 +405,10 @@ class _MenuOverlay extends StatelessWidget {
                       ),
                       const Text('·', style: TextStyle(color: Colors.white24)),
                       TextButton(
-                        onPressed: () {
+                        onPressed: withTapSound(() {
                           game.overlays.remove('menu');
                           game.overlays.add('settings');
-                        },
+                        }),
                         child: const Text(
                           'Settings',
                           style: TextStyle(color: Colors.white38, fontSize: 13),
@@ -457,10 +467,10 @@ class _LevelSelectOverlay extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {
+                    onPressed: withTapSound(() {
                       game.overlays.remove('levelSelect');
                       game.overlays.add('menu');
-                    },
+                    }),
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                     color: Colors.white70,
                   ),
@@ -812,7 +822,7 @@ class _MapNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = (gameThemes[def.themeId] ?? tutorialTheme).uiAccent;
     return GestureDetector(
-      onTap: onTap,
+      onTap: withTapSound(onTap),
       child: AnimatedOpacity(
         opacity: unlocked ? 1.0 : 0.4,
         duration: const Duration(milliseconds: 200),
@@ -921,10 +931,10 @@ class _AchievementsOverlay extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {
+                    onPressed: withTapSound(() {
                       game.overlays.remove('achievements');
                       game.overlays.add('menu');
-                    },
+                    }),
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                     color: Colors.white70,
                   ),
@@ -1202,10 +1212,10 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
         if (_showRemoveAdsOffer) ...[
           const SizedBox(height: 4),
           TextButton(
-            onPressed: () async {
+            onPressed: withTapSound(() async {
               await MonetizationService.instance.buy(ProductIds.removeAds);
               if (mounted) setState(() {});
-            },
+            }),
             child: Text(
               'Remove ads · ${MonetizationService.instance.priceOf(ProductIds.removeAds)}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
@@ -1219,9 +1229,9 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: _leaving
+            onPressed: withTapSound(_leaving
                 ? null
-                : () => _leave(() async => game.backToMenu()),
+                : () => _leave(() async => game.backToMenu())),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Color(0x5500B4D8)),
@@ -1232,7 +1242,7 @@ class _LevelCompleteOverlayState extends State<_LevelCompleteOverlay>
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton(
-            onPressed: _leaving ? null : () => _leave(game.nextLevel),
+            onPressed: withTapSound(_leaving ? null : () => _leave(game.nextLevel)),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               backgroundColor: const Color(0xFF00B4D8),
@@ -1473,7 +1483,7 @@ class _EndOverlay extends StatelessWidget {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: onSecondary,
+            onPressed: withTapSound(onSecondary),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Color(0x3300B4D8)),
@@ -1484,7 +1494,7 @@ class _EndOverlay extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton(
-            onPressed: onPrimary,
+            onPressed: withTapSound(onPrimary),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFE07A5F),
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1623,7 +1633,7 @@ class _RewardedButtonState extends State<_RewardedButton> {
         return SizedBox(
           width: double.infinity,
           child: OutlinedButton(
-            onPressed: _busy ? null : _watch,
+            onPressed: withTapSound(_busy ? null : _watch),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               side: const BorderSide(color: Color(0x88FFD166)),
@@ -1741,10 +1751,10 @@ class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {
+                    onPressed: withTapSound(() {
                       widget.game.overlays.remove('cosmetics');
                       widget.game.overlays.add('menu');
-                    },
+                    }),
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                     color: Colors.white70,
                   ),
@@ -1874,7 +1884,7 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: withTapSound(onTap),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
         decoration: BoxDecoration(
@@ -1911,10 +1921,10 @@ class _TryButton extends StatelessWidget {
           : Padding(
               padding: const EdgeInsets.only(right: 10),
               child: TextButton.icon(
-                onPressed: () => MonetizationService.instance.showRewarded(
+                onPressed: withTapSound(() => MonetizationService.instance.showRewarded(
                   AdPlacement.cosmeticTrial,
                   onReward: onReward,
-                ),
+                )),
                 icon: const Icon(Icons.ondemand_video_rounded, size: 16),
                 label: const Text('Try', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
@@ -1948,7 +1958,7 @@ class _CosmeticTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: withTapSound(onTap),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -2139,7 +2149,7 @@ class _RankCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+        onTap: withTapSound(onTap),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -2188,7 +2198,7 @@ class _RankUpOverlayState extends State<_RankUpOverlay>
     final scale = CurvedAnimation(parent: _anim, curve: Curves.elasticOut);
 
     return GestureDetector(
-      onTap: () => widget.game.overlays.remove('rankUp'),
+      onTap: withTapSound(() => widget.game.overlays.remove('rankUp')),
       child: ColoredBox(
         color: const Color(0xEE050816),
         child: SafeArea(
@@ -2238,7 +2248,7 @@ class _RankUpOverlayState extends State<_RankUpOverlay>
                   ],
                   const SizedBox(height: 20),
                   FilledButton(
-                    onPressed: () => widget.game.overlays.remove('rankUp'),
+                    onPressed: withTapSound(() => widget.game.overlays.remove('rankUp')),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD166),
                       foregroundColor: const Color(0xFF050816),
@@ -2302,10 +2312,10 @@ class _PilotLogbookOverlayState extends State<_PilotLogbookOverlay> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {
+                    onPressed: withTapSound(() {
                       widget.game.overlays.remove('pilotProfile');
                       widget.game.overlays.add('menu');
-                    },
+                    }),
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                     color: Colors.white70,
                   ),
@@ -2321,10 +2331,10 @@ class _PilotLogbookOverlayState extends State<_PilotLogbookOverlay> {
                   const Spacer(),
                   if (kDebugMode && !kStoreCapture)
                     TextButton(
-                      onPressed: () async {
+                      onPressed: withTapSound(() async {
                         await progress.addXp(1000);
                         setState(() {});
-                      },
+                      }),
                       child: const Text(
                         '+1000 XP (debug)',
                         style: TextStyle(color: Colors.white38, fontSize: 11),

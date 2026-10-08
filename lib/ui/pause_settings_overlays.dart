@@ -4,6 +4,7 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _panelColor = Color(0xFF0D1B2A);
@@ -75,7 +76,7 @@ class PauseOverlay extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: game.resumeGame,
+            onPressed: withTapSound(game.resumeGame),
             icon: const Icon(Icons.play_arrow_rounded),
             label: const Text(
               'Resume',
@@ -88,7 +89,7 @@ class PauseOverlay extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: game.restartLevel,
+            onPressed: withTapSound(game.restartLevel),
             icon: const Icon(Icons.replay_rounded),
             label: const Text('Restart'),
             style: OutlinedButton.styleFrom(padding: buttonPad),
@@ -102,10 +103,10 @@ class PauseOverlay extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
+                  onPressed: withTapSound(() {
                     game.overlays.remove('pause');
                     game.overlays.add('settings');
-                  },
+                  }),
                   icon: const Icon(Icons.tune_rounded, size: 18),
                   label: const Text('Settings'),
                   style: OutlinedButton.styleFrom(padding: buttonPad),
@@ -114,7 +115,7 @@ class PauseOverlay extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: game.backToMenu,
+                  onPressed: withTapSound(game.backToMenu),
                   icon: const Icon(Icons.home_rounded, size: 18),
                   label: const Text('Menu'),
                   style: OutlinedButton.styleFrom(padding: buttonPad),
@@ -163,7 +164,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           Row(
             children: [
               IconButton(
-                onPressed: _back,
+                onPressed: withTapSound(_back),
                 icon: const Icon(Icons.arrow_back_rounded),
                 color: Colors.white70,
               ),
@@ -183,6 +184,12 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             title: 'Sound effects',
             value: _p.soundEnabled,
             onChanged: (v) => _set(_p.setSoundEnabled, v),
+          ),
+          _toggle(
+            icon: Icons.music_note_rounded,
+            title: 'Music',
+            value: _p.musicEnabled,
+            onChanged: (v) => _set(_p.setMusicEnabled, v),
           ),
           _toggle(
             icon: Icons.vibration_rounded,
@@ -222,7 +229,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   }) {
     return SwitchListTile(
       value: value,
-      onChanged: onChanged,
+      onChanged: withTapSoundValue(onChanged),
       activeThumbColor: _accent,
       dense: true,
       visualDensity: VisualDensity.compact,
@@ -333,12 +340,12 @@ class _PurchasesSection extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-      onTap: onTap == null
+      onTap: withTapSound(onTap == null
           ? null
           : () async {
               await onTap();
               onChanged();
-            },
+            }),
     );
   }
 }
@@ -401,11 +408,11 @@ class _AboutSection extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: withTapSound(() => Navigator.of(context).pop(false)),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: withTapSound(() => Navigator.of(context).pop(true)),
             style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF6B6B)),
             child: const Text('Reset'),
           ),
@@ -437,7 +444,7 @@ class _AboutSection extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
       leading: Icon(icon, color: color),
       title: Text(title, style: const TextStyle(fontSize: 14)),
-      onTap: onTap,
+      onTap: withTapSound(onTap),
     );
   }
 }

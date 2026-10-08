@@ -77,6 +77,7 @@ class ProgressService {
   /// Settings and migration flags that survive "Reset progress".
   static const _keptOnReset = {
     'sound_enabled',
+    'music_enabled',
     'haptics_enabled',
     'left_handed',
     'minimap_enabled',
@@ -194,6 +195,10 @@ class ProgressService {
   bool get soundEnabled => _bool('sound_enabled') ?? true;
   Future<void> setSoundEnabled(bool v) async =>
       _prefs.setBool('sound_enabled', v);
+
+  bool get musicEnabled => _bool('music_enabled') ?? true;
+  Future<void> setMusicEnabled(bool v) async =>
+      _prefs.setBool('music_enabled', v);
 
   bool get hapticsEnabled => _bool('haptics_enabled') ?? true;
   Future<void> setHapticsEnabled(bool v) async =>

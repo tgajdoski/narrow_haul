@@ -83,9 +83,21 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     }
   }
 
-  /// The ship hovers on its start pad (no gravity) until the first input, so
-  /// reading the intro card or a tutorial hint never ends in a crash.
+  /// The ship hovers on its start pad (no gravity) until the first input or
+  /// the start countdown ([launch]), so reading the intro card or a tutorial
+  /// hint never ends in a crash.
   bool get launched => _launched;
+
+  /// Ends the hover without input (the level-start countdown ran out).
+  void launch() {
+    if (_launched) return;
+    _launched = true;
+    // Wake it too: a ship hovering still on its pad has fallen asleep, and
+    // turning gravity on alone wouldn't move it (input forces wake it).
+    body
+      ..gravityScale = null
+      ..setAwake(true);
+  }
   bool _launched = false;
 
   bool get isThrusting => (_thrustInput || _scriptedThrust) && fuel > 0 && !_wrecked;

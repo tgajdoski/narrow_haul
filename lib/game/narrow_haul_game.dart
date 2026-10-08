@@ -41,6 +41,7 @@ import 'package:narrow_haul/game/route/route_repository.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/services/music_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -165,6 +166,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   MinimapHud? _minimap;
   PauseButtonHud? _pauseButton;
   LevelIntroHud? _levelIntro;
+  CountdownHud? _countdownHud;
+
+  /// Seconds until the ship launches by itself (null: waits for input, as on
+  /// the onboarding levels and in demos). Any input launches it sooner.
+  double? _countdown;
+  static const double _countdownSeconds = 4.0;
   HintHud? _hint;
   DualLandingZone? _landingZone;
 
@@ -284,14 +291,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     _hudControls = HudTouchControls(
       onRotateAxis: (v) => rotateAxis = v,
       onFire: (v) => fireHeld = v,
-      onThrust: (v) {
-        thrustHeld = v;
-        if (v) {
-          AudioService.startThrust();
-        } else {
-          AudioService.stopThrust();
-        }
-      },
+      onThrust: (v) => thrustHeld = v,
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -300,6 +300,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     camera.viewport.add(_pauseButton!);
     _levelIntro = LevelIntroHud();
     camera.viewport.add(_levelIntro!);
+    _countdownHud = CountdownHud();
+    camera.viewport.add(_countdownHud!);
     _hint = HintHud();
     camera.viewport.add(_hint!);
     _combatHud = CombatStatusHud();
@@ -311,6 +313,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     AchievementService.announced.addListener(_onAchievementAnnounced);
 
     overlays.add('menu');
+    MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
     pauseEngine();
   }
 
@@ -456,6 +459,15 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       CaveLevelDef def => buildCaveLevelData(def),
     };
     await _spawnLevel(data);
+    MusicService.play(
+      MusicService.flightTrackFor(currentLevelDef.themeId, keepCurrent: retry),
+      MusicService.flightVolume,
+    );
+    if (!retry && !demoMode) AudioService.playStartLevel();
+    _countdown = (demoMode || _tutorialHints) ? null : _countdownSeconds;
+    _countdownHud
+      ?..text = null
+      ..accent = data.theme.uiAccent;
   }
 
   Future<void> _spawnLevel(LevelData data) async {
@@ -786,7 +798,8 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     rotateAxis = 0;
     thrustHeld = false;
     fireHeld = false;
-    AudioService.stopThrust();
+    AudioService.stopEngine();
+    AudioService.setAlarm(false);
   }
 
   void _resetChallenge() {
@@ -1053,6 +1066,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
 
     AudioService.playLand();
     if (stars >= 2) AudioService.playStar();
+    MusicService.play(MusicService.resultsTrack, MusicService.resultsVolume);
 
     _resetInputState();
     // update() raises the dialog once the celebration has played.
@@ -1529,6 +1543,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     runState = RunState.menu;
     pauseEngine();
     overlays.add('menu');
+    MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
   }
 
   /// Landing status beats tutorial steps: it explains the both-on-pad rule
@@ -1658,6 +1673,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   void applySettings() {
     final p = ProgressService.instance;
     AudioService.setEnabled(p.soundEnabled);
+    MusicService.setEnabled(p.musicEnabled);
     _hudControls?.leftHanded = p.leftHanded;
     _minimap?.refreshLayout();
   }
@@ -1667,6 +1683,11 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     // Leaving the app mid-flight opens the pause menu, rather than letting
     // Flame silently auto-resume the flight on return.
     if (state != AppLifecycleState.resumed) pauseGame();
+    if (state == AppLifecycleState.resumed) {
+      MusicService.onForeground();
+    } else {
+      MusicService.onBackground();
+    }
     super.lifecycleStateChange(state);
   }
 
@@ -1702,6 +1723,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   void spawnShell(Shell shell) {
     world.add(shell);
     _levelEntities.add(shell);
+    if (!shell.fromPlayer) AudioService.playEnemyShot();
   }
 
   void _onShipFired(Vector2 muzzle, Vector2 velocity) {
@@ -1780,7 +1802,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     if (progress.getStat(ProgressService.statFuelCells) >= 10) {
       AchievementService.unlock(AchievementIds.hotRefuel, announce: true);
     }
-    AudioService.playAttach();
+    AudioService.playPickup();
     Haptics.light();
   }
 
@@ -1792,6 +1814,32 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     );
     world.add(burst);
     _levelEntities.add(burst);
+  }
+
+  /// 3 · 2 · 1 · GO, then the ship launches by itself. Input during the
+  /// countdown launches it at once and clears the numbers.
+  void _updateCountdown(double dt, ShipBody s) {
+    final left = _countdown;
+    if (left == null) return;
+    if (s.launched) {
+      _countdown = null;
+      _countdownHud?.text = null;
+      return;
+    }
+    final now = left - dt;
+    _countdown = now;
+    if (now <= 0) {
+      _countdown = null;
+      s.launch();
+      _countdownHud?.go();
+      AudioService.playCountdown(go: true);
+      return;
+    }
+    if (now <= 3) {
+      final n = now.ceil();
+      if (n != left.ceil() || left > 3) AudioService.playCountdown(go: false);
+      _countdownHud?.text = '$n';
+    }
   }
 
   /// Turret-offline timer and the meltdown countdown; a meltdown that runs
@@ -1863,6 +1911,7 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
       if (thrustHeld) _thrustUsed += dt;
       if (rotateAxis.abs() > 0.3) _rotateUsed += dt;
       _hint?.message = _currentHint();
+      _hint?.belowBanner = _combatHud?.showing ?? false;
       final worldSize = _currentWorldSize;
       if (worldSize != null) {
         final target = _clampedCameraTarget(s.body.position, worldSize);
@@ -1874,8 +1923,11 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         _updateDemo(dt, s);
       } else {
         s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
+        _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;
       }
+      AudioService.updateEngine(thrusting: s.isThrusting, dt: dt);
+      AudioService.setAlarm(_meltdownLeft != null);
       _updateCombat(dt);
       _sampleSnapshot(dt, s);
       _recordFrame(dt, s);

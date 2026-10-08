@@ -110,8 +110,8 @@ What's left:
 - **Art and sound.**
   - Themed art: all 7 worlds use the flat fallback, and the `orbit/` and `redoubt/` folders don't exist yet.
   - Final key-art feature graphic.
-  - Background music (none exists) and a volume slider.
-  - `shot.mp3` and `boom.mp3`: Talon shots are currently silent.
+  - Music is in (Space Music Pack, Goose Ninja). A volume slider is still missing (Sound/Music are on/off switches).
+  - Sound effects: shot, boom, fuel pickup, star, landing and the engine loop are synthesized placeholders (`tool/audio/make_sfx.py`); swap in pro sounds if wanted. Check the licence/source of `attach.mp3` and `crash.mp3` (not recorded), or regenerate them.
   - Real liveries instead of tints, and check that "Stealth" stays visible on dark caves.
 - **Code and data cleanup.**
   - Prune old per-day prefs keys (`daily_*`, `contracts_*`, `replay_xp_*`).

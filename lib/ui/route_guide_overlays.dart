@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/ui/fonts.dart';
+import 'package:narrow_haul/ui/tap_sound.dart';
 
 const _guideColor = Color(0xFF00B4D8);
 
@@ -27,7 +28,7 @@ class RouteHelpButtons extends StatelessWidget {
             if (!game.routeGuideOn) ...[
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: game.showRoute,
+                  onPressed: withTapSound(game.showRoute),
                   icon: const Icon(Icons.route_rounded, size: 18),
                   label: const Text('Show route'),
                   style: style,
@@ -37,7 +38,7 @@ class RouteHelpButtons extends StatelessWidget {
             ],
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: game.startDemoFlight,
+                onPressed: withTapSound(game.startDemoFlight),
                 icon: const Icon(Icons.smart_display_outlined, size: 18),
                 label: const Text('Watch a demo'),
                 style: style,
@@ -98,13 +99,13 @@ class DemoFlightOverlay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: game.backToMenu,
+                      onPressed: withTapSound(game.backToMenu),
                       icon: const Icon(Icons.home_rounded, size: 18),
                       label: const Text('Menu'),
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
-                      onPressed: game.takeControlsFromDemo,
+                      onPressed: withTapSound(game.takeControlsFromDemo),
                       icon: const Icon(Icons.flight_takeoff_rounded, size: 18),
                       label: Text(
                         done ? 'Fly it yourself' : 'Take the controls',
@@ -141,7 +142,7 @@ class _RouteGuideToggleState extends State<RouteGuideToggle> {
     final game = widget.game;
     return SwitchListTile(
       value: game.routeGuideOn,
-      onChanged: (v) => setState(() => game.setRouteGuide(v)),
+      onChanged: withTapSoundValue((v) => setState(() => game.setRouteGuide(v))),
       activeThumbColor: _guideColor,
       dense: true,
       visualDensity: VisualDensity.compact,

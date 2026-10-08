@@ -57,6 +57,72 @@ class PauseButtonHud extends PositionComponent with TapCallbacks {
   }
 }
 
+/// "3 · 2 · 1 · GO" before the ship launches by itself. Each step pops in
+/// big and shrinks; GO fades out after the launch.
+class CountdownHud extends PositionComponent {
+  CountdownHud() : super(priority: 4930);
+
+  String? _text;
+  double _age = 0;
+  Color accent = Colors.white;
+
+  static const double _goSeconds = 0.6;
+
+  /// Shows [text] (restarting the pop when it changes); null hides it.
+  set text(String? value) {
+    if (value == _text) return;
+    _text = value;
+    _age = 0;
+  }
+
+  /// Shows GO, then fades it out on its own.
+  void go() => text = 'GO';
+
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    this.size = size;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _age += dt;
+    if (_text == 'GO' && _age > _goSeconds) _text = null;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final text = _text;
+    if (text == null) return;
+    final pop = (1 - _age / 0.25).clamp(0.0, 1.0);
+    final scale = 1 + 0.5 * pop * pop;
+    final alpha = text == 'GO'
+        ? (1 - _age / _goSeconds).clamp(0.0, 1.0)
+        : (1 - math.max(0, _age - 0.7) / 0.3).clamp(0.0, 1.0);
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: (text == 'GO' ? accent : Colors.white).withValues(alpha: alpha),
+          fontFamily: kDisplayFont,
+          fontSize: 64,
+          fontWeight: FontWeight.w900,
+          shadows: [
+            Shadow(color: Colors.black.withValues(alpha: alpha * 0.7), blurRadius: 12),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    canvas.save();
+    canvas.translate(size.x / 2, size.y * 0.5);
+    canvas.scale(scale);
+    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+    canvas.restore();
+  }
+}
+
 /// World + level name card that fades in and out at level start.
 class LevelIntroHud extends PositionComponent {
   LevelIntroHud() : super(priority: 4920);
@@ -274,6 +340,12 @@ class HintHud extends PositionComponent {
   String _shown = '';
   double _alpha = 0;
 
+  /// Slide below the combat banner while it's up (else just under pause).
+  bool belowBanner = false;
+  static const double _topClear = 56;
+  static const double _topBelowBanner = 92;
+  double _top = _topClear;
+
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
@@ -283,6 +355,8 @@ class HintHud extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    final goal = belowBanner ? _topBelowBanner : _topClear;
+    _top += (goal - _top) * math.min(1, dt * 10);
     final target = message;
     if (target != null && target == _shown) {
       _alpha = math.min(1, _alpha + dt * 4);
@@ -310,8 +384,8 @@ class HintHud extends PositionComponent {
     );
     final w = tp.width + 32;
     final h = tp.height + 16;
-    // Top-center below the HUD text lines, clear of both thumbs.
-    const top = 92.0;
+    // Top-center just under the pause button, clear of both thumbs.
+    final top = _top;
     final r = RRect.fromRectAndRadius(
       Rect.fromLTWH((size.x - w) / 2, top, w, h),
       Radius.circular(h / 2),
@@ -420,6 +494,8 @@ class CombatStatusHud extends PositionComponent {
 
   /// Seconds the turrets stay offline; 0 = online.
   double turretsOfflineLeft = 0;
+
+  bool get showing => meltdownLeft != null || turretsOfflineLeft > 0;
 
   double _t = 0;
 
