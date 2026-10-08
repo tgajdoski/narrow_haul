@@ -152,10 +152,12 @@ class _NarrowHaulApp extends StatelessWidget {
                         return _LevelSelectOverlay(game: g);
                       },
                       'achievements': (context, game) {
-                        return const _AchievementsOverlay();
+                        return _AchievementsOverlay(
+                          game: game as NarrowHaulGame,
+                        );
                       },
                       'cosmetics': (context, game) {
-                        return const _CosmeticsOverlay();
+                        return _CosmeticsOverlay(game: game as NarrowHaulGame);
                       },
                       'gameOver': (context, game) {
                         final g = game as NarrowHaulGame;
@@ -901,7 +903,9 @@ class _MapNode extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AchievementsOverlay extends StatelessWidget {
-  const _AchievementsOverlay();
+  const _AchievementsOverlay({required this.game});
+
+  final NarrowHaulGame game;
 
   @override
   Widget build(BuildContext context) {
@@ -916,20 +920,13 @@ class _AchievementsOverlay extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
-                  Builder(
-                    builder: (ctx) => IconButton(
-                      onPressed: () {
-                        final game =
-                            ctx
-                                    .findAncestorWidgetOfExactType<GameWidget>()
-                                    ?.game
-                                as NarrowHaulGame?;
-                        game?.overlays.remove('achievements');
-                        game?.overlays.add('menu');
-                      },
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                      color: Colors.white70,
-                    ),
+                  IconButton(
+                    onPressed: () {
+                      game.overlays.remove('achievements');
+                      game.overlays.add('menu');
+                    },
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    color: Colors.white70,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -1716,7 +1713,9 @@ class _StarPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CosmeticsOverlay extends StatefulWidget {
-  const _CosmeticsOverlay();
+  const _CosmeticsOverlay({required this.game});
+
+  final NarrowHaulGame game;
 
   @override
   State<_CosmeticsOverlay> createState() => _CosmeticsOverlayState();
@@ -1741,20 +1740,13 @@ class _CosmeticsOverlayState extends State<_CosmeticsOverlay> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
-                  Builder(
-                    builder: (ctx) => IconButton(
-                      onPressed: () {
-                        final game =
-                            ctx
-                                    .findAncestorWidgetOfExactType<GameWidget>()
-                                    ?.game
-                                as NarrowHaulGame?;
-                        game?.overlays.remove('cosmetics');
-                        game?.overlays.add('menu');
-                      },
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                      color: Colors.white70,
-                    ),
+                  IconButton(
+                    onPressed: () {
+                      widget.game.overlays.remove('cosmetics');
+                      widget.game.overlays.add('menu');
+                    },
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    color: Colors.white70,
                   ),
                   const SizedBox(width: 8),
                   Text(
