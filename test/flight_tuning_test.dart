@@ -36,6 +36,13 @@ void main() {
       }
     });
 
+    test('short reach gives full turn early, linear inside', () {
+      expect(FlightTuning.shapeAxis(0.5, reach: 0.45), 1);
+      expect(FlightTuning.shapeAxis(-0.6, reach: 0.45), -1);
+      final quarter = FlightTuning.shapeAxis(0.25, reach: 0.45);
+      expect(quarter, closeTo((0.25 - 0.06) / (0.45 - 0.06), 1e-9));
+    });
+
     test('more expo gives finer control near centre', () {
       expect(
         FlightTuning.shapeAxis(0.5, expo: 1),

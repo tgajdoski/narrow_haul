@@ -84,6 +84,7 @@ class ProgressService {
     'dev_turn_mul',
     'dev_curve_expo',
     'dev_spin_up',
+    'dev_stick_reach',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -238,10 +239,17 @@ class ProgressService {
   double? get devTurnMul => _double('dev_turn_mul');
   double? get devCurveExpo => _double('dev_curve_expo');
   double? get devSpinUp => _double('dev_spin_up');
-  Future<void> setDevFlightTuning(double turnMul, double curveExpo, double spinUp) async {
+  double? get devStickReach => _double('dev_stick_reach');
+  Future<void> setDevFlightTuning(
+    double turnMul,
+    double curveExpo,
+    double spinUp,
+    double stickReach,
+  ) async {
     await _prefs.setDouble('dev_turn_mul', turnMul);
     await _prefs.setDouble('dev_curve_expo', curveExpo);
     await _prefs.setDouble('dev_spin_up', spinUp);
+    await _prefs.setDouble('dev_stick_reach', stickReach);
   }
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────

@@ -53,7 +53,12 @@ void main() async {
   await ProgressService.init();
   if (!kReleaseMode) {
     final p = ProgressService.instance;
-    FlightTuning.set(turn: p.devTurnMul, expo: p.devCurveExpo, spin: p.devSpinUp);
+    FlightTuning.set(
+      turn: p.devTurnMul,
+      expo: p.devCurveExpo,
+      spin: p.devSpinUp,
+      reach: p.devStickReach,
+    );
   }
   try {
     await CareerService.migrateIfNeeded();

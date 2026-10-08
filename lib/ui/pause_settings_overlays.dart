@@ -513,14 +513,17 @@ class _FlightTuningSection extends StatefulWidget {
 }
 
 class _FlightTuningSectionState extends State<_FlightTuningSection> {
-  void _change({double? turn, double? expo, double? spin}) {
-    setState(() => FlightTuning.set(turn: turn, expo: expo, spin: spin));
+  void _change({double? turn, double? expo, double? spin, double? reach}) {
+    setState(
+      () => FlightTuning.set(turn: turn, expo: expo, spin: spin, reach: reach),
+    );
   }
 
   Future<void> _save() => ProgressService.instance.setDevFlightTuning(
     FlightTuning.turnMul,
     FlightTuning.curveExpo,
     FlightTuning.spinUp,
+    FlightTuning.stickReach,
   );
 
   @override
@@ -543,14 +546,26 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
           value: FlightTuning.turnMul,
           min: FlightTuning.turnMulMin,
           max: FlightTuning.turnMulMax,
-          divisions: 25,
+          divisions: 45,
           onChanged: (v) => _change(turn: v),
+        ),
+        _slider(
+          label: 'Stick reach ${(FlightTuning.stickReach * 56).round()} px',
+          detail: FlightTuning.stickReach >= 1
+              ? 'Full turn at full drag (stock)'
+              : 'Full turn after a short drag',
+          value: FlightTuning.stickReach,
+          min: FlightTuning.stickReachMin,
+          max: 1,
+          divisions: 13,
+          onChanged: (v) => _change(reach: v),
         ),
         Row(
           children: [
             Expanded(
               child: _slider(
-                label: 'Stick curve ${FlightTuning.curveExpo.toStringAsFixed(2)}',
+                label:
+                    'Stick curve ${FlightTuning.curveExpo.toStringAsFixed(2)}',
                 detail: 'Half stick → ${(half * 100).round()}% turn',
                 value: FlightTuning.curveExpo,
                 min: 0,
@@ -564,14 +579,16 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
               width: 44,
               height: 36,
               child: CustomPaint(
-                painter: _CurvePainter(FlightTuning.curveExpo),
+                painter: _CurvePainter(
+                  FlightTuning.curveExpo,
+                  FlightTuning.stickReach,
+                ),
               ),
             ),
           ],
         ),
         _slider(
-          label:
-              'Spin-up ${(FlightTuning.spinUp * 1000).round()} ms',
+          label: 'Spin-up ${(FlightTuning.spinUp * 1000).round()} ms',
           detail: FlightTuning.spinUp == 0
               ? 'Instant (stock)'
               : 'Time to full turn rate',
@@ -587,7 +604,7 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
             onPressed: FlightTuning.isStock
                 ? null
                 : () {
-                    _change(turn: 1.0, expo: 0.0, spin: 0.0);
+                    _change(turn: 1.0, expo: 0.0, spin: 0.0, reach: 1.0);
                     _save();
                   },
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
@@ -665,9 +682,10 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
 
 /// Stick → turn-rate response for the current curve (dashed: linear).
 class _CurvePainter extends CustomPainter {
-  _CurvePainter(this.expo);
+  _CurvePainter(this.expo, this.reach);
 
   final double expo;
+  final double reach;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -684,7 +702,7 @@ class _CurvePainter extends CustomPainter {
     const steps = 24;
     for (var i = 0; i <= steps; i++) {
       final x = i / steps;
-      final y = FlightTuning.shapeAxis(x, expo: expo);
+      final y = FlightTuning.shapeAxis(x, expo: expo, reach: reach);
       final p = Offset(x * size.width, size.height * (1 - y));
       i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
     }
@@ -698,5 +716,6 @@ class _CurvePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CurvePainter old) => old.expo != expo;
+  bool shouldRepaint(_CurvePainter old) =>
+      old.expo != expo || old.reach != reach;
 }
