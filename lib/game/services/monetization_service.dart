@@ -55,7 +55,7 @@ class ProductIds {
   };
 }
 
-/// AdMob ad-unit ids. Debug builds always use Google's public test units so
+/// AdMob ad-unit ids. Debug and profile builds always use Google's public test units so
 /// tapping our own ads can never get the account flagged.
 ///
 /// Release units belong to the "Narrow_Haul" apps in the AdMob account (app
@@ -73,11 +73,11 @@ class AdIds {
   static const _testInterIos = 'ca-app-pub-3940256099942544/4411468910';
   static const _testRewardedIos = 'ca-app-pub-3940256099942544/1712485313';
 
-  static String get interstitial => kDebugMode
+  static String get interstitial => !kReleaseMode
       ? (Platform.isIOS ? _testInterIos : _testInterAndroid)
       : (Platform.isIOS ? _releaseInterIos : _releaseInterAndroid);
 
-  static String get rewarded => kDebugMode
+  static String get rewarded => !kReleaseMode
       ? (Platform.isIOS ? _testRewardedIos : _testRewardedAndroid)
       : (Platform.isIOS ? _releaseRewardedIos : _releaseRewardedAndroid);
 }
@@ -237,7 +237,7 @@ class MonetizationService {
   /// Returns whether an ad was shown.
   Future<bool> maybeShowInterstitial() async {
     final ad = _interstitial;
-    if (kDebugMode) _logPacing(loaded: ad != null);
+    if (!kReleaseMode) _logPacing(loaded: ad != null);
     if (ad == null || _showingFullScreen || !_interstitialAllowed) return false;
     _interstitial = null;
     final done = Completer<bool>();
@@ -526,10 +526,10 @@ class MonetizationService {
   void dispose() => _purchaseSub?.cancel();
 }
 
-/// Ad / purchase decisions are logged in debug builds only (see CLAUDE.md,
-/// "Debugging ads"); release builds stay quiet.
+/// Ad / purchase decisions are logged in debug and profile builds (see
+/// CLAUDE.md, "Debugging ads"); release builds stay quiet.
 void _log(String message) {
-  if (kDebugMode) debugPrint(message);
+  if (!kReleaseMode) debugPrint(message);
 }
 
 /// How a [MonetizationService.purchase] ended.

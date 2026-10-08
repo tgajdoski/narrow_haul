@@ -247,6 +247,16 @@ class ProgressService {
   Future<void> markProductGranted(String id) async =>
       _prefs.setBool('iap_granted_$id', true);
 
+  /// Dev only: forgets every purchase on this device (sandbox test buys), so
+  /// ads show again. A store restore grants them back.
+  Future<void> debugClearPurchases() async {
+    for (final key in _prefs.getKeys().toList()) {
+      if (key == 'ads_removed' || key.startsWith('iap_')) {
+        await _prefs.remove(key);
+      }
+    }
+  }
+
   int get adClearsSinceInterstitial => _int('ads_clears_since_inter') ?? 0;
   Future<void> setAdClearsSinceInterstitial(int v) async =>
       _prefs.setInt('ads_clears_since_inter', v);

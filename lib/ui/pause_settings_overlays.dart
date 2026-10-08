@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -296,6 +297,18 @@ class _PurchasesSection extends StatelessWidget {
               icon: Icons.restore_rounded,
               title: 'Restore purchases',
               onTap: () => restoreWithFeedback(context),
+            ),
+          // Dev builds only: drop sandbox test purchases so ads show again.
+          if (!kReleaseMode && ProgressService.instance.hasPurchased)
+            _row(
+              icon: Icons.bug_report_outlined,
+              title: 'Reset purchases (dev)',
+              subtitle: 'Forget test purchases on this device',
+              onTap: () async {
+                await ProgressService.instance.debugClearPurchases();
+                m.entitlements.value++;
+                onChanged();
+              },
             ),
           ValueListenableBuilder<bool>(
             valueListenable: m.privacyOptionsRequired,
