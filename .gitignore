@@ -49,3 +49,6 @@ app.*.map.json
 
 # Original music downloads (bundled as re-encoded assets/audio/music_*.m4a)
 art_src/audio/*.mp3
+
+# Full-size "Delivered by" photos (contain GPS tags). Crops in assets/credits/.
+art_src/deliveredBy/

@@ -233,6 +233,12 @@ class NarrowHaulGame extends Forge2DGame
   /// True while the pause overlay is up (runState stays [RunState.playing]).
   bool isPaused = false;
 
+  /// The "Delivered by" credits, drawn by the app above the game (so they
+  /// also cover loading). On by default until seen once; Settings replays them.
+  final creditsVisible = ValueNotifier<bool>(
+    !ProgressService.instance.creditsSeen,
+  );
+
   // Crash sequence: explosion + shake play out before the gameOver overlay.
   static const double _crashDelay = 0.9;
   static const double _shakeDuration = 0.45;
@@ -1702,7 +1708,9 @@ class NarrowHaulGame extends Forge2DGame
   /// the app may close; everywhere else it steps back one screen.
   bool handleBack() {
     final active = overlays.activeOverlays;
-    if (active.contains('rankUp')) {
+    if (creditsVisible.value) {
+      creditsVisible.value = false;
+    } else if (active.contains('rankUp')) {
       overlays.remove('rankUp');
     } else if (active.contains('settings')) {
       overlays.remove('settings');

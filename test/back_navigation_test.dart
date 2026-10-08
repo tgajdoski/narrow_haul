@@ -29,6 +29,9 @@ void main() {
       ),
     );
     final active = game.overlays.activeOverlays;
+    // Fresh prefs: the first-launch credits are up; they close on back too.
+    expect(game.handleBack(), isTrue);
+    expect(game.creditsVisible.value, isFalse);
 
     game.overlays
       ..clear()
@@ -40,6 +43,12 @@ void main() {
       ..clear()
       ..add('settings');
     expect(game.handleBack(), isTrue);
+    expect(active, ['menu']);
+
+    // The credits (drawn above the game) close first.
+    game.creditsVisible.value = true;
+    expect(game.handleBack(), isTrue);
+    expect(game.creditsVisible.value, isFalse);
     expect(active, ['menu']);
 
     expect(game.handleBack(), isFalse, reason: 'menu lets the app close');

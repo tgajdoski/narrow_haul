@@ -378,6 +378,12 @@ class _AboutSection extends StatelessWidget {
           ),
         ),
         if (!game.isPaused)
+          _linkRow(Icons.favorite_border_rounded, 'Credits · Delivered by', () {
+            game.overlays.remove('settings');
+            game.overlays.add('menu');
+            game.creditsVisible.value = true;
+          }),
+        if (!game.isPaused)
           _linkRow(
             Icons.restart_alt_rounded,
             'Reset progress',

@@ -27,6 +27,7 @@ import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
+import 'package:narrow_haul/ui/delivered_by_screen.dart';
 import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -225,6 +226,22 @@ class _NarrowHaulApp extends StatelessWidget {
                   ),
                 ),
                 const _AchievementToastHost(),
+                // "Delivered by" credits: above everything, so on the first
+                // launch they also cover the game while it loads.
+                ValueListenableBuilder<bool>(
+                  valueListenable: game.creditsVisible,
+                  builder: (context, visible, _) => visible
+                      ? Positioned.fill(
+                          child: DeliveredByScreen(
+                            ready: game.loaded,
+                            onDone: () {
+                              game.creditsVisible.value = false;
+                              ProgressService.instance.markCreditsSeen();
+                            },
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ],
             ),
           ),

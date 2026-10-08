@@ -71,6 +71,7 @@ Map<String, Object> _seededPrefs() {
   final prefs = <String, Object>{
     'save_v2': true,
     'save_v3': true,
+    'credits_seen': true,
     'xp_total': 6800,
     'cosmetic_currency': 1240,
     'sound_enabled': false,

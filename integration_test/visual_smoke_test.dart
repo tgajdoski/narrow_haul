@@ -31,7 +31,10 @@ void main() {
     Future<void> shot(String name) => cap.shot(name);
 
     app.main();
-    await wait(3);
+    // Fresh prefs: the first-launch "Delivered by" credits play over the menu.
+    await wait(2.2);
+    await shot('00_credits');
+    await wait(2.5);
     final game = tester.widget<GameWidget<NarrowHaulGame>>(
       find.byType(GameWidget<NarrowHaulGame>),
     ).game!;

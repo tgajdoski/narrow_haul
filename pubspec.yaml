@@ -78,6 +78,7 @@ flutter:
     - assets/audio/
     - assets/tiles/
     - assets/routes/
+    - assets/credits/
     - assets/fonts/OFL.txt
     - assets/themes/tutorial/
     - assets/themes/alien/

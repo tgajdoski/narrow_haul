@@ -81,6 +81,7 @@ class ProgressService {
     'haptics_enabled',
     'left_handed',
     'minimap_enabled',
+    'credits_seen',
     'save_v2',
     'save_v3',
   };
@@ -187,6 +188,10 @@ class ProgressService {
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────
+
+  /// The "Delivered by" credits play on the first launch only.
+  bool get creditsSeen => _bool('credits_seen') ?? false;
+  Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
 
   bool get minimapEnabled => _bool('minimap_enabled') ?? true;
   Future<void> setMinimapEnabled(bool v) async =>
