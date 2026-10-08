@@ -38,15 +38,16 @@
 
 ### Store paperwork
 - [ ] **App Store Connect:**
-  - App Privacy questionnaire. Include AdMob (identifiers, usage, diagnostics, third-party ads, tracking) and Crashlytics (**Diagnostics → Crash data**: app functionality, not linked to the user, no tracking).
+  - App Privacy questionnaire. Include AdMob (identifiers, usage, diagnostics, third-party ads, tracking) Crashlytics (**Diagnostics → Crash data**: app functionality, not linked to the user, no tracking) and Firebase Analytics (**Usage Data → Product Interaction**, **Identifiers → Device ID**, **Diagnostics → Other diagnostic data**: Analytics, not linked to the user, no tracking).
   - Age rating and copyright.
 - [ ] **Play Console:**
   - Ads = yes, Advertising ID, IARC rating, **target audience 13+**. Ads are already capped at `MaxAdContentRating.pg`.
-  - Data safety. Crashlytics goes under **App info and performance → Crash logs + Diagnostics**: collected, not shared, encrypted in transit.
+  - Data safety. Crashlytics goes under **App info and performance → Crash logs + Diagnostics**: collected, not shared, encrypted in transit. Firebase Analytics adds **App activity → App interactions** and **Device or other IDs** (purpose: Analytics), plus **Purchase history** (purchase attempts and results; Analytics): collected, not shared, encrypted in transit.
 - [ ] App Preview video: record a release build on the iPhone, then run `tool/store/make_videos.sh` (needs ffmpeg). For the **YouTube promo**, use Goose Ninja tracks: some Pixabay tracks are registered with YouTube Content ID and may get claimed.
 - [ ] IAP review screenshots for every product, taken with a sandbox account. Submit the IAPs together with 1.0. The ammo packs `nh_demo_kit` / `nh_arsenal_crate` are **consumables** (Armory tab in the Garage; the rows show only once the store returns them).
 
 ### After publishing
+- [ ] Firebase console (see `docs/ANALYTICS.md`): register the custom dimensions, link BigQuery, AdMob, Google Play and App Store Connect, and deploy the updated privacy page (`website/deploy.sh`).
 - [ ] Link each store listing in AdMob → App settings. Real ads only serve after that.
 - [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`. Without them, a zafrk deploy deletes the privacy and support pages the stores link to.
 

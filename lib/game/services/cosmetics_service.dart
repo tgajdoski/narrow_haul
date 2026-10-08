@@ -1,3 +1,4 @@
+import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 
@@ -90,6 +91,7 @@ class CosmeticsService {
     if (balance >= item.cost) {
       await ProgressService.instance.spendCosmeticCurrency(item.cost);
       await ProgressService.instance.unlockCosmetic(item.id);
+      Analytics.spendCoins(item.cost, item.id);
       return true;
     }
     return false;

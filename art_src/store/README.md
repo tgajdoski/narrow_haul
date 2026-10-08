@@ -33,7 +33,7 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 2. **Promotional Text, Description, Keywords, Support URL, Marketing URL** from `listing_en.md`.
 3. **Build:** upload from Xcode/Transporter. The icon comes from the binary; you don't upload it separately.
 4. **App Information:** subtitle, category Games → Arcade (secondary Action), age rating questionnaire, copyright.
-5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising) and the privacy URL.
+5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
 6. **In-App Purchases:** for each of `nh_remove_ads` and `nh_supporter_pack` (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**: display name, description, review screenshot (Garage → Armory). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
 ## Play Console → Narrow Haul → Grow users → Store presence → Main store listing
@@ -43,7 +43,7 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 3. **Video:** upload `video/youtube_1080.mp4` to YouTube (public or unlisted, ads off) and paste the URL.
 4. **Phone screenshots:** `screenshots/play_1080/` (up to 8). **7" and 10" tablet:** the same files, or `ios_ipad13/` for 4:3.
 5. **App name, short description, full description** from `listing_en.md`.
-6. **Policy → App content:** Ads = yes, Data safety (AdMob), Advertising ID, content rating (IARC), target audience.
+6. **Policy → App content:** Ads = yes, Data safety (AdMob, Crashlytics, Firebase Analytics: app interactions, device IDs, purchase history), Advertising ID, content rating (IARC), target audience.
 7. Upload a new AAB with the next build number (`pubspec.yaml` `1.0.0+N`) so the new icon and splash ship.
 
 ## Regenerate

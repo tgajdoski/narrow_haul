@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:narrow_haul/game/services/ad_pacing.dart';
+import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
@@ -243,6 +244,7 @@ class MonetizationService {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (_) {
         _pacing.interstitialsThisSession++;
+        Analytics.interstitialShown();
         _p.setLastInterstitialMs(DateTime.now().millisecondsSinceEpoch);
         _p.setAdClearsSinceInterstitial(0);
       },
@@ -326,6 +328,7 @@ class MonetizationService {
       if (!kDebugMode) return false;
       _log('MonetizationService [debug]: rewarded "$placement" granted');
       await _p.setLastRewardedMs(DateTime.now().millisecondsSinceEpoch);
+      Analytics.rewardedAd(placement, earned: true);
       onReward();
       return true;
     }
@@ -353,6 +356,7 @@ class MonetizationService {
       _setShowingFullScreen(false);
       _loadRewarded();
     }
+    Analytics.rewardedAd(placement, earned: earned);
     if (earned) {
       await _p.setLastRewardedMs(DateTime.now().millisecondsSinceEpoch);
       onReward();
@@ -418,7 +422,11 @@ class MonetizationService {
   /// pending (e.g. Ask to Buy) or unavailable purchase.
   Future<BuyOutcome> purchase(String productId) async {
     final product = _products[productId];
-    if (!_storeAvailable || product == null) return BuyOutcome.unavailable;
+    Analytics.purchaseAttempt(productId);
+    if (!_storeAvailable || product == null) {
+      Analytics.purchaseResult(productId, 'unavailable');
+      return BuyOutcome.unavailable;
+    }
     _pendingBuy?.complete(BuyOutcome.failed);
     final pending = _pendingBuy = Completer<BuyOutcome>();
     bool started;
@@ -434,6 +442,7 @@ class MonetizationService {
     }
     if (!started) {
       _pendingBuy = null;
+      Analytics.purchaseResult(productId, 'not_started');
       return BuyOutcome.failed;
     }
     return pending.future;
@@ -459,6 +468,7 @@ class MonetizationService {
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
+      Analytics.purchaseResult(purchase.productID, purchase.status.name);
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:

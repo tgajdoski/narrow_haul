@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../game/services/analytics_service.dart';
 import '../game/services/monetization_service.dart';
 import '../game/services/progress_service.dart';
 import '../game/ship/weapons.dart';
@@ -41,6 +42,7 @@ class _ArmoryListState extends State<ArmoryList> {
   Future<void> _buyWithCoins(WeaponSpec w) async {
     if (_p.getCosmeticCurrency() < w.coinCost) return;
     await _p.spendCosmeticCurrency(w.coinCost);
+    Analytics.spendCoins(w.coinCost, 'ammo_${w.id}');
     await _p.addAmmo(w.id, w.coinPack.toDouble());
     widget.onCoinsChanged();
     if (mounted) setState(() {});

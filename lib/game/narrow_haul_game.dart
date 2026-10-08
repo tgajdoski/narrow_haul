@@ -44,6 +44,7 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/route/route_repository.dart';
+import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
@@ -253,6 +254,18 @@ class NarrowHaulGame extends Forge2DGame
   double lastLevelFuelFraction = 1;
   bool _currentLevelRetried = false;
 
+  /// Analytics: loads of [_attemptLevel] since the player last switched
+  /// levels or delivered it (a continue isn't a new attempt).
+  String? _attemptLevel;
+  int _attempt = 0;
+  final Set<String> _weaponsLogged = {};
+
+  String get _analyticsMode => !isChallengeMode
+      ? 'normal'
+      : activeChallengeConfig?.shipId != null
+          ? 'test_flight'
+          : 'daily';
+
   // ── Challenge mode ───────────────────────────────────────────────────────
   bool isChallengeMode = false;
   DailyChallengeConfig? activeChallengeConfig;
@@ -429,6 +442,7 @@ class NarrowHaulGame extends Forge2DGame
     applySettings();
 
     AchievementService.announced.addListener(_onAchievementAnnounced);
+    _syncAnalyticsUser();
 
     overlays.add('menu');
     MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
@@ -554,6 +568,7 @@ class NarrowHaulGame extends Forge2DGame
     _snapshotTimer = 0;
     _continueUsed = false;
     continuedThisRun = false;
+    _weaponsLogged.clear();
     guidedThisRun = false;
     _crashedByMeltdown = false;
     _meltdownAtCrash = null;
@@ -583,10 +598,30 @@ class NarrowHaulGame extends Forge2DGame
       MusicService.flightVolume,
     );
     if (!retry && !demoMode) AudioService.playStartLevel();
+    if (!demoMode) _logLevelStart();
     _countdown = (demoMode || _tutorialHints) ? null : _countdownSeconds;
     _countdownHud
       ?..text = null
       ..accent = data.theme.uiAccent;
+  }
+
+  void _logLevelStart() {
+    final id = currentLevelDef.saveId;
+    if (_attemptLevel != id) {
+      _attemptLevel = id;
+      _attempt = 0;
+    }
+    _attempt++;
+    final (world, _) = LevelRegistry.worldOf(levelIndex);
+    Analytics.levelStart(
+      levelId: id,
+      world: world.id,
+      ship: ship?.spec.id ?? '',
+      rope: cargoAttachment?.rope.id ?? '',
+      mode: _analyticsMode,
+      attempt: _attempt,
+      guided: routeGuideOn,
+    );
   }
 
   Future<void> _spawnLevel(LevelData data) async {
@@ -740,7 +775,7 @@ class NarrowHaulGame extends Forge2DGame
     await _maybeSpawnCrate(shipSpec, theme);
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
-      onWallHit: _onShipHitWall,
+      onWallHit: () => _onShipHitWall(),
       onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
       onFire: _onShipFired,
       onWeapon: _onWeaponFired,
@@ -978,8 +1013,20 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Game events ───────────────────────────────────────────────────────────
 
-  void _onShipHitWall() {
+  void _onShipHitWall({String cause = 'wall'}) {
     if (runState != RunState.playing || demoMode) return;
+    final wreck = ship?.body.position;
+    Analytics.levelFail(
+      levelId: currentLevelDef.saveId,
+      cause: cause,
+      attempt: _attempt,
+      seconds: elapsedSeconds,
+      fuelLeft: (ship?.fuel ?? 0) / _shipMaxFuel,
+      towing: cargoAttachment?.attached ?? false,
+      x: wreck?.x.floor() ?? 0,
+      y: wreck?.y.floor() ?? 0,
+      mode: _analyticsMode,
+    );
     crashStreak.onCrash(currentLevelDef.saveId);
     _currentLevelRetried = true;
     _recordSpentFuel();
@@ -1082,6 +1129,25 @@ class NarrowHaulGame extends Forge2DGame
 
     final progress = ProgressService.instance;
     final xpBefore = progress.getXp();
+    final prevStars =
+        isChallengeMode ? stars : progress.getStarsById(currentLevelDef.saveId);
+    final worldsBefore = {
+      for (final w in LevelRegistry.worlds)
+        if (LevelRegistry.isWorldUnlocked(w)) w.id,
+    };
+    Analytics.levelEnd(
+      levelId: currentLevelDef.saveId,
+      stars: stars,
+      prevStars: prevStars,
+      attempt: _attempt,
+      seconds: elapsed,
+      fuelLeft: lastLevelFuelFraction,
+      guided: guidedThisRun,
+      continued: continuedThisRun,
+      carriedAmmo: carriedWeaponUsedThisRun,
+      mode: _analyticsMode,
+    );
+    _attemptLevel = null; // the next flight here is a fresh attempt series
     final currencyMul = CareerService.currencyMultiplier;
     int currency = 0;
     final XpBreakdown runXp;
@@ -1222,6 +1288,24 @@ class NarrowHaulGame extends Forge2DGame
     }
     if (currency > 0) progress.addCosmeticCurrency(currency);
 
+    if (currency > 0) Analytics.earnCoins(currency, 'delivery');
+    final rankAfter = rankFor(xpAfter);
+    if (rankAfter.index > rankFor(xpBefore).index) {
+      Analytics.rankUp(rankAfter.index, rankAfter.title);
+    }
+    for (final a in unlocked) {
+      Analytics.achievement(a.id);
+    }
+    if (currentLevelDef.saveId == 'tut_10' && prevStars == 0) {
+      Analytics.tutorialComplete();
+    }
+    for (final w in LevelRegistry.worlds) {
+      if (!worldsBefore.contains(w.id) && LevelRegistry.isWorldUnlocked(w)) {
+        Analytics.worldUnlocked(w.id);
+      }
+    }
+    _syncAnalyticsUser();
+
     lastRunReward = RunReward(
       xp: xp,
       xpBefore: xpBefore,
@@ -1238,6 +1322,19 @@ class NarrowHaulGame extends Forge2DGame
     // update() raises the dialog once the celebration has played.
     _winReady = true;
   }
+
+  /// Player-level dimensions for every report (set at launch and after
+  /// each delivery).
+  void _syncAnalyticsUser() {
+    final p = ProgressService.instance;
+    Analytics.setUserProperty('pilot_rank', '${rankFor(p.getXp()).index}');
+    Analytics.setUserProperty('total_stars', '${LevelRegistry.totalStars()}');
+    Analytics.setUserProperty('payer', p.hasPurchased ? '1' : '0');
+  }
+
+  /// Tests: lands the run as if ship and pod had touched down.
+  @visibleForTesting
+  Future<void> debugDeliver() => _onGoalReached();
 
   @visibleForTesting
   int debugStars(double fuelFraction, double timeSeconds) =>
@@ -1358,6 +1455,9 @@ class NarrowHaulGame extends Forge2DGame
   void _payInFlightAchievementXp() {
     if (_inFlightAchievements.isEmpty) return;
     ProgressService.instance.addXp(100 * _inFlightAchievements.length);
+    for (final a in _inFlightAchievements) {
+      Analytics.achievement(a.id);
+    }
     _inFlightAchievements.clear();
   }
 
@@ -1418,6 +1518,7 @@ class NarrowHaulGame extends Forge2DGame
   Future<void> showRoute() async {
     if (!canShowRoute) return;
     await ProgressService.instance.setRouteUnlocked(currentLevelDef.saveId);
+    Analytics.routeShown(currentLevelDef.saveId);
     _routeGuideLevel = currentLevelDef.saveId;
     await restartLevel();
   }
@@ -1464,6 +1565,7 @@ class NarrowHaulGame extends Forge2DGame
   Future<void> startDemoFlight() async {
     if (!canShowRoute) return;
     await ProgressService.instance.setRouteUnlocked(currentLevelDef.saveId);
+    Analytics.demoWatched(currentLevelDef.saveId);
     overlays.removeAll(['gameOver', 'pause', 'settings']);
     _resetInputState();
     demoMode = true;
@@ -1693,6 +1795,7 @@ class NarrowHaulGame extends Forge2DGame
   // ── Public navigation ─────────────────────────────────────────────────────
 
   Future<void> restartLevel() {
+    _logQuit('restart');
     _leaveDemo();
     overlays.removeAll(['gameOver', 'pause', 'settings']);
     _resetInputState();
@@ -1718,6 +1821,7 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   void backToMenu() {
+    _logQuit('menu');
     _leaveDemo();
     overlays.removeAll(['gameOver', 'pause', 'settings']);
     CosmeticsService.clearTrials();
@@ -1734,6 +1838,19 @@ class NarrowHaulGame extends Forge2DGame
     pauseEngine();
     overlays.add('menu');
     MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
+  }
+
+  /// A flight abandoned mid-air (restart or menu from the pause screen).
+  void _logQuit(String reason) {
+    if (runState != RunState.playing || demoMode || currentLevel == null) {
+      return;
+    }
+    Analytics.levelQuit(
+      levelId: currentLevelDef.saveId,
+      reason: reason,
+      seconds: elapsedSeconds,
+      launched: ship?.launched ?? false,
+    );
   }
 
   /// Landing status beats tutorial steps: it explains the both-on-pad rule
@@ -1956,7 +2073,7 @@ class NarrowHaulGame extends Forge2DGame
       demoShellHits++;
       return;
     }
-    _onShipHitWall();
+    _onShipHitWall(cause: 'shot');
   }
 
   @override
@@ -2116,6 +2233,7 @@ class NarrowHaulGame extends Forge2DGame
     final r = _rack;
     if (r == null) return;
     r.addFound(crate.weapon.id, crate.units);
+    Analytics.crateCollected(crate.weapon.id);
     _syncWeaponHud();
     final w = crate.weapon;
     final amount = w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}';
@@ -2154,6 +2272,10 @@ class NarrowHaulGame extends Forge2DGame
   void _onWeaponFired(WeaponSpec w, double dt) {
     final s = ship;
     if (s == null) return;
+    // Once per weapon per flight (the laser fires every frame it's held).
+    if (_weaponsLogged.add(w.id)) {
+      Analytics.weaponUsed(w.id, carried: carriedWeaponUsedThisRun);
+    }
     final accent = currentLevel?.theme.uiAccent ?? const Color(0xFFFFD166);
     final v = s.body.linearVelocity;
     final nose = s.noseDir;
@@ -2405,7 +2527,7 @@ class NarrowHaulGame extends Forge2DGame
       if (left <= 0) {
         _meltdownLeft = null;
         _crashedByMeltdown = true;
-        _onShipHitWall();
+        _onShipHitWall(cause: 'meltdown');
       }
     }
     _syncCombatHud();

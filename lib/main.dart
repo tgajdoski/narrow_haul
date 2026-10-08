@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flame/flame.dart';
@@ -16,6 +17,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
@@ -36,7 +38,7 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ErrorReporter.install();
-  await _initCrashReporting();
+  await _initFirebase();
   // The bundled title font's licence, shown in Settings → Licenses.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(
@@ -72,10 +74,12 @@ void main() async {
   MonetizationService.instance.init();
 }
 
-/// Firebase Crashlytics (Android / iOS only): native crashes are captured by
-/// the SDK, Dart errors arrive through [ErrorReporter.sink]. Collection is off
-/// in debug builds so development runs don't fill the dashboard.
-Future<void> _initCrashReporting() async {
+/// Firebase (Android / iOS only). Crashlytics: native crashes are captured by
+/// the SDK, Dart errors arrive through [ErrorReporter.sink]. Analytics:
+/// installs, retention and purchases are automatic, gameplay events come
+/// through [Analytics.sink]. Both are off in debug builds so development runs
+/// don't fill the dashboards.
+Future<void> _initFirebase() async {
   if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
   try {
     await Firebase.initializeApp(
@@ -89,8 +93,14 @@ Future<void> _initCrashReporting() async {
       reason: context,
       fatal: context == 'uncaught',
     );
+    final analytics = FirebaseAnalytics.instance;
+    await analytics.setAnalyticsCollectionEnabled(!kDebugMode);
+    Analytics.sink = (name, params) =>
+        analytics.logEvent(name: name, parameters: params);
+    Analytics.userPropertySink = (name, value) =>
+        analytics.setUserProperty(name: name, value: value);
   } catch (e, st) {
-    ErrorReporter.report(e, st, context: 'crash reporting init');
+    ErrorReporter.report(e, st, context: 'firebase init');
   }
 }
 
