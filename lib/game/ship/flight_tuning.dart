@@ -99,6 +99,24 @@ abstract final class FlightTuning {
   static const double boostStart = 0.55;
   static const double boostFull = 0.75;
 
+  /// Seconds held past the notch until the boost is full. It eases in
+  /// (smoothstep), so a short push past the notch barely boosts and the
+  /// switch never jolts; back inside the notch is precise again at once.
+  static const double boostBuildUp = 0.4;
+
+  /// Advances the boost charge (0…1) for one frame of stick input [x].
+  static double nextBoostCharge(double charge, double x, double dt) =>
+      stickBoosting(x) ? math.min(1.0, charge + dt / boostBuildUp) : 0.0;
+
+  /// Scales the part of [shaped] input above ±1 by the eased [charge].
+  /// Modes without a notch (Agile, Classic) are unaffected.
+  static double applyBoostCharge(double shaped, double charge) {
+    final a = shaped.abs();
+    if (!steer.hasZones || a <= 1) return shaped;
+    final eased = charge * charge * (3 - 2 * charge);
+    return shaped.sign * (1 + (a - 1) * eased);
+  }
+
   /// While towing only this share of the extra boost applies: a fast spin
   /// whips the winch anchor (ω × 0.39 m) and flings the pod.
   static const double towBoostShare = 0.5;

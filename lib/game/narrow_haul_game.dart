@@ -147,11 +147,18 @@ class NarrowHaulGame extends Forge2DGame
   double _keyDir = 0;
   bool _wasBoosting = false;
 
+  /// How far the stick's fast speed has built up (0…1, see
+  /// [FlightTuning.boostBuildUp]).
+  double _boostCharge = 0;
+
   /// Two-speed steering (see [FlightTuning]): ±1 is the ship's precise turn
   /// rate, the stick's outer zone or a held key boosts past it.
   void _combineInputs() {
     final boost = ship?.maxRotateInput ?? 1.0;
-    final touch = FlightTuning.shapeStick(_touchAxis, boost);
+    final touch = FlightTuning.applyBoostCharge(
+      FlightTuning.shapeStick(_touchAxis, boost),
+      _boostCharge,
+    );
     final key = FlightTuning.keyAxis(_keys.rotateAxis, _keyHeld, boost);
     rotateAxis = (touch + key).clamp(-boost, boost);
     final boosting = rotateAxis.abs() > 1.001;
@@ -1094,6 +1101,7 @@ class NarrowHaulGame extends Forge2DGame
     _keyHeld = 0;
     _keyDir = 0;
     _wasBoosting = false;
+    _boostCharge = 0;
     AudioService.stopEngine();
     AudioService.setAlarm(false);
   }
@@ -2743,6 +2751,7 @@ class NarrowHaulGame extends Forge2DGame
       } else {
         s.towing = cargoAttachment?.attached ?? false;
         if (_keys.rotateAxis != 0) _keyHeld += dt;
+        _boostCharge = FlightTuning.nextBoostCharge(_boostCharge, _touchAxis, dt);
         // Re-shape held input every frame: the key boost ramps with time
         // and the boost shrinks once the pod is hooked.
         if (_touchAxis != 0 || _keys.rotateAxis != 0) _combineInputs();

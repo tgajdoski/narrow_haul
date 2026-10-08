@@ -39,6 +39,34 @@ void main() {
       }
     });
 
+    test('the fast speed builds up over boostBuildUp, then resets', () {
+      var charge = 0.0;
+      const dt = 1 / 60;
+      final frames = (FlightTuning.boostBuildUp / dt).ceil();
+      final shaped = FlightTuning.shapeStick(1, 2);
+      expect(FlightTuning.applyBoostCharge(shaped, charge), 1);
+      var prev = 1.0;
+      for (var i = 0; i < frames; i++) {
+        charge = FlightTuning.nextBoostCharge(charge, 1, dt);
+        final y = FlightTuning.applyBoostCharge(shaped, charge);
+        expect(y, greaterThanOrEqualTo(prev));
+        prev = y;
+      }
+      expect(prev, closeTo(2, 1e-9));
+      // A tenth of the build-up gives only ~3% of the extra speed.
+      final early = FlightTuning.applyBoostCharge(shaped, 0.1);
+      expect(early, lessThan(1.05));
+      // Back inside the notch: precise at once, charge gone.
+      expect(FlightTuning.nextBoostCharge(1, 0.3, dt), 0);
+      expect(FlightTuning.applyBoostCharge(FlightTuning.shapeStick(0.3, 2), 1),
+          lessThan(1));
+    });
+
+    test('Agile ignores the build-up', () {
+      FlightTuning.steer = SteerMode.agile;
+      expect(FlightTuning.applyBoostCharge(2, 0), 2);
+    });
+
     test('a held key boosts after the delay', () {
       expect(FlightTuning.keyAxis(1, 0, 2), 1);
       expect(FlightTuning.keyAxis(-1, FlightTuning.keyBoostDelay, 2), -1);
