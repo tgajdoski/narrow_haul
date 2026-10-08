@@ -135,6 +135,8 @@ Free with light ads (Alto's-style). `MonetizationService.init()` runs after `run
 
 **Android back:** a `PopScope` around the home calls `NarrowHaulGame.handleBack()`, which steps back one screen (mid-flight → pause, pause → resume, results/game-over/demo → menu, sub-menus → menu) and only lets the app close from the main menu (`test/back_navigation_test.dart`).
 
+**Keyboard (desktop):** `NarrowHaulGame` mixes in `KeyboardEvents`. `KeyboardFlightInput` (`lib/game/keyboard_input.dart`) maps ← → / A D to rotate, ↑ / W / Space to thrust and F / Enter to fire. Its state is combined with the touch HUD's, so either one works. Esc calls `handleBack()` and P toggles pause. On macOS, Windows and Linux the onboarding hints name the keys.
+
 **Safe areas & text:** `MaterialApp.builder` passes `MediaQuery.viewPadding` to `NarrowHaulGame.setSafeInsets`; the Flame HUD (gauges, minimap, joystick hint, THRUST/FIRE) keeps clear of notches and the home indicator while the world draws edge to edge. System text scale is capped at 1.3. HUD labels use `HudText` (`components/hud_text.dart`), which re-lays out only when the text changes.
 
 **Hints** (`_currentHint`): beyond the tut_01–03 onboarding, tut_02 explains the star rules while the ship waits on the pad; the first seconds of a flight explain an unfamiliar ship (until its type rating is earned) and fuel canisters (until the first one is collected).

@@ -3,9 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
+import 'package:flame/input.dart' show KeyboardEvents;
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:narrow_haul/game/components/ambient_particles.dart';
 import 'package:narrow_haul/game/components/cargo_attachment.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
@@ -25,6 +27,7 @@ import 'package:narrow_haul/game/components/route_guide.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
+import 'package:narrow_haul/game/keyboard_input.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
@@ -87,7 +90,9 @@ class RunReward {
   bool get rankedUp => rankAfter.index > rankBefore.index;
 }
 
-class NarrowHaulGame extends Forge2DGame implements CombatHost {
+class NarrowHaulGame extends Forge2DGame
+    with KeyboardEvents
+    implements CombatHost {
   static const double _baseZoom = 28;
 
   NarrowHaulGame() : super(gravity: narrowHaulGravity(), zoom: _baseZoom);
@@ -122,6 +127,45 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
   double rotateAxis = 0;
   bool thrustHeld = false;
   bool fireHeld = false;
+
+  // Touch HUD and keyboard each keep their own state; the flight inputs
+  // above are both combined (either one can steer, thrust or fire).
+  double _touchAxis = 0;
+  bool _touchThrust = false;
+  bool _touchFire = false;
+  final KeyboardFlightInput _keys = KeyboardFlightInput();
+
+  void _combineInputs() {
+    rotateAxis = (_touchAxis + _keys.rotateAxis).clamp(-1.0, 1.0);
+    thrustHeld = _touchThrust || _keys.thrust;
+    fireHeld = _touchFire || _keys.fire;
+  }
+
+  /// Desktop keyboard: flight keys (see [KeyboardFlightInput]), Esc steps
+  /// back like Android back, P toggles pause.
+  @override
+  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        handleBack();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyP && runState == RunState.playing) {
+        isPaused ? resumeGame() : pauseGame();
+        return KeyEventResult.handled;
+      }
+    }
+    final flying = runState == RunState.playing && !isPaused && !demoMode;
+    if (!flying) {
+      _keys.reset();
+      return KeyEventResult.ignored;
+    }
+    _keys.update(keysPressed);
+    _combineInputs();
+    return KeyboardFlightInput.isFlightKey(event.logicalKey)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
+  }
 
   /// Test-only: load levels without obstacles and defences, to measure the
   /// pure flight cost of a route (autopilot "clean run").
@@ -290,9 +334,18 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     camera.viewport.add(_minimap!);
 
     _hudControls = HudTouchControls(
-      onRotateAxis: (v) => rotateAxis = v,
-      onFire: (v) => fireHeld = v,
-      onThrust: (v) => thrustHeld = v,
+      onRotateAxis: (v) {
+        _touchAxis = v;
+        _combineInputs();
+      },
+      onFire: (v) {
+        _touchFire = v;
+        _combineInputs();
+      },
+      onThrust: (v) {
+        _touchThrust = v;
+        _combineInputs();
+      },
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -800,6 +853,10 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     rotateAxis = 0;
     thrustHeld = false;
     fireHeld = false;
+    _touchAxis = 0;
+    _touchThrust = false;
+    _touchFire = false;
+    _keys.reset();
     AudioService.stopEngine();
     AudioService.setAlarm(false);
   }
@@ -1566,7 +1623,9 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
         s.shotsFired == 0 &&
         currentLevel?.hasCombat == true &&
         ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0) {
-      return 'Tap FIRE to knock out turrets — each shot costs fuel';
+      return _desktop
+          ? 'Press F or Enter to fire at turrets — each shot costs fuel'
+          : 'Tap FIRE to knock out turrets — each shot costs fuel';
     }
     if (routeGuideOn &&
         s != null &&
@@ -1596,10 +1655,14 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     final steerSide = _hudControls?.leftHanded == true ? 'right' : 'left';
     final thrustSide = _hudControls?.leftHanded == true ? 'left' : 'right';
     if (_thrustUsed < 0.6) {
-      return 'Hold the THRUST button ($thrustSide) to fire the engine';
+      return _desktop
+          ? 'Hold ↑, W or Space (or the THRUST button) to fire the engine'
+          : 'Hold the THRUST button ($thrustSide) to fire the engine';
     }
     if (_rotateUsed < 0.5) {
-      return 'Drag on the $steerSide side to rotate the ship';
+      return _desktop
+          ? 'Press ← → or A D to rotate the ship'
+          : 'Drag on the $steerSide side to rotate the ship';
     }
     if (!attached) {
       return pickupHint != null
@@ -1608,6 +1671,12 @@ class NarrowHaulGame extends Forge2DGame implements CombatHost {
     }
     return 'Bring ship and cargo down onto the green pad';
   }
+
+  static bool get _desktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   /// Flying a ship before its type rating is earned (its rating level, or a
   /// Test Flight daily): one line on how it handles.
