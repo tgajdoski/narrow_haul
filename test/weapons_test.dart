@@ -149,6 +149,29 @@ void main() {
       expect(ProgressService.instance.getAmmo(kFlak.id), 1);
     });
 
+    test('the ammo rail and number keys load a weapon', () async {
+      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      await ProgressService.instance.addAmmo(kSeeker.id, 2);
+      await ProgressService.instance.addAmmo(kGravityBomb.id, 3);
+      addTearDown(() async {
+        await ProgressService.instance.addAmmo(kSeeker.id, -2);
+        await ProgressService.instance.addAmmo(kGravityBomb.id, -3);
+      });
+      await h.loadLevel(index);
+      final game = h.game;
+      final rack = game.weaponRack!;
+      final ids = rack.available;
+      expect(ids, containsAll([kSeeker.id, kGravityBomb.id]));
+      game.selectWeapon(kSeeker.id);
+      expect(rack.selectedId, kSeeker.id);
+      game.selectWeapon(kMiningLaser.id);
+      expect(rack.selectedId, kSeeker.id, reason: 'no laser on board');
+      game.selectWeaponSlot(ids.indexOf(kGravityBomb.id));
+      expect(rack.selectedId, kGravityBomb.id);
+      game.selectWeaponSlot(5);
+      expect(rack.selectedId, kGravityBomb.id, reason: 'an empty slot does nothing');
+    });
+
     test('supply crates: only with an unarmed ship, never for the bot', () async {
       final unarmed = _levelWhere((d) => d.spec.id == 'mine_01');
       await h.loadLevel(unarmed);

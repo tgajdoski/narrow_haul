@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/painting.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 
 /// Canvas helpers for the in-flight cockpit controls, matching the menus'
@@ -120,4 +121,72 @@ void drawFlameGlyph(Canvas canvas, Offset c, double size, {required bool hot}) {
     inner,
     Paint()..color = hot ? const Color(0xFFFFFFFF) : const Color(0x99FFE8C8),
   );
+}
+
+/// Line icon for a weapon, centred on [c] and about 2×[r] across, nose up
+/// like the ship: FIRE pad, ammo rail.
+void drawWeaponGlyph(
+  Canvas canvas,
+  WeaponKind kind,
+  Offset c,
+  double r, {
+  Color color = const Color(0xFFFFFFFF),
+}) {
+  final line = Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = math.max(1.4, r * 0.15)
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+  final fill = Paint()..color = color;
+  Offset p(double x, double y) => c + Offset(x * r, y * r);
+  switch (kind) {
+    case WeaponKind.cannon:
+      canvas.drawCircle(c, r * 0.55, line);
+      canvas.drawCircle(c, math.max(1.5, r * 0.1), fill);
+      for (final d in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
+        canvas.drawLine(c + d * (r * 0.3), c + d * r, line);
+      }
+    case WeaponKind.charge:
+      canvas.drawCircle(c, r * 0.25, fill);
+      canvas.drawCircle(c, r * 0.55, line);
+      for (var i = 0; i < 8; i++) {
+        final a = i * math.pi / 4;
+        final d = Offset(math.cos(a), math.sin(a));
+        canvas.drawLine(c + d * (r * 0.78), c + d * r, line);
+      }
+    case WeaponKind.bomb:
+      canvas.drawCircle(p(0, 0.28), r * 0.5, line);
+      canvas.drawLine(p(0, -0.22), p(0, -0.62), line);
+      canvas.drawLine(p(-0.36, -0.88), p(0.36, -0.88), line);
+      canvas.drawLine(p(-0.36, -0.88), p(0, -0.62), line);
+      canvas.drawLine(p(0.36, -0.88), p(0, -0.62), line);
+    case WeaponKind.laser:
+      canvas.drawCircle(p(0, 0.62), r * 0.28, line);
+      final beam = Paint()
+        ..color = color
+        ..strokeWidth = line.strokeWidth * 1.4
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(p(0, 0.32), p(0, -1), beam);
+      final halo = Paint()
+        ..color = color.withValues(alpha: color.a * 0.5)
+        ..strokeWidth = line.strokeWidth
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(p(-0.32, -0.1), p(-0.32, -0.75), halo);
+      canvas.drawLine(p(0.32, -0.1), p(0.32, -0.75), halo);
+    case WeaponKind.seeker:
+      canvas.drawLine(p(-0.62, 0.62), p(0.55, -0.55), line);
+      canvas.drawLine(p(0.75, -0.75), p(0.2, -0.62), line);
+      canvas.drawLine(p(0.75, -0.75), p(0.62, -0.2), line);
+      canvas.drawLine(p(-0.62, 0.62), p(-0.88, 0.3), line);
+      canvas.drawLine(p(-0.62, 0.62), p(-0.3, 0.88), line);
+    case WeaponKind.flak:
+      final o = p(0, 0.75);
+      for (var i = -2; i <= 2; i++) {
+        final a = -math.pi / 2 + i * 0.32;
+        final d = Offset(math.cos(a), math.sin(a));
+        canvas.drawLine(o, o + d * (r * 1.25), line);
+        canvas.drawCircle(o + d * (r * 1.5), math.max(1.4, r * 0.12), fill);
+      }
+  }
 }

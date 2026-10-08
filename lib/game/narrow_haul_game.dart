@@ -206,6 +206,11 @@ class NarrowHaulGame extends Forge2DGame
       cycleWeapon();
       return KeyEventResult.handled;
     }
+    final slotKey = KeyboardFlightInput.slotKeys.indexOf(event.logicalKey);
+    if (flying && event is KeyDownEvent && slotKey >= 0) {
+      selectWeaponSlot(slotKey);
+      return KeyEventResult.handled;
+    }
     if (!flying) {
       _keys.reset();
       return KeyEventResult.ignored;
@@ -492,7 +497,7 @@ class NarrowHaulGame extends Forge2DGame
         _touchThrust = v;
         _combineInputs();
       },
-      onCycleWeapon: cycleWeapon,
+      onSelectWeapon: selectWeapon,
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -848,6 +853,7 @@ class NarrowHaulGame extends Forge2DGame
     _levelGravityG = g0 * gravityMul / baseGravityY();
     // Carried ammo stays home in a daily (a skill run) and in demos.
     final carryAmmo = !isChallengeMode && !demoMode;
+    _ammoPeak.clear();
     final rack = _rack = WeaponRack(
       hasCannon: shipSpec.armed,
       carried: {
@@ -2442,6 +2448,24 @@ class NarrowHaulGame extends Forge2DGame
     Haptics.light();
   }
 
+  /// Loads weapon [id] (HUD ammo rail tap).
+  void selectWeapon(String id) {
+    final r = _rack;
+    if (r == null || r.selectedId == id || !r.select(id)) return;
+    _syncWeaponHud();
+    Haptics.light();
+  }
+
+  /// Loads the rail's [slot]th weapon (number keys 1–6).
+  void selectWeaponSlot(int slot) {
+    final list = _rack?.available ?? const <String>[];
+    if (slot < list.length) selectWeapon(list[slot]);
+  }
+
+  /// Most of each weapon held this flight: the FIRE pad's ammo ring is
+  /// drawn against it.
+  final Map<String, double> _ammoPeak = {};
+
   static String _weaponLabel(WeaponSpec w) => switch (w.kind) {
         WeaponKind.cannon => 'FIRE',
         WeaponKind.charge => 'CHARGE',
@@ -2461,15 +2485,31 @@ class NarrowHaulGame extends Forge2DGame
       hud.weapon = null;
       return;
     }
-    final String? count;
-    if (w.kind == WeaponKind.cannon) {
-      count = null;
-    } else if (w.continuous) {
-      count = '${r.ammo(w.id).ceil()}s';
-    } else {
-      count = '×${r.ammo(w.id).round()}';
-    }
-    hud.weapon = (_weaponLabel(w), count, r.available.length > 1);
+    final ids = r.available;
+    final slots = [
+      for (final id in ids)
+        if (weaponById(id) case final spec?) _weaponSlot(r, spec),
+    ];
+    hud.weapon = WeaponHud(slots: slots, selectedIndex: math.max(0, ids.indexOf(w.id)));
+  }
+
+  WeaponSlot _weaponSlot(WeaponRack r, WeaponSpec w) {
+    final ammo = r.ammo(w.id);
+    final peak = _ammoPeak[w.id] = math.max(_ammoPeak[w.id] ?? 0, ammo);
+    return WeaponSlot(
+      id: w.id,
+      kind: w.kind,
+      label: _weaponLabel(w),
+      name: w.name,
+      count: switch (w.kind) {
+        WeaponKind.cannon => null,
+        WeaponKind.laser => '${ammo.ceil()}s',
+        _ => '×${ammo.round()}',
+      },
+      ammo: ammo,
+      peak: peak,
+      costsStar: r.costsStar(w.id),
+    );
   }
 
   /// Writes carried ammo spent this flight back to the save.

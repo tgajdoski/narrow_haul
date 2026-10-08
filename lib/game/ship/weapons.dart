@@ -332,6 +332,18 @@ class WeaponRack {
     return true;
   }
 
+  /// Picks [id] if it's on board (the HUD's ammo rail, number keys).
+  bool select(String id) {
+    if (!available.contains(id)) return false;
+    selectedId = id;
+    return true;
+  }
+
+  /// The next unit of [id] would come from the player's own stock and cost
+  /// the run its third star (it hasn't yet).
+  bool costsStar(String id) =>
+      !_usedCarried && found(id) <= 1e-6 && carried(id) > 1e-6;
+
   /// Next weapon in [available] (wraps). Returns the new selection.
   String? cycle() {
     final list = available;

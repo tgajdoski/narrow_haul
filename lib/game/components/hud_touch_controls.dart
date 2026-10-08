@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 
 /// On-screen controls for landscape play.
 ///
@@ -13,14 +14,15 @@ import 'package:narrow_haul/game/ship/flight_tuning.dart';
 /// Horizontal axis [-1..1] drives rotation.
 ///
 /// Right side → [_ThrustButton]: large circular hold-button for engine thrust.
-/// Armed ships add [_FireButton] above it (tap = one shot, hold = auto-fire).
+/// A ship with something to fire adds [_FireButton] above it (tap = one
+/// shot, hold = auto-fire) and the [_WeaponRail] beside both.
 class HudTouchControls extends PositionComponent {
   HudTouchControls({
     required this.onRotateAxis,
     this.onStick,
     required this.onThrust,
     this.onFire,
-    this.onCycleWeapon,
+    this.onSelectWeapon,
   }) : super(priority: 5000);
 
   final void Function(double axis) onRotateAxis;
@@ -30,12 +32,37 @@ class HudTouchControls extends PositionComponent {
   final void Function(bool pressed) onThrust;
   final void Function(bool pressed)? onFire;
 
-  /// Tap on the weapon chip: next weapon.
-  final void Function()? onCycleWeapon;
+  /// Tap on an ammo rail slot: pick that weapon.
+  final void Function(String id)? onSelectWeapon;
 
-  /// What the FIRE button fires, e.g. ('BOMB', '×3', true); null = the
-  /// plain cannon. The flag says whether there's another weapon to cycle to.
-  (String label, String? count, bool canCycle)? weapon;
+  /// What's on board and which one FIRE fires; null = nothing to fire.
+  WeaponHud? get weapon => _weapon;
+  WeaponHud? _weapon;
+  set weapon(WeaponHud? v) {
+    final before = _weapon?.selected.id;
+    final after = v?.selected.id;
+    // A switch (rail, key, crate) names the new weapon; a level's first
+    // sync doesn't.
+    if (v == null) {
+      _toastLeft = 0;
+    } else if (before != null && after != before) {
+      _toastLeft = toastSeconds;
+    }
+    _weapon = v;
+  }
+
+  /// How long the full name of a newly picked weapon shows on the rail.
+  static const double toastSeconds = 1.2;
+  double _toastLeft = 0;
+
+  /// 0–1 opacity of that name (fades over the last 0.3 s).
+  double get toastAlpha => (_toastLeft / 0.3).clamp(0.0, 1.0);
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_toastLeft > 0) _toastLeft = math.max(0, _toastLeft - dt);
+  }
 
   /// Show the FIRE button (only for armed ships).
   bool get showFire => _showFire;
@@ -67,7 +94,7 @@ class HudTouchControls extends PositionComponent {
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
   _FireButton? _fireBtn;
-  _WeaponChip? _chip;
+  _WeaponRail? _rail;
 
   @override
   Future<void> onLoad() async {
@@ -91,8 +118,8 @@ class HudTouchControls extends PositionComponent {
     if (_fireBtn?.pressed == true) onFire?.call(false);
     _fireBtn?.removeFromParent();
     _fireBtn = null;
-    _chip?.removeFromParent();
-    _chip = null;
+    _rail?.removeFromParent();
+    _rail = null;
 
     _joystick = _FloatingJoystick(
       areaSize: Vector2(sz.x * 0.5, sz.y),
@@ -106,15 +133,14 @@ class HudTouchControls extends PositionComponent {
           : EdgeInsets.only(left: _insets.left, bottom: _insets.bottom),
     );
 
-    const btnRadius = 52.0;
-    const margin = 28.0;
-    final btnX = _leftHanded
-        ? _insets.left + margin + btnRadius
-        : sz.x - _insets.right - margin - btnRadius;
-    final btnY = sz.y - _insets.bottom - margin - btnRadius;
+    final layout = HudButtonLayout(
+      Size(sz.x, sz.y),
+      insets: _insets,
+      leftHanded: _leftHanded,
+    );
     _thrustBtn = _ThrustButton(
-      center: Vector2(btnX, btnY),
-      radius: btnRadius,
+      center: Vector2(layout.thrust.dx, layout.thrust.dy),
+      radius: HudButtonLayout.thrustRadius,
       onChanged: onThrust,
     );
 
@@ -122,31 +148,123 @@ class HudTouchControls extends PositionComponent {
     add(_thrustBtn!);
 
     if (_showFire && onFire != null) {
-      // Directly above thrust: the same thumb rocks between the two.
-      const fireRadius = 40.0;
-      final fireCenter = Vector2(btnX, btnY - btnRadius - 18 - fireRadius);
       _fireBtn = _FireButton(
-        center: fireCenter,
-        radius: fireRadius,
+        center: Vector2(layout.fire.dx, layout.fire.dy),
+        radius: HudButtonLayout.fireRadius,
         onChanged: onFire!,
         weapon: () => weapon,
+        innerSide: layout.innerSide,
       );
       add(_fireBtn!);
-      // Weapon chip beside FIRE, on the screen-centre side.
-      const chipW = 74.0;
-      const chipH = 30.0;
-      final side = _leftHanded ? 1.0 : -1.0;
-      _chip = _WeaponChip(
-        position: Vector2(
-          fireCenter.x + side * (fireRadius + 12 + chipW / 2) - chipW / 2,
-          fireCenter.y - chipH / 2,
-        ),
-        size: Vector2(chipW, chipH),
+      _rail = _WeaponRail(
+        layout: layout,
         weapon: () => weapon,
-        onTap: () => onCycleWeapon?.call(),
-      );
-      add(_chip!);
+        toastAlpha: () => toastAlpha,
+        onSelect: (id) => onSelectWeapon?.call(id),
+      )..size = sz;
+      add(_rail!);
     }
+  }
+}
+
+/// One weapon on board, as the FIRE pad and the ammo rail show it.
+class WeaponSlot {
+  const WeaponSlot({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.name,
+    this.count,
+    this.ammo = 0,
+    this.peak = 0,
+    this.costsStar = false,
+  });
+
+  final String id;
+  final WeaponKind kind;
+
+  /// Short label under the FIRE icon ('BOMB'), and the full name the rail
+  /// shows for a moment after a switch ('Gravity Bomb').
+  final String label;
+  final String name;
+
+  /// '×3' / '8s'; null for the cannon (it costs fuel, not ammo).
+  final String? count;
+
+  /// Units left and the most held this flight: the FIRE pad's ammo ring.
+  final double ammo;
+  final double peak;
+
+  /// The next shot would spend the player's own stock and cap the run at 2★.
+  final bool costsStar;
+
+  bool get continuous => kind == WeaponKind.laser;
+}
+
+/// Everything the weapon HUD shows: the slots in rail order and the one
+/// FIRE fires.
+class WeaponHud {
+  const WeaponHud({required this.slots, required this.selectedIndex});
+
+  final List<WeaponSlot> slots;
+  final int selectedIndex;
+
+  WeaponSlot get selected => slots[selectedIndex];
+
+  /// The rail shows only when there's a choice; a lone weapon's icon and
+  /// ammo are on the FIRE pad already.
+  bool get showRail => slots.length > 1;
+}
+
+/// Where THRUST, FIRE and the ammo rail sit, in screen pixels. Pure
+/// geometry, shared by the HUD and its layout test.
+class HudButtonLayout {
+  HudButtonLayout(this.screen, {this.insets = EdgeInsets.zero, this.leftHanded = false}) {
+    final x = leftHanded
+        ? insets.left + margin + thrustRadius
+        : screen.width - insets.right - margin - thrustRadius;
+    final y = screen.height - insets.bottom - margin - thrustRadius;
+    thrust = Offset(x, y);
+    // Directly above thrust: the same thumb rocks between the two.
+    fire = Offset(x, y - thrustRadius - 18 - fireRadius);
+  }
+
+  static const double thrustRadius = 52;
+  static const double fireRadius = 40;
+  static const double margin = 28;
+
+  /// Rail slot hexagon radius and centre-to-centre spacing.
+  static const double slotRadius = 15;
+  static const double slotSpacing = 35;
+
+  /// The top-right minimap (12 px margin, at most 90 px tall) and the
+  /// top-left fuel gauge end above this line; the rail stays below it.
+  static const double topClear = 106;
+
+  final Size screen;
+  final EdgeInsets insets;
+  final bool leftHanded;
+  late final Offset thrust;
+  late final Offset fire;
+
+  /// Toward the screen centre: −1 for a right-hand layout.
+  double get innerSide => leftHanded ? 1 : -1;
+
+  /// Centres of [n] rail slots, top to bottom: a column on the screen-centre
+  /// side of THRUST/FIRE, centred on FIRE where it fits, squeezed (never
+  /// tighter than the slots) when it doesn't.
+  List<Offset> railCenters(int n) {
+    if (n <= 0) return const [];
+    final x = thrust.dx + innerSide * (thrustRadius + 14 + slotRadius);
+    final minY = insets.top + topClear + slotRadius;
+    final maxY = screen.height - insets.bottom - 6 - slotRadius;
+    final room = math.max(0.0, maxY - minY);
+    final step = n == 1
+        ? 0.0
+        : math.max(slotRadius * 2, math.min(slotSpacing, room / (n - 1)));
+    final span = step * (n - 1);
+    final top = (fire.dy - span / 2).clamp(minY, math.max(minY, maxY - span));
+    return [for (var i = 0; i < n; i++) Offset(x, top + i * step)];
   }
 }
 
@@ -584,16 +702,23 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
   }
 }
 
-/// Cannon trigger: the thrust button's touch handling with a crosshair face.
+/// Weapon trigger: the thrust button's touch handling with the loaded
+/// weapon's icon, its ammo ring and, when the next shot would spend the
+/// player's own stock, a −★ badge.
 class _FireButton extends _ThrustButton {
   _FireButton({
     required super.center,
     required super.radius,
     required super.onChanged,
     required this.weapon,
+    required this.innerSide,
   });
 
-  final (String, String?, bool)? Function() weapon;
+  final WeaponHud? Function() weapon;
+
+  /// Toward the screen centre (−1 / 1): where the −★ badge sits, clear of
+  /// the minimap.
+  final double innerSide;
   final _label = HudText();
 
   bool get pressed => _pressed;
@@ -601,76 +726,188 @@ class _FireButton extends _ThrustButton {
   @override
   void render(Canvas canvas) {
     _drawPad(canvas, HudColors.fire, flatTop: false);
-    final c = Offset(radius, radius - radius * 0.1);
-    final line = Paint()
-      ..color = Colors.white.withValues(alpha: 0.7 + 0.3 * _heat)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final r = radius * 0.4;
-    canvas.drawCircle(c, r * 0.6, line);
-    canvas.drawCircle(c, 1.8, Paint()..color = HudColors.fire);
-    for (final d in const [Offset(1, 0), Offset(-1, 0), Offset(0, 1), Offset(0, -1)]) {
-      canvas.drawLine(c + d * (r * 0.35), c + d * r, line);
-    }
+    final slot = weapon()?.selected;
+    final c = Offset(radius, radius - radius * 0.12);
+    drawWeaponGlyph(
+      canvas,
+      slot?.kind ?? WeaponKind.cannon,
+      c,
+      radius * 0.36,
+      color: Colors.white.withValues(alpha: 0.75 + 0.25 * _heat),
+    );
+    final text = slot == null
+        ? 'FIRE'
+        : [slot.label, if (slot.count != null) slot.count].join(' ');
     final tp = _label.layout(
       TextSpan(
-        text: weapon()?.$1 ?? 'FIRE',
+        text: text,
         style: hudFont(
-          8.5,
-          Colors.white.withValues(alpha: 0.6 + 0.35 * _heat),
-          spacing: 1.2,
+          10.5,
+          Colors.white.withValues(alpha: 0.7 + 0.3 * _heat),
+          spacing: 1.1,
         ),
       ),
     );
-    tp.paint(canvas, Offset(radius - tp.width / 2, c.dy + r + 2));
+    tp.paint(canvas, Offset(radius - tp.width / 2, c.dy + radius * 0.42));
+    if (slot != null && slot.count != null) _drawAmmoRing(canvas, slot);
+    if (slot != null && slot.costsStar) _drawStarBadge(canvas);
+  }
+
+  /// Arc over the top of the pad: one pip per unit (up to 8, lit while
+  /// left), or a fuel-style bar for the laser's seconds.
+  void _drawAmmoRing(Canvas canvas, WeaponSlot slot) {
+    final rect = Rect.fromCircle(center: Offset(radius, radius), radius: radius + 6);
+    const start = -math.pi * 5 / 6;
+    const sweep = math.pi * 2 / 3;
+    final peak = math.max(slot.peak, slot.ammo);
+    Paint seg(bool lit) => Paint()
+      ..color = lit ? HudColors.gold : Colors.white.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.butt;
+    if (slot.continuous) {
+      canvas.drawArc(rect, start, sweep, false, seg(false));
+      final f = peak <= 0 ? 0.0 : (slot.ammo / peak).clamp(0.0, 1.0);
+      canvas.drawArc(rect, start, sweep * f, false, seg(true));
+      return;
+    }
+    final total = math.min(8, peak.round());
+    final lit = math.min(8, slot.ammo.round());
+    if (total <= 0) return;
+    const gap = 0.07;
+    final each = (sweep - gap * (total - 1)) / total;
+    for (var i = 0; i < total; i++) {
+      canvas.drawArc(rect, start + i * (each + gap), each, false, seg(i < lit));
+    }
+  }
+
+  /// '−★' plate on the pad's screen-centre flank (the star is drawn: the
+  /// HUD font has no ★).
+  void _drawStarBadge(Canvas canvas) {
+    final c = Offset(radius + innerSide * radius * 0.95, radius * 0.72);
+    final plate = chamferRect(Rect.fromCenter(center: c, width: 28, height: 17), 5);
+    drawGlow(canvas, plate, HudColors.gold, 0.6);
+    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, plate, HudColors.gold, 1.3);
+    final gold = Paint()
+      ..color = HudColors.gold
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(c + const Offset(-9, 0), c + const Offset(-4, 0), gold);
+    canvas.drawPath(_starPath(c + const Offset(4, 0.5), 6), gold);
+  }
+
+  static Path _starPath(Offset c, double r) {
+    final p = Path();
+    for (var i = 0; i < 10; i++) {
+      final a = -math.pi / 2 + i * math.pi / 5;
+      final d = i.isEven ? r : r * 0.45;
+      final v = c + Offset(math.cos(a), math.sin(a)) * d;
+      i == 0 ? p.moveTo(v.dx, v.dy) : p.lineTo(v.dx, v.dy);
+    }
+    return p..close();
   }
 }
 
-/// Shows the loaded weapon's ammo; tap cycles weapons (hidden for the plain
-/// cannon with nothing else on board).
-class _WeaponChip extends PositionComponent with TapCallbacks {
-  _WeaponChip({
-    required super.position,
-    required super.size,
+/// The ammo rail: a column of hex slots beside FIRE, one per weapon on
+/// board, each with its icon and ammo. Tap one to load it. The loaded slot
+/// is lit gold, and a weapon whose next shot spends the player's own stock
+/// (2★ cap) carries a gold dot. Right after a switch the loaded slot's
+/// count gives way to the weapon's full name for a moment.
+class _WeaponRail extends PositionComponent with TapCallbacks {
+  _WeaponRail({
+    required this.layout,
     required this.weapon,
-    required this.onTap,
+    required this.toastAlpha,
+    required this.onSelect,
   });
 
-  final (String, String?, bool)? Function() weapon;
-  final void Function() onTap;
-  final _text = HudText();
+  final HudButtonLayout layout;
+  final WeaponHud? Function() weapon;
+  final double Function() toastAlpha;
+  final void Function(String id) onSelect;
 
-  bool get _visible {
+  final _counts = List.generate(6, (_) => HudText());
+  final _toast = HudText();
+
+  List<Offset> _centers(WeaponHud w) =>
+      layout.railCenters(math.min(w.slots.length, _counts.length));
+
+  int? _slotAt(Offset p) {
     final w = weapon();
-    return w != null && (w.$2 != null || w.$3);
+    if (w == null || !w.showRail) return null;
+    final centers = _centers(w);
+    for (var i = 0; i < centers.length; i++) {
+      final d = p - centers[i];
+      if (d.dx.abs() <= HudButtonLayout.slotRadius + 6 &&
+          d.dy.abs() <= HudButtonLayout.slotSpacing / 2) {
+        return i;
+      }
+    }
+    return null;
   }
 
   @override
-  bool containsLocalPoint(Vector2 point) => _visible && super.containsLocalPoint(point);
+  bool containsLocalPoint(Vector2 point) => _slotAt(Offset(point.x, point.y)) != null;
 
   @override
   void onTapDown(TapDownEvent event) {
+    final i = _slotAt(Offset(event.localPosition.x, event.localPosition.y));
     final w = weapon();
-    if (w != null && w.$3) onTap();
+    if (i == null || w == null) return;
+    onSelect(w.slots[i].id);
   }
 
   @override
   void render(Canvas canvas) {
     final w = weapon();
-    if (w == null || !_visible) return;
-    final plate = chamferRect(size.toRect(), 9);
-    drawGlow(canvas, plate, HudColors.gold, 0.35);
-    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
-    drawStroke(canvas, plate, HudColors.gold.withValues(alpha: 0.85), 1.4);
-    final label = '${w.$2 ?? ''}${w.$3 ? '  ⟳' : ''}'.trim();
-    final tp = _text.layout(
-      TextSpan(
-        text: label,
-        style: hudFont(12, Colors.white, spacing: 1),
-      ),
-    );
-    tp.paint(canvas, Offset((size.x - tp.width) / 2, (size.y - tp.height) / 2));
+    if (w == null || !w.showRail) return;
+    final centers = _centers(w);
+    const r = HudButtonLayout.slotRadius;
+    final side = layout.innerSide;
+    final toast = toastAlpha();
+    for (var i = 0; i < centers.length; i++) {
+      final s = w.slots[i];
+      final c = centers[i];
+      final on = i == w.selectedIndex;
+      final hex = hexPath(c, r);
+      if (on) drawGlow(canvas, hex, HudColors.gold, 0.7);
+      canvas.drawPath(hex, Paint()..color = on ? HudColors.plate : HudColors.plateDark);
+      drawStroke(
+        canvas,
+        hex,
+        on ? HudColors.gold : HudColors.cyan.withValues(alpha: 0.55),
+        on ? 2 : 1.2,
+      );
+      drawWeaponGlyph(
+        canvas,
+        s.kind,
+        c,
+        r * 0.5,
+        color: Colors.white.withValues(alpha: on ? 1 : 0.6),
+      );
+      if (s.costsStar) {
+        canvas.drawCircle(c + Offset(-side * r * 0.7, -r * 0.62), 3, Paint()..color = HudColors.gold);
+      }
+      // Count on the screen-centre side; the loaded slot names its weapon
+      // for a moment after a switch.
+      final named = on && toast > 0;
+      final tp = named
+          ? _toast.layout(TextSpan(
+              text: [s.name.toUpperCase(), if (s.count != null) s.count].join(' '),
+              style: hudFont(11, HudColors.gold.withValues(alpha: toast), spacing: 1),
+            ))
+          : _counts[i].layout(TextSpan(
+              text: s.count ?? '',
+              style: hudFont(
+                10,
+                Colors.white.withValues(alpha: on ? 0.95 : 0.6),
+                spacing: 0.5,
+              ),
+            ));
+      final x = side < 0 ? c.dx - r - 5 - tp.width : c.dx + r + 5;
+      tp.paint(canvas, Offset(x, c.dy - tp.height / 2));
+    }
   }
 }
 
