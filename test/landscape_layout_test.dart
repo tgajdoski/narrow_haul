@@ -31,7 +31,8 @@ const _sizes = [
 /// Seeded mid-career save: contracts unlocked, coins, stars, awards.
 Map<String, Object> _career({bool dailyDone = false}) {
   final now = DateTime.now();
-  final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+  final today =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-'
       '${now.day.toString().padLeft(2, '0')}';
   return {
     for (final def in LevelRegistry.flat.take(14)) 'stars2_${def.saveId}': 3,
@@ -68,7 +69,9 @@ void main() {
 
   /// No vertical scroll view on [screen] has anything to scroll.
   void expectNoVerticalScroll(WidgetTester tester, String screen, Size size) {
-    for (final s in tester.stateList<ScrollableState>(find.byType(Scrollable))) {
+    for (final s in tester.stateList<ScrollableState>(
+      find.byType(Scrollable),
+    )) {
       final p = s.position;
       if (p.axis != Axis.vertical) continue;
       expect(
@@ -140,9 +143,9 @@ void main() {
   testWidgets('crash screen with every help option fits', (tester) async {
     final caveIndex = LevelRegistry.flat.indexWhere((d) => d is CaveLevelDef);
     final def = LevelRegistry.defAt(caveIndex);
-    final json = jsonDecode(
-      File('assets/routes/${def.saveId}.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
+    final json =
+        jsonDecode(File('assets/routes/${def.saveId}.json').readAsStringSync())
+            as Map<String, dynamic>;
     NarrowHaulGame crashed() {
       final g = NarrowHaulGame()
         ..levelIndex = caveIndex
@@ -242,6 +245,36 @@ void main() {
     ]);
     expect(lines, hasLength(5));
     expect(lines.last.xp, 50);
+  });
+
+  testWidgets('world tabs fly the missions map to a world', (tester) async {
+    await pump(
+      tester,
+      _sizes[2],
+      1,
+      LevelSelectOverlay(game: NarrowHaulGame()),
+    );
+    await tester.pumpAndSettle();
+    final map = tester
+        .stateList<ScrollableState>(find.byType(Scrollable))
+        .firstWhere((s) => s.position.maxScrollExtent > 5000)
+        .position;
+
+    final last = LevelRegistry.worlds.last;
+    await tester.ensureVisible(find.byKey(ValueKey('worldTab_${last.id}')));
+    await tester.tap(find.byKey(ValueKey('worldTab_${last.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      map.pixels,
+      greaterThan(map.maxScrollExtent - 1000),
+      reason: '${last.name} near the end',
+    );
+
+    final first = LevelRegistry.worlds.first;
+    await tester.ensureVisible(find.byKey(ValueKey('worldTab_${first.id}')));
+    await tester.tap(find.byKey(ValueKey('worldTab_${first.id}')));
+    await tester.pumpAndSettle();
+    expect(map.pixels, lessThan(50), reason: '${first.name} at the start');
   });
 
   testWidgets('full-screen menus lay out', (tester) async {

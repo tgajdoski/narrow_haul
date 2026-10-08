@@ -31,19 +31,7 @@ class LevelSelectOverlay extends StatelessWidget {
           color: SpaceColors.gold,
         ),
       ],
-      child: Column(
-        children: [
-          Expanded(child: _WorldMap(game: game)),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 6),
-            child: Text(
-              'Tap a mission for its briefing: ship, hazards and star targets',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white38, fontSize: 11),
-            ),
-          ),
-        ],
-      ),
+      child: _WorldMap(game: game),
     );
   }
 }
@@ -57,15 +45,73 @@ class _WorldMap extends StatefulWidget {
 }
 
 class _WorldMapState extends State<_WorldMap> {
+  static const _nodeSpacing = 150.0;
+  static const _headerW = 140.0;
+
   final _scroll = ScrollController();
   bool _scrolled = false;
 
+  /// Left edge of each world's header on the map.
+  late final List<double> _headerXs = _layoutHeaderXs();
+
+  /// The world under the middle of the screen (its tab is lit).
+  late int _activeWorld = LevelRegistry.worlds.indexOf(
+    LevelRegistry.worldOf(LevelRegistry.nextLevelIndex()).$1,
+  );
+
+  /// Set while a tab tap scrolls the map, so the tabs don't flicker
+  /// through every world on the way.
+  bool _jumping = false;
+
   NarrowHaulGame get game => widget.game;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
+  }
+
+  static List<double> _layoutHeaderXs() {
+    final xs = <double>[];
+    double x = 30;
+    for (final world in LevelRegistry.worlds) {
+      xs.add(x);
+      x += _headerW + world.levels.length * _nodeSpacing;
+    }
+    return xs;
+  }
+
+  void _onScroll() {
+    if (_jumping || !_scroll.hasClients) return;
+    final p = _scroll.position;
+    final centre = p.pixels + p.viewportDimension / 2;
+    var wi = 0;
+    for (var i = 0; i < _headerXs.length; i++) {
+      if (_headerXs[i] <= centre) wi = i;
+    }
+    if (wi != _activeWorld) setState(() => _activeWorld = wi);
+  }
+
+  /// Scrolls the map so world [wi]'s header sits at the left edge.
+  Future<void> _jumpToWorld(int wi) async {
+    if (!_scroll.hasClients) return;
+    setState(() => _activeWorld = wi);
+    _jumping = true;
+    try {
+      await _scroll.animateTo(
+        (_headerXs[wi] - 16).clamp(0.0, _scroll.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      _jumping = false;
+    }
   }
 
   /// Centers the map on [x] once, right after the first layout.
@@ -91,27 +137,24 @@ class _WorldMapState extends State<_WorldMap> {
     final progress = ProgressService.instance;
     final totalStars = LevelRegistry.totalStars();
 
-    return LayoutBuilder(
+    final map = LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        const nodeSpacing = 150.0;
-        const headerW = 140.0;
 
         // Layout: [world header][node node ...][world header][...]
         final worldPaths = <List<Offset>>[];
-        final headerXs = <double>[];
+        final headerXs = _headerXs;
         final nodePositions = <Offset>[];
         double x = 30;
         int flat = 0;
         for (final world in LevelRegistry.worlds) {
-          headerXs.add(x);
-          x += headerW;
+          x += _headerW;
           final points = <Offset>[];
           for (int i = 0; i < world.levels.length; i++) {
             final y = (h / 2) + (h * 0.26) * math.sin(flat * 1.3) - 6;
             points.add(Offset(x + 45, y));
             nodePositions.add(Offset(x + 45, y));
-            x += nodeSpacing;
+            x += _nodeSpacing;
             flat++;
           }
           worldPaths.add(points);
@@ -199,6 +242,108 @@ class _WorldMapState extends State<_WorldMap> {
           ),
         );
       },
+    );
+
+    return Column(
+      children: [
+        Expanded(child: map),
+        _WorldTabs(
+          active: _activeWorld,
+          totalStars: totalStars,
+          onSelect: _jumpToWorld,
+        ),
+      ],
+    );
+  }
+}
+
+/// One tab per world under the map: tap to fly the map to that world.
+class _WorldTabs extends StatefulWidget {
+  const _WorldTabs({
+    required this.active,
+    required this.totalStars,
+    required this.onSelect,
+  });
+
+  final int active;
+  final int totalStars;
+  final ValueChanged<int> onSelect;
+
+  @override
+  State<_WorldTabs> createState() => _WorldTabsState();
+}
+
+class _WorldTabsState extends State<_WorldTabs> {
+  final _keys = [for (final _ in LevelRegistry.worlds) GlobalKey()];
+
+  @override
+  void initState() {
+    super.initState();
+    _reveal(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(_WorldTabs old) {
+    super.didUpdateWidget(old);
+    if (old.active != widget.active) _reveal(animate: true);
+  }
+
+  /// Keeps the lit tab on screen when the row is wider than the phone.
+  void _reveal({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _keys[widget.active].currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.5,
+        duration: animate ? const Duration(milliseconds: 250) : Duration.zero,
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final worlds = LevelRegistry.worlds;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            for (int wi = 0; wi < worlds.length; wi++)
+              Padding(
+                key: _keys[wi],
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: _tab(wi, worlds[wi]),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tab(int wi, WorldDef world) {
+    final unlocked = widget.totalStars >= world.starsRequired;
+    final active = wi == widget.active;
+    final accent = (gameThemes[world.themeId] ?? tutorialTheme).uiAccent;
+    final color = !unlocked
+        ? (active ? Colors.white70 : Colors.white38)
+        : (active ? accent : accent.withValues(alpha: 0.6));
+    return GestureDetector(
+      key: ValueKey('worldTab_${world.id}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        AudioService.playUi(UiSound.select);
+        widget.onSelect(wi);
+      },
+      child: HoloChip(
+        label: world.name.toUpperCase(),
+        icon: unlocked ? null : Icons.lock_outline,
+        color: color,
+        highlight: active,
+      ),
     );
   }
 }
