@@ -102,13 +102,15 @@ final List<LevelDef> redoubtLevels = [
       ],
       obstacles: [
         TurretSpec(Pt(29.5, 8.9), facing: kFaceDown, range: 8),
-        TurretSpec(Pt(36, 14.0), facing: kFaceUp, range: 6, aimArc: 0.9, phase: 0.8),
+        TurretSpec(Pt(37, 9.3), facing: kFaceDown, range: 6, aimArc: 1.0, phase: 0.8),
       ],
       pickups: [
         FuelCellSpec(Pt(19, 5.5)),
         FuelCellSpec(Pt(33, 16.5)),
         FuelCellSpec(Pt(26.3, 16.8), amount: 30),
         FuelCellSpec(Pt(30.8, 12.1), amount: 30),
+        FuelCellSpec(Pt(26.6, 13.8), amount: 35),
+        FuelCellSpec(Pt(33.9, 12.1), amount: 15),
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(26, 19.4),
@@ -155,7 +157,8 @@ final List<LevelDef> redoubtLevels = [
       goal: GoalSpec(Pt(40, 10.2)),
     ),
   ),
-  // Guns on both walls of a shaft, a pendulum in the gap.
+  // A gun over the tunnel at the foot of the drop shaft, a pendulum in the
+  // gap, and one more watching the climb out — snipe each from cover.
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.25, star3Time: 90),
     spec: const LevelSpec(
@@ -178,9 +181,8 @@ final List<LevelDef> redoubtLevels = [
         ChamberSpec(Pt(38, 10), 2.4),
       ],
       obstacles: [
-        TurretSpec(Pt(18.7, 16), facing: kFaceRight, range: 7),
-        TurretSpec(Pt(23.8, 19), facing: kFaceLeft, range: 7, phase: 1.0),
-        TurretSpec(Pt(33.2, 18), facing: kFaceRight, range: 7, aimArc: 0.7, phase: 0.5),
+        TurretSpec(Pt(25.5, 19.9), facing: kFaceDown, range: 6, aimArc: 1.0),
+        TurretSpec(Pt(40.9, 15.2), facing: kFaceLeft, range: 7, aimArc: 0.5, phase: 0.5),
         PendulumSpec(Pt(28, 20), length: 1.6, amplitudeRad: 0.9, periodSec: 3.4),
       ],
       pickups: [
@@ -188,6 +190,8 @@ final List<LevelDef> redoubtLevels = [
         FuelCellSpec(Pt(21.5, 20.3), amount: 15),
         FuelCellSpec(Pt(23.1, 16.2), amount: 10),
         FuelCellSpec(Pt(28.4, 25.4), amount: 10),
+        FuelCellSpec(Pt(28.9, 22.4), amount: 15),
+        FuelCellSpec(Pt(31.9, 21.4), amount: 25),
       ],
       shipSpawn: Pt(5, 8),
       cargoSpawn: Pt(28, 27.9),

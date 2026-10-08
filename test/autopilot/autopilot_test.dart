@@ -54,9 +54,9 @@ const double kHazardTimeAllowance = 20;
 /// Matches `FuelCell.pickupRadius`.
 const double kPickupRadius = 0.8;
 
-/// Levels known to beat the bot (turret kills in tight vertical shafts with
-/// no hidden firing spot); verified by human playtest instead.
-const kNeedsHumanPlaytest = {'redoubt_02', 'redoubt_04'};
+/// Levels known to beat the bot, verified by human playtest instead (none
+/// since redoubt_02/04 were reworked so their guns can be sniped).
+const kNeedsHumanPlaytest = <String>{};
 
 enum Verdict { pass, tight, botFail }
 

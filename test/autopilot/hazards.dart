@@ -181,13 +181,13 @@ bool caveSight(NavGrid grid, Pt a, Pt b, {double margin = 0.02}) =>
 
 /// Could turret [t] shoot at a ship at [p]? Same test as `Turret.update`
 /// (range and arc from the base, sight from the muzzle), padded by [extra].
-bool turretSees(NavGrid grid, TurretSpec t, Pt p, {double extra = 0.3}) {
+bool turretSees(NavGrid grid, TurretSpec t, Pt p, {double extra = 0.3, double arcPad = 0.1}) {
   final dx = p.x - t.base.x;
   final dy = p.y - t.base.y;
   final dist = math.sqrt(dx * dx + dy * dy);
   if (dist > t.range + extra) return false;
   final bearing = math.atan2(dy, dx);
-  if (_angleDelta(t.facing, bearing).abs() > t.aimArc + 0.1) return false;
+  if (_angleDelta(t.facing, bearing).abs() > t.aimArc + arcPad) return false;
   // Muzzle sits 1.1 m out along the barrel, which points at the target.
   final muzzle = Pt(t.base.x + dx / dist * 1.1, t.base.y + dy / dist * 1.1);
   return dist <= 1.1 || caveSight(grid, muzzle, p);

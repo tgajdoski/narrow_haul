@@ -7,8 +7,8 @@
 
 **Close, but not shippable yet.** The engineering base is solid:
 - `flutter analyze` is clean, and **all 128 tests pass**. The autopilot suite is skipped by default.
-- The autopilot report (21:40): **all 58 bot-flyable levels reach 3★** with the 1.3 human margin. The labels are 40 *3★ comfortable*, 18 *3★ tight* and 0 *needs help*. Two levels need a human: redoubt_02 and redoubt_04.
-- 58 route-guide recordings are bundled in `assets/routes/` (740 KB).
+- The autopilot report (2026-10-08): **all 60 levels reach 3★** with the 1.3 human margin. The labels are 44 *3★ comfortable* and 16 *3★ tight*. No level beats the bot any more: redoubt_02 and redoubt_04 were reworked so their guns can be sniped from cover, and mine_06 and lava_03 no longer have turrets.
+- 60 route-guide recordings are bundled in `assets/routes/` (780 KB). Talon routes shoot the turrets they meet.
 - Release builds use full gravity and have no cheat buttons.
 - Real AdMob units are wired, UMP consent is in, and Restore purchases works.
 - Store records, IAP products, icons, screenshots, listing texts and the website are done.
@@ -81,7 +81,7 @@ What's left:
 ### Game design
 - [x] **Done:** a hint banner explains each unfamiliar ship until its type rating is earned. Star rules are now taught too: tut_02 shows them while the ship waits on the pad. Was: Skate self-levelling and Vector hover assist are only described in the Logbook. Also teach the star rules up front.
 - [x] **Done:** a canister hint shows until the first canister is collected (tutorial: folded into the hook step). Was: no hint explained fuel canisters, which appear from tut_01. Pickups also reuse `attach.mp3`.
-- [ ] **"Perfect Pilot" needs 3★ on redoubt_02 and redoubt_04**, which the bot can't fly. Confirm it's humanly possible during the playtest.
+- [x] **Done:** "Perfect Pilot" needs 3★ on redoubt_02 and redoubt_04. Both were reworked on 2026-10-08 and the bot now gets 3★ on them.
 - [ ] **"Fuel Miser" (≥ 90% fuel left) is nearly impossible on normal days.** The bot's lightest run burns 13% (×1.3 ≈ 17% for a player), so it probably needs the "Fuel Rich" daily. That's acceptable, but make sure it's intended. The "≥ 80% fuel" contract is in the same territory.
 - [x] **Done:** a premium Garage tier: 6 world liveries (200–450), Cryo and Plasma plumes (300/400), Neon Line rope (350). The shop now costs 4,180 coins in total, against ≈ 4,000 from stars and ranks plus dailies. Was: coins had nothing to buy after about the Ice world. The shop has 8 items for 1,180 coins total, and players earn ≥ 2,750 from first stars. Add more items or other coin sinks.
 
@@ -126,7 +126,7 @@ What's left:
 Use a **release or profile build**: debug builds run at 0.7× gravity. Alternatively use `--dart-define=STORE_CAPTURE=true`.
 
 1. **Defences.**
-   - redoubt_02 and redoubt_04: the bot can't pass them and they have no route.
+   - redoubt_02 and redoubt_04: reworked on 2026-10-08 (guns moved so they can be sniped, canisters added).
    - redoubt_05 and redoubt_03 (tightest, meltdown escape).
    - redoubt_01 and rating_talon.
    - The route guide and demo on turret levels: towers fire back in the demo, red dots mark covered stretches, crosshairs mark firing spots.

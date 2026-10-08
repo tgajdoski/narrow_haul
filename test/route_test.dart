@@ -24,7 +24,7 @@ import 'autopilot/harness.dart';
 
 /// Levels the bot can't fly (kNeedsHumanPlaytest in the autopilot test):
 /// no exported route expected.
-const _noRouteExpected = {'redoubt_02', 'redoubt_04'};
+const _noRouteExpected = <String>{};
 
 FlightRoute _line({
   String id = 'tut_01',
@@ -382,7 +382,11 @@ void main() {
         if (LevelRegistry.shipFor(i).armed && route.shots.isNotEmpty) {
           final kills = turrets.where((t) => t.destroyed).length + (reactorDown ? 1 : 0);
           expect(kills, greaterThanOrEqualTo(1), reason: '$id: demo shots hit nothing');
-          expect(kills + (g.turretsDisabled ? 1 : 0), greaterThanOrEqualTo(route.fireMarks().length),
+          // Each burst knocks something out (a missed burst may be fired
+          // again, so at most one per target).
+          final targets = turrets.length + g.world.children.whereType<Reactor>().length;
+          expect(kills + (g.turretsDisabled ? 1 : 0),
+              greaterThanOrEqualTo(math.min(route.fireMarks().length, targets)),
               reason: '$id: a demo shot burst misses its target');
         }
         await g.takeControlsFromDemo();

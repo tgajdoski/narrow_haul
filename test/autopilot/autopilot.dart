@@ -309,7 +309,7 @@ class Autopilot {
     if (path == null) return false;
     // Armed: clear turrets that cover the tow route first, while the ship
     // is light — a detour through a spot each one can be shot from.
-    final ways = assault ? _towRouteFiringSpots(target, path) : const <Pt>[];
+    final ways = _towRouteFiringSpots(target, path);
     if (ways.isNotEmpty) {
       final legs = <Pt>[];
       var at = from;
@@ -476,15 +476,18 @@ class Autopilot {
       if (_arc[exposedAt] - _arc[k] >= 15) break;
       if (_arc[k] - _arc[exposedAt] > 6) continue;
       final p = _path[k];
+      // Towing, the hover wanders more (the pod swings): hide deeper.
+      final pad = _phase == _Phase.approach || _phase == _Phase.wait ? 0.1 : 0.35;
       if (turrets.any((o) => o == t.turret
-          ? !open && turretSees(grid, o.spec, p, extra: 0.9)
-          : turretSees(grid, o.spec, p, extra: 0.6))) {
+          ? !open && turretSees(grid, o.spec, p, extra: 0.9, arcPad: pad)
+          : turretSees(grid, o.spec, p, extra: 0.6, arcPad: pad))) {
         continue;
       }
       final front = t.sightPoint(p);
       final d = math.sqrt((p.x - front.x) * (p.x - front.x) + (p.y - front.y) * (p.y - front.y));
       // Shells must clear the rock by more than the map's few cm of error.
-      if (d > (open ? 8 : 10) || !caveSight(grid, p, front, margin: 0.06)) continue;
+      // Not right under its nose either: a falling, turned ship needs room.
+      if (d > (open ? 8 : 10) || (open && d < 3) || !caveSight(grid, p, front, margin: 0.06)) continue;
       final clear = grid.clearanceAt(p.x, p.y);
       if (clear < _r + 0.35) continue;
       final fromUp = math.atan2(aim.x - p.x, -(aim.y - p.y)).abs();
@@ -874,7 +877,7 @@ class Autopilot {
   }
 
   void _replan() {
-    if (_phase == _Phase.approach && assault) {
+    if (_phase == _Phase.approach && _ship.spec.armed && snipe) {
       if (_planApproach()) lastEvent = 'replan@$_frame';
       return;
     }
