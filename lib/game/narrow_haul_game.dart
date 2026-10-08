@@ -24,6 +24,7 @@ import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
+import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
@@ -286,6 +287,10 @@ class NarrowHaulGame extends Forge2DGame
   /// a slide along a wall from machine-gunning sound and haptics.
   int scrapesThisRun = 0;
   double _scrapeFxCooldown = 0;
+
+  /// Shield glow facing nearby rock (see [_updateRockWarning]).
+  ShieldGlow? _shieldGlow;
+  double _proximityBuzzCooldown = 0;
 
   /// A bounce or a slide re-touches within a moment: one shield sound per
   /// [_scrapeSoundGap] seconds.
@@ -882,6 +887,9 @@ class NarrowHaulGame extends Forge2DGame
     await world.add(cargoBody);
     await world.add(cargoLink);
     _levelEntities.add(shipBody);
+    final glow = _shieldGlow = ShieldGlow(ship: shipBody);
+    await world.add(glow);
+    _levelEntities.add(glow);
     _levelEntities.add(cargoBody);
     _levelEntities.add(cargoLink);
 
@@ -1094,6 +1102,8 @@ class NarrowHaulGame extends Forge2DGame
     scrapesThisRun = 0;
     _scrapeFxCooldown = 0;
     _scrapeSoundCooldown = 0;
+    _shieldGlow = null;
+    _proximityBuzzCooldown = 0;
     _hudControls?.weapon = null;
     camera.stop();
     for (final c in _levelEntities.reversed) {
@@ -1188,6 +1198,41 @@ class NarrowHaulGame extends Forge2DGame
       progress.markScrapeHintSeen();
       _weaponHint = 'Shields hold on slow touches — hit the rock fast and you crash';
       _weaponHintLeft = 3.5;
+    }
+  }
+
+  /// The shield glows toward rock within 1 m, cyan while the ship's speed
+  /// into it would only scrape, amber→red when it would crash
+  /// ([kScrapeMaxSpeed]); one light buzz when a crash-speed approach is
+  /// about to land.
+  void _updateRockWarning(ShipBody s, double dt) {
+    final glow = _shieldGlow;
+    if (glow == null) return;
+    if (_proximityBuzzCooldown > 0) _proximityBuzzCooldown -= dt;
+    final near = s.launched && !demoMode ? probeRockNearby(world, s) : null;
+    if (near == null || near.gap > 1.0) {
+      glow.hide();
+      return;
+    }
+    final closeness = 1 - (near.gap / 1.0).clamp(0.0, 1.0);
+    // Coming down upright onto flat ground is a touchdown, which is safe
+    // at a higher speed than a scrape.
+    final up = s.localAccel.length2 > 1e-4
+        ? -(s.localAccel.normalized())
+        : near.normal;
+    final nose = s.body.worldVector(Vector2(0, -1));
+    final landing =
+        nose.dot(up) >= math.cos(kTouchdownMaxTilt) &&
+        near.normal.dot(up) >= math.cos(kTouchdownMaxSlope);
+    final limit = landing ? kTouchdownMaxSpeed : kScrapeMaxSpeed;
+    final danger = ((near.approach - 0.6 * limit) / (0.6 * limit)).clamp(
+      0.0,
+      1.0,
+    );
+    glow.show(-near.normal, closeness * closeness, danger);
+    if (danger >= 1 && near.gap < 0.5 && _proximityBuzzCooldown <= 0) {
+      _proximityBuzzCooldown = 1.0;
+      Haptics.light();
     }
   }
 
@@ -2840,6 +2885,7 @@ class NarrowHaulGame extends Forge2DGame
         _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;
       }
+      _updateRockWarning(s, dt);
       AudioService.updateEngine(thrusting: s.isThrusting, dt: dt);
       AudioService.setAlarm(_meltdownLeft != null);
       _updateCombat(dt);

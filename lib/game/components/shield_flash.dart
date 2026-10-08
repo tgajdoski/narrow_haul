@@ -181,3 +181,79 @@ class ShieldFlash extends Component {
     canvas.restore();
   }
 }
+
+/// The shield's early warning: a soft glow on the side of the bubble that
+/// faces nearby rock, brighter the closer it is. Cyan while the ship's
+/// speed into the rock would only scrape, amber to red when it would
+/// crash. The game feeds it every frame ([show] / [hide]); it eases so it
+/// never flickers.
+class ShieldGlow extends Component {
+  ShieldGlow({required this.ship}) : super(priority: 1040);
+
+  final ShipBody ship;
+
+  double _strength = 0;
+  double _target = 0;
+  double _danger = 0;
+  double _dangerTarget = 0;
+  final Vector2 _toRock = Vector2(0, 1);
+
+  static const Color _warn = Color(0xFFFFB347);
+  static const Color _hot = Color(0xFFFF4D4D);
+
+  /// [toRock] is a world direction from the ship toward the surface;
+  /// [strength] and [danger] are 0…1.
+  void show(Vector2 toRock, double strength, double danger) {
+    _toRock.setFrom(toRock);
+    _target = strength.clamp(0.0, 1.0);
+    _dangerTarget = danger.clamp(0.0, 1.0);
+  }
+
+  void hide() => _target = 0;
+
+  @override
+  void update(double dt) {
+    final k = 1 - math.pow(0.0005, dt).toDouble(); // ~0.13 s time constant
+    _strength += (_target - _strength) * k;
+    _danger += (_dangerTarget - _danger) * k;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (_strength < 0.02 || !ship.isMounted) return;
+    final r = ship.spec.circumradius * 1.22;
+    final p = ship.body.position;
+    final ang = math.atan2(_toRock.y, _toRock.x);
+    final color = _danger < 0.5
+        ? Color.lerp(ShieldFlash._cyan, _warn, _danger * 2)!
+        : Color.lerp(_warn, _hot, (_danger - 0.5) * 2)!;
+    final a = _strength;
+    final rect = Rect.fromCircle(center: Offset(p.x, p.y), radius: r);
+    final spread = 0.55 + 0.4 * a;
+    canvas.drawArc(
+      rect,
+      ang - spread,
+      spread * 2,
+      false,
+      Paint()
+        ..blendMode = BlendMode.plus
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 0.12
+        ..color = color.withValues(alpha: 0.55 * a)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.06),
+    );
+    canvas.drawArc(
+      rect,
+      ang - spread * 0.7,
+      spread * 1.4,
+      false,
+      Paint()
+        ..blendMode = BlendMode.plus
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 0.022
+        ..color = color.withValues(alpha: 0.6 * a),
+    );
+  }
+}

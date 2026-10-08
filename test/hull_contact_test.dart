@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
 
@@ -71,6 +72,30 @@ void main() {
       }
       return g;
     }
+
+    test('the rock probe sees the floor coming, down to contact', () async {
+      await h.loadLevel(10, skipHazards: true);
+      final g = h.game;
+      final s = g.ship!..launch();
+      final gaps = <double>[];
+      for (var i = 0; i < 60 * 30 && g.scrapesThisRun == 0; i++) {
+        s.body
+          ..linearVelocity = Vector2(0, 0.4)
+          ..angularVelocity = 0;
+        s.body.setTransform(s.body.position, 0);
+        final near = probeRockNearby(g.world, s);
+        if (near != null && near.gap < 1.0 && near.normal.y < -0.5) {
+          gaps.add(near.gap);
+          expect(near.approach, closeTo(0.4 * -near.normal.y, 0.05));
+        }
+        g.update(kStepDt);
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(g.scrapesThisRun, greaterThan(0));
+      expect(gaps.length, greaterThan(20));
+      expect(gaps.first, greaterThan(0.8));
+      expect(gaps.last, lessThan(0.05));
+    });
 
     for (final (name, level) in [('tutorial walls', 0), ('cave rock', 10)]) {
       test('$name: a gentle landing rests, a hard one crashes', () async {
