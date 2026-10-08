@@ -81,10 +81,6 @@ class ProgressService {
     'haptics_enabled',
     'left_handed',
     'minimap_enabled',
-    'dev_turn_mul',
-    'dev_curve_expo',
-    'dev_spin_up',
-    'dev_stick_reach',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -98,6 +94,7 @@ class ProgressService {
   Future<void> resetProgress({Set<String> keepCosmeticIds = const {}}) async {
     for (final key in _prefs.getKeys().toList()) {
       final kept = _keptOnReset.contains(key) ||
+          key.startsWith('dev_') ||
           key.startsWith('iap_') ||
           key.startsWith('ads_') ||
           key.startsWith('ammo_') ||
@@ -235,21 +232,13 @@ class ProgressService {
   bool get leftHanded => _bool('left_handed') ?? false;
   Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
 
-  /// Dev-only flight tuning (see `FlightTuning`); null = stock.
-  double? get devTurnMul => _double('dev_turn_mul');
-  double? get devCurveExpo => _double('dev_curve_expo');
-  double? get devSpinUp => _double('dev_spin_up');
-  double? get devStickReach => _double('dev_stick_reach');
-  Future<void> setDevFlightTuning(
-    double turnMul,
-    double curveExpo,
-    double spinUp,
-    double stickReach,
-  ) async {
-    await _prefs.setDouble('dev_turn_mul', turnMul);
-    await _prefs.setDouble('dev_curve_expo', curveExpo);
-    await _prefs.setDouble('dev_spin_up', spinUp);
-    await _prefs.setDouble('dev_stick_reach', stickReach);
+  /// Dev-only flight tuning (see `FlightTuning`): `dev_<knob>` doubles,
+  /// null = stock.
+  double? devTuning(String knob) => _double('dev_$knob');
+  Future<void> setDevTuning(Map<String, double> knobs) async {
+    for (final e in knobs.entries) {
+      await _prefs.setDouble('dev_${e.key}', e.value);
+    }
   }
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────

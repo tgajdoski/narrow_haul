@@ -68,4 +68,16 @@ void main() {
       expect(FlightTuning.turnMul, FlightTuning.turnMulMax);
     });
   });
+
+  test('saved knobs load back, missing ones stay stock', () {
+    FlightTuning.set(turn: 2, expo: 0.4, reach: 0.5, lead: 0.3, towZoom: 0.1);
+    final saved = FlightTuning.values;
+    FlightTuning.reset();
+    expect(FlightTuning.isStock, isTrue);
+    FlightTuning.load((k) => saved[k]);
+    expect(FlightTuning.values, saved);
+    FlightTuning.reset();
+    FlightTuning.load((_) => null);
+    expect(FlightTuning.isStock, isTrue);
+  });
 }

@@ -922,13 +922,60 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
+  /// Smallest zoom that still keeps the view inside the world.
+  double _minContainZoom = 0;
+
+  /// Smoothed camera lead ahead of the ship (m).
+  final Vector2 _cameraLead = Vector2.zero();
+
+  /// Camera follow per 1/60 s frame; [_followCamera] keeps it frame-rate
+  /// independent, so 120 Hz phones track exactly like 60 Hz ones.
+  static const double _cameraFollow = 0.18;
+
   void _applyContainedCamera(Vector2 worldSize) {
     final viewportSize = camera.viewport.size;
     if (viewportSize.x <= 0 || viewportSize.y <= 0) return;
     final minZoomX = viewportSize.x / worldSize.x;
     final minZoomY = viewportSize.y / worldSize.y;
-    final minContainZoom = math.max(minZoomX, minZoomY) * 1.01;
-    camera.viewfinder.zoom = math.max(_baseZoom, minContainZoom);
+    _minContainZoom = math.max(minZoomX, minZoomY) * 1.01;
+    camera.viewfinder.zoom = math.max(_baseZoom, _minContainZoom);
+  }
+
+  void _followCamera(ShipBody s, Vector2 worldSize, double dt) {
+    final frames = dt * 60;
+    double ease(double perFrame) =>
+        1 - math.pow(1 - perFrame, frames).toDouble();
+
+    // Dev tuning: look ahead along the velocity and zoom out a little while
+    // towing. Both are 0 by default, which is exactly the stock camera.
+    final leadSeconds = FlightTuning.cameraLead;
+    final desiredLead = Vector2.zero();
+    if (leadSeconds > 0 && s.launched) {
+      desiredLead.setFrom(s.body.linearVelocity * leadSeconds);
+      if (desiredLead.length > FlightTuning.cameraLeadMaxMeters) {
+        desiredLead.scaleTo(FlightTuning.cameraLeadMaxMeters);
+      }
+    }
+    _cameraLead.add((desiredLead - _cameraLead) * ease(0.04));
+
+    final towing = cargoAttachment?.attached ?? false;
+    final restZoom = math.max(_baseZoom, _minContainZoom);
+    final zoomTarget = math.max(
+      _minContainZoom,
+      towing ? restZoom * (1 - FlightTuning.towZoomOut) : restZoom,
+    );
+    final zoom = camera.viewfinder.zoom;
+    if ((zoomTarget - zoom).abs() > 1e-3) {
+      camera.viewfinder.zoom = zoom + (zoomTarget - zoom) * ease(0.03);
+    }
+
+    final target = _clampedCameraTarget(
+      s.body.position + _cameraLead,
+      worldSize,
+    );
+    final current = camera.viewfinder.position;
+    camera.viewfinder.position =
+        current + (target - current) * ease(_cameraFollow);
   }
 
   void _applyCameraBounds(Vector2 worldSize) {
@@ -942,6 +989,7 @@ class NarrowHaulGame extends Forge2DGame
     final s = ship;
     final worldSize = _currentWorldSize;
     if (s == null || worldSize == null) return;
+    _cameraLead.setZero();
     camera.viewfinder.position = _clampedCameraTarget(
       s.body.position,
       worldSize,
@@ -2663,11 +2711,7 @@ class NarrowHaulGame extends Forge2DGame
       _hint?.message = _currentHint();
       _hint?.belowBanner = _combatHud?.showing ?? false;
       final worldSize = _currentWorldSize;
-      if (worldSize != null) {
-        final target = _clampedCameraTarget(s.body.position, worldSize);
-        final current = camera.viewfinder.position;
-        camera.viewfinder.position = current + (target - current) * 0.18;
-      }
+      if (worldSize != null) _followCamera(s, worldSize, dt);
 
       if (demoMode) {
         _updateDemo(dt, s);

@@ -513,18 +513,28 @@ class _FlightTuningSection extends StatefulWidget {
 }
 
 class _FlightTuningSectionState extends State<_FlightTuningSection> {
-  void _change({double? turn, double? expo, double? spin, double? reach}) {
+  void _change({
+    double? turn,
+    double? expo,
+    double? spin,
+    double? reach,
+    double? lead,
+    double? towZoom,
+  }) {
     setState(
-      () => FlightTuning.set(turn: turn, expo: expo, spin: spin, reach: reach),
+      () => FlightTuning.set(
+        turn: turn,
+        expo: expo,
+        spin: spin,
+        reach: reach,
+        lead: lead,
+        towZoom: towZoom,
+      ),
     );
   }
 
-  Future<void> _save() => ProgressService.instance.setDevFlightTuning(
-    FlightTuning.turnMul,
-    FlightTuning.curveExpo,
-    FlightTuning.spinUp,
-    FlightTuning.stickReach,
-  );
+  Future<void> _save() =>
+      ProgressService.instance.setDevTuning(FlightTuning.values);
 
   @override
   Widget build(BuildContext context) {
@@ -598,13 +608,36 @@ class _FlightTuningSectionState extends State<_FlightTuningSection> {
           divisions: 12,
           onChanged: (v) => _change(spin: v),
         ),
+        _slider(
+          label: 'Camera lead ${FlightTuning.cameraLead.toStringAsFixed(2)} s',
+          detail: FlightTuning.cameraLead == 0
+              ? 'Centred on the ship (stock)'
+              : 'Looks ahead where you fly, max '
+                    '${FlightTuning.cameraLeadMaxMeters} m',
+          value: FlightTuning.cameraLead,
+          min: 0,
+          max: FlightTuning.cameraLeadMax,
+          divisions: 16,
+          onChanged: (v) => _change(lead: v),
+        ),
+        _slider(
+          label: 'Tow zoom-out ${(FlightTuning.towZoomOut * 100).round()}%',
+          detail: FlightTuning.towZoomOut == 0
+              ? 'Same view while towing (stock)'
+              : 'Wider view with the pod on the line',
+          value: FlightTuning.towZoomOut,
+          min: 0,
+          max: FlightTuning.towZoomOutMax,
+          divisions: 10,
+          onChanged: (v) => _change(towZoom: v),
+        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: FlightTuning.isStock
                 ? null
                 : () {
-                    _change(turn: 1.0, expo: 0.0, spin: 0.0, reach: 1.0);
+                    setState(FlightTuning.reset);
                     _save();
                   },
             icon: const Icon(Icons.restart_alt_rounded, size: 18),

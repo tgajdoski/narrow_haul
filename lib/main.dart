@@ -51,15 +51,7 @@ void main() async {
   // Point the global Flame image cache at assets/ (not the default assets/images/).
   Flame.images.prefix = 'assets/';
   await ProgressService.init();
-  if (!kReleaseMode) {
-    final p = ProgressService.instance;
-    FlightTuning.set(
-      turn: p.devTurnMul,
-      expo: p.devCurveExpo,
-      spin: p.devSpinUp,
-      reach: p.devStickReach,
-    );
-  }
+  if (!kReleaseMode) FlightTuning.load(ProgressService.instance.devTuning);
   try {
     await CareerService.migrateIfNeeded();
   } catch (e, st) {
