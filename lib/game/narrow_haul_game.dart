@@ -881,6 +881,8 @@ class NarrowHaulGame extends Forge2DGame
       initialPosition: Vector2.copy(data.cargoSpawn),
       densityMul: mods.cargoDensityMul,
       clamped: data.cargoClamped,
+      image: art.cargoFor(mods.cargoDensityMul),
+      strapped: mods.cargoDensityMul > 1.0 && art.cargoHeavy == null,
     );
     cargoLink = CargoAttachment(
       ship: shipBody,

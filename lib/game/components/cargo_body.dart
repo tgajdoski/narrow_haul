@@ -11,8 +11,11 @@ class CargoBody extends BodyComponent {
     required Vector2 initialPosition,
     this.densityMul = 1.0,
     this.clamped = false,
+    ui.Image? image,
+    this.strapped = false,
   })
     : _initialPosition = initialPosition,
+      _cargoImage = image,
       super(
         paint: Paint()..color = const Color(0xFFE07A5F),
       );
@@ -25,6 +28,9 @@ class CargoBody extends BodyComponent {
   /// Cargo lock: held in place (kinematic) until hooked, so zero-g or a
   /// nearby well can't carry it off before the pilot arrives.
   final bool clamped;
+
+  /// Heavy pod without its own art: steel straps drawn over the sprite.
+  final bool strapped;
 
   /// Frees a clamped pod to the physics world (called on attach).
   void release() {
@@ -45,18 +51,20 @@ class CargoBody extends BodyComponent {
   /// Smaller than ship hull (~33% reduced from prior 0.14 m).
   static const double radius = kCargoRadius;
 
+  /// The world's pod art (`assets/themes/<id>/cargo.png`), else the shared
+  /// `cargo.png`, else the plain circle.
   ui.Image? _cargoImage;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     try {
-      _cargoImage = await Flame.images.load('cargo.png');
-      renderBody = false;
+      _cargoImage ??= await Flame.images.load('cargo.png');
     } catch (_) {}
+    if (_cargoImage != null) renderBody = false;
   }
 
-  // cargo.png's disc fills 80% of the image; drawn at 1.15× the collision
+  // Every cargo sprite's disc fills 80% of the image; drawn at 1.15× the collision
   // radius it reads as the pod's real size (a little rim to spare).
   static const double _spriteHalf = radius * 1.15 / 0.8;
 
@@ -94,6 +102,27 @@ class CargoBody extends BodyComponent {
         Paint(),
       );
     }
+    if (strapped) _renderStraps(canvas);
+  }
+
+  static final Paint _strapPaint = Paint()..color = const Color(0xE62B2F36);
+  static final Paint _strapEdge = Paint()
+    ..color = const Color(0xCC9AA3AD)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.008;
+
+  // Two steel bands across the pod, clipped to its disc; they roll with it.
+  void _renderStraps(Canvas canvas) {
+    const r = _spriteHalf * 0.8;
+    const w = r * 0.24;
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: Offset.zero, radius: r)));
+    for (final x in const [-r * 0.42, r * 0.42]) {
+      final band = Rect.fromLTRB(x - w / 2, -r, x + w / 2, r);
+      canvas.drawRect(band, _strapPaint);
+      canvas.drawRect(band, _strapEdge);
+    }
+    canvas.restore();
   }
 
   @override

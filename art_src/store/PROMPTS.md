@@ -80,6 +80,47 @@ Apple App Previews must show only footage captured from the app, so these
 cards go only in `youtube_1080.mp4`. Use C at 1920×1080 with the title as an
 intro card, and "Free on iOS & Android" as the outro card.
 
+## G. Cargo pods per world → `art_src/cargo/<world>[_heavy]_1024_src.png`
+
+In flight the pod is only about 0.27 m across, which is roughly 8 pt, or 24 px
+on a phone, so detail disappears. Each pod needs one bold silhouette, one strong
+colour that stands out against its world's rock, and a thick dark outline. The
+pod rolls, so it must be round (no corners, no spikes or antennae sticking out).
+
+Shared style (append to each prompt below):
+
+> Single game sprite, 2D flat vector with cel shading, thick dark navy
+> outline (#14213D), seen straight on, perfectly round overall silhouette,
+> centred, filling about 85% of a 1024×1024 square canvas, on a flat plain
+> light-grey background (#CCCCCC), no shadow on the ground, no text, no
+> lettering. Bold and simple: must still read clearly at 24×24 px. Match the
+> style of the attached ship and cargo sprites.
+
+Attach `assets/ship.png` and `assets/cargo.png` as style references.
+
+| File | World (rock colour) | Prompt |
+|---|---|---|
+| `tutorial` | Training (navy `#1D3461`) | A clean orange (#E07A5F) training cargo sphere with two white hazard stripes and a small top handle. |
+| `alien` | Xenar (purple `#3B2166`) | A glowing mint-green (#7EF9D2) alien bio-egg, slightly oval, with a soft inner glow and darker veins. |
+| `mine` | Mine (brown `#4A3524`) | A round ore pod: chunky gold-yellow (#FFB74D) ore nuggets inside a dark steel spherical cage. |
+| `ice` | Ice (steel blue `#35617F`) | A cryo canister seen end-on: a white-and-cyan (#E0F7FF) round lid with a frosted glass ring and a small blue status light. |
+| `lava` | Lava (dark red `#4A1B12`) | A pale steel containment sphere (#D8DEE6) with glowing orange vents showing the magma core inside. |
+| `orbit` | Orbit (slate `#2A2F45`) | A satellite core: a white sphere with lavender (#8C9EFF) solar-panel tiles in a band, folded flush, no antennae. |
+| `redoubt` | Redoubt (grey `#363C47`) | An armoured munitions sphere, olive-yellow (#FFCA28) with black chevron hazard bands and riveted plates. |
+| `mine_heavy`, `ice_heavy`, `lava_heavy` | as above | The same object as its world's pod, but in darker gunmetal with two thick riveted steel bands wrapped around it, so it looks dense and heavy. |
+
+Optional, for a future capsule-shaped cargo (not bundled): `ice_side` is the
+same cryo canister seen from the side, a short capsule about 2:1, same style.
+
+Then frame each one into the game:
+
+    python art_src/cargo/fix_cargo.py art_src/cargo/mine_1024_src.png assets/themes/mine/cargo.png
+    python art_src/cargo/fix_cargo.py art_src/cargo/mine_heavy_1024_src.png assets/themes/mine/cargo_heavy.png
+
+The script removes the background, centres the pod and scales it so its solid
+part fills 80% of a 128 px square (`CargoBody` draws every pod at that framing).
+`flutter test test/cargo_art_test.dart` checks the framing.
+
 ## Video (not AI — record the real game)
 
 Apple requires App Preview footage to come from the app. Record on your

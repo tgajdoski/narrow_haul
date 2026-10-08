@@ -11,6 +11,8 @@ Hot restart (not hot reload) after adding files.
 | `mid.png` | 1920×1080 | Transparent silhouettes, seamless left/right. |
 | `near.png` | 1920×1080 | Transparent close silhouettes, seamless left/right. |
 | `decor.png` | 1024×256 | 4 props in a row (256×256 cells), transparent, each growing **up from the bottom-center** of its cell. Auto-flipped for ceilings (stalactites). |
+| `cargo.png` | 128×128 | The cargo pod, transparent, round, centred, its solid part filling 80% of the width (`art_src/cargo/fix_cargo.py` frames it). Falls back to the shared `assets/cargo.png`. |
+| `cargo_heavy.png` | 128×128 | Same framing; the pod on this world's heavy-cargo levels. Without it, the normal pod gets steel straps. |
 
 Any parallax layer present → that world drops the shared tinted `far/mid/near.png`
 and the solid backdrop becomes a 35% haze so the art shows through the caves.

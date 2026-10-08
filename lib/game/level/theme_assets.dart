@@ -8,7 +8,15 @@ import 'package:narrow_haul/game/level/theme_spec.dart';
 /// its file is missing, and each consumer falls back to the flat vector look,
 /// so worlds can be skinned one file at a time.
 class ThemeAssets {
-  const ThemeAssets({this.rock, this.far, this.mid, this.near, this.decor});
+  const ThemeAssets({
+    this.rock,
+    this.far,
+    this.mid,
+    this.near,
+    this.decor,
+    this.cargo,
+    this.cargoHeavy,
+  });
 
   /// Seamless tileable rock fill (1024×1024).
   final ui.Image? rock;
@@ -21,6 +29,19 @@ class ThemeAssets {
   /// Edge prop sheet: 4 square cells in a row, each prop growing up from the
   /// bottom-center of its cell.
   final ui.Image? decor;
+
+  /// Cargo pod (square, the pod's disc filling 80% of it, centred). Falls back
+  /// to the shared `assets/cargo.png`.
+  final ui.Image? cargo;
+
+  /// Pod on heavy-cargo levels (`cargoDensityMul > 1`), framed like [cargo].
+  /// Without it the normal pod is drawn with steel straps.
+  final ui.Image? cargoHeavy;
+
+  /// The pod sprite for a level with this cargo density multiplier, or null
+  /// for the shared one.
+  ui.Image? cargoFor(double densityMul) =>
+      densityMul > 1.0 ? (cargoHeavy ?? cargo) : cargo;
 
   static const empty = ThemeAssets();
   static const decorFrames = 4;
@@ -54,6 +75,8 @@ class ThemeAssets {
       mid: await tryLoad('mid.png'),
       near: await tryLoad('near.png'),
       decor: await tryLoad('decor.png'),
+      cargo: await tryLoad('cargo.png'),
+      cargoHeavy: await tryLoad('cargo_heavy.png'),
     );
     _cache[theme.id] = assets;
     return assets;
