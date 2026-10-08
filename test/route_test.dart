@@ -226,8 +226,8 @@ void main() {
 
       // tut_02 has no route (previous test).
       await pump();
-      expect(find.text('Show route'), findsNothing);
-      expect(find.text('Watch a demo'), findsNothing);
+      expect(find.text('SHOW ROUTE'), findsNothing);
+      expect(find.text('WATCH A DEMO'), findsNothing);
 
       // Three crashes on tut_01.
       await tester.runAsync(() async {
@@ -236,8 +236,8 @@ void main() {
         }
       });
       await pump();
-      expect(find.text('Show route'), findsOneWidget);
-      expect(find.text('Watch a demo'), findsOneWidget);
+      expect(find.text('SHOW ROUTE'), findsOneWidget);
+      expect(find.text('WATCH A DEMO'), findsOneWidget);
     });
 
     test('a guided flight is capped at 2★ and the guide persists', () async {

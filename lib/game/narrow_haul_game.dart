@@ -488,10 +488,12 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Level lifecycle ───────────────────────────────────────────────────────
 
+  /// Menu LAUNCH: flies the career's next mission.
   Future<void> beginPlay() async {
     overlays.remove('menu');
     overlays.remove('levelSelect');
     _resetChallenge();
+    levelIndex = LevelRegistry.nextLevelIndex();
     _resetInputState();
     runState = RunState.playing;
     resumeEngine();
@@ -1945,10 +1947,24 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Pause & settings ──────────────────────────────────────────────────────
 
+  /// Hangar → a sub-screen ('levelSelect', 'cosmetics', 'settings'…).
+  void openScreen(String key) {
+    overlays.remove('menu');
+    overlays.add(key);
+  }
+
+  /// A sub-screen → back to the hangar.
+  void closeScreen(String key) {
+    overlays.remove(key);
+    overlays.add('menu');
+  }
+
   /// Android back / system back. Returns false only on the main menu, where
   /// the app may close; everywhere else it steps back one screen.
   bool handleBack() {
     final active = overlays.activeOverlays;
+    if (!creditsVisible.value && active.contains('menu')) return false;
+    AudioService.playUi(UiSound.back);
     if (creditsVisible.value) {
       creditsVisible.value = false;
     } else if (active.contains('rankUp')) {
@@ -1966,8 +1982,6 @@ class NarrowHaulGame extends Forge2DGame
         .any(active.contains)) {
       overlays.removeAll(['levelSelect', 'achievements', 'cosmetics', 'pilotProfile']);
       overlays.add('menu');
-    } else if (active.contains('menu')) {
-      return false;
     } else if (runState == RunState.playing) {
       pauseGame();
     }

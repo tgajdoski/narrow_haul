@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
-import 'package:narrow_haul/ui/fonts.dart';
-import 'package:narrow_haul/ui/tap_sound.dart';
+import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/ui/space_ui.dart';
 
-const _guideColor = Color(0xFF00B4D8);
+const _guideColor = SpaceColors.cyan;
 
 /// Game-over help for a stuck pilot: "Show route" and "Watch a demo flight".
 /// Nothing at all unless [NarrowHaulGame.canShowRoute].
@@ -15,33 +15,31 @@ class RouteHelpButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!game.canShowRoute) return const SizedBox.shrink();
-    final style = OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      side: const BorderSide(color: Color(0x6600B4D8)),
-      foregroundColor: _guideColor,
-    );
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             if (!game.routeGuideOn) ...[
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: withTapSound(game.showRoute),
-                  icon: const Icon(Icons.route_rounded, size: 18),
-                  label: const Text('Show route'),
-                  style: style,
+                child: HoloButton(
+                  label: 'Show route',
+                  icon: Icons.route_rounded,
+                  height: 40,
+                  fontSize: 11.5,
+                  onPressed: game.showRoute,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
             ],
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: withTapSound(game.startDemoFlight),
-                icon: const Icon(Icons.smart_display_outlined, size: 18),
-                label: const Text('Watch a demo'),
-                style: style,
+              child: HoloButton(
+                label: 'Watch a demo',
+                icon: Icons.smart_display_outlined,
+                height: 40,
+                fontSize: 11.5,
+                onPressed: game.startDemoFlight,
               ),
             ),
           ],
@@ -49,6 +47,7 @@ class RouteHelpButtons extends StatelessWidget {
         const SizedBox(height: 4),
         const Text(
           'A guided flight can earn up to 2★',
+          textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white38, fontSize: 11),
         ),
       ],
@@ -71,24 +70,11 @@ class DemoFlightOverlay extends StatelessWidget {
           children: [
             Align(
               alignment: Alignment.topCenter,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xAA0D1B2A),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0x6600B4D8)),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Text(
-                    'DEMO FLIGHT',
-                    style: TextStyle(
-                      fontFamily: kDisplayFont,
-                      color: _guideColor,
-                      letterSpacing: 3,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+              child: HoloChip(
+                icon: Icons.smart_display_outlined,
+                label: 'DEMO FLIGHT',
+                color: _guideColor,
+                highlight: true,
               ),
             ),
             Align(
@@ -98,22 +84,23 @@ class DemoFlightOverlay extends StatelessWidget {
                 builder: (context, done, _) => Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: withTapSound(game.backToMenu),
-                      icon: const Icon(Icons.home_rounded, size: 18),
-                      label: const Text('Menu'),
+                    HoloButton(
+                      label: 'Hangar',
+                      icon: Icons.home_rounded,
+                      sound: UiSound.back,
+                      expand: false,
+                      onPressed: game.backToMenu,
                     ),
                     const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: withTapSound(game.takeControlsFromDemo),
-                      icon: const Icon(Icons.flight_takeoff_rounded, size: 18),
-                      label: Text(
-                        done ? 'Fly it yourself' : 'Take the controls',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: done ? const Color(0xFFE07A5F) : _guideColor,
-                      ),
+                    HoloButton.primary(
+                      label: done ? 'Fly it yourself' : 'Take the controls',
+                      icon: Icons.flight_takeoff_rounded,
+                      accent: done ? SpaceColors.coral : _guideColor,
+                      sound: UiSound.launch,
+                      height: 46,
+                      fontSize: 14,
+                      expand: false,
+                      onPressed: game.takeControlsFromDemo,
                     ),
                   ],
                 ),
@@ -140,19 +127,12 @@ class _RouteGuideToggleState extends State<RouteGuideToggle> {
   @override
   Widget build(BuildContext context) {
     final game = widget.game;
-    return SwitchListTile(
+    return HoloToggle(
+      icon: Icons.route_rounded,
+      title: 'Route guide',
+      subtitle: 'Guided flights earn up to 2★',
       value: game.routeGuideOn,
-      onChanged: withTapSoundValue((v) => setState(() => game.setRouteGuide(v))),
-      activeThumbColor: _guideColor,
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      secondary: const Icon(Icons.route_rounded, color: Colors.white60),
-      title: const Text('Route guide', style: TextStyle(fontSize: 14)),
-      subtitle: const Text(
-        'Guided flights earn up to 2★',
-        style: TextStyle(color: Colors.white38, fontSize: 12),
-      ),
+      onChanged: (v) => setState(() => game.setRouteGuide(v)),
     );
   }
 }

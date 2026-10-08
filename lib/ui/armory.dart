@@ -5,7 +5,7 @@ import '../game/services/monetization_service.dart';
 import '../game/services/progress_service.dart';
 import '../game/ship/weapons.dart';
 import 'store_feedback.dart';
-import 'tap_sound.dart';
+import 'space_ui.dart';
 
 /// Units a rewarded ad adds (laser: seconds).
 double rewardedAmmoUnits(WeaponSpec w) => w.continuous ? 5 : 1;
@@ -14,13 +14,13 @@ String ammoText(WeaponSpec w, double units) =>
     w.continuous ? '${units.round()} s' : '×${units.round()}';
 
 String _weaponIcon(WeaponSpec w) => switch (w.kind) {
-      WeaponKind.charge => '💥',
-      WeaponKind.bomb => '💣',
-      WeaponKind.laser => '🔦',
-      WeaponKind.seeker => '🚀',
-      WeaponKind.flak => '🎆',
-      WeaponKind.cannon => '🔫',
-    };
+  WeaponKind.charge => '💥',
+  WeaponKind.bomb => '💣',
+  WeaponKind.laser => '🔦',
+  WeaponKind.seeker => '🚀',
+  WeaponKind.flak => '🎆',
+  WeaponKind.cannon => '🔫',
+};
 
 /// Garage → Armory: the special weapons, the ammo the pilot carries, and
 /// ways to get more (coins, a rewarded ad, ammo packs from the store).
@@ -137,98 +137,101 @@ class _WeaponTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = WeaponStats.of(weapon);
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1B2A),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x151B263B)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(_weaponIcon(weapon), style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: HoloPanel(
+        accent: const Color(0xFF3A5068),
+        glow: 0,
+        brackets: false,
+        cut: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_weaponIcon(weapon), style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        weapon.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        carried > 0 ? ammoText(weapon, carried) : 'none',
+                        style: TextStyle(
+                          color: carried > 0
+                              ? const Color(0xFFFFC857)
+                              : Colors.white30,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    weapon.blurb,
+                    style: const TextStyle(color: Colors.white60, fontSize: 11),
+                  ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: [
+                      _Bar(label: 'POWER', value: st.power),
+                      _Bar(label: 'REACH', value: st.reach),
+                      _Bar(label: 'MINING', value: st.mining),
+                      _Bar(label: 'AIM', value: st.precision),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      weapon.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      carried > 0 ? ammoText(weapon, carried) : 'none',
-                      style: TextStyle(
-                        color: carried > 0 ? const Color(0xFFFFC857) : Colors.white30,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                HoloButton(
+                  label:
+                      '+${ammoText(weapon, weapon.coinPack.toDouble())} · 💰 ${weapon.coinCost}',
+                  accent: SpaceColors.green,
+                  height: 34,
+                  fontSize: 11,
+                  expand: false,
+                  onPressed: canAfford ? onBuy : null,
+                  onLocked: () {},
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  weapon.blurb,
-                  style: const TextStyle(color: Colors.white60, fontSize: 11),
-                ),
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    _Bar(label: 'POWER', value: st.power),
-                    _Bar(label: 'REACH', value: st.reach),
-                    _Bar(label: 'MINING', value: st.mining),
-                    _Bar(label: 'AIM', value: st.precision),
-                  ],
+                ValueListenableBuilder<bool>(
+                  valueListenable: MonetizationService.instance.rewardedReady,
+                  builder: (context, ready, _) => !ready
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: HoloButton(
+                            label:
+                                '+${ammoText(weapon, rewardedAmmoUnits(weapon))}',
+                            icon: Icons.ondemand_video_rounded,
+                            accent: SpaceColors.gold,
+                            height: 34,
+                            fontSize: 11,
+                            expand: false,
+                            onPressed: onWatch,
+                          ),
+                        ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: canAfford ? withTapSound(onBuy) : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF4ADE80),
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: Text(
-                  '+${ammoText(weapon, weapon.coinPack.toDouble())}  💰 ${weapon.coinCost}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: MonetizationService.instance.rewardedReady,
-                builder: (context, ready, _) => !ready
-                    ? const SizedBox.shrink()
-                    : TextButton.icon(
-                        onPressed: withTapSound(onWatch),
-                        icon: const Icon(Icons.ondemand_video_rounded, size: 16),
-                        label: Text(
-                          '+${ammoText(weapon, rewardedAmmoUnits(weapon))}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFFFD166),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -245,47 +248,50 @@ class _PackTile extends StatelessWidget {
     final contents = ProductIds.ammoPacks[productId]!;
     final line = [
       for (final e in contents.entries)
-        if (weaponById(e.key) case final w?) '${ammoText(w, e.value)} ${w.name}',
+        if (weaponById(e.key) case final w?)
+          '${ammoText(w, e.value)} ${w.name}',
     ].join(' · ');
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B1A12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x55FFC857)),
-      ),
-      child: Row(
-        children: [
-          const Text('📦', style: TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ProductIds.names[productId] ?? productId,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: HoloPanel(
+        accent: const Color(0xFFFFC857),
+        glow: 0.4,
+        cut: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            const Text('📦', style: TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ProductIds.names[productId] ?? productId,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(line, style: const TextStyle(color: Colors.white60, fontSize: 11)),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    line,
+                    style: const TextStyle(color: Colors.white60, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
-          ),
-          FilledButton(
-            onPressed: withTapSound(onBuy),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC857),
-              foregroundColor: const Color(0xFF1B1A12),
-              visualDensity: VisualDensity.compact,
+            HoloButton.primary(
+              label: MonetizationService.instance.priceOf(productId),
+              accent: const Color(0xFFFFC857),
+              height: 38,
+              fontSize: 13,
+              expand: false,
+              onPressed: onBuy,
             ),
-            child: Text(MonetizationService.instance.priceOf(productId)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -313,22 +319,13 @@ class _Bar extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          width: 52,
-          height: 5,
-          decoration: BoxDecoration(
-            color: const Color(0x22FFFFFF),
-            borderRadius: BorderRadius.circular(3),
-          ),
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: value.clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFC857),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
+        SizedBox(
+          width: 56,
+          child: HoloGauge(
+            value: value,
+            color: const Color(0xFFFFC857),
+            height: 5,
+            segments: 8,
           ),
         ),
       ],

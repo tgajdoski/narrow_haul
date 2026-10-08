@@ -28,8 +28,8 @@ void main() {
     tester,
   ) async {
     await pump(tester, PauseOverlay(game: NarrowHaulGame()));
-    expect(find.text('Resume'), findsOneWidget);
-    expect(find.text('Restart'), findsOneWidget);
+    expect(find.text('RESUME'), findsOneWidget);
+    expect(find.text('RESTART'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -50,7 +50,12 @@ void main() {
   ) async {
     await pump(tester, SettingsOverlay(game: NarrowHaulGame()));
     for (final label in ['Privacy policy', 'Support', 'Licenses', 'Reset progress']) {
-      await tester.scrollUntilVisible(find.text(label), 50);
+      // The right-hand column (purchases + about) is the last scroll view.
+      await tester.scrollUntilVisible(
+        find.text(label),
+        50,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text(label), findsOneWidget);
     }
     expect(tester.takeException(), isNull);

@@ -5,48 +5,16 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
+import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const _panelColor = Color(0xFF0D1B2A);
-const _accent = Color(0xFF00B4D8);
+const _panelColor = SpaceColors.panel;
 
-/// Shared dimmed backdrop + rounded card used by pause and settings.
-class _Panel extends StatelessWidget {
-  const _Panel({required this.child, this.maxWidth = 380});
-
-  final Widget child;
-  final double maxWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xCC000000),
-      child: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: Material(
-                color: _panelColor,
-                borderRadius: BorderRadius.circular(16),
-                // Scrolls rather than overflows on short landscape phones.
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                  child: child,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Mid-flight pause menu ('pause' overlay).
+/// Mid-flight pause menu ('pause' overlay): one wide cockpit panel, every
+/// action in a single row so it fits a landscape phone.
 class PauseOverlay extends StatelessWidget {
   const PauseOverlay({super.key, required this.game});
 
@@ -54,76 +22,98 @@ class PauseOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buttonPad = const EdgeInsets.symmetric(vertical: 12);
-    return _Panel(
-      maxWidth: 320,
+    return HoloDialog(
+      maxWidth: 620,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'PAUSED',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-              letterSpacing: 4,
-              color: _accent,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            game.currentLevelDef.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: withTapSound(game.resumeGame),
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text(
-              'Resume',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: _accent,
-              padding: buttonPad,
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: withTapSound(game.restartLevel),
-            icon: const Icon(Icons.replay_rounded),
-            label: const Text('Restart'),
-            style: OutlinedButton.styleFrom(padding: buttonPad),
-          ),
-          if (game.routeGuideAvailable) ...[
-            const SizedBox(height: 6),
-            RouteGuideToggle(game: game),
-          ],
-          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: withTapSound(() {
-                    game.overlays.remove('pause');
-                    game.overlays.add('settings');
-                  }),
-                  icon: const Icon(Icons.tune_rounded, size: 18),
-                  label: const Text('Settings'),
-                  style: OutlinedButton.styleFrom(padding: buttonPad),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PAUSED',
+                      style:
+                          hudLabel(
+                            24,
+                            color: SpaceColors.cyanBright,
+                            spacing: 5,
+                          ).copyWith(
+                            shadows: const [
+                              Shadow(color: SpaceColors.cyan, blurRadius: 14),
+                            ],
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      game.currentLevelDef.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: withTapSound(game.backToMenu),
-                  icon: const Icon(Icons.home_rounded, size: 18),
-                  label: const Text('Menu'),
-                  style: OutlinedButton.styleFrom(padding: buttonPad),
-                ),
-              ),
+              if (game.routeGuideAvailable)
+                SizedBox(width: 250, child: RouteGuideToggle(game: game)),
             ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 68,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: HoloButton.primary(
+                    label: 'Resume',
+                    icon: Icons.play_arrow_rounded,
+                    sound: UiSound.close,
+                    height: 68,
+                    fontSize: 18,
+                    onPressed: game.resumeGame,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HoloTile(
+                    icon: Icons.replay_rounded,
+                    label: 'Restart',
+                    accent: SpaceColors.coral,
+                    sound: UiSound.launch,
+                    onTap: game.restartLevel,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HoloTile(
+                    icon: Icons.tune_rounded,
+                    label: 'Settings',
+                    accent: Colors.white70,
+                    onTap: () {
+                      game.overlays.remove('pause');
+                      game.overlays.add('settings');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HoloTile(
+                    icon: Icons.home_rounded,
+                    label: 'Hangar',
+                    sound: UiSound.back,
+                    onTap: game.backToMenu,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -131,8 +121,9 @@ class PauseOverlay extends StatelessWidget {
   }
 }
 
-/// Settings ('settings' overlay) — opened from the menu or the pause menu,
-/// and returns to whichever opened it.
+/// Settings ('settings' overlay) — opened from the hangar or the pause menu,
+/// and returns to whichever opened it. Switches on the left, purchases and
+/// links on the right (the only part that may scroll).
 class SettingsOverlay extends StatefulWidget {
   const SettingsOverlay({super.key, required this.game});
 
@@ -159,91 +150,141 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return _Panel(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: withTapSound(_back),
-                icon: const Icon(Icons.arrow_back_rounded),
-                color: Colors.white70,
-              ),
-              Text(
-                'SETTINGS',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3,
-                  color: _accent,
+    final toggles = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        HoloToggle(
+          icon: Icons.volume_up_rounded,
+          title: 'Sound effects',
+          value: _p.soundEnabled,
+          onChanged: (v) => _set(_p.setSoundEnabled, v),
+        ),
+        HoloToggle(
+          icon: Icons.music_note_rounded,
+          title: 'Music',
+          value: _p.musicEnabled,
+          onChanged: (v) => _set(_p.setMusicEnabled, v),
+        ),
+        HoloToggle(
+          icon: Icons.vibration_rounded,
+          title: 'Vibration',
+          subtitle: 'Crash, landing and rope hook',
+          value: _p.hapticsEnabled,
+          onChanged: (v) => _set(_p.setHapticsEnabled, v),
+        ),
+        HoloToggle(
+          icon: Icons.swap_horiz_rounded,
+          title: 'Left-handed controls',
+          subtitle: 'Thrust on the left, steering on the right',
+          value: _p.leftHanded,
+          onChanged: (v) => _set(_p.setLeftHanded, v),
+        ),
+        HoloToggle(
+          icon: Icons.map_outlined,
+          title: 'Minimap',
+          value: _p.minimapEnabled,
+          onChanged: (v) => _set(_p.setMinimapEnabled, v),
+        ),
+      ],
+    );
+
+    final panel = SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: PanelEntrance(
+              child: HoloPanel(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        HoloBackButton(
+                          onPressed: _back,
+                          label: widget.game.isPaused ? 'Pause' : 'Hangar',
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          'SETTINGS',
+                          style: hudLabel(
+                            18,
+                            color: SpaceColors.cyan,
+                            spacing: 3.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const PanelTitle('Cockpit'),
+                                const SizedBox(height: 4),
+                                Flexible(
+                                  child: SingleChildScrollView(child: toggles),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 14),
+                            height: 200,
+                            color: const Color(0x2200B4D8),
+                          ),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const PanelTitle('Account & info'),
+                                const SizedBox(height: 4),
+                                Flexible(
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _PurchasesSection(
+                                          onChanged: () => setState(() {}),
+                                        ),
+                                        _AboutSection(game: widget.game),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 8),
-          _toggle(
-            icon: Icons.volume_up_rounded,
-            title: 'Sound effects',
-            value: _p.soundEnabled,
-            onChanged: (v) => _set(_p.setSoundEnabled, v),
-          ),
-          _toggle(
-            icon: Icons.music_note_rounded,
-            title: 'Music',
-            value: _p.musicEnabled,
-            onChanged: (v) => _set(_p.setMusicEnabled, v),
-          ),
-          _toggle(
-            icon: Icons.vibration_rounded,
-            title: 'Vibration',
-            subtitle: 'Crash, landing and rope hook',
-            value: _p.hapticsEnabled,
-            onChanged: (v) => _set(_p.setHapticsEnabled, v),
-          ),
-          _toggle(
-            icon: Icons.swap_horiz_rounded,
-            title: 'Left-handed controls',
-            subtitle: 'Thrust on the left, steering on the right',
-            value: _p.leftHanded,
-            onChanged: (v) => _set(_p.setLeftHanded, v),
-          ),
-          _toggle(
-            icon: Icons.map_outlined,
-            title: 'Minimap',
-            value: _p.minimapEnabled,
-            onChanged: (v) => _set(_p.setMinimapEnabled, v),
-          ),
-          const Divider(color: Color(0x22FFFFFF), height: 20),
-          _PurchasesSection(onChanged: () => setState(() {})),
-          const Divider(color: Color(0x22FFFFFF), height: 20),
-          _AboutSection(game: widget.game),
-        ],
+        ),
       ),
     );
-  }
 
-  Widget _toggle({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return SwitchListTile(
-      value: value,
-      onChanged: withTapSoundValue(onChanged),
-      activeThumbColor: _accent,
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      secondary: Icon(icon, color: Colors.white60),
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle,
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
-            ),
+    if (widget.game.isPaused) {
+      return ColoredBox(color: const Color(0xB3020510), child: panel);
+    }
+    return Stack(
+      children: [
+        const Positioned.fill(child: SpaceBackdrop()),
+        Positioned.fill(child: panel),
+      ],
     );
   }
 }
@@ -333,33 +374,17 @@ class _PurchasesSection extends StatelessWidget {
     String? trailing,
     Future<void> Function()? onTap,
   }) {
-    return ListTile(
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: Icon(icon, color: Colors.white60),
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle,
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
-            ),
-      trailing: trailing == null
-          ? null
-          : Text(
-              trailing,
-              style: const TextStyle(
-                color: _accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-      onTap: withTapSound(onTap == null
+    return HoloListRow(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      onTap: onTap == null
           ? null
           : () async {
               await onTap();
               onChanged();
-            }),
+            },
     );
   }
 }
@@ -379,8 +404,16 @@ class _AboutSection extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _linkRow(Icons.shield_outlined, 'Privacy policy', () => _open(_privacyUrl)),
-        _linkRow(Icons.help_outline_rounded, 'Support', () => _open(_supportUrl)),
+        _linkRow(
+          Icons.shield_outlined,
+          'Privacy policy',
+          () => _open(_privacyUrl),
+        ),
+        _linkRow(
+          Icons.help_outline_rounded,
+          'Support',
+          () => _open(_supportUrl),
+        ),
         _linkRow(
           Icons.description_outlined,
           'Licenses',
@@ -433,7 +466,9 @@ class _AboutSection extends StatelessWidget {
           ),
           TextButton(
             onPressed: withTapSound(() => Navigator.of(context).pop(true)),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF6B6B)),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF6B6B),
+            ),
             child: const Text('Reset'),
           ),
         ],
@@ -458,13 +493,6 @@ class _AboutSection extends StatelessWidget {
     VoidCallback onTap, {
     Color color = Colors.white60,
   }) {
-    return ListTile(
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: Icon(icon, color: color),
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      onTap: withTapSound(onTap),
-    );
+    return HoloListRow(icon: icon, title: title, onTap: onTap, color: color);
   }
 }

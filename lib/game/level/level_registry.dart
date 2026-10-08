@@ -168,6 +168,18 @@ abstract final class LevelRegistry {
     final previous = world.levels[indexInWorld - 1];
     return ProgressService.instance.getStarsById(previous.saveId) > 0;
   }
+
+  /// The career's next mission: the first unlocked level without a star,
+  /// else the last unlocked one.
+  static int nextLevelIndex() {
+    var lastUnlocked = 0;
+    for (var i = 0; i < totalLevels; i++) {
+      if (!isLevelUnlocked(i)) continue;
+      lastUnlocked = i;
+      if (ProgressService.instance.getStarsById(flat[i].saveId) == 0) return i;
+    }
+    return lastUnlocked;
+  }
 }
 
 /// Carves a cave level into spawnable [LevelData].

@@ -15,6 +15,13 @@ Python stdlib only. Deterministic: running it twice gives byte-identical files.
   alarm.wav        1 s meltdown loop: two square beeps (C6, E5)
   enemy_shot.wav   turret cannon: FM thump + low-passed whoosh, 0.18 s
   countdown.wav    3·2·1 beep (A5); countdown_go.wav: GO beep (A6)
+  ui_launch.wav    LAUNCH / Retry / Next: rising power-up whoosh, 0.45 s
+  ui_select.wav    tiles and secondary buttons: two-tone chirp, 70 ms
+  ui_back.wav      back: descending two-tone blip, 90 ms
+  ui_open.wav      panel slides in: rising filtered-noise scan + shimmer, 0.22 s
+  ui_close.wav     panel slides out: the same scan falling, 0.18 s
+  ui_toggle_on.wav / ui_toggle_off.wav  switch clicks, up / down, 50 ms
+  ui_denied.wav    locked / can't afford: low double buzz, 0.2 s
 
 attach.mp3 and crash.mp3 are hand-made and not generated here. A real file of
 the same name can replace any of these.
@@ -320,6 +327,109 @@ def countdown():
     _beep('countdown_go.wav', 1760.0, 0.45, 7)
 
 
+# ── space UI kit ────────────────────────────────────────────────────────────
+
+def _sweep(dur, f0, f1, decay, harm=0.0):
+    """Sine sweeping f0 -> f1 (exponential) with an optional 2nd harmonic."""
+    n = int(SR * dur)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        ph += 2 * math.pi * f0 * (f1 / f0) ** (t / dur) / SR
+        out.append((math.sin(ph) + harm * math.sin(2 * ph)) * math.exp(-t * decay))
+    return out
+
+
+def _lowpassed_noise(seed, n, c0, c1, dur):
+    rng = random.Random(seed)
+    noise = [rng.uniform(-1, 1) for _ in range(n)]
+    for _ in range(2):
+        p = 0.0
+        for i in range(n):
+            fc = c0 * (c1 / c0) ** (i / SR / dur)
+            p += (1 - math.exp(-2 * math.pi * fc / SR)) * (noise[i] - p)
+            noise[i] = p
+    return noise
+
+
+def ui_launch():
+    """Power-up: sine 180 -> 1400 Hz with a fifth above, rising noise swell."""
+    dur = 0.45
+    n = int(SR * dur)
+    noise = _lowpassed_noise(11, n, 400, 5000, dur)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        f = 180 * (1400 / 180) ** ((t / dur) ** 0.7)
+        ph += 2 * math.pi * f / SR
+        env = math.sin(math.pi * min(1.0, t / dur * 1.15)) ** 0.8
+        tone = math.sin(ph) + 0.4 * math.sin(1.5 * ph) + 0.2 * math.sin(2 * ph)
+        out.append((0.7 * tone + 1.6 * noise[i] * (t / dur)) * env)
+    _edges(out, 0.04)
+    write_wav('ui_launch.wav', out)
+
+
+def ui_select():
+    """Two-tone chirp: 1320 Hz then 1980 Hz, 35 ms each."""
+    out = _sweep(0.035, 1320, 1400, 40, 0.2) + _sweep(0.035, 1980, 2100, 60, 0.2)
+    _edges(out, 0.006)
+    write_wav('ui_select.wav', out)
+
+
+def ui_back():
+    """Descending blip: 1500 Hz then 900 Hz."""
+    out = _sweep(0.045, 1500, 1350, 35, 0.2) + _sweep(0.045, 900, 760, 55, 0.2)
+    _edges(out, 0.008)
+    write_wav('ui_back.wav', out)
+
+
+def _scan(name, seed, dur, c0, c1, f0, f1):
+    n = int(SR * dur)
+    noise = _lowpassed_noise(seed, n, c0, c1, dur)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        ph += 2 * math.pi * f0 * (f1 / f0) ** (t / dur) / SR
+        env = math.sin(math.pi * t / dur) ** 1.5
+        trem = 0.75 + 0.25 * math.sin(2 * math.pi * 38 * t)
+        out.append((1.4 * noise[i] + 0.25 * math.sin(ph)) * env * trem)
+    _edges(out, 0.02)
+    write_wav(name, out)
+
+
+def ui_open():
+    _scan('ui_open.wav', 12, 0.22, 600, 4200, 900, 2400)
+
+
+def ui_close():
+    _scan('ui_close.wav', 13, 0.18, 4200, 600, 2400, 900)
+
+
+def ui_toggles():
+    on = _sweep(0.05, 900, 1700, 70, 0.3)
+    _edges(on, 0.006)
+    write_wav('ui_toggle_on.wav', on)
+    off = _sweep(0.05, 1500, 700, 70, 0.3)
+    _edges(off, 0.006)
+    write_wav('ui_toggle_off.wav', off)
+
+
+def ui_denied():
+    """Low double buzz: two 75 ms square-ish pulses at 140 Hz."""
+    out = []
+    for k in range(2):
+        n = int(0.075 * SR)
+        for i in range(n):
+            t = i / SR
+            s = math.tanh(3 * math.sin(2 * math.pi * 140 * t))
+            s += 0.3 * math.sin(2 * math.pi * 283 * t)
+            out.append(s * math.sin(math.pi * t / 0.075) ** 0.6)
+        if k == 0:
+            out += [0.0] * int(0.04 * SR)
+    _edges(out, 0.01)
+    write_wav('ui_denied.wav', out)
+
+
 def _edges(out, fade_s):
     """0.5 ms attack ramp and a linear fade-out of [fade_s]."""
     att, fade = max(1, int(0.0005 * SR)), int(fade_s * SR)
@@ -343,3 +453,10 @@ if __name__ == '__main__':
     alarm()
     enemy_shot()
     countdown()
+    ui_launch()
+    ui_select()
+    ui_back()
+    ui_open()
+    ui_close()
+    ui_toggles()
+    ui_denied()

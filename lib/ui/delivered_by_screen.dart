@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../game/services/audio_service.dart';
 import 'fonts.dart';
+import 'space_ui.dart';
 
 /// One of the kids who helped build the game.
 class DeliveredByCrew {
@@ -155,29 +156,23 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
       onTap: _onTap,
       child: FadeTransition(
         opacity: ReverseAnimation(_exit),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: _backdrop,
-            gradient: RadialGradient(
-              radius: 1.1,
-              colors: [Color(0xFF15224A), _backdrop, Color(0xFF050816)],
-              stops: [0.0, 0.55, 1.0],
-            ),
-          ),
-          child: CustomPaint(
-            painter: const _StarsPainter(),
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  final avatar = (box.maxHeight * 0.26).clamp(90.0, 160.0);
-                  return AnimatedBuilder(
-                    animation: _intro,
-                    builder: (context, _) => _content(context, avatar),
-                  );
-                },
+        child: Stack(
+          children: [
+            const Positioned.fill(child: SpaceBackdrop()),
+            Positioned.fill(
+              child: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final avatar = (box.maxHeight * 0.26).clamp(90.0, 160.0);
+                    return AnimatedBuilder(
+                      animation: _intro,
+                      builder: (context, _) => _content(context, avatar),
+                    );
+                  },
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -300,28 +295,4 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
       ],
     );
   }
-}
-
-/// A faint fixed starfield (seeded, so it's the same every time).
-class _StarsPainter extends CustomPainter {
-  const _StarsPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rnd = math.Random(7);
-    final paint = Paint();
-    for (var i = 0; i < 70; i++) {
-      final p = Offset(
-        rnd.nextDouble() * size.width,
-        rnd.nextDouble() * size.height,
-      );
-      paint.color = Colors.white.withValues(
-        alpha: 0.08 + rnd.nextDouble() * 0.22,
-      );
-      canvas.drawCircle(p, 0.6 + rnd.nextDouble() * 0.9, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_StarsPainter oldDelegate) => false;
 }

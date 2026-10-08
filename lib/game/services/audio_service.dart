@@ -19,11 +19,12 @@ import 'thrust_envelope.dart';
 ///   enemy_shot.wav  – turret firing (pooled)
 ///   alarm.wav       – reactor meltdown countdown (1 s loop)
 ///   ui_tap.wav      – menu buttons (pooled)
+///   ui_*.wav        – space UI kit sounds, see [UiSound]
 ///   countdown.wav / countdown_go.wav – 3·2·1 / GO before auto-launch
 ///   start_level.m4a – level-start sting (Space Music Pack, Goose Ninja)
 /// Music tracks (music_*.m4a) are played by [MusicService].
 class AudioService {
-  static const _files = [
+  static final _files = [
     'thrust_loop.wav',
     'attach.mp3',
     'crash.mp3',
@@ -34,10 +35,10 @@ class AudioService {
     'pickup.wav',
     'enemy_shot.wav',
     'alarm.wav',
-    'ui_tap.wav',
     'start_level.m4a',
     'countdown.wav',
     'countdown_go.wav',
+    for (final s in UiSound.values) s.file,
   ];
 
   /// Respects the iOS ring/silent switch (ambient) and never interrupts the
@@ -65,10 +66,9 @@ class AudioService {
   /// Preloaded players per one-shot sound (size = how many may overlap).
   /// Pooled players recycle on completion, unlike `FlameAudio.play`'s
   /// low-latency players, which Android never reports as complete.
-  static const _poolSizes = {
+  static final _poolSizes = {
     'shot.wav': 4,
     'enemy_shot.wav': 4,
-    'ui_tap.wav': 2,
     'boom.wav': 3,
     'pickup.wav': 2,
     'attach.mp3': 1,
@@ -78,6 +78,7 @@ class AudioService {
     'start_level.m4a': 1,
     'countdown.wav': 1,
     'countdown_go.wav': 1,
+    for (final s in UiSound.values) s.file: s.poolSize,
   };
   static final Map<String, AudioPool> _pools = {};
 
@@ -302,7 +303,10 @@ class AudioService {
 
   static void playEnemyShot() => _play('enemy_shot.wav', 0.55);
 
-  static void playTap() => _play('ui_tap.wav', 0.35);
+  static void playTap() => playUi(UiSound.tap);
+
+  /// Space UI kit sound (buttons, panels, switches).
+  static void playUi(UiSound sound) => _play(sound.file, sound.volume);
 
   /// Explosion that isn't the player's crash (keeps the engine loop going).
   static void playBoom() => _play('boom.wav', 0.7);
@@ -320,4 +324,36 @@ class AudioService {
   /// Start countdown: a beep for 3, 2, 1 and a higher one for GO.
   static void playCountdown({required bool go}) =>
       _play(go ? 'countdown_go.wav' : 'countdown.wav', 0.5);
+}
+
+/// Menu sounds of the space UI kit (`lib/ui/space_ui.dart`), quiet enough to
+/// sit under the menu music.
+enum UiSound {
+  /// Generic button blip.
+  tap('ui_tap.wav', 0.35, 2),
+
+  /// LAUNCH / Retry / Next: power-up whoosh.
+  launch('ui_launch.wav', 0.4, 1),
+
+  /// Tiles and secondary buttons.
+  select('ui_select.wav', 0.3, 2),
+
+  /// Back buttons and the back key.
+  back('ui_back.wav', 0.3, 2),
+
+  /// A panel or popover slides in.
+  open('ui_open.wav', 0.25, 1),
+
+  /// A panel or popover slides out.
+  close('ui_close.wav', 0.25, 1),
+  toggleOn('ui_toggle_on.wav', 0.35, 1),
+  toggleOff('ui_toggle_off.wav', 0.35, 1),
+
+  /// Locked or can't afford.
+  denied('ui_denied.wav', 0.3, 1);
+
+  const UiSound(this.file, this.volume, this.poolSize);
+  final String file;
+  final double volume;
+  final int poolSize;
 }
