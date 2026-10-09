@@ -1,88 +1,131 @@
 # Narrow Haul — Launch Readiness
 
-**Second check:** 2026-10-08, after `feef73e` (music, SFX, countdown) and the fixes listed under *Done in this pass*. The first check (`1af276c`) is summarised under *Done*.
+**Third check:** 2026-10-09, after 53 commits since the second check (`59b9532`): weapons, loadout, flight feel, the holo UI, the bigger ship and pod, the launch intro, the guidance HUD, offline recovery, the perf pass, and the fixes under *Done in this pass*.
 
 ## Verdict
 
-**The code is ready for a TestFlight / Play closed-testing build. What's left is mostly playtesting and store paperwork.**
-- `flutter analyze` is clean, and **150 tests pass** (the autopilot is skipped by default).
-- Autopilot: a full re-run at the current code was in progress at commit time, with **42/42 levels passing 3★ so far** (Tutorial to lava_05). The last committed full run (`659c4ae`) passed all 60. If the remaining levels change anything, it will be noted here.
-- All 60 levels have a bundled route-guide recording. Turrets only appear in The Redoubt, where the Talon can shoot back.
-- Release builds run at full gravity with no debug buttons.
-- In place:
-  - Crashlytics
-  - real AdMob units, UMP consent, IAP with Restore
-  - safe areas, the Android back button, a text-scale cap
-  - licences, privacy and support links, Reset progress
-- The one real unknown is **no human has played** the ships, fields, defences, route guide, countdown or audio in a release build yet.
+**The code is ready for a TestFlight / Play closed-testing build.** What's left is a device playtest of everything new since 2026-10-08, new store screenshots, and store paperwork.
+
+- `flutter analyze` is clean. **387 tests pass**; the autopilot and perf benches are skipped by default.
+- Autopilot: **60/60 levels deliver 3★** with the 1.3 human margin. `mine_08` (bar chamber widened to 3.5 m for the bigger Mule), `lava_05` and `lava_08` are "3★ tight". All 60 route-guide recordings are bundled.
+- Performance (`docs/PERF_BASELINE.md`):
+  - Headless, every level updates in ≤ 0.9 ms p95.
+  - On the iPhone, raster p95 is ≤ 4.2 ms on the 7 heaviest levels, with no late frames.
+  - Sound pools now warm up after the game shows.
+- This pass found **two release-only bugs that tests couldn't see** and fixed both:
+  - Rock carving never worked on a device.
+  - Android ammo packs could get stuck as "already owned".
+- Release builds:
+  - full gravity, no debug buttons
+  - real ad units; test units in debug/profile
+  - Firebase collects only in release, and Analytics never takes the advertising ID
 
 ---
 
 ## Open — your actions
 
 ### Before the first test build
-- [ ] **Playtest the profile build** on the iPhone (see the plan below).
+- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, forgiving rock and the shield glow, the guidance HUD, the briefing and the intro.
+- [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
+  - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
+  - Consider adding a weapons shot, the Armory and the briefing. See `art_src/store/README.md`.
+- [ ] **Deploy the website** (`website/deploy.sh`). The privacy policy now covers the ammo packs, every analytics event, and that Analytics doesn't collect the ad ID.
 - [ ] **Back up** `~/narrowhaul-upload.jks` and `android/key.properties` off this machine. If they're lost, you can't ship updates on Play.
-- [ ] **AdMob:** confirm the IDFA explainer message is published. The ATT prompt comes from it; the app never calls ATT itself.
-- [ ] Bump the build number in `pubspec.yaml` (it's currently `1.0.0+2`).
+- [ ] **AdMob:** confirm the IDFA explainer message is published. The ATT prompt comes from it.
+- [ ] Bump the build number in `pubspec.yaml`. It's `1.0.0+3`; use +4 unless 3 was never uploaded.
 
 ### Test builds
-- [ ] **TestFlight upload.** It confirms `UIRequiresFullScreen`. If App Store Connect warns about ITMS-91053 (privacy manifest), add an app-level `ios/Runner/PrivacyInfo.xcprivacy`. Every plugin already ships its own, so a warning is unlikely.
-- [ ] **Play closed testing.** Personal developer accounts created after Nov 2023 need 12 testers for 14 days before production.
-- [ ] **Profile on a cheap Android phone** and try an **Android tablet or foldable**. Android 16 ignores `sensorLandscape` on screens ≥ 600 dp.
-- [ ] On each device, check:
-  - background and resume (the music must stay silent in the background)
-  - the back button
-  - an interstitial and a rewarded ad (the music pauses under them)
-  - a sandbox purchase, plus Restore (you should see the "Purchases restored" or "No purchases to restore" message)
+- [ ] **TestFlight upload.** If App Store Connect warns about ITMS-91053 (privacy manifest), add `ios/Runner/PrivacyInfo.xcprivacy`. The plugins ship their own, so a warning is unlikely.
+- [ ] **Play closed testing.** Personal developer accounts created after Nov 2023 need 12 testers for 14 days.
+- [ ] **Profile on a cheap Android phone**, and try an Android tablet or foldable (Android 16 ignores `sensorLandscape` on screens ≥ 600 dp).
+- [ ] On each device:
+  - background/resume (music silent in the background) and the back button
+  - an interstitial and a rewarded ad (music pauses)
+  - a sandbox purchase and Restore
+- [ ] **Android only: buy an ammo pack twice.** The second buy must go through, which proves the pack is consumed. Also kill the app while the Play sheet is open, relaunch, and check the pack arrives once and can be bought again.
+- [ ] **Offline:** start in airplane mode (no ads, no buy rows, the game plays), then go online and open the Garage. Ads and the store should come back.
+- [ ] DebugView check now needs `--dart-define=FIREBASE_COLLECT=true` on a profile build (`docs/ANALYTICS.md`).
 
 ### Store paperwork
 - [ ] **App Store Connect:**
-  - App Privacy questionnaire. Include AdMob (identifiers, usage, diagnostics, third-party ads, tracking) Crashlytics (**Diagnostics → Crash data**: app functionality, not linked to the user, no tracking) and Firebase Analytics (**Usage Data → Product Interaction**, **Identifiers → Device ID**, **Diagnostics → Other diagnostic data**: Analytics, not linked to the user, no tracking).
+  - **App Privacy:**
+    - AdMob: identifiers, usage, diagnostics, third-party ads, tracking.
+    - Crashlytics: Diagnostics → Crash data; app functionality, not linked, no tracking.
+    - Firebase Analytics: Usage Data → Product Interaction, Diagnostics → Other; Analytics, not linked, no tracking. The device ID is now AdMob's only; Analytics uses its own app-instance ID.
   - Age rating and copyright.
 - [ ] **Play Console:**
-  - Ads = yes, Advertising ID, IARC rating, **target audience 13+**. Ads are already capped at `MaxAdContentRating.pg`.
-  - Data safety. Crashlytics goes under **App info and performance → Crash logs + Diagnostics**: collected, not shared, encrypted in transit. Firebase Analytics adds **App activity → App interactions** and **Device or other IDs** (purpose: Analytics), plus **Purchase history** (purchase attempts and results; Analytics): collected, not shared, encrypted in transit.
-- [ ] App Preview video: record a release build on the iPhone, then run `tool/store/make_videos.sh` (needs ffmpeg). For the **YouTube promo**, use Goose Ninja tracks: some Pixabay tracks are registered with YouTube Content ID and may get claimed.
-- [ ] IAP review screenshots for every product, taken with a sandbox account. Submit the IAPs together with 1.0. The ammo packs `nh_demo_kit` / `nh_arsenal_crate` are **consumables** (Armory tab in the Garage; the rows show only once the store returns them).
+  - Ads = yes, Advertising ID (AdMob), IARC rating, **target audience 13+**.
+  - **Data safety:**
+    - Crash logs and diagnostics (Crashlytics).
+    - App interactions and purchase history (Analytics).
+    - Device or other IDs (AdMob).
+    - All collected, not shared, encrypted in transit.
+- [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
+- [ ] IAP review screenshots (sandbox account): Settings buy rows, and Garage → Armory → AMMO PACKS. Submit the 4 IAPs with 1.0, with the ammo packs as **consumables** in both stores.
 
 ### After publishing
-- [ ] Firebase (status table in `docs/ANALYTICS.md`): custom definitions, BigQuery (EU), Google Play and the privacy page are done. Left: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days), and link AdMob ↔ Firebase. (DebugView device check done 2026-10-09.)
+- [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
 - [ ] Link each store listing in AdMob → App settings. Real ads only serve after that.
-- [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`. Without them, a zafrk deploy deletes the privacy and support pages the stores link to.
+- [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`, or a zafrk deploy deletes the privacy and support pages.
 
 ## Playtest plan
-Use a **profile or release build**: debug builds fly at 0.7× gravity. To install on a device: `flutter build ios --profile`, then `xcrun devicectl device install app …` (see CLAUDE.md → Debug Mode). Debug builds print `RUN <id> fuelLeft=… time=…` on every delivery. Use those lines to calibrate the 1.3 human factor.
+Use a **profile or release build**: debug flies at 0.7× gravity. Install with `flutter build ios --profile`, then `xcrun devicectl device install app …` (CLAUDE.md → Debug Mode). Debug builds print `RUN <id> fuelLeft=… time=…` per delivery; use those to calibrate the 1.3 human factor.
 
-1. **The Redoubt** (Talon):
-   - redoubt_04 and redoubt_02, both reworked on 2026-10-08 so every gun can be sniped from cover
-   - redoubt_05 and redoubt_03 (the meltdown escape)
-   - redoubt_01 and rating_talon
-
-   Check that FIRE above THRUST works with one thumb, that turret fire feels fair, and that Redoubt demos fire back.
-2. **The tightest levels:** mine_05, alien_07, lava_06, orbit_04, lava_08, lava_05, lava_07, orbit_01, and the tight tutorials tut_02, tut_07 and tut_09.
-3. **Ships and fields:**
-   - all 5 type ratings
-   - zero-g in Orbit (stars come down to time)
-   - gravity wells in orbit_02, 03, 05, 06 and 08
-   - wind in ice_03, 04, 07 and 08, and lava_02 and 06
-   - whether the Mule sprite looks wider than its hitbox
-4. **Start and audio:**
-   - Does the 3·2·1·GO countdown feel right, or launch too early?
-   - Thrust taps are audible, and music is balanced against the engine.
-   - The Sound and Music switches work.
-   - Silent switch on iPhone (ambient: the game should be silent).
-5. **Route guide and demo:**
-   - Crash 3× and choose *Show route*: check the dotted line and the ghost.
-   - In *Watch a demo*, obstacles should stay in sync.
-   - Check the game-over layout on a short landscape phone.
-6. **Achievements:** "Fuel Miser" is now ≥ 85% fuel left, so check it can be earned on mine_03 or rating_mule. Check that "Perfect Pilot" (all 3★) feels achievable.
+1. **Start and onboarding:**
+   - Cold start on iOS and Android 12+: does the splash ship line up with the intro, with no colour flash?
+   - Credits on first launch.
+   - Mission briefing on LAUNCH: does the extra tap feel slow?
+   - Countdown 3·2·1·GO.
+   - tut_01–03 coach marks.
+2. **Guidance HUD:**
+   - Does the comms plate ever cover the pod at the bottom of a cave?
+   - Are the callouts too chatty?
+   - The LAND BOTH beacon on a real landing.
+   - The crate weapon icon flying into FIRE.
+   - All of it in left-handed mode.
+3. **Flight feel:**
+   - Try each steering preset (Two-speed, Smooth, Agile, **Point**, Classic) and each camera preset.
+   - Scrape a wall and touch down hard-ish on rock. Does the shield flare and glow feel fair?
+   - Is the glow red near bars and turrets?
+4. **Loadout:** tow gear (Chain, Long Line, Magnetic Grapple, Shock Cord, Tractor Beam) and the Handling kits (Gyro, Vernier, Dampers). Does each feel like a real trade-off?
+5. **Weapons:**
+   - Supply crates: are the 35% odds right?
+   - Charge, bomb, laser, seeker and flak.
+   - **Does a blast carve the rock** (fixed this pass: carving never worked on a device before)?
+   - Ammo-rail thumb reach. The −★ badge on carried ammo.
+   - The Armory, and the rewarded charge after 2 crashes.
+6. **The Redoubt** (Talon):
+   - redoubt_04 and 02 (snipe from cover)
+   - 05 and 03 (meltdown escape, 35/40 s)
+   - 01 and rating_talon
+   - FIRE above THRUST with one thumb, turret fairness, shells shot down, demos firing back
+7. **The tightest levels:** mine_08 (widened bar chamber), lava_05, lava_08, mine_05, alien_07, lava_06, orbit_04, lava_07, orbit_01, and tut_02/07/09.
+8. **Ships and fields:**
+   - All 5 type ratings.
+   - Zero-g in Orbit (are the star times fair?).
+   - Gravity wells in orbit_02/03/05/06/08, and their strength.
+   - Wind in ice_03/04/07/08 and lava_02/06.
+9. **Route guide and demo:**
+   - Crash 3×, then *Show route*: the dotted line and the ghost.
+   - *Watch a demo*: obstacles stay in sync.
+   - The game-over layout on a short phone.
+10. **Audio:**
+    - Thrust taps.
+    - Music against the engine and UI sounds.
+    - The Sound and Music switches.
+    - The iPhone silent switch.
+11. **Achievements:**
+    - "Fuel Miser" (≥ 85%) on mine_03 or rating_mule.
+    - "Perfect Pilot" feels achievable.
 
 ## Post-launch / nice to have
-- **Art:** themed art for the 7 worlds (all use the flat fallback, and the `orbit/` and `redoubt/` folders don't exist yet). Key-art feature graphic. Real liveries instead of tints, and check that "Stealth" stays visible on dark caves.
-- **Audio:** volume sliders (Sound and Music are on/off). Pro sound effects to replace the synthesized ones. The source of `attach.mp3` and `crash.mp3` isn't recorded: confirm it or regenerate them. Optionally mute the music when other audio is already playing.
-- **Cleanup:** prune old per-day prefs keys (`daily_*`, `contracts_*`, `replay_xp_*`). Delete the unused `rope_segment_body.dart`.
-- **Website:** hard-code the contact details instead of setting them from JS. Self-host Google Fonts, or mention them in the privacy policy.
+- **Art:** themed backdrops (`far/mid/near`) and decor for the 7 worlds. Every world has rock and pod art, but the parallax uses the shared tinted fallback. Key-art feature graphic. Real liveries instead of tints; check that "Stealth" stays visible on dark caves.
+- **Loadout:** Engine and Tank kits, winch in/out, release & re-hook, beam sounds.
+- **Audio:** volume sliders, pro SFX, and confirm the source of `attach.mp3` / `crash.mp3`.
+- **Tests:** layout checks for the `rankUp` and `demo` overlays and the contracts popover; a drawn-HUD check (coach marks, comms) at 568×320 left-handed.
+- **IAP:** an ammo pack's grant writes each weapon before marking the transaction. A crash in between re-grants the whole pack once, which errs toward the player.
+- **Cleanup:** prune old per-day prefs keys (`daily_*`, `contracts_*`, `replay_xp_*`).
+- **Website:** self-host Google Fonts or mention them in the privacy policy; hard-code the contact details instead of setting them from JS.
 - **Reach:** localization, a colourblind check (green markers vs red hazards), control-size options.
 - **macOS**, if it ever ships: bundle id and network entitlement.
 
@@ -90,56 +133,70 @@ Use a **profile or release build**: debug builds fly at 0.7× gravity. To instal
 
 ## Done
 
-### In this pass (2026-10-08)
-- **Audio:**
-  - Every one-shot sound now plays from a preloaded pool. Android's low-latency one-off players never reported completion, so they kept piling up.
-  - Each sound file loads on its own, so a bad file only mutes itself instead of all audio and music.
-- **Music:**
-  - It can no longer start playing in the background, when the app was backgrounded while a track was starting or fading out.
-  - It pauses under full-screen ads, and the engine loop and alarm stop.
-- **Purchase feedback:**
-  - Messages for a purchase pending approval, an unavailable store, and "restored" / "nothing to restore".
-  - The Garage Supporter tile no longer does nothing when the store has no product.
-- **Fuel Miser** is now ≥ 85% fuel left. 90% was only reachable on a Fuel Rich daily.
-- Smaller fixes:
-  - The countdown digit is cleared when you leave to the menu.
-  - Switch taps play after the switch, so turning Sound off is silent.
-- The retired `level_11–20.tmx` files are no longer bundled.
-- The store listing now mentions the soundtrack.
-- A full autopilot re-run at the current code was started (see the verdict).
+### In this pass (2026-10-09)
+- **Rock carving works on devices.**
+  - The carve isolate's closure captured the game, so every background re-extract failed with "object is unsendable". On a phone, blasts never opened rock.
+  - Tests only took the synchronous path; a new test carves through the real isolate.
+  - The Test Flight ship options got the same fix.
+- **Android ammo packs:**
+  - They're consumed after the grant (`autoConsume: false`), so a pack bought in a session that died, or approved later, no longer blocks every future buy.
+  - Buys settle only on their own product, so the startup restore can't "deliver" a pack early. A double tap can't end the first buy.
+  - Startup restores log as `restored_startup`.
+- **Intro and credits** leave even if the game load fails or hangs (15 s at most); the error is reported.
+- **Shield glow** is always red near machinery, turrets, reactors and well cores. Those crash at any speed; before, a slow drift glowed a safe cyan.
+- **Firebase** collects only in release builds, so profile playtests no longer skew the dashboards. Analytics never collects the advertising ID or IDFV.
+- **Garage:** every tab is layout-tested. The Armory overflowed on an iPhone SE at 1.3× text; fixed.
+- **Store texts:**
+  - The listing no longer says "every wall is deadly".
+  - It now covers weapons, carving, the shield, steering presets, tow gear, handling kits and the Armory, and says bought ammo caps a flight at 2★.
+  - The screenshots are flagged for recapture.
+- **Privacy policy:** ammo packs, every analytics event and user property, and no ad ID.
+- Same day, from the parallel perf pass (`cdef346`, `ff4536c`):
+  - frame probe and benches
+  - cancel-safe level loads, and a delivery whose booking throws still shows results
+  - sound pools built after the game shows
+  - mine_08's bar chamber widened
 
-### Earlier (first check, `1af276c` → `feef73e`)
+### Since the second check (2026-10-08 → 09)
+- **Gameplay:**
+  - Weapons (5 specials + cannon), destructible machinery, rock carving, supply crates, Armory and ammo packs.
+  - Tow gear with real stats, plus the tractor beam.
+  - Handling kits.
+- **Flight feel:**
+  - forgiving rock (scrape/touchdown), deflector shield flare and proximity glow
+  - two-speed steering with five presets; camera presets with look-ahead and tow zoom
+  - hull traced from the art; ship 1.6× and pod 3× real size; camera scaled to the screen
+  - flat pad shelves, so landings are reliable
+  - player fire shoots down turret shells
+- **UI:**
+  - holo hangar, drawn flight controls, mission and daily briefings, world tabs
+  - FIRE pad with ammo ring and the ammo rail
+  - guidance HUD (coach marks, world markers, comms) instead of the hint pill
+  - animated launch intro and "Delivered by" credits
+  - desktop keyboard controls
+- **Art:** per-world pod sprites (plus heavy pods), rock textures from the tile sheet.
+- **Services:**
+  - Firebase Analytics events (DebugView verified on the iPhone)
+  - purchase confirmations
+  - test ad units and logs in profile builds
+  - offline recovery of ads and the store
+- Shop total 5,280 coins.
+
+### Earlier (first and second checks, `1af276c` → `59b9532`)
 - **Blockers:**
-  - Daily from unlocked levels only
+  - daily only from unlocked levels
   - iPad `UIRequiresFullScreen`
-  - Listing fixed to 7 worlds, with an honest ads line
-  - "Talon" kept as the ship name
-  - Ads capped at PG
-- **Phone UX:**
-  - HUD safe areas
-  - Android back steps back one screen
-  - Text scale capped at 1.3
+  - honest listing
+  - ads capped at PG
+- **Phone UX:** safe areas, Android back, text-scale cap.
 - **Stability:**
-  - `ErrorReporter` and Firebase Crashlytics (website privacy section deployed)
-  - Guarded save migrations and level loads
-  - Type-safe, clamped saves
+  - Crashlytics, guarded migrations and level loads, type-safe saves
+  - pooled one-shot audio; music silent in the background and under ads
 - **Monetization:**
-  - Interstitial retry
-  - IAP errors caught
+  - ad and IAP retries
+  - purchase/restore feedback
   - 50 SKAdNetwork ids
   - `ITSAppUsesNonExemptEncryption`
-  - A signing guard on `bundleRelease`
-  - Release logs silenced
-- **Legal and settings:** Licenses (RussoOne and music credits), Privacy and Support links, Reset progress.
-- **Performance:**
-  - Pre-rendered cave glow
-  - Cached HUD text
-  - Cave builds and Test Flight validation on background isolates
-- **Design:**
-  - Hints for unfamiliar ships, fuel canisters and the star rules
-  - A premium Garage tier (shop total 4,180 coins)
-- **Levels:**
-  - Turrets only for armed ships
-  - redoubt_02 and redoubt_04 reworked
-  - All 60 routes bundled
-- **Audio:** music (Space Music Pack + Pixabay), synthesized SFX, the thrust-tap fix, and the start countdown.
+  - signing guard
+- **Legal:** licences, privacy and support links, Reset progress.
+- **Levels:** turrets only for armed ships; redoubt_02/04 reworked; Fuel Miser at 85%.
