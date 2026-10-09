@@ -234,7 +234,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
 
     <div class="features">
       <div class="card"><span class="tag">Physics</span><h3>Real rope, real momentum</h3><p>The pod swings, drags and bounces. Every burn of the engine shows up at the end of the rope.</p></div>
-      <div class="card"><span class="tag">Fleet</span><h3>Ships with character</h3><p>Fly light hoppers, heavy lifters, fly-by-wire craft and an armed gunship, each with its own handling.</p></div>
+      <div class="card"><span class="tag">Fleet</span><h3>Ships with character</h3><p>Fly light hoppers, heavy lifters, fly-by-wire craft and an armed gunship, each with its own handling. Blast a way through with charges, bombs and lasers.</p></div>
       <div class="card"><span class="tag">Career</span><h3>From student to chief pilot</h3><p>Earn stars on fuel and time, rise through ten pilot ranks and take on daily contracts and challenges.</p></div>
     </div>
 
@@ -257,7 +257,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
         <li>No ads during a flight, and none at all in the tutorial.</li>
         <li>An occasional ad only between missions. Never after a crash.</li>
         <li>Optional ads give a second chance after a crash, double coins or a cosmetic to try.</li>
-        <li>One-time Remove Ads purchase. No subscriptions, no pay-to-win.</li>
+        <li>One-time Remove Ads purchase, plus optional ammo packs. No subscriptions, no pay-to-win: a flight using bought ammo can earn at most two stars.</li>
       </ul>
     </div>
   </section>
@@ -310,7 +310,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <p>Narrow Haul ("the game") is published by <span data-developer></span>. Contact us at <span data-email-link></span> for any privacy question or request.</p>
 
     <h2>2. What the game stores on your device</h2>
-    <p>Your progress (stars, best times, pilot rank and XP, coins, unlocked cosmetics, achievements, daily challenge and contract state) and your settings (sound, vibration, controls, minimap) are saved locally on your device. Your save itself stays on your device and is not sent to us (anonymous gameplay statistics are described in section 6). Uninstalling the game deletes it.</p>
+    <p>Your progress (stars, best times, pilot rank and XP, coins, unlocked cosmetics, tow gear and handling kits, carried weapon ammo, achievements, daily challenge and contract state) and your settings (sound, music, vibration, steering and camera, minimap) are saved locally on your device. Your save itself stays on your device and is not sent to us (anonymous gameplay statistics are described in section 6). Uninstalling the game deletes it.</p>
     <p>The game has no user accounts and does not ask for your name, email, location, contacts, camera or microphone.</p>
 
     <h2>3. Advertising (Google AdMob)</h2>
@@ -324,7 +324,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <p>Google acts as an independent controller of this data. See <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">How Google uses information from sites or apps that use its services</a> and the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.</p>
 
     <h2>4. Purchases</h2>
-    <p>Optional purchases (Remove Ads, Supporter Pack) are processed by the Apple App Store or Google Play. We never receive your payment details. The store tells the game which products you own so they can be unlocked and restored.</p>
+    <p>Optional purchases (Remove Ads, Supporter Pack, and the Demolition Kit and Arsenal Crate ammo packs) are processed by the Apple App Store or Google Play. We never receive your payment details. The store tells the game which products you own so they can be unlocked and restored. Ammo packs are delivered to your device's Armory once per purchase; like other in-game items they can't be restored after the game is deleted.</p>
 
     <h2>5. Crash reports (Firebase Crashlytics)</h2>
     <p>When the game crashes or hits an unexpected error, it sends a crash report through Google Firebase Crashlytics so we can fix the bug. A report contains the error and where in the code it happened, the device model, operating system and app version, and a random installation identifier. It does not contain your name, contacts, location or advertising ID, and it is not used for advertising.</p>
@@ -332,9 +332,10 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <h2>6. Gameplay statistics (Google Analytics for Firebase)</h2>
     <p>To see which levels are too hard, where players get stuck and whether the game runs well, the game sends anonymous usage events through Google Analytics for Firebase. They include:</p>
     <ul>
-      <li>game events: a level started, crashed (with the cause and the spot in the level), was abandoned or completed (stars, time, fuel left, attempt number), route guide and demo use, ranks, achievements, coins earned and spent, weapons used, ads watched and purchase attempts with their result (never payment details),</li>
+      <li>game events: a level started (with the ship, tow gear and mode), crashed (with the cause and the spot in the level), was abandoned or completed (stars, time, fuel left, attempt number), route guide and demo use, the tutorial finished, worlds unlocked, ranks, achievements, coins earned and spent, weapons used and supply crates collected, ads watched and purchase attempts with their result (never payment details),</li>
+      <li>three summary values: your pilot rank, your total stars and whether you have made a purchase,</li>
       <li>app usage that Firebase collects on its own: first open, sessions and their length, app version, device model, operating system, language, country (derived from the IP address, which is not stored), and when the app is removed (Android),</li>
-      <li>a random app-instance identifier that is reset when you reinstall the game.</li>
+      <li>a random app-instance identifier that is reset when you reinstall the game. Analytics does not collect your advertising ID.</li>
     </ul>
     <p>These events are not linked to your name, email or any account, are not used to track you across other companies' apps or websites, and are not used to personalize ads. Where the law requires it, Google's consent signals from <b>Settings → Privacy options</b> limit how Firebase uses ad-related data. Google processes this data on our behalf; see <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Privacy and Security in Firebase</a>.</p>
 
@@ -384,7 +385,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
   var SITE = {
     developer: 'Zafrk',
     email: 'contact@zafrk.com',
-    updated: 'October 8, 2026',
+    updated: 'October 9, 2026',
   };
 
   // ── Fill shared values ─────────────────────────────────────────────────
