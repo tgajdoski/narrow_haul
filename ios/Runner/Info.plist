@@ -71,6 +71,10 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<!-- AdMob App ID (Narrow_Haul iOS). -->
+	<key>GOOGLE_ANALYTICS_IDFV_COLLECTION_ENABLED</key>
+	<false/>
+	<key>GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED</key>
+	<false/>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7248828164794524~4065441858</string>
 	<key>NSUserTrackingUsageDescription</key>

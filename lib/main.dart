@@ -96,12 +96,19 @@ Future<void> _initFirebase() async {
   }
 }
 
+/// Crash reports and analytics go to the live Firebase project only from
+/// release builds (profile builds are playtests: they'd skew the
+/// dashboards). `--dart-define=FIREBASE_COLLECT=true` turns them on in a
+/// profile build, e.g. for a DebugView check.
+const bool _firebaseCollect =
+    kReleaseMode || bool.fromEnvironment('FIREBASE_COLLECT');
+
 Future<void> _connectFirebase() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   final crashlytics = FirebaseCrashlytics.instance;
-  await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+  await crashlytics.setCrashlyticsCollectionEnabled(_firebaseCollect);
   ErrorReporter.sink = (error, stack, context) => crashlytics.recordError(
     error,
     stack,
@@ -109,7 +116,7 @@ Future<void> _connectFirebase() async {
     fatal: context == 'uncaught',
   );
   final analytics = FirebaseAnalytics.instance;
-  await analytics.setAnalyticsCollectionEnabled(!kDebugMode);
+  await analytics.setAnalyticsCollectionEnabled(_firebaseCollect);
   Analytics.sink = (name, params) =>
       analytics.logEvent(name: name, parameters: params);
   Analytics.userPropertySink = (name, value) =>
