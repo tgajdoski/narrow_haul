@@ -67,7 +67,7 @@ void main() {
   });
 
   // The win sensors (DualLandingZone) span the pad box plus kPadSensorDrop.
-  // Whatever rests on the pad's floor — any ship's hull, or the tiny pod —
+  // Whatever rests on the pad's floor — any ship's hull, or the pod —
   // must overlap them, or a delivery isn't recognised (rating_mule's pad
   // used to hang over a slope).
   group('landing pads', () {

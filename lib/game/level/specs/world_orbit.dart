@@ -159,8 +159,8 @@ final List<LevelDef> orbitLevels = [
       modifiers: LevelModifiers(gravityMul: 0),
       cargoClamped: true,
       tunnels: [
-        TunnelSpec([Pt(4, 13), Pt(10, 13)], width: 1.8),
-        TunnelSpec([Pt(34, 13), Pt(40, 13)], width: 1.8),
+        TunnelSpec([Pt(4, 13), Pt(10, 13)], width: 2.1),
+        TunnelSpec([Pt(34, 13), Pt(40, 13)], width: 2.1),
       ],
       chambers: [
         ChamberSpec(Pt(4, 13), 2.4),

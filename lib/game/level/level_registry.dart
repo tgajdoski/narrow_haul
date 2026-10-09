@@ -31,7 +31,7 @@ abstract final class LevelRegistry {
         TmxLevelDef(saveId: 'tut_04', name: 'The Pillar', assetPath: 'assets/tiles/level_04.tmx', stars: StarSpec(star3Time: 35)),
         TmxLevelDef(saveId: 'tut_05', name: 'Twin Gates', assetPath: 'assets/tiles/level_05.tmx', stars: StarSpec(star3Time: 35)),
         TmxLevelDef(saveId: 'tut_06', name: 'Down Under', assetPath: 'assets/tiles/level_06.tmx', stars: StarSpec(star3Time: 35)),
-        TmxLevelDef(saveId: 'tut_07', name: 'Zigzag Run', assetPath: 'assets/tiles/level_07.tmx', stars: StarSpec(star3Time: 40)),
+        TmxLevelDef(saveId: 'tut_07', name: 'Zigzag Run', assetPath: 'assets/tiles/level_07.tmx', stars: StarSpec(star3Fuel: 0.65, star3Time: 40)),
         TmxLevelDef(saveId: 'tut_08', name: 'The Shaft', assetPath: 'assets/tiles/level_08.tmx', stars: StarSpec(star3Time: 45)),
         TmxLevelDef(saveId: 'tut_09', name: 'Long Haul', assetPath: 'assets/tiles/level_09.tmx', stars: StarSpec(star3Time: 45)),
         TmxLevelDef(saveId: 'tut_10', name: 'Graduation', assetPath: 'assets/tiles/level_10.tmx', stars: StarSpec(star3Time: 50)),

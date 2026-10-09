@@ -40,7 +40,7 @@ void main() {
         expect(ys.reduce((a, b) => a < b ? a : b), closeTo(s.noseLocalY, 1e-9), reason: s.id);
         // Hook just behind the nose, inside the hull's reach.
         expect(s.hookLocalY, greaterThan(s.noseLocalY), reason: s.id);
-        expect(s.circumradius, lessThan(0.85), reason: s.id);
+        expect(s.circumradius, lessThan(0.68 * ShipSpec.hullGrowth), reason: s.id);
         // Balance point of the legacy hull, above the base.
         expect(s.massCenterY, lessThan(s.rearLocalY), reason: s.id);
       }

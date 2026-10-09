@@ -243,11 +243,13 @@ final List<LevelDef> mineLevels = [
           [Pt(5, 15), Pt(11, 10), Pt(17, 19), Pt(23, 10), Pt(29, 19), Pt(35, 12), Pt(39, 15)],
           width: 1.5,
         ),
-        TunnelSpec([Pt(23, 10), Pt(26, 7.5)], width: 1.2),
+        // Joins the pod's pocket at its centre height, so the pocket is a
+        // bowl the pod can't roll out of.
+        TunnelSpec([Pt(23, 10), Pt(24.6, 7)], width: 1.4),
       ],
       chambers: [
         ChamberSpec(Pt(5, 15), 2.4),
-        ChamberSpec(Pt(26.5, 7), 1.7),
+        ChamberSpec(Pt(26.5, 7), 2.0),
         ChamberSpec(Pt(39, 15), 2.4),
       ],
       obstacles: [

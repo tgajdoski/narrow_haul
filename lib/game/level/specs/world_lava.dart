@@ -87,8 +87,9 @@ final List<LevelDef> lavaLevels = [
       ],
       chambers: [
         ChamberSpec(Pt(5, 13), 2.4),
-        ChamberSpec(Pt(15.5, 12.5), 2.6),
-        ChamberSpec(Pt(29.5, 12.5), 2.6),
+        // Bar chambers: room for the hull (circumradius ~1 m) past the tips.
+        ChamberSpec(Pt(15.5, 12.5), 3.1),
+        ChamberSpec(Pt(29.5, 12.5), 3.1),
         ChamberSpec(Pt(22, 7.5), 1.6),
         ChamberSpec(Pt(38, 13), 2.4),
       ],
@@ -201,7 +202,7 @@ final List<LevelDef> lavaLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.22, star3Time: 95),
+    stars: const StarSpec(star3Fuel: 0.4, star2Fuel: 0.22, star3Time: 95),
     spec: const LevelSpec(
       id: 'lava_07',
       seed: 407,

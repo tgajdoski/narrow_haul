@@ -97,7 +97,7 @@ final List<LevelDef> iceLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.3, star3Time: 75),
+    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.3, star3Time: 75),
     spec: const LevelSpec(
       id: 'ice_03',
       seed: 303,
@@ -219,8 +219,9 @@ final List<LevelDef> iceLevels = [
           widths: [1.8, 1.4, 1.3, 1.8],
         ),
         TunnelSpec(
-          [Pt(17, 27), Pt(22, 21), Pt(25, 14), Pt(28, 8)],
-          widths: [1.8, 1.3, 1.4, 1.8],
+          // Enters the pad chamber from the side, above the pad shelf.
+          [Pt(17, 27), Pt(22, 21), Pt(24, 14), Pt(24.6, 9.4), Pt(28, 8)],
+          widths: [1.8, 1.3, 1.4, 1.5, 1.8],
         ),
       ],
       chambers: [

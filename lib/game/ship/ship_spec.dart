@@ -99,7 +99,7 @@ class ShipSpec {
   /// version (0.0068 m/px): big enough to read on a phone, with every cave
   /// level still passing the validator up to ×1.3. Mass and thrust don't
   /// depend on it.
-  static const double hullGrowth = 1.25;
+  static const double hullGrowth = 1.6;
 
   /// Sprite scale at hull scale 1 (m per sprite pixel, both axes).
   static const double artMetersPerPx = 0.0068 * hullGrowth;
@@ -282,8 +282,9 @@ const kMule = ShipSpec(
   id: 'mule',
   name: 'Mule',
   sprite: 'ship_mule.png',
-  hullScale: 1.1,
-  density: 1.3,
+  // Kestrel-sized since hullGrowth 1.6 (its obstacle levels were built
+  // around a smaller hull); the density keeps the 1.1-scale flight mass.
+  density: 1.3 * 1.1 * 1.1,
   thrustForce: 8.0,
   secondsPerFullRotation: 5.5,
   turnBoost: 1.6,

@@ -132,7 +132,7 @@ List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   //    A locked pod (cargoClamped) stays exactly at its spawn.
   double? restY = spec.cargoClamped ? spec.cargoSpawn.y : null;
   for (double y = spec.cargoSpawn.y; restY == null && y < spec.cargoSpawn.y + 4.5; y += 0.05) {
-    if (f(spec.cargoSpawn.x, y) >= 0) restY = y - 0.15;
+    if (f(spec.cargoSpawn.x, y) >= 0) restY = y - kCargoRadius;
   }
   if (restY == null) {
     issues.add('cargo has no floor within 4.5 m below spawn');

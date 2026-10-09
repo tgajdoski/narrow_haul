@@ -104,7 +104,19 @@ class RunReward {
 class NarrowHaulGame extends Forge2DGame
     with KeyboardEvents
     implements CombatHost {
+  /// Pixels per metre on a reference phone (landscape height
+  /// [_referenceViewHeight] logical px). Larger screens zoom in by the same
+  /// ratio, so every screen shows the same height of cave and the ship and
+  /// pod take the same share of it (macOS window, iPad).
   static const double _baseZoom = 28;
+  static const double _referenceViewHeight = 390;
+
+  /// Screen height relative to the reference phone (0.8–3).
+  double get _screenScale {
+    final h = camera.viewport.size.y;
+    if (h <= 0) return 1;
+    return (h / _referenceViewHeight).clamp(0.8, 3.0);
+  }
 
   NarrowHaulGame() : super(gravity: narrowHaulGravity(), zoom: _baseZoom);
 
@@ -1020,7 +1032,7 @@ class NarrowHaulGame extends Forge2DGame
 
   /// Normal zoom for the camera mode, never showing outside the world.
   double get _restZoom =>
-      math.max(_baseZoom * FlightTuning.camera.zoomMul, _minContainZoom);
+      math.max(_baseZoom * _screenScale * FlightTuning.camera.zoomMul, _minContainZoom);
 
   void _followCamera(ShipBody s, Vector2 worldSize, double dt) {
     final frames = dt * 60;
