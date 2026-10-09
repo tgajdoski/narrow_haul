@@ -277,6 +277,30 @@ void main() {
     expect(map.pixels, lessThan(50), reason: '${first.name} at the start');
   });
 
+  testWidgets('every Garage tab lays out (tow gear, handling, armory)', (
+    tester,
+  ) async {
+    for (final (tab, icon) in const [
+      ('tow gear', Icons.link_rounded),
+      ('handling', Icons.tune_rounded),
+      ('plumes', Icons.local_fire_department_outlined),
+      ('armory', Icons.gps_fixed_rounded),
+    ]) {
+      for (final size in _sizes) {
+        for (final scale in [1.0, 1.3]) {
+          await pump(tester, size, scale, GarageOverlay(game: NarrowHaulGame()));
+          await tester.tap(find.byIcon(icon).first);
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'garage $tab at $size ×$scale',
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('full-screen menus lay out', (tester) async {
     await each(
       tester,

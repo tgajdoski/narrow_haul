@@ -154,7 +154,10 @@ class _WeaponTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  // Wraps the ammo count under a long name with big text.
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         weapon.name,
@@ -164,7 +167,6 @@ class _WeaponTile extends StatelessWidget {
                           fontSize: 15,
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Text(
                         carried > 0 ? ammoText(weapon, carried) : 'none',
                         style: TextStyle(
