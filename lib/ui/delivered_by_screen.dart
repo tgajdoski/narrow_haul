@@ -4,7 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../game/services/audio_service.dart';
+import '../game/services/error_reporter.dart';
 import 'fonts.dart';
+import 'launch_intro.dart' show kReadyFallback;
 import 'space_ui.dart';
 
 /// One of the kids who helped build the game.
@@ -92,11 +94,25 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
         if (s == AnimationStatus.completed) _maybeLeave(afterHold: true);
       })
       ..forward();
-    widget.ready.then((_) {
-      if (!mounted) return;
-      _ready = true;
-      _maybeLeave(afterHold: true);
-    });
+    // A load that fails or hangs must not keep the player here: leave
+    // anyway (the failure is reported) after [kReadyFallback] at the latest.
+    _fallback = Timer(kReadyFallback, _markReady);
+    widget.ready.then(
+      (_) => _markReady(),
+      onError: (Object e, StackTrace st) {
+        ErrorReporter.report(e, st, context: 'game load');
+        _markReady();
+      },
+    );
+  }
+
+  Timer? _fallback;
+
+  void _markReady() {
+    _fallback?.cancel();
+    if (!mounted || _ready) return;
+    _ready = true;
+    _maybeLeave(afterHold: true);
   }
 
   @override
@@ -141,6 +157,7 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
 
   @override
   void dispose() {
+    _fallback?.cancel();
     _intro.dispose();
     _exit.dispose();
     super.dispose();

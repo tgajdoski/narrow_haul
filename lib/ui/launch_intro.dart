@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../game/services/error_reporter.dart';
 import 'fonts.dart';
 import 'space_ui.dart';
 import 'tow_art.dart';
@@ -10,6 +12,10 @@ import 'tow_art.dart';
 // Timeline.
 const _entrance = Duration(milliseconds: 900);
 const _fadeOut = Duration(milliseconds: 350);
+
+/// The intro and credits leave after this even if the game never finished
+/// loading, so a failed load can't trap the player on them.
+const kReadyFallback = Duration(seconds: 15);
 
 /// Seconds per orbit.
 const _orbitPeriod = 7.0;
@@ -63,11 +69,25 @@ class _LaunchIntroState extends State<LaunchIntro>
         if (s == AnimationStatus.completed) _maybeLeave();
       })
       ..forward();
-    widget.ready.then((_) {
-      if (!mounted) return;
-      _ready = true;
-      _maybeLeave();
-    });
+    // A load that fails or hangs must not keep the player here: leave
+    // anyway (the failure is reported) after [kReadyFallback] at the latest.
+    _fallback = Timer(kReadyFallback, _markReady);
+    widget.ready.then(
+      (_) => _markReady(),
+      onError: (Object e, StackTrace st) {
+        ErrorReporter.report(e, st, context: 'game load');
+        _markReady();
+      },
+    );
+  }
+
+  Timer? _fallback;
+
+  void _markReady() {
+    _fallback?.cancel();
+    if (!mounted || _ready) return;
+    _ready = true;
+    _maybeLeave();
   }
 
   @override
@@ -96,6 +116,7 @@ class _LaunchIntroState extends State<LaunchIntro>
 
   @override
   void dispose() {
+    _fallback?.cancel();
     _ticker?.dispose();
     _time.dispose();
     _intro.dispose();

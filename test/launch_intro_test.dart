@@ -66,6 +66,22 @@ void main() {
     expect(done(), 1, reason: 'well before the 900 ms entrance ends');
   });
 
+  testWidgets('a failed load still lets the player in', (tester) async {
+    final ready = Completer<void>();
+    final done = await pump(tester, ready.future);
+    ready.completeError(StateError('load failed'));
+    await advance(tester, const Duration(seconds: 2));
+    expect(done(), 1, reason: 'leaves after the entrance');
+  });
+
+  testWidgets('a hung load leaves after kReadyFallback', (tester) async {
+    final done = await pump(tester, Completer<void>().future);
+    await advance(tester, kReadyFallback - const Duration(seconds: 1));
+    expect(done(), 0);
+    await advance(tester, const Duration(seconds: 2));
+    expect(done(), 1);
+  });
+
   testWidgets('lays out on phones, tablets and portrait', (tester) async {
     for (final size in const [
       Size(568, 320),
