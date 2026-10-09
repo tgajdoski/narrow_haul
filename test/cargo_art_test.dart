@@ -52,15 +52,17 @@ void main() {
     });
   });
 
-  test('heavy cargo art only beside a normal sprite, in a world with heavy pods',
+  test('every world has its pod, and a heavy one exactly where pods are heavy',
       () {
     for (final w in LevelRegistry.worlds) {
       final dir = 'assets/themes/${w.themeId}';
-      if (!File('$dir/cargo_heavy.png').existsSync()) continue;
       expect(File('$dir/cargo.png').existsSync(), isTrue,
-          reason: '$dir has cargo_heavy.png but no cargo.png');
-      expect(w.levels.any((l) => l.modifiers.cargoDensityMul > 1.0), isTrue,
-          reason: '$dir/cargo_heavy.png is never used');
+          reason: '$dir/cargo.png missing');
+      final heavyLevels = w.levels.any((l) => l.modifiers.cargoDensityMul > 1.0);
+      expect(File('$dir/cargo_heavy.png').existsSync(), heavyLevels,
+          reason: heavyLevels
+              ? '$dir has heavy-cargo levels but no cargo_heavy.png'
+              : '$dir/cargo_heavy.png is never used');
     }
   });
 }

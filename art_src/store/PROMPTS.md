@@ -80,7 +80,7 @@ Apple App Previews must show only footage captured from the app, so these
 cards go only in `youtube_1080.mp4`. Use C at 1920×1080 with the title as an
 intro card, and "Free on iOS & Android" as the outro card.
 
-## G. Cargo pods per world → `art_src/cargo/<world>[_heavy]_1024_src.png`
+## G. Cargo pods per world → `art_src/cargo/<world>[_heavy]_src.png`
 
 In flight the pod is only about 0.27 m across, which is roughly 8 pt, or 24 px
 on a phone, so detail disappears. Each pod needs one bold silhouette, one strong
@@ -114,8 +114,8 @@ same cryo canister seen from the side, a short capsule about 2:1, same style.
 
 Then frame each one into the game:
 
-    python art_src/cargo/fix_cargo.py art_src/cargo/mine_1024_src.png assets/themes/mine/cargo.png
-    python art_src/cargo/fix_cargo.py art_src/cargo/mine_heavy_1024_src.png assets/themes/mine/cargo_heavy.png
+    python art_src/cargo/fix_cargo.py art_src/cargo/mine_src.png assets/themes/mine/cargo.png
+    python art_src/cargo/fix_cargo.py art_src/cargo/mine_heavy_src.png assets/themes/mine/cargo_heavy.png
 
 The script removes the background, centres the pod and scales it so its solid
 part fills 80% of a 128 px square (`CargoBody` draws every pod at that framing).
