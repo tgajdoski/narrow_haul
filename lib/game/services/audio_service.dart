@@ -1,5 +1,6 @@
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:narrow_haul/game/perf/perf_monitor.dart';
 
 import 'music_service.dart';
 import 'thrust_envelope.dart';
@@ -118,17 +119,30 @@ class AudioService {
     );
   }
 
+  /// Bumped by [init] and [dispose], so a warm-up still running for an
+  /// older init drops what it built.
+  static int _gen = 0;
+
+  /// Completes when the pools and the engine loop are built (tests).
+  @visibleForTesting
+  static Future<void> warmedUp = Future.value();
+
+  /// Loads the sound files; the players are built afterwards in the
+  /// background ([warmedUp]). Building ~40 pooled players took ~5 s on an
+  /// iPhone, and the game waits for this call; until a sound's pool is
+  /// ready, it plays on a one-off player.
   static Future<void> init() async {
     _ready = false;
     stopEngine();
+    final gen = ++_gen;
     try {
       await AudioPlayer.global.setAudioContext(_context);
     } catch (e) {
       _log('audio context not applied', e);
     }
     _loaded.clear();
-    // Files and pools load side by side (one at a time took ~0.8 s of the
-    // game's start); each still fails on its own.
+    // Files load side by side (one at a time took ~0.8 s of the game's
+    // start); each still fails on its own.
     await Future.wait([
       for (final file in _files)
         () async {
@@ -140,16 +154,27 @@ class AudioService {
           }
         }(),
     ]);
+    _ready = _loaded.isNotEmpty;
+    PerfMonitor.mark('audio files');
+    _log('loaded ${_loaded.length}/${_files.length} sounds');
+    warmedUp = _warmUp(gen);
+  }
+
+  static Future<void> _warmUp(int gen) async {
     await Future.wait([
-      if (_loaded.contains('thrust_loop.wav')) _prewarmThrustLoop(),
+      if (_loaded.contains('thrust_loop.wav')) _prewarmThrustLoop(gen),
       for (final MapEntry(key: file, value: size) in _poolSizes.entries)
         if (_loaded.contains(file))
           _pool(file, size).then((pool) {
-            if (pool != null) _pools[file] = pool;
+            if (pool == null) return;
+            if (gen == _gen) {
+              _pools[file] = pool;
+            } else {
+              _quietly(pool.dispose(), 'dispose stale $file pool');
+            }
           }),
     ]);
-    _ready = _loaded.isNotEmpty;
-    _log('initialized ${_loaded.length}/${_files.length} sounds');
+    if (gen == _gen) PerfMonitor.mark('audio pools');
   }
 
   /// Preloaded players for a one-shot; null falls back to one-off players.
@@ -198,7 +223,7 @@ class AudioService {
     _quietly(player.pause(), 'pause thrust loop');
   }
 
-  static Future<void> _prewarmThrustLoop() async {
+  static Future<void> _prewarmThrustLoop(int gen) async {
     try {
       final player = await FlameAudio.loopLongAudio(
         'thrust_loop.wav',
@@ -206,6 +231,11 @@ class AudioService {
         audioContext: _context,
       );
       await player.pause();
+      // Stale, or a lazy start won the race.
+      if (gen != _gen || _thrustPlayer != null) {
+        _quietly(player.dispose(), 'dispose spare thrust loop');
+        return;
+      }
       _thrustPlayer = player;
       _log('thrust loop prewarmed');
     } catch (e) {
@@ -219,8 +249,13 @@ class AudioService {
     _thrustStarting = true;
     FlameAudio.loopLongAudio('thrust_loop.wav', volume: 0, audioContext: _context)
         .then((p) {
-      _thrustPlayer = p;
       _thrustStarting = false;
+      if (_thrustPlayer != null) {
+        // The warm-up's player got there first.
+        _quietly(p.dispose(), 'dispose spare thrust loop');
+        return;
+      }
+      _thrustPlayer = p;
       // Running muted; the next updateEngine resumes it if still flying.
       _quietly(p.pause(), 'pause thrust loop');
     }).catchError((Object e) {
@@ -231,6 +266,7 @@ class AudioService {
 
   /// Releases the players (app shutdown / test teardown).
   static Future<void> dispose() async {
+    _gen++;
     final players = [_thrustPlayer, _alarmPlayer];
     final pools = [..._pools.values];
     _pools.clear();

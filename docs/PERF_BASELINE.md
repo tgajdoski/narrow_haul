@@ -38,7 +38,25 @@ Before the HUD text and `saveLayer` changes below.
 | redoubt_04 | 3972 | 0.7 / 0.9 / 1.5 | 2.2 / 2.6 / 2.7 | 0 |
 | tut_08 | 4007 | 0.5 / 1.1 / 1.6 | 1.6 / 2.4 / 3.0 | 2 |
 
-The few late frames are level start and shader warm-up. A Mac GPU is far faster than a phone's, so **the iPhone run is the number that matters (still to do).**
+The few late frames are level start and shader warm-up. A Mac GPU is far faster than a phone's, so the iPhone run below is the number that matters.
+
+### Device demo test, iPhone (iOS 26.6, profile build)
+
+Measured after the HUD text and `saveLayer` changes. 1,930–2,160 frames of demo replay per level.
+
+| level | UI build ms p50 / p95 / p99 | raster ms p50 / p95 / p99 / max | frames > 16.7 ms |
+|---|---|---|---:|
+| tut_08 | 1.3 / 1.8 / 3.0 | 3.3 / 3.9 / 4.1 / 5.5 | 0 |
+| alien_08 | 1.6 / 1.9 / 3.0 | 3.6 / 4.1 / 4.3 / 8.0 | 0 |
+| mine_08 | 1.7 / 2.1 / 3.0 | 3.5 / 4.0 / 4.2 / 5.1 | 0 |
+| ice_07 | 1.8 / 2.2 / 3.0 | 3.5 / 4.1 / 4.3 / 5.1 | 0 |
+| lava_07 | 1.8 / 2.2 / 3.1 | 3.4 / 4.1 / 4.3 / 5.1 | 0 |
+| orbit_06 | 1.6 / 1.9 / 2.8 | 3.5 / 4.0 / 4.3 / 5.4 | 0 |
+| redoubt_04 | 1.7 / 2.1 / 3.0 | 3.4 / 4.2 / 4.6 / 5.6 | 0 |
+
+**Verdict:** raster p95 stays at or under 4.2 ms and no frame was late. That's a quarter of the 16.7 ms a 60 fps frame allows. The GPU items below are not needed on this phone. Keep them for a low-end Android check.
+
+**Startup on the iPhone:** `main` to `runApp` took 28 ms. `AudioService.init` then took about 6 s, because building ~40 pooled players is slow on iOS, and the game's `onLoad` waited for it. Now `init` only loads the files and builds the pools in the background (`AudioService.warmedUp`). Until a sound's pool is ready, it plays on a one-off player.
 
 **Startup:** `AudioService.init` took about 800 ms on the Mac, loading 23 files one at a time. It now loads them concurrently.
 
@@ -65,9 +83,9 @@ The few late frames are level start and shader warm-up. A Mac GPU is far faster 
 - `OverlayIds` holds the overlay keys.
 - UI screens open and close Settings and the rank-up card through game methods instead of editing `game.overlays` directly.
 
-## Next, once the iPhone numbers are in
+## GPU items (not needed on the iPhone; revisit if a low-end Android shows late frames)
 
-Only do these if the iPhone raster p95 is above about 8 ms, or there are late frames mid-flight:
+Only do these if a device's raster p95 is above about 8 ms, or there are late frames mid-flight:
 1. **HUD glows.** About 10 `MaskFilter.blur` draws per frame (`drawGlow` in `hud_holo.dart`) plus a blurred shadow on every HUD label. Fix: pre-render the static plates and glows into images per state, and drop the text-shadow blur.
 2. **`CaveTerrain.render`.** It fills the whole world's even-odd rock path with an image shader and strokes every edge twice, with no culling. Fix: rasterise it into world tiles (like the glow bitmap) and draw only the visible ones.
 3. **Off-screen culling.** Ambient particles (up to 260 circles), route dots and force-field streaks.
