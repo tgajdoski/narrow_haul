@@ -76,30 +76,35 @@ void main() async {
 /// the SDK, Dart errors arrive through [ErrorReporter.sink]. Analytics:
 /// installs, retention and purchases are automatic, gameplay events come
 /// through [Analytics.sink]. Both are off in debug builds so development runs
-/// don't fill the dashboards.
+/// don't fill the dashboards. Capped at 5 s so the game always starts
+/// (offline it's local and quick; on a time-out reports just stay off).
 Future<void> _initFirebase() async {
   if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    final crashlytics = FirebaseCrashlytics.instance;
-    await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
-    ErrorReporter.sink = (error, stack, context) => crashlytics.recordError(
-      error,
-      stack,
-      reason: context,
-      fatal: context == 'uncaught',
-    );
-    final analytics = FirebaseAnalytics.instance;
-    await analytics.setAnalyticsCollectionEnabled(!kDebugMode);
-    Analytics.sink = (name, params) =>
-        analytics.logEvent(name: name, parameters: params);
-    Analytics.userPropertySink = (name, value) =>
-        analytics.setUserProperty(name: name, value: value);
+    await _connectFirebase().timeout(const Duration(seconds: 5));
   } catch (e, st) {
     ErrorReporter.report(e, st, context: 'firebase init');
   }
+}
+
+Future<void> _connectFirebase() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  final crashlytics = FirebaseCrashlytics.instance;
+  await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+  ErrorReporter.sink = (error, stack, context) => crashlytics.recordError(
+    error,
+    stack,
+    reason: context,
+    fatal: context == 'uncaught',
+  );
+  final analytics = FirebaseAnalytics.instance;
+  await analytics.setAnalyticsCollectionEnabled(!kDebugMode);
+  Analytics.sink = (name, params) =>
+      analytics.logEvent(name: name, parameters: params);
+  Analytics.userPropertySink = (name, value) =>
+      analytics.setUserProperty(name: name, value: value);
 }
 
 /// Dark theme; display/headline/title styles use the bundled RussoOne face

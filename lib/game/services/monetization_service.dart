@@ -110,9 +110,21 @@ class MonetizationService {
   );
 
   bool _adsReady = false;
+  bool _adsInitInFlight = false;
   InterstitialAd? _interstitial;
   RewardedAd? _rewarded;
   bool _showingFullScreen = false;
+
+  // Loads in flight and failures in a row (for the retry backoff).
+  bool _interstitialLoading = false;
+  bool _rewardedLoading = false;
+  int _interstitialFailures = 0;
+  int _rewardedFailures = 0;
+  Timer? _interstitialRetry;
+  Timer? _rewardedRetry;
+
+  /// Last [refreshIfNeeded] run, so screen changes don't spam the SDKs.
+  int _lastRefreshMs = 0;
 
   /// True when a rewarded ad can be shown right now — gate reward buttons on
   /// it so a player never taps "watch ad" and gets nothing.
@@ -129,6 +141,8 @@ class MonetizationService {
   final Map<String, ProductDetails> _products = {};
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   bool _storeAvailable = false;
+  bool _storeInitInFlight = false;
+  bool _restoredAtStartup = false;
   Completer<BuyOutcome>? _pendingBuy;
 
   ProgressService get _p => ProgressService.instance;
@@ -151,10 +165,33 @@ class MonetizationService {
   // ── Startup ──────────────────────────────────────────────────────────────
 
   /// Call once after `runApp` (the consent form needs a live UI). Never
-  /// throws; ads stay off if consent or the SDK isn't available.
+  /// throws; ads stay off if consent or the SDK isn't available. Store and
+  /// ads set up in parallel, so a slow store never delays the first ad.
   Future<void> init() async {
-    await _initStore();
-    if (!_adPlatform) return;
+    _lastRefreshMs = DateTime.now().millisecondsSinceEpoch;
+    await Future.wait([_initStore(), _initAds()]);
+  }
+
+  /// Picks up whatever failed while offline: ads that never set up, store
+  /// products that never arrived, ads waiting out a retry backoff. Called on
+  /// app resume and when the hangar or a shop screen opens. Throttled and
+  /// fail-safe; offline it does nothing visible.
+  void refreshIfNeeded() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastRefreshMs < 30000) return;
+    _lastRefreshMs = now;
+    if (_adPlatform && !_adsReady) {
+      _initAds();
+    } else if (_adsReady) {
+      if (_interstitial == null && !_interstitialLoading) _loadInterstitial();
+      if (_rewarded == null && !_rewardedLoading) _loadRewarded();
+    }
+    if (!_storeAvailable || _products.isEmpty) _initStore();
+  }
+
+  Future<void> _initAds() async {
+    if (!_adPlatform || _adsReady || _adsInitInFlight) return;
+    _adsInitInFlight = true;
     try {
       await _gatherConsent();
       if (!await ConsentInformation.instance.canRequestAds()) {
@@ -173,6 +210,8 @@ class MonetizationService {
       _loadRewarded();
     } catch (e) {
       _log('MonetizationService: ads unavailable ($e)');
+    } finally {
+      _adsInitInFlight = false;
     }
   }
 
@@ -297,19 +336,29 @@ class MonetizationService {
 
   void _loadInterstitial() {
     if (!_adsReady || adsRemoved || AdIds.interstitial.isEmpty) return;
+    if (_interstitialLoading) return;
+    _interstitialRetry?.cancel();
+    _interstitialLoading = true;
     InterstitialAd.load(
       adUnitId: AdIds.interstitial,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _log('MonetizationService: interstitial loaded');
+          _interstitialLoading = false;
+          _interstitialFailures = 0;
           _interstitial = ad;
         },
         onAdFailedToLoad: (e) {
-          _log('MonetizationService: interstitial load failed $e');
-          // Retry later (like rewarded) so one failure, e.g. while offline at
-          // launch, doesn't switch interstitials off for the whole session.
-          Future.delayed(const Duration(seconds: 60), _loadInterstitial);
+          _interstitialLoading = false;
+          final wait = adRetryDelay(++_interstitialFailures);
+          _log(
+            'MonetizationService: interstitial load failed $e, '
+            'retry in ${wait.inSeconds}s',
+          );
+          // Retry with backoff (offline, no fill); refreshIfNeeded cuts the
+          // wait short once the player is back online.
+          _interstitialRetry = Timer(wait, _loadInterstitial);
         },
       ),
     );
@@ -366,19 +415,28 @@ class MonetizationService {
 
   void _loadRewarded() {
     if (!_adsReady || AdIds.rewarded.isEmpty) return;
+    if (_rewardedLoading) return;
+    _rewardedRetry?.cancel();
+    _rewardedLoading = true;
     RewardedAd.load(
       adUnitId: AdIds.rewarded,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           _log('MonetizationService: rewarded loaded');
+          _rewardedLoading = false;
+          _rewardedFailures = 0;
           _rewarded = ad;
           rewardedReady.value = true;
         },
         onAdFailedToLoad: (e) {
-          _log('MonetizationService: rewarded load failed $e');
-          // Retry later rather than hammering a no-fill network.
-          Future.delayed(const Duration(seconds: 60), _loadRewarded);
+          _rewardedLoading = false;
+          final wait = adRetryDelay(++_rewardedFailures);
+          _log(
+            'MonetizationService: rewarded load failed $e, '
+            'retry in ${wait.inSeconds}s',
+          );
+          _rewardedRetry = Timer(wait, _loadRewarded);
         },
       ),
     );
@@ -390,6 +448,8 @@ class MonetizationService {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
       return;
     }
+    if (_storeInitInFlight) return;
+    _storeInitInFlight = true;
     try {
       final iap = InAppPurchase.instance;
       _storeAvailable = await iap.isAvailable();
@@ -397,7 +457,7 @@ class MonetizationService {
         _log('MonetizationService: store not available');
         return;
       }
-      _purchaseSub = iap.purchaseStream.listen(
+      _purchaseSub ??= iap.purchaseStream.listen(
         _onPurchases,
         onError: (Object e) => _log('MonetizationService: store $e'),
       );
@@ -411,10 +471,15 @@ class MonetizationService {
       );
       // Android restores silently; on iOS a restore can prompt for the Apple
       // ID, so there it stays behind the Settings button.
-      if (Platform.isAndroid) await iap.restorePurchases();
+      if (Platform.isAndroid && !_restoredAtStartup) {
+        _restoredAtStartup = true;
+        await iap.restorePurchases();
+      }
     } catch (e) {
       _log('MonetizationService: store unavailable ($e)');
       _storeAvailable = false;
+    } finally {
+      _storeInitInFlight = false;
     }
   }
 
@@ -425,6 +490,9 @@ class MonetizationService {
     Analytics.purchaseAttempt(productId);
     if (!_storeAvailable || product == null) {
       Analytics.purchaseResult(productId, 'unavailable');
+      // Usually offline: try the store again for the player's next tap.
+      _lastRefreshMs = 0;
+      refreshIfNeeded();
       return BuyOutcome.unavailable;
     }
     _pendingBuy?.complete(BuyOutcome.failed);
@@ -451,7 +519,11 @@ class MonetizationService {
   /// Settings → "Restore purchases" (required by Apple). Returns how many
   /// purchases came back, or null if the store couldn't be reached.
   Future<int?> restore() async {
-    if (!_storeAvailable) return null;
+    if (!_storeAvailable) {
+      _lastRefreshMs = 0;
+      refreshIfNeeded();
+      return null;
+    }
     _restoredCount = 0;
     try {
       await InAppPurchase.instance.restorePurchases();

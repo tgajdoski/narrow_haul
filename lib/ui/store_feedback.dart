@@ -15,7 +15,7 @@ Future<bool> buyWithFeedback(BuildContext context, String productId) async {
     BuyOutcome.pending =>
       'Purchase pending: it unlocks as soon as the store approves it.',
     BuyOutcome.unavailable =>
-      "The store isn't available right now. Please try again later.",
+      "Purchases need an internet connection. Check it and try again.",
   };
   if (message != null) _show(messenger, message);
   return outcome == BuyOutcome.purchased;
@@ -46,7 +46,7 @@ Future<void> restoreWithFeedback(BuildContext context) async {
   _show(
     messenger,
     switch (restored) {
-      null => "Couldn't reach the store. Please try again later.",
+      null => "Couldn't reach the store. Check your connection and try again.",
       0 => 'No purchases to restore on this account.',
       _ => 'Purchases restored.',
     },

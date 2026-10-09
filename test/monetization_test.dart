@@ -122,6 +122,13 @@ void main() {
     });
   });
 
+  test('failed ad loads back off up to 10 minutes', () {
+    expect(
+      [for (var i = 1; i <= 6; i++) adRetryDelay(i).inSeconds],
+      [60, 120, 240, 480, 600, 600],
+    );
+  });
+
   group('Cosmetic trial', () {
     setUp(() async {
       SharedPreferences.setMockInitialValues({'save_v3': true});

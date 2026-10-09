@@ -2125,6 +2125,8 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   void backToMenu() {
+    // Back online since launch? Ads and store products come back here.
+    MonetizationService.instance.refreshIfNeeded();
     _logQuit('menu');
     _leaveDemo();
     overlays.removeAll(['gameOver', 'pause', 'settings']);
@@ -2315,12 +2317,14 @@ class NarrowHaulGame extends Forge2DGame
 
   /// Hangar → a sub-screen ('levelSelect', 'cosmetics', 'settings'…).
   void openScreen(String key) {
+    MonetizationService.instance.refreshIfNeeded();
     overlays.remove('menu');
     overlays.add(key);
   }
 
   /// A sub-screen → back to the hangar.
   void closeScreen(String key) {
+    MonetizationService.instance.refreshIfNeeded();
     overlays.remove(key);
     overlays.add('menu');
   }
@@ -2432,6 +2436,7 @@ class NarrowHaulGame extends Forge2DGame
     }
     if (state == AppLifecycleState.resumed) {
       MusicService.onForeground();
+      MonetizationService.instance.refreshIfNeeded();
     } else {
       MusicService.onBackground();
     }

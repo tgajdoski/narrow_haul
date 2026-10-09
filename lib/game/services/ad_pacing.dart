@@ -72,3 +72,18 @@ class AdPacing {
     return interstitialsThisSession < kAdMaxPerSession;
   }
 }
+
+/// First wait before reloading an ad that failed to load (seconds).
+const int kAdRetryBaseSeconds = 60;
+
+/// Longest wait between reload attempts, so a phone that stays offline
+/// doesn't keep waking the radio.
+const int kAdRetryMaxSeconds = 600;
+
+/// Wait before the next load after [failures] failed loads in a row (≥ 1):
+/// 60 s, 120 s, 240 s, … capped at [kAdRetryMaxSeconds].
+Duration adRetryDelay(int failures) {
+  final doublings = (failures - 1).clamp(0, 10);
+  final seconds = kAdRetryBaseSeconds << doublings;
+  return Duration(seconds: seconds.clamp(0, kAdRetryMaxSeconds));
+}
