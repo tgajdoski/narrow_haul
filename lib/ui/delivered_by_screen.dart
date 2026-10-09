@@ -21,7 +21,7 @@ class DeliveredByCrew {
 /// plus one crop box in `tool/store/make_credits.sh`.
 const kDeliveredBy = [
   DeliveredByCrew('Mila', 'assets/credits/mila.jpg'),
-  DeliveredByCrew('Mare', 'assets/credits/mare.jpg'),
+  DeliveredByCrew('Marko', 'assets/credits/marko.jpg'),
   DeliveredByCrew('Nina', 'assets/credits/nina.jpg'),
 ];
 

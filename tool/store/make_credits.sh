@@ -19,6 +19,6 @@ crop() { # name side top left
   echo "$OUT/$name.jpg $(wc -c < "$OUT/$name.jpg") bytes"
 }
 
-crop mare 940 191 95
+crop marko 940 191 95
 crop mila 1480 0 740
 crop nina 1850 412 746
