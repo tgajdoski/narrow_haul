@@ -289,7 +289,7 @@ final List<LevelDef> mineLevels = [
       ],
       chambers: [
         ChamberSpec(Pt(5, 15), 2.4),
-        ChamberSpec(Pt(23, 14), 3.0),
+        ChamberSpec(Pt(23, 14), 3.5),
         ChamberSpec(Pt(12, 21), 1.8),
         ChamberSpec(Pt(45, 16), 2.4),
       ],

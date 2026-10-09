@@ -21,7 +21,7 @@ Without `PERF` every hook is a `const` false check, so release builds carry no p
 - **Level load takes 10–220 ms.** Debug builds rebuild the cave on every load, so release is faster.
 - **`crateSpots` (main thread, only when a crate rolls) takes 2–4 ms.** That's too little to be worth an isolate.
 - **After this pass** (mean over the 60 levels, same Mac): render p95 went from 0.60 to 0.42 ms (−30%), render p50 from 0.24 to 0.22 ms, and update p95 from 0.17 to 0.11 ms. The update figure is partly JIT noise.
-- **The autopilot regression is identical to `HEAD`**, with a byte-equal `build/autopilot_report.json`, so flight behaviour is unchanged. `mine_08` fails the hazards-on run at `HEAD` too. That's a pre-existing problem, most likely from the ship ×1.6 / pod ×3 commit `2e9db0e`.
+- **The autopilot regression is identical to `HEAD`**, with a byte-equal `build/autopilot_report.json`, so flight behaviour is unchanged. `mine_08` failed the hazards-on run at `HEAD` too: after the ship ×1.6 / pod ×3 commit `2e9db0e`, a towing Mule no longer fit round the rotating bar. The bar chamber is now 3.5 m (was 3.0); the bot delivers 3★ (tight) and the route is re-exported.
 - **The update max spikes (30–218 ms)** happen on a level's first frames: JIT warm-up and GC. They don't show up in profile/AOT builds.
 
 ### Device demo test, macOS profile build (Apple silicon)
@@ -56,7 +56,7 @@ Measured after the HUD text and `saveLayer` changes. 1,930–2,160 frames of dem
 
 **Verdict:** raster p95 stays at or under 4.2 ms and no frame was late. That's a quarter of the 16.7 ms a 60 fps frame allows. The GPU items below are not needed on this phone. Keep them for a low-end Android check.
 
-**Startup on the iPhone:** `main` to `runApp` took 28 ms. `AudioService.init` then took about 6 s, because building ~40 pooled players is slow on iOS, and the game's `onLoad` waited for it. Now `init` only loads the files and builds the pools in the background (`AudioService.warmedUp`). Until a sound's pool is ready, it plays on a one-off player.
+**Startup on the iPhone:** `main` to `runApp` took 28 ms. `AudioService.init` then took about 6 s, because building ~40 pooled players is slow on iOS, and the game's `onLoad` waited for it. Now `init` only loads the files and builds the pools in the background (`AudioService.warmedUp`). Until a sound's pool is ready, it plays on a one-off player. Re-measured on the iPhone: files ready at +0.66 s, game loaded at +0.66 s (was +6.1 s), pools ready in the background at +8.9 s.
 
 **Startup:** `AudioService.init` took about 800 ms on the Mac, loading 23 files one at a time. It now loads them concurrently.
 
