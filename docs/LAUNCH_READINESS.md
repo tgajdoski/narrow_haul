@@ -47,7 +47,7 @@
 - [ ] IAP review screenshots for every product, taken with a sandbox account. Submit the IAPs together with 1.0. The ammo packs `nh_demo_kit` / `nh_arsenal_crate` are **consumables** (Armory tab in the Garage; the rows show only once the store returns them).
 
 ### After publishing
-- [ ] Firebase (status table in `docs/ANALYTICS.md`): custom definitions, BigQuery (EU), Google Play and the privacy page are done. Left: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days), link AdMob ↔ Firebase, and check events in DebugView on a device.
+- [ ] Firebase (status table in `docs/ANALYTICS.md`): custom definitions, BigQuery (EU), Google Play and the privacy page are done. Left: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days), and link AdMob ↔ Firebase. (DebugView device check done 2026-10-09.)
 - [ ] Link each store listing in AdMob → App settings. Real ads only serve after that.
 - [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`. Without them, a zafrk deploy deletes the privacy and support pages the stores link to.
 

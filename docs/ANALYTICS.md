@@ -50,7 +50,7 @@ User properties (set at launch and after each delivery): `pilot_rank`, `total_st
 | Apple in-app purchase key | ⏭ skipped: a key named "Firebase" exists in App Store Connect (Users and Access → Integrations → In-App Purchase), but neither Firebase nor the GA4 iOS stream offers an upload field for this property. Not needed: `in_app_purchase` and our purchase events arrive anyway; exact revenue is in App Store Connect Sales and Trends. The `.p8` is kept outside the repo |
 | AdMob ↔ Firebase | ⏳ link from AdMob → Apps → App settings → Linked services (may need the store listings live) |
 | Default consent settings (GA4 stream) | left at defaults: EEA ad signals follow the UMP / TCF consent. Open decision: gate basic analytics on consent too? |
-| Device check in DebugView | ⏳ not done yet (step 5 below) |
+| Device check in DebugView | ✅ 2026-10-09 on iPhone (profile build): `level_start`, `level_fail`, `screen_view` arrive |
 | Store privacy forms | ⏳ at submission, see `docs/LAUNCH_READINESS.md` |
 
 ## One-time console setup
@@ -59,7 +59,7 @@ User properties (set at launch and after each delivery): `pilot_rank`, `total_st
 2. **Project settings → Integrations → BigQuery → Link.** Turn on the daily export (free tier: 1 GB/day of events, 10 GB storage). The region can't be changed later (we use `EU`). The export only covers data from the day you link it, so link it before launch.
 3. **Integrations → Google Play → Link** (Play purchases and subscriptions). **AdMob** is linked from the AdMob side: the card's Android / Apple links open AdMob → App settings → Linked services → Firebase.
 4. **Funnels** (Analytics → Explore → Funnel): `first_open` → `level_start` (tut_01) → `tutorial_complete` → `world_unlocked` → `in_app_purchase`.
-5. **DebugView** to check a build: Android `adb shell setprop debug.firebase.analytics.app com.zafrk.narrowhaul`; iOS: add `-FIRDebugEnabled` to the scheme's launch arguments. In a debug build collection is off, so check with `flutter run --profile`.
+5. **DebugView** to check a build: Android `adb shell setprop debug.firebase.analytics.app com.zafrk.narrowhaul`; iOS: `flutter run` can't pass launch arguments, so build with `flutter build ios --profile`, install with `xcrun devicectl device install app --device <id> build/ios/iphoneos/Runner.app`, then launch once with `xcrun devicectl device process launch --terminate-existing --device <id> com.zafrk.narrowhaul -- -FIRDebugEnabled` (the `--` is required; the flag persists until `-- -FIRDebugDisabled`). In a debug build collection is off.
 
 ## BigQuery queries
 
