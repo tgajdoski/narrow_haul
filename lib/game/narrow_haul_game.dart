@@ -74,6 +74,12 @@ import 'package:narrow_haul/game/overlay_ids.dart';
 enum RunState { menu, playing, gameOver, won }
 
 /// First reactor escape on a level pays this XP and currency (once).
+/// Test Flight ship options for [level], on a background isolate. Top-level
+/// so the closure can't capture the game, which an isolate can't receive.
+Future<List<String>> _testFlightShipIds(int level) => Isolate.run(
+      () => [for (final s in LevelRegistry.testFlightOptions(level)) s.id],
+    );
+
 const int kReactorEscapeXp = 150;
 const int kReactorEscapeCurrency = 40;
 
@@ -633,11 +639,7 @@ class NarrowHaulGame extends Forge2DGame
     var shipIds = const <String>[];
     if (testFlight) {
       try {
-        shipIds = await Isolate.run(
-          () => [
-            for (final s in LevelRegistry.testFlightOptions(dailyLevel)) s.id,
-          ],
-        );
+        shipIds = await _testFlightShipIds(dailyLevel);
       } catch (e, st) {
         // No ship options means a standard daily run, never a blank screen.
         ErrorReporter.report(e, st, context: 'test flight options');
@@ -3043,7 +3045,7 @@ class NarrowHaulGame extends Forge2DGame
       return;
     }
     _carveBusy = true;
-    Isolate.run(() => extractCaveLoops(field, nx, ny, cell)).then((loops) {
+    extractCaveLoopsInBackground(field, nx, ny, cell).then((loops) {
       if (gen != _levelGen) return;
       _carveBusy = false;
       _applyCarvedLoops(loops);

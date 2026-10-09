@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
@@ -128,6 +129,28 @@ void main() {
       // rock right of the ship.
       final p = game.ship!.body.position.clone()..x += 2.5;
       game.detonate(p, kDemoCharge);
+      expect(identical(terrain.loops, before), isFalse, reason: 'rock not re-extracted');
+    });
+
+    test('a charge carves rock on the background isolate too', () async {
+      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      await h.loadLevel(index);
+      final game = h.game..debugSyncCarve = false;
+      final terrain = game.world.children.whereType<CaveTerrain>().single;
+      final before = terrain.loops;
+      final p = game.ship!.body.position.clone()..x += 2.5;
+      final errors = <Object>[];
+      final sink = ErrorReporter.sink;
+      ErrorReporter.sink = (e, st, context) => errors.add(e);
+      try {
+        game.detonate(p, kDemoCharge);
+        for (var i = 0; i < 100 && identical(terrain.loops, before) && errors.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      } finally {
+        ErrorReporter.sink = sink;
+      }
+      expect(errors, isEmpty);
       expect(identical(terrain.loops, before), isFalse, reason: 'rock not re-extracted');
     });
 

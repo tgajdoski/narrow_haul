@@ -240,6 +240,17 @@ double _sdBox(double px, double py, double cx, double cy, double hw, double hh) 
 /// Rock/air boundary loops of a sampled [field] (negative = open): marching
 /// squares, then Chaikin smoothing and Douglas-Peucker, dropping specks.
 /// Shared by the builder and the runtime [TerrainCarver] re-extract.
+/// [extractCaveLoops] on a background isolate. Top-level on purpose: a
+/// closure built inside an instance method can capture `this` (the game,
+/// with its futures and images), which an isolate message can't carry.
+Future<List<List<Pt>>> extractCaveLoopsInBackground(
+  Float32List field,
+  int nx,
+  int ny,
+  double cell,
+) =>
+    Isolate.run(() => extractCaveLoops(field, nx, ny, cell));
+
 List<List<Pt>> extractCaveLoops(Float32List field, int nx, int ny, double cell) {
   final loops = _marchingSquares(field, nx, ny, cell);
   final cleaned = <List<Pt>>[];
