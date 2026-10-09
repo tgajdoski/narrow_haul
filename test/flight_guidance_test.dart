@@ -1,5 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/components/guidance_hud.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/guidance/flight_guidance.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -239,6 +240,26 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  group('placeAvoiding', () {
+    const ship = Rect.fromLTWH(400, 180, 40, 40);
+    const beside = Rect.fromLTWH(380, 170, 200, 50);
+    const high = Rect.fromLTWH(380, 110, 200, 50);
+
+    test('takes the first candidate clear of the ship', () {
+      final (r, clear) = placeAvoiding([beside, high], [ship]);
+      expect(r, high);
+      expect(clear, isTrue);
+    });
+
+    test('keeps the first when nothing is in the way', () {
+      expect(placeAvoiding([beside, high], const []), (beside, true));
+    });
+
+    test('falls back to the first, not clear, when all cover the ship', () {
+      expect(placeAvoiding([beside], [ship]), (beside, false));
     });
   });
 }

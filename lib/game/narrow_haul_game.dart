@@ -28,6 +28,7 @@ import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
 import 'package:narrow_haul/game/camera/camera_director.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
+import 'package:narrow_haul/game/components/world_frame.dart';
 import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
@@ -830,6 +831,13 @@ class NarrowHaulGame extends Forge2DGame
       await _addToLevel(box, gen);
     }
 
+    if (data.caveLoops.isEmpty) {
+      await _addToLevel(
+        WorldFrame(worldSize: data.worldSize, theme: theme, assets: art),
+        gen,
+      );
+    }
+
     if (data.caveLoops.isNotEmpty) {
       final terrain = CaveTerrain(
         loops: data.caveLoops,
@@ -1073,6 +1081,15 @@ class NarrowHaulGame extends Forge2DGame
   double? _aheadGap;
   bool _aheadTick = false;
 
+  /// Seconds since the player last thrust, turned or fired (the camera
+  /// zooms in once they let go).
+  double _idleFor = 0;
+
+  /// Camera shift (m) that keeps the ship out from under the controls,
+  /// eased in quickly and out slowly.
+  final Spring _nudgeX = Spring();
+  final Spring _nudgeY = Spring();
+
   void _applyContainedCamera(Vector2 worldSize) {
     final viewportSize = camera.viewport.size;
     if (viewportSize.x <= 0 || viewportSize.y <= 0) return;
@@ -1118,6 +1135,7 @@ class NarrowHaulGame extends Forge2DGame
         aheadGap: _aheadGap,
         downX: down.x,
         downY: down.y,
+        idleFor: demoMode ? 0 : _idleFor,
         viewHalfW: view.x / restZoom / 2,
         viewHalfH: view.y / restZoom / 2,
       ),
@@ -1126,8 +1144,61 @@ class NarrowHaulGame extends Forge2DGame
     // Reduced motion halves the zoom swings (in log space).
     final factor = reducedMotion ? math.sqrt(shot.zoom) : shot.zoom;
     camera.viewfinder.zoom = math.max(restZoom * factor, _minContainZoom);
-    camera.viewfinder.position =
-        _clampedCameraTarget(Vector2(shot.x, shot.y), worldSize);
+    final base = _clampedCameraTarget(Vector2(shot.x, shot.y), worldSize);
+    final want = _safeFrameShift(s, base);
+    double time(Spring n, double w) => w.abs() > n.x.abs() ? 0.3 : 0.8;
+    _nudgeX.step(want.x, time(_nudgeX, want.x), dt);
+    _nudgeY.step(want.y, time(_nudgeY, want.y), dt);
+    camera.viewfinder.position = _clampedCameraTarget(
+      base + Vector2(_nudgeX.x, _nudgeY.x),
+      worldSize,
+      overscroll: true,
+    );
+    _shieldShipFromText(s, pod);
+  }
+
+  /// Help text (coach plate, comms line) keeps off the ship and the pod.
+  void _shieldShipFromText(ShipBody s, Vector2? pod) {
+    final zoom = camera.viewfinder.zoom;
+    Rect box(Vector2 p, double r) {
+      final c = camera.localToGlobal(p);
+      return Rect.fromCircle(center: Offset(c.x, c.y), radius: r * zoom + 10);
+    }
+
+    final rects = [
+      box(s.body.position, s.spec.circumradius),
+      if (pod != null) box(pod, kCargoRadius),
+    ];
+    _coach?.shield = rects;
+    _comms?.shield = rects;
+  }
+
+  /// Camera shift (m) from [base] that keeps the ship clear of the touch
+  /// controls ([HudTouchControls.controlZones]) and the top-left gauges.
+  /// Near the world's floor or walls the clamp would leave the ship under
+  /// THRUST or the dial; this lets the view look a little past the edge.
+  Vector2 _safeFrameShift(ShipBody s, Vector2 base) {
+    final hud = _hudControls;
+    final view = camera.viewport.size;
+    final zoom = camera.viewfinder.zoom;
+    if (hud == null || demoMode || view.x <= 0 || zoom <= 0) return Vector2.zero();
+    final insets = _safeInsets;
+    final zones = [
+      ...hud.controlZones,
+      // Fuel gauge and level info.
+      (l: insets.left, t: insets.top, r: insets.left + 240.0, b: insets.top + 96.0),
+    ];
+    final p = (s.body.position - base) * zoom + view / 2;
+    final (dx, dy) = safeFrameNudge(
+      p.x,
+      p.y,
+      s.spec.circumradius * 0.7 * zoom,
+      zones,
+      view.x,
+      view.y,
+    );
+    // The ship moves by (dx, dy) px when the camera moves the other way.
+    return Vector2(-dx, -dy) / zoom;
   }
 
   /// Takes last frame's shake out of the camera, so nothing reads or keeps it.
@@ -1149,9 +1220,16 @@ class NarrowHaulGame extends Forge2DGame
     camera.viewfinder.position += _shakeApplied;
   }
 
+  /// Flame's own bounds allow the overscroll; [_clampedCameraTarget] keeps
+  /// the view inside the world unless the controls need the room.
   void _applyCameraBounds(Vector2 worldSize) {
     camera.setBounds(
-      Rectangle.fromLTWH(0, 0, worldSize.x, worldSize.y),
+      Rectangle.fromLTRB(
+        -kCameraOverscroll,
+        -kCameraOverscrollTop,
+        worldSize.x + kCameraOverscroll,
+        worldSize.y + kCameraOverscroll,
+      ),
       considerViewport: true,
     );
   }
@@ -1166,25 +1244,37 @@ class NarrowHaulGame extends Forge2DGame
     _shake.clear();
     _shakeApplied = Vector2.zero();
     _aheadGap = null;
+    _idleFor = 0;
     camera.viewfinder.zoom = math.max(_restZoom, _minContainZoom);
-    camera.viewfinder.position = _clampedCameraTarget(
-      s.body.position,
-      worldSize,
-    );
+    final base = _clampedCameraTarget(s.body.position, worldSize);
+    // Start already clear of the controls (a pad on the world's floor).
+    final shift = _safeFrameShift(s, base);
+    _nudgeX.set(shift.x);
+    _nudgeY.set(shift.y);
+    camera.viewfinder.position =
+        _clampedCameraTarget(base + shift, worldSize, overscroll: true);
   }
 
-  Vector2 _clampedCameraTarget(Vector2 desired, Vector2 worldSize) {
+  /// Keeps the view inside the world, or with [overscroll] up to
+  /// [kCameraOverscroll] past it (the rock is drawn that far out).
+  Vector2 _clampedCameraTarget(
+    Vector2 desired,
+    Vector2 worldSize, {
+    bool overscroll = false,
+  }) {
     final viewportSize = camera.viewport.size;
     final zoom = camera.viewfinder.zoom;
     if (viewportSize.x <= 0 || viewportSize.y <= 0 || zoom <= 0) return desired;
 
     final halfViewW = (viewportSize.x / zoom) / 2;
     final halfViewH = (viewportSize.y / zoom) / 2;
+    final side = overscroll ? kCameraOverscroll : 0.0;
+    final top = overscroll ? kCameraOverscrollTop : 0.0;
 
-    final minX = halfViewW;
-    final maxX = worldSize.x - halfViewW;
-    final minY = halfViewH;
-    final maxY = worldSize.y - halfViewH;
+    final minX = halfViewW - side;
+    final maxX = worldSize.x - halfViewW + side;
+    final minY = halfViewH - top;
+    final maxY = worldSize.y - halfViewH + side;
 
     final x = minX > maxX ? worldSize.x / 2 : desired.x.clamp(minX, maxX);
     final y = minY > maxY ? worldSize.y / 2 : desired.y.clamp(minY, maxY);
@@ -1699,6 +1789,25 @@ class NarrowHaulGame extends Forge2DGame
   /// Tests: the delivery pad's sensors.
   @visibleForTesting
   DualLandingZone? get debugLandingZone => _landingZone;
+
+  /// Tests: the touch controls (layout, safe-frame zones, handedness).
+  @visibleForTesting
+  HudTouchControls? get debugHudControls => _hudControls;
+
+  /// Tests: one camera step on its own (no physics).
+  @visibleForTesting
+  void debugCameraStep(double dt) {
+    final s = ship, worldSize = _currentWorldSize;
+    if (s != null && worldSize != null) _followCamera(s, worldSize, dt);
+  }
+
+  /// Tests: the crate notice currently on air.
+  @visibleForTesting
+  CrateNotice? get debugCrateNotice => _crateNotice;
+
+  /// Tests: as if [crate] had just been flown through.
+  @visibleForTesting
+  void debugCollectCrate(SupplyCrate crate) => _onCrateCollected(crate);
 
   /// Tests: lands the run as if ship and pod had touched down.
   @visibleForTesting
@@ -2796,13 +2905,18 @@ class NarrowHaulGame extends Forge2DGame
     Analytics.crateCollected(crate.weapon.id);
     _syncWeaponHud();
     final w = crate.weapon;
-    _crateNotice = CrateNotice(
-      kind: w.kind,
-      name: w.name,
-      label: _weaponLabel(w),
-      amount: w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}',
-    );
-    _crateNoticeLeft = 4;
+    // The plate teaches a weapon once; later pickups just fly the icon in.
+    final progress = ProgressService.instance;
+    if (!progress.crateHintSeen(w.id)) {
+      unawaited(progress.markCrateHintSeen(w.id));
+      _crateNotice = CrateNotice(
+        kind: w.kind,
+        name: w.name,
+        label: _weaponLabel(w),
+        amount: w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}',
+      );
+      _crateNoticeLeft = 2.5;
+    }
     final from = camera.localToGlobal(Vector2(crate.pos.dx, crate.pos.dy));
     _coach?.flyIn(Offset(from.x, from.y), w.kind);
     AudioService.playPickup();
@@ -3211,6 +3325,7 @@ class NarrowHaulGame extends Forge2DGame
       } else {
         s.towing = cargoAttachment?.attached ?? false;
         if (_keys.rotateAxis != 0) _keyHeld += dt;
+        _idleFor = thrustHeld || fireHeld || rotateAxis != 0 ? 0 : _idleFor + dt;
         _boostCharge = FlightTuning.nextBoostCharge(_boostCharge, _touchAxis, dt);
         // Re-shape held input every frame: the key boost ramps with time
         // and the boost shrinks once the pod is hooked.

@@ -210,5 +210,20 @@ void main() {
       expect(crate, isNotNull);
       expect(crate, isA<SupplyCrate>());
     });
+
+    test('a crate\'s FIRE plate shows the first time per weapon only', () async {
+      final crate = h.game.supplyCrate;
+      expect(crate, isNotNull, reason: 'needs the crate from the test above');
+      final id = crate!.weapon.id;
+      expect(ProgressService.instance.crateHintSeen(id), isFalse);
+      h.game.debugCollectCrate(crate);
+      expect(h.game.debugCrateNotice?.kind, crate.weapon.kind);
+      expect(ProgressService.instance.crateHintSeen(id), isTrue);
+      // The same weapon again: the icon flies in, no plate.
+      await h.loadLevel(_levelWhere((d) => d.spec.id == 'mine_01'));
+      expect(h.game.debugCrateNotice, isNull);
+      h.game.debugCollectCrate(crate);
+      expect(h.game.debugCrateNotice, isNull);
+    });
   });
 }

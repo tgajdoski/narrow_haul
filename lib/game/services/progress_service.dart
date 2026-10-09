@@ -99,6 +99,7 @@ class ProgressService {
           key.startsWith('iap_') ||
           key.startsWith('ads_') ||
           key.startsWith('ammo_') ||
+          key.startsWith('crate_hint_') ||
           keepCosmeticIds.any((id) => key == 'cosmetic_unlocked_$id');
       if (!kept) await _prefs.remove(key);
     }
@@ -216,6 +217,11 @@ class ProgressService {
   bool get scrapeHintSeen => _bool('scrape_hint_seen') ?? false;
   Future<void> markScrapeHintSeen() async =>
       _prefs.setBool('scrape_hint_seen', true);
+  /// A crate's "loaded, tap FIRE" plate shows the first time each weapon
+  /// is picked up; after that the icon flying into FIRE says it.
+  bool crateHintSeen(String weaponId) => _bool('crate_hint_$weaponId') ?? false;
+  Future<void> markCrateHintSeen(String weaponId) async =>
+      _prefs.setBool('crate_hint_$weaponId', true);
   Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
 
   bool get minimapEnabled => _bool('minimap_enabled') ?? true;

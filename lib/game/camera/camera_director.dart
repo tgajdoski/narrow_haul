@@ -23,7 +23,7 @@ class CameraProfile {
     this.impactZoomOut = 0,
     this.impactSeconds = 1.5,
     this.restZoomIn = 0,
-    this.restDelay = 1.0,
+    this.restDelay = 0.8,
     this.towZoomOut = 0,
     this.podFraming = false,
     this.podWeight = 0.35,
@@ -57,7 +57,8 @@ class CameraProfile {
   final double impactZoomOut;
   final double impactSeconds;
 
-  /// Zoom-in once the ship has been slow or careful for [restDelay] s.
+  /// Zoom-in once the ship has been slow or careful, or the player has
+  /// let go of the controls, for [restDelay] s.
   final double restZoomIn;
   final double restDelay;
 
@@ -104,6 +105,7 @@ class CameraInputs {
     this.aheadGap,
     this.downX = 0,
     this.downY = 1,
+    this.idleFor = 0,
     required this.viewHalfW,
     required this.viewHalfH,
   });
@@ -117,6 +119,9 @@ class CameraInputs {
 
   /// Gap (m) to rock along the velocity, or null when nothing is in range.
   final double? aheadGap;
+
+  /// Seconds since the player last thrust, turned or fired.
+  final double idleFor;
 
   /// Unit vector of local gravity, (0, 0) in zero-g.
   final double downX, downY;
@@ -137,8 +142,8 @@ class CameraDirector {
   CameraProfile profile;
 
   /// Zoom range relative to the rest zoom.
-  static const double minZoom = 0.72;
-  static const double maxZoom = 1.10;
+  static const double minZoom = 0.85;
+  static const double maxZoom = 1.15;
 
   /// Position follow per 1/60 s (the original camera's), eased by time.
   static const double followPerFrame = 0.18;
@@ -195,8 +200,11 @@ class CameraDirector {
     }
 
     // ── Zoom (log space: equal steps feel equal at any zoom) ────────────
+    // Hands off the controls: the player is watching, not flying, so the
+    // speed zoom-out lets go (rock coming up fast and the pod still count).
+    final idle = i.idleFor >= p.restDelay;
     var out = 0.0;
-    if (p.speedZoomOut > 0) {
+    if (p.speedZoomOut > 0 && !idle) {
       out += math.log(1 - p.speedZoomOut * smoothstep(p.speedLo, p.speedHi, speed));
     }
     final gap = i.aheadGap;
@@ -220,13 +228,13 @@ class CameraDirector {
 
     // Slow or careful (a slow approach to rock or a pad): tighten up.
     final careful = gap != null && gap < 2.5 && speed < 0.8;
-    if (!i.launched || speed < restSpeed || careful) {
+    if (!i.launched || speed < restSpeed || careful || idle) {
       _slowFor += dt;
     } else {
       _slowFor = 0;
     }
     var target = out;
-    if (out > -0.005 && p.restZoomIn > 0 && _slowFor >= p.restDelay) {
+    if (out > -0.005 && p.restZoomIn > 0 && (idle || _slowFor >= p.restDelay)) {
       target = math.log(1 + p.restZoomIn);
     }
     target = target.clamp(math.log(minZoom), math.log(maxZoom));
@@ -296,6 +304,49 @@ class Spring {
 double smoothstep(double lo, double hi, double x) {
   final t = ((x - lo) / (hi - lo)).clamp(0.0, 1.0);
   return t * t * (3 - 2 * t);
+}
+
+/// How far (m) the camera may look past the world's edge to keep the ship
+/// clear of the controls ([safeFrameNudge]); the rock is drawn that far out.
+const double kCameraOverscroll = 6;
+const double kCameraOverscrollTop = 3;
+
+/// A screen area the ship should not sit under (a control, a gauge), in
+/// screen pixels.
+typedef ScreenZone = ({double l, double t, double r, double b});
+
+/// How far (px) the ship at screen point ([px], [py]) with on-screen
+/// [radius] must move to clear every [zones] entry: per zone, the smaller of
+/// a vertical or a horizontal push, each toward the screen centre (up from
+/// a bottom control, down from a top gauge; never toward a screen edge,
+/// where there's nothing to see). Zero when the ship is already clear. The
+/// camera moves the other way.
+(double, double) safeFrameNudge(
+  double px,
+  double py,
+  double radius,
+  List<ScreenZone> zones,
+  double screenW,
+  double screenH,
+) {
+  var dx = 0.0, dy = 0.0;
+  // Two passes: clearing one zone can land the ship in a neighbour.
+  for (var pass = 0; pass < 2; pass++) {
+    for (final z in zones) {
+      final x = px + dx, y = py + dy;
+      final l = z.l - radius, r = z.r + radius, t = z.t - radius, b = z.b + radius;
+      if (x <= l || x >= r || y <= t || y >= b) continue;
+      // Toward the centre, past the zone's centre-facing edges.
+      final vert = (z.t + z.b) / 2 > screenH / 2 ? t - y : b - y;
+      final side = (z.l + z.r) / 2 < screenW / 2 ? r - x : l - x;
+      if (side.abs() < vert.abs()) {
+        dx += side;
+      } else {
+        dy += vert;
+      }
+    }
+  }
+  return (dx, dy);
 }
 
 /// Trauma screen shake (Eiserloh, GDC 2016): events add trauma 0…1, which

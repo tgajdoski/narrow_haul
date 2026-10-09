@@ -24,6 +24,7 @@ class CoachMark {
     this.cost,
     this.glyph,
     this.confirmOnExit = true,
+    this.subtle = false,
   });
 
   /// Stable id: the HUD restarts its animation only when this changes.
@@ -42,6 +43,10 @@ class CoachMark {
 
   /// Weapon icon on the plate (a crate's weapon).
   final WeaponKind? glyph;
+
+  /// A notice, not a lesson: the plate is lighter and see-through, so it
+  /// never hides the flight.
+  final bool subtle;
 
   /// The mark goes away because the pilot did the thing: ring collapses
   /// into the control with a tick. False for marks that just time out.
@@ -182,6 +187,7 @@ Guidance resolveGuidance(GuidanceInputs i) {
       keys: i.desktop ? const ['F'] : const [],
       glyph: crate.kind,
       confirmOnExit: false,
+      subtle: true,
     );
   } else if (i.armed && i.combatLevel && i.shotsFired == 0 && !i.levelStarred) {
     coach = CoachMark(

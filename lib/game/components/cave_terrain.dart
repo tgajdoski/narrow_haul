@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/camera/camera_director.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/theme_assets.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
@@ -170,12 +171,16 @@ class CaveTerrain extends BodyComponent {
   /// The even-odd rock region (solid where true); shared with decor placement.
   ui.Path get rockPath => _rockPath;
 
-  /// Rock = world rect (padded 1 m so the border never shows gaps) minus the
-  /// cave interiors, via even-odd fill.
+  /// Rock = world rect (padded past the camera's overscroll, so looking
+  /// past the edge shows rock, never a gap) minus the cave interiors, via
+  /// even-odd fill.
   static ui.Path buildRockPath(List<ui.Path> edgePaths, Vector2 worldSize) {
+    const pad = kCameraOverscroll + 1;
     final path = ui.Path()
       ..fillType = ui.PathFillType.evenOdd
-      ..addRect(Rect.fromLTWH(-1, -1, worldSize.x + 2, worldSize.y + 2));
+      ..addRect(
+        Rect.fromLTWH(-pad, -pad, worldSize.x + 2 * pad, worldSize.y + 2 * pad),
+      );
     for (final p in edgePaths) {
       path.addPath(p, Offset.zero);
     }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/camera/camera_director.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
@@ -98,6 +99,37 @@ class HudTouchControls extends PositionComponent {
 
   /// The ammo rail is on screen.
   bool get railShown => _rail != null && (weapon?.showRail ?? false);
+
+  /// Screen areas the ship shouldn't sit under: the steering dial (where it
+  /// rests, and where it floats while held) and the THRUST / FIRE / rail
+  /// cluster. The camera nudges the view so the ship stays clear of them.
+  List<ScreenZone> get controlZones {
+    final l = _layout;
+    if (l == null) return const [];
+    const pad = 12.0;
+    ScreenZone around(Offset c, double r) =>
+        (l: c.dx - r - pad, t: c.dy - r - pad, r: c.dx + r + pad, b: c.dy + r + pad);
+    const dialR = HudButtonLayout.dialRadius;
+    final zones = <ScreenZone>[around(l.dialRest, dialR)];
+    final held = _joystick?.heldCenter;
+    if (held != null) {
+      zones.add(around(Offset(held.x + _joystick!.position.x, held.y), dialR));
+    }
+    const thrustR = HudButtonLayout.thrustRadius;
+    var top = l.thrust.dy - thrustR;
+    if (_showFire) top = math.min(top, l.fire.dy - HudButtonLayout.fireRadius);
+    final rail = railShown ? l.railCenters(weapon!.slots.length) : const <Offset>[];
+    if (rail.isNotEmpty) top = math.min(top, rail.first.dy - HudButtonLayout.slotRadius);
+    final inner = l.thrust.dx + l.innerSide * HudButtonLayout.innerReach(rail: rail.isNotEmpty);
+    final outer = l.thrust.dx - l.innerSide * thrustR;
+    zones.add((
+      l: math.min(inner, outer) - pad,
+      t: top - pad,
+      r: math.max(inner, outer) + pad,
+      b: l.thrust.dy + thrustR + pad,
+    ));
+    return zones;
+  }
 
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
@@ -343,6 +375,9 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   Vector2? _baseCenter;
   Vector2? _knobCenter;
   bool _active = false;
+
+  /// Where the dial floats while a thumb holds it (this area's coordinates).
+  Vector2? get heldCenter => _baseCenter;
 
   /// Last emitted axis, for lighting the side the pilot is turning to.
   double _axis = 0;

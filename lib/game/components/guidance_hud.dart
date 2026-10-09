@@ -27,6 +27,15 @@ const _amber = Color(0xFFFFB347);
 // Coach marks
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The first of [candidates] that overlaps none of [avoid] (each inflated
+/// by 6 px), and whether one was found; otherwise the first, not clear.
+(Rect, bool) placeAvoiding(List<Rect> candidates, List<Rect> avoid) {
+  for (final c in candidates) {
+    if (!avoid.any((r) => r.inflate(6).overlaps(c))) return (c, true);
+  }
+  return (candidates.first, false);
+}
+
 class CoachMarkHud extends PositionComponent {
   CoachMarkHud({required this.controls}) : super(priority: 5010);
 
@@ -38,6 +47,15 @@ class CoachMarkHud extends PositionComponent {
   /// Where the plate was drawn last frame (the comms line keeps clear).
   Rect? get plateRect => _plateRect;
   Rect? _plateRect;
+
+  /// The ship and the towed pod on screen, set every frame: the plate moves
+  /// off them, or fades to a ghost when it can't.
+  List<Rect> shield = const [];
+
+  /// Plate opacity, eased toward 1 (clear) or [_blockedAlpha] (over the ship).
+  double _vis = 1;
+  double _visTarget = 1;
+  static const double _blockedAlpha = 0.25;
 
   CoachMark? _shown;
   double _in = 0;
@@ -90,8 +108,10 @@ class CoachMarkHud extends PositionComponent {
       }
       _shown = next;
       _in = 0;
+      _vis = _visTarget = 1;
     }
     if (_shown != null) _in = math.min(1, _in + dt * 5);
+    _vis += (_visTarget - _vis) * math.min(1, dt * 8);
     if (_exit < 1) _exit = math.min(1, _exit + dt / _exitSeconds);
     for (final f in _flights) {
       f.t += dt;
@@ -151,7 +171,8 @@ class CoachMarkHud extends PositionComponent {
   }
 
   void _renderMark(Canvas canvas, CoachMark m, _Anchor a) {
-    final e = Curves.easeOutCubic.transform(_in);
+    final ease = Curves.easeOutCubic.transform(_in);
+    var e = ease;
     final ringR = a.r + 7;
 
     // The control itself: a steady ring plus two pulses rolling outward.
@@ -231,15 +252,28 @@ class CoachMarkHud extends PositionComponent {
     final h = innerH + padV * 2;
 
     final reach = a.r + 22 + a.extraGap;
-    final slide = (1 - e) * 14;
+    final slide = (1 - ease) * 14;
     final left = a.side > 0
         ? a.c.dx + reach - slide
         : a.c.dx - reach - w + slide;
     final minTop = 110.0 + controls.insets.top;
     final maxTop = size.y - controls.insets.bottom - 8 - h;
     final top = (a.c.dy - h / 2).clamp(minTop, math.max(minTop, maxTop)).toDouble();
-    final rect = Rect.fromLTWH(left.clamp(4, size.x - w - 4).toDouble(), top, w, h);
+    final x0 = left.clamp(4, size.x - w - 4).toDouble();
+    // Beside the control; if that covers the ship, as high or as low as the
+    // plate may go; if all of them do, a ghost of it.
+    final (rect, clear) = placeAvoiding(
+      [
+        Rect.fromLTWH(x0, top, w, h),
+        Rect.fromLTWH(x0, minTop, w, h),
+        Rect.fromLTWH(x0, math.max(minTop, maxTop), w, h),
+      ],
+      shield,
+    );
     _plateRect = rect;
+    _visTarget = clear ? 1 : _blockedAlpha;
+    // A notice (a crate's weapon) is see-through even when clear.
+    e = ease * _vis * (m.subtle ? 0.7 : 1);
 
     // Leader: from the ring to the plate's near edge, with a node.
     final nearX = a.side > 0 ? rect.left : rect.right;
@@ -260,7 +294,10 @@ class CoachMarkHud extends PositionComponent {
 
     final plate = chamferRect(rect, 9);
     drawGlow(canvas, plate, a.color, 0.35 * e);
-    canvas.drawPath(plate, Paint()..color = HudColors.plateDark.withValues(alpha: 0.92 * e));
+    canvas.drawPath(
+      plate,
+      Paint()..color = HudColors.plateDark.withValues(alpha: (m.subtle ? 0.6 : 0.92) * e),
+    );
     drawStroke(canvas, plate, a.color.withValues(alpha: 0.8 * e), 1.3);
     // Accent bar on the side facing the control.
     final barX = a.side > 0 ? rect.left + 3 : rect.right - 6;
@@ -687,6 +724,11 @@ class CommsHud extends PositionComponent {
   /// A rect to keep clear of (the coach plate).
   final Rect? Function()? avoid;
 
+  /// The ship and the towed pod on screen (see [CoachMarkHud.shield]).
+  List<Rect> shield = const [];
+  double _vis = 1;
+  double _visTarget = 1;
+
   /// A line went on air (the blip).
   final void Function(CommsLine line)? onLine;
 
@@ -713,14 +755,15 @@ class CommsHud extends PositionComponent {
     super.update(dt);
     _t += dt;
     if (queue.update(dt)) onLine?.call(queue.current!);
+    _vis += (_visTarget - _vis) * math.min(1, dt * 8);
   }
 
   @override
   void render(Canvas canvas) {
     final line = queue.current;
     if (line == null) return;
-    final a = queue.alpha;
-    if (a <= 0) return;
+    final shown = queue.alpha;
+    if (shown <= 0) return;
 
     const padH = 12.0;
     const padV = 7.0;
@@ -745,16 +788,24 @@ class CommsHud extends PositionComponent {
     final w = math.max(full.width, call.width + 40) + padH * 2;
     final h = call.height + 3 + full.height + padV * 2;
 
-    var rect = bottomBand
-        ? Rect.fromLTWH(band.center.dx - w / 2, band.bottom - h, w, h)
-        : Rect.zero;
+    // Under the level info, top-left.
+    final topLeft = Rect.fromLTWH(controls.insets.left + 12, controls.insets.top + 82, w, h);
     final clash = avoid?.call();
-    if (!bottomBand || (clash != null && clash.inflate(8).overlaps(rect))) {
-      // Under the level info, top-left.
-      rect = Rect.fromLTWH(controls.insets.left + 12, controls.insets.top + 82, w, h);
-    }
+    // The coach plate must stay readable: never place over it.
+    final candidates = [
+      if (bottomBand) Rect.fromLTWH(band.center.dx - w / 2, band.bottom - h, w, h),
+      topLeft,
+    ].where((r) => clash == null || !clash.inflate(8).overlaps(r)).toList();
+    final (placed, clear) = placeAvoiding(
+      candidates.isEmpty ? [topLeft] : candidates,
+      shield,
+    );
+    var rect = placed;
+    // Over the ship either way: a ghost of the line.
+    _visTarget = clear ? 1 : 0.3;
+    final a = shown * _vis;
     // Slide up into place.
-    rect = rect.shift(Offset(0, (1 - Curves.easeOutCubic.transform(a)) * 10));
+    rect = rect.shift(Offset(0, (1 - Curves.easeOutCubic.transform(shown)) * 10));
 
     final plate = chamferRect(rect, 9);
     drawGlow(canvas, plate, HudColors.cyan, 0.3 * a);

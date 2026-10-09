@@ -49,19 +49,20 @@ enum SteerMode {
 }
 
 enum CameraMode {
-  /// Zooms out with speed and when rock comes up fast, tightens when the
-  /// ship is still or creeping in to land, keeps a towed pod in view.
+  /// Zooms out a little with speed and when rock comes up fast, closes in
+  /// when the player lets go of the controls, sits still or creeps in to
+  /// land, keeps a towed pod in view.
   dynamicZoom(
     'Dynamic',
-    'Zooms out when fast, in when landing',
+    'Zooms out when fast, in when you let go',
     CameraProfile(
       lead: 0.4,
       downBias: 0.5,
       deadZone: 0.2,
-      speedZoomOut: 0.22,
-      impactZoomOut: 0.15,
-      restZoomIn: 0.08,
-      towZoomOut: 0.12,
+      speedZoomOut: 0.10,
+      impactZoomOut: 0.08,
+      restZoomIn: 0.12,
+      towZoomOut: 0.08,
       podFraming: true,
     ),
   ),
@@ -85,7 +86,7 @@ enum CameraMode {
     'See more of the cave, smaller ship',
     CameraProfile(
       lead: 0.3,
-      speedZoomOut: 0.10,
+      speedZoomOut: 0.06,
       towZoomOut: 0.08,
       podFraming: true,
       zoomMul: 0.85,

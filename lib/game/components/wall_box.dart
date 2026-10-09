@@ -18,6 +18,11 @@ class WallBox extends BodyComponent {
     this.assets = ThemeAssets.empty,
   }) : super(paint: _fillPaint(theme, assets, wallCenter));
 
+  /// The rock paint anchored at the world origin, for other rock drawn to
+  /// match ([WorldFrame]).
+  static Paint rockPaint(ThemeSpec theme, ThemeAssets assets) =>
+      _fillPaint(theme, assets, Vector2.zero());
+
   /// Theme fill; with a rock texture, the shader is anchored to the world
   /// origin (not the box) so adjacent walls tile seamlessly.
   static Paint _fillPaint(ThemeSpec theme, ThemeAssets assets, Vector2 center) {
