@@ -149,8 +149,8 @@ class ShipSpec {
   /// Local +Y anchor at engine bell (rope + plume).
   double get rearLocalY => _rearY * hullGrowth * hullScale;
 
-  /// Nose hook: just behind the nose tip, where the pod is caught.
-  double get hookLocalY => noseLocalY + 0.15 * hullScale;
+  /// Tow hook: on the winch under the tail, where the pod hangs.
+  double get hookLocalY => rearLocalY;
   double get hookRadius => _hookRadius * hullScale;
 
   /// Largest distance from the body origin to a hull vertex — the ship's

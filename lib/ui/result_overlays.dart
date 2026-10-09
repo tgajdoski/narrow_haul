@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -17,6 +20,26 @@ import 'package:narrow_haul/ui/store_feedback.dart';
 
 /// 'levelComplete' overlay: stars, flight stats, coins and the XP breakdown,
 /// laid out side by side so it fits a landscape phone.
+const _garageNotePrefix = 'New in the Garage';
+
+/// "New in the Garage: Tow Chain (80 💰)" when this payout made something
+/// affordable (gear first).
+String? _garageNote(RunReward? reward) {
+  if (reward == null || reward.currency <= 0) return null;
+  final snap = GarageNotices.current();
+  final items = newlyAffordable(
+    CosmeticsService.all,
+    before: reward.coinsBefore,
+    after: reward.coinsBefore + reward.currency,
+    owned: snap.owned,
+    rankIndex: snap.rankIndex,
+  );
+  if (items.isEmpty) return null;
+  final first = items.first;
+  final more = items.length > 1 ? ' and ${items.length - 1} more' : '';
+  return '$_garageNotePrefix: ${first.name} (${first.cost} 💰)$more';
+}
+
 class LevelCompleteOverlay extends StatefulWidget {
   const LevelCompleteOverlay({super.key, required this.game});
   final NarrowHaulGame game;
@@ -155,6 +178,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
         if (CosmeticsService.byId(id) case final item?
             when !CosmeticsService.isUnlocked(item))
           'Enjoying the ${item.name}? Own it in the Garage for ${item.cost} 💰',
+      ?_garageNote(reward),
     ];
 
     final result = Column(
@@ -190,7 +214,9 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           Text(
             n,
             style: TextStyle(
-              color: n.startsWith('★') || n.startsWith('Enjoying')
+              color: n.startsWith('★') ||
+                      n.startsWith('Enjoying') ||
+                      n.startsWith(_garageNotePrefix)
                   ? const Color(0xCCFFD166)
                   : Colors.white38,
               fontSize: 12,
@@ -631,12 +657,88 @@ class _RankUpOverlayState extends State<RankUpOverlay>
 
   void _close() => widget.game.closeRankUp();
 
+  /// Garage items handed out by every rank this run crossed.
+  late final List<CosmeticItem> _unlocks = () {
+    final reward = widget.game.lastRunReward;
+    if (reward == null) return <CosmeticItem>[];
+    return [
+      for (var i = reward.rankBefore.index + 1; i <= reward.rankAfter.index; i++)
+        ...unlocksAtRank(CosmeticsService.all, i),
+    ];
+  }();
+
+  @override
+  void initState() {
+    super.initState();
+    // Shown here, so the Garage doesn't flag them NEW again (unfitted gear
+    // still says FIT).
+    unawaited(GarageNotices.markSeen(_unlocks));
+  }
+
+  Future<void> _fit(CosmeticItem item) async {
+    await CosmeticsService.equip(item);
+    if (mounted) setState(() {});
+  }
+
+  Widget _unlockRow(CosmeticItem item) {
+    final fitted = CosmeticsService.getSavedEquippedId(item.category) == item.id;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Text(item.icon, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  isGear(item)
+                      ? 'Free · new tow gear in your Garage'
+                      : 'Free · in your Garage',
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (fitted)
+            HoloChip(
+              icon: Icons.check_rounded,
+              label: isGear(item) ? 'FITTED' : 'EQUIPPED',
+              color: SpaceColors.gold,
+            )
+          else
+            HoloButton(
+              label: isGear(item) ? 'Fit now' : 'Use now',
+              accent: SpaceColors.gold,
+              height: 32,
+              fontSize: 11,
+              expand: false,
+              onPressed: () => _fit(item),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final reward = widget.game.lastRunReward;
     if (reward == null) return const SizedBox.shrink();
     final rank = reward.rankAfter;
     final scale = CurvedAnimation(parent: _anim, curve: Curves.elasticOut);
+    final next = nextRank(rank);
+    final nextItems =
+        next == null ? const <CosmeticItem>[] : unlocksAtRank(CosmeticsService.all, next.index);
 
     return GestureDetector(
       onTap: () {
@@ -686,6 +788,15 @@ class _RankUpOverlayState extends State<RankUpOverlay>
                         color: SpaceColors.green,
                         fontSize: 13,
                       ),
+                    ),
+                  ],
+                  for (final item in _unlocks) _unlockRow(item),
+                  if (next != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Next: ${next.title} at ${next.minXp} XP'
+                      '${nextItems.isEmpty ? '' : ' · ${nextItems.map((i) => i.name).join(', ')}'}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 11.5),
                     ),
                   ],
                   const SizedBox(height: 14),

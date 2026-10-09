@@ -6,7 +6,9 @@ import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -350,6 +352,10 @@ class MissionBriefingOverlay extends StatelessWidget {
             Expanded(child: starLine(2, two)),
           ],
         ),
+        if (!daily) ...[
+          const SizedBox(height: 8),
+          _LoadoutLine(game: game, accent: accent),
+        ],
         if (daily) ...[
           const SizedBox(height: 6),
           Text(
@@ -409,6 +415,67 @@ class MissionBriefingOverlay extends StatelessWidget {
       maxWidth: 600,
       footer: footer,
       child: body,
+    );
+  }
+}
+
+/// Briefing: the tow gear and kit this flight takes, and a nudge (with a
+/// way to the Garage) when the player owns gear they've never flown.
+class _LoadoutLine extends StatelessWidget {
+  const _LoadoutLine({required this.game, required this.accent});
+  final NarrowHaulGame game;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final rope = CosmeticsService.byId(
+      CosmeticsService.getEquippedId(CosmeticsService.catRope),
+    );
+    final kit = CosmeticsService.byId(
+      CosmeticsService.getEquippedId(CosmeticsService.catKit),
+    );
+    final unused = GarageNotices.current().unusedGear;
+    final nudge = unused.isEmpty
+        ? null
+        : unused.length == 1
+        ? 'You own ${unused.first.name}: not fitted'
+        : 'You own ${unused.length} gear items you haven\'t fitted';
+    return Row(
+      children: [
+        Icon(Icons.link_rounded, size: 15, color: accent),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Loadout: ${rope?.name ?? 'Steel Winch Cable'} · ${kit?.name ?? 'Standard Fit'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              if (nudge != null)
+                Text(
+                  nudge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: SpaceColors.gold, fontSize: 11.5),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        HoloButton(
+          label: nudge != null ? 'Fit gear' : 'Garage',
+          icon: Icons.build_circle_outlined,
+          accent: nudge != null ? SpaceColors.gold : accent,
+          height: 32,
+          fontSize: 11,
+          expand: false,
+          onPressed: game.openGarageFromBriefing,
+        ),
+      ],
     );
   }
 }

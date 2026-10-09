@@ -37,15 +37,10 @@ class RopeLine extends Component {
     final winch = ship.body.worldPoint(Vector2(0, ship.rearLocalY));
     final cargoCenter = cargo.body.worldCenter;
 
-    final Vector2 a;
-    final Vector2 b;
-    if (attached()) {
-      a = winch;
-      b = cargoCenter;
-    } else {
-      a = ship.body.worldPoint(ship.hookLocal);
-      b = cargoCenter;
-    }
+    // The line always hangs from the winch under the tail, before and
+    // after the catch.
+    final a = winch;
+    final b = cargoCenter;
 
     final baseAlpha = p * (attached() ? 1.0 : 0.55);
     final alphaInt = (baseAlpha * 230).round().clamp(0, 255);

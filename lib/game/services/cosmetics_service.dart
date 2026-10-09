@@ -140,6 +140,9 @@ class CosmeticsService {
   static Future<void> equip(CosmeticItem item) async {
     if (isUnlocked(item)) {
       await ProgressService.instance.equipCosmetic(item.category, item.id);
+      if (item.category == catRope || item.category == catKit) {
+        await ProgressService.instance.markGearFitted(item.id);
+      }
     }
   }
 }

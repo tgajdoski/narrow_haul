@@ -6,7 +6,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
-import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -145,13 +145,18 @@ class _MenuOverlayState extends State<MenuOverlay> {
       ],
     );
 
-    final canBuySomething = CosmeticsService.all.any(
-      (i) =>
-          !i.supporterOnly &&
-          !CosmeticsService.isUnlocked(i) &&
-          !CosmeticsService.isRankLocked(i) &&
-          i.cost <= coins,
-    );
+    // Garage news: newly unlocked or affordable items (until looked at),
+    // then gear owned but never flown; the subtitle names the next goal.
+    final garage = GarageNotices.current();
+    final garageNews = garage.fresh.length;
+    final garageBadge = garageNews > 0
+        ? '$garageNews NEW'
+        : garage.unusedGear.isNotEmpty
+        ? 'FIT'
+        : null;
+    final garageSubtitle = garage.unusedGear.isNotEmpty && garageNews == 0
+        ? '${garage.unusedGear.first.name} not fitted'
+        : garage.nextGoal?.label ?? 'Gear · Armory';
 
     final rail = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,9 +183,9 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 child: HoloTile(
                   icon: Icons.build_circle_outlined,
                   label: 'Garage',
-                  subtitle: 'Gear · Armory',
+                  subtitle: garageSubtitle,
                   accent: SpaceColors.coral,
-                  badge: canBuySomething ? 'NEW' : null,
+                  badge: garageBadge,
                   onTap: () => game.openScreen(OverlayIds.cosmetics),
                 ),
               ),

@@ -11,8 +11,9 @@ class RopeSpec {
     required this.name,
     required this.blurb,
     this.kind = TowKind.rope,
-    this.hookReach = 0.35,
-    this.approachDistance = 2.5,
+    this.hookReach = kStockHookReach,
+    this.approachDistance = 3.0,
+    this.minTowLength = 1.0,
     this.stiffnessHz = 0,
     this.dampingRatio = 0.5,
     this.maxStretch = 0,
@@ -32,12 +33,17 @@ class RopeSpec {
 
   final TowKind kind;
 
-  /// Extra grab radius (m) around the nose hook. Also widens the
-  /// centre-to-centre fallback by the same amount.
+  /// Extra grab radius (m) around the winch hook under the tail. Also
+  /// widens the centre-to-centre fallback by the same amount.
   final double hookReach;
 
   /// Ship–pod distance (m) at which the line starts to show.
   final double approachDistance;
+
+  /// Shortest tow (m, winch to pod centre). A catch closer than this pays
+  /// the line out to it (the rope is slack until the ship climbs), so the
+  /// pod always hangs clear of the hull.
+  final double minTowLength;
 
   /// Spring rate of an elastic line (Hz, one-sided: only pulls when
   /// stretched). 0 = rigid, the original hard rope.
@@ -75,8 +81,16 @@ class RopeSpec {
   bool get isElastic => stiffnessHz > 0;
 
   /// Center-to-center attach fallback, widened with the hook reach.
-  double get attachCenterDistance => 1.2 + (hookReach - 0.35);
+  double get attachCenterDistance =>
+      kAttachCenterBase + (hookReach - kStockHookReach);
 }
+
+/// Stock hook reach (m): with the hook radius and the pod's, a Kestrel
+/// hovering over the pod catches it with ~0.8 m of air under the tail.
+const double kStockHookReach = 0.6;
+
+/// Stock centre-to-centre catch (m), for approaches from the side.
+const double kAttachCenterBase = 1.7;
 
 const kStockRope = RopeSpec(
   id: 'rope_cable',
@@ -97,7 +111,7 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_braided',
     name: 'Long Line',
     blurb: 'Grabs a little further and gives on hard stops; swings wider.',
-    hookReach: 0.5,
+    hookReach: 0.75,
     stiffnessHz: 4.5,
     dampingRatio: 0.35,
     maxStretch: 0.25,
@@ -106,8 +120,8 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_energy',
     name: 'Magnetic Grapple',
     blurb: 'Grabs the pod from a hover. Springy: it bounces on stops.',
-    hookReach: 0.9,
-    approachDistance: 3.0,
+    hookReach: 1.15,
+    approachDistance: 3.4,
     stiffnessHz: 2.5,
     dampingRatio: 0.25,
     maxStretch: 0.45,
@@ -116,7 +130,7 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_neon',
     name: 'Shock Cord',
     blurb: 'Very elastic: soaks up bumps, slingshots the pod. Imprecise.',
-    hookReach: 0.4,
+    hookReach: 0.65,
     stiffnessHz: 1.1,
     dampingRatio: 0.2,
     maxStretch: 0.8,
@@ -127,7 +141,6 @@ const kRopes = <String, RopeSpec>{
     blurb: 'Locks on from range, no line. Burns fuel; rock breaks the beam.',
     kind: TowKind.beam,
     approachDistance: 3.4,
-    hookReach: 0.35,
     beamRange: 2.8,
     beamHoldLength: 1.0,
     beamMaxAccel: 22,
@@ -154,7 +167,7 @@ class RopeStats {
 
   static RopeStats of(RopeSpec r) {
     double c(double v) => v.clamp(0.05, 1.0);
-    final reach = r.isBeam ? r.beamRange - 1.2 : r.hookReach;
+    final reach = r.isBeam ? r.beamRange - 1.2 : r.hookReach - 0.25;
     return RopeStats(
       reach: c(reach / 1.6),
       give: r.isBeam ? 0.6 : c(r.maxStretch / 0.8),

@@ -47,8 +47,11 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
     final anchorShip = ship.body.worldPoint(Vector2(0, ship.rearLocalY));
     final anchorCargo = cargo.body.worldCenter;
     final delta = anchorCargo - anchorShip;
-    final dist = delta.length;
-    if (dist < 0.04) return;
+    final caught = delta.length;
+    if (caught < 0.04) return;
+    // A close catch pays the line out to the shortest tow: slack until the
+    // ship climbs, so the pod hangs clear of the hull.
+    final dist = math.max(caught, rope.minTowLength);
 
     // Very short: fixed distance keeps stability (same as prior bar fallback).
     if (dist < 0.12) {

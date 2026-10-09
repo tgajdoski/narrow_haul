@@ -208,6 +208,22 @@ class ProgressService {
     await _prefs.setString('equipped_cosmetic_$category', id);
   }
 
+  /// Garage notice state keys the player has already seen
+  /// (`GarageSnapshot.stateKey`).
+  Set<String> getGarageSeen() => (_stringList('garage_seen') ?? []).toSet();
+
+  Future<void> addGarageSeen(Iterable<String> keys) async {
+    final current = getGarageSeen();
+    if (current.containsAll(keys)) return;
+    current.addAll(keys);
+    await _prefs.setStringList('garage_seen', current.toList());
+  }
+
+  /// Tow gear / kit the player has flown with at some point.
+  bool isGearFitted(String id) => _bool('gear_fitted_$id') ?? false;
+  Future<void> markGearFitted(String id) async =>
+      _prefs.setBool('gear_fitted_$id', true);
+
   // ── Settings ─────────────────────────────────────────────────────────────
 
   /// The "Delivered by" credits play on the first launch only.

@@ -93,6 +93,7 @@ class RunReward {
     required this.xpAfter,
     required this.currency,
     required this.newAchievements,
+    this.coinsBefore = 0,
   });
 
   final XpBreakdown xp;
@@ -101,12 +102,16 @@ class RunReward {
   final int currency;
   final List<AchievementMeta> newAchievements;
 
+  /// Coin balance before this payout (what it made affordable).
+  final int coinsBefore;
+
   RunReward withCurrency(int value) => RunReward(
     xp: xp,
     xpBefore: xpBefore,
     xpAfter: xpAfter,
     currency: value,
     newAchievements: newAchievements,
+    coinsBefore: coinsBefore,
   );
 
   PilotRank get rankBefore => rankFor(xpBefore);
@@ -1740,6 +1745,7 @@ class NarrowHaulGame extends Forge2DGame
     ) {
       currency += rankUpBonus(kRanks[i]);
     }
+    final coinsBefore = progress.getCosmeticCurrency();
     if (currency > 0) unawaited(progress.addCosmeticCurrency(currency));
 
     if (currency > 0) Analytics.earnCoins(currency, 'delivery');
@@ -1766,6 +1772,7 @@ class NarrowHaulGame extends Forge2DGame
       xpAfter: xpAfter,
       currency: currency,
       newAchievements: unlocked,
+      coinsBefore: coinsBefore,
     );
 
     AudioService.playLand();
@@ -2527,11 +2534,36 @@ class NarrowHaulGame extends Forge2DGame
   void showRankUp() => overlays.add(OverlayIds.rankUp);
   void closeRankUp() => overlays.remove(OverlayIds.rankUp);
 
-  /// A sub-screen → back to the hangar.
+  /// A sub-screen → back to the hangar (or to the briefing the Garage was
+  /// opened from).
   void closeScreen(String key) {
     MonetizationService.instance.refreshIfNeeded();
     overlays.remove(key);
+    final back = _garageReturn;
+    _garageReturn = null;
+    if (key == OverlayIds.cosmetics && back != null) {
+      overlays.add(back.under);
+      briefingLevel = back.level;
+      briefingDaily = false;
+      overlays.add(OverlayIds.briefing);
+      return;
+    }
     overlays.add(OverlayIds.menu);
+  }
+
+  /// Where the Garage returns to when opened from a mission briefing.
+  ({String under, int level})? _garageReturn;
+
+  /// Briefing → Garage (change tow gear or kit); closing it comes back to
+  /// the same briefing.
+  void openGarageFromBriefing() {
+    final under = overlays.isActive(OverlayIds.levelSelect)
+        ? OverlayIds.levelSelect
+        : OverlayIds.menu;
+    _garageReturn = (under: under, level: briefingLevel);
+    MonetizationService.instance.refreshIfNeeded();
+    overlays.removeAll([OverlayIds.briefing, under]);
+    overlays.add(OverlayIds.cosmetics);
   }
 
   /// LAUNCH and NEXT MISSION brief a mission first only when it's new: no
@@ -2594,6 +2626,8 @@ class NarrowHaulGame extends Forge2DGame
       leaveResults(() async => backToMenu());
     } else if (active.contains(OverlayIds.gameOver) || active.contains(OverlayIds.demo)) {
       backToMenu();
+    } else if (_garageReturn != null && active.contains(OverlayIds.cosmetics)) {
+      closeScreen(OverlayIds.cosmetics);
     } else if (OverlayIds.subScreens
         .any(active.contains)) {
       overlays.removeAll(OverlayIds.subScreens);

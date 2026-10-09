@@ -8,7 +8,9 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
+import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/ui/career_overlays.dart';
@@ -325,5 +327,126 @@ void main() {
       () => PilotLogbookOverlay(game: NarrowHaulGame()),
       mustNotScroll: false,
     );
+  });
+
+  testWidgets('rank-up lists the Garage items it unlocks, with Fit now', (
+    tester,
+  ) async {
+    await ProgressService.instance.setXp(2600);
+    NarrowHaulGame promoted() => NarrowHaulGame()
+      ..lastRunReward = RunReward(
+        xp: const XpBreakdown([XpLine('First clear', 200)]),
+        xpBefore: 2400,
+        xpAfter: 2600,
+        currency: 50,
+        newAchievements: const [],
+      );
+    await each(tester, 'rankUp', () => RankUpOverlay(game: promoted()));
+    expect(find.text('Long Line'), findsOneWidget);
+    expect(find.textContaining('Next: First Officer'), findsOneWidget);
+    await tester.tap(find.text('FIT NOW'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      CosmeticsService.getSavedEquippedId(CosmeticsService.catRope),
+      'rope_braided',
+    );
+    expect(find.text('FITTED'), findsOneWidget);
+  });
+
+  testWidgets('mission complete names what the coins just bought', (
+    tester,
+  ) async {
+    await ProgressService.instance.spendCosmeticCurrency(1240 - 85);
+    final game = NarrowHaulGame()
+      ..levelIndex = 3
+      ..runState = RunState.won
+      ..lastLevelStars = 3
+      ..lastRunReward = RunReward(
+        xp: const XpBreakdown([XpLine('First clear', 60)]),
+        xpBefore: 6000,
+        xpAfter: 6060,
+        currency: 45,
+        newAchievements: const [],
+        coinsBefore: 40,
+      );
+    await pump(tester, _sizes.first, 1, LevelCompleteOverlay(game: game));
+    expect(
+      find.textContaining('New in the Garage: Tow Chain (80 💰)'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Garage news: hangar badge clears once the tab is seen', (
+    tester,
+  ) async {
+    await pump(tester, _sizes.first, 1, MenuOverlay(game: NarrowHaulGame()));
+    final news = GarageNotices.current().fresh;
+    expect(news, isNotEmpty);
+    expect(find.text('${news.length} NEW'), findsOneWidget);
+
+    // Opening the Garage marks the first tab with news as seen.
+    await pump(tester, _sizes.first, 1, GarageOverlay(game: NarrowHaulGame()));
+    expect(GarageNotices.current().fresh.length, lessThan(news.length));
+    for (final (_, icon) in const [
+      ('ship', Icons.rocket_rounded),
+      ('rope', Icons.link_rounded),
+      ('kit', Icons.tune_rounded),
+      ('plume', Icons.local_fire_department_outlined),
+    ]) {
+      await tester.tap(find.byIcon(icon).first);
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+    expect(GarageNotices.current().fresh, isEmpty);
+    await pump(tester, _sizes.first, 1, MenuOverlay(game: NarrowHaulGame()));
+    expect(find.textContaining(' NEW'), findsNothing);
+  });
+
+  testWidgets('Garage asks before spending coins, and says why when it can\'t', (
+    tester,
+  ) async {
+    await pump(tester, _sizes.first, 1, GarageOverlay(game: NarrowHaulGame()));
+    await tester.tap(find.byIcon(Icons.link_rounded).first);
+    await tester.pump(const Duration(milliseconds: 400));
+    // Tow Chain: affordable → confirm first, nothing spent yet.
+    await tester.tap(find.text('Tow Chain'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('BUY · 80'), findsOneWidget);
+    expect(ProgressService.instance.getCosmeticCurrency(), 1240);
+    await tester.tap(find.textContaining('BUY · 80'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(ProgressService.instance.getCosmeticCurrency(), 1160);
+    expect(
+      CosmeticsService.getSavedEquippedId(CosmeticsService.catRope),
+      'rope_chain',
+    );
+
+    // Out of coins: the tap explains the shortfall.
+    await ProgressService.instance.spendCosmeticCurrency(1160 - 10);
+    await pump(tester, _sizes.first, 1, GarageOverlay(game: NarrowHaulGame()));
+    await tester.tap(find.byIcon(Icons.link_rounded).first);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.scrollUntilVisible(
+      find.text('Magnetic Grapple'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Magnetic Grapple'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('Need 190 more'), findsOneWidget);
+  });
+
+  testWidgets('briefing shows the loadout and nudges unfitted gear', (
+    tester,
+  ) async {
+    // Rank 5 owns the Long Line (Second Officer) but never fitted it.
+    await pump(
+      tester,
+      _sizes.first,
+      1,
+      MissionBriefingOverlay(game: NarrowHaulGame()..briefingLevel = 3),
+    );
+    expect(find.textContaining('Loadout: Steel Winch Cable'), findsOneWidget);
+    expect(find.text('You own Long Line: not fitted'), findsOneWidget);
+    expect(find.text('FIT GEAR'), findsOneWidget);
   });
 }

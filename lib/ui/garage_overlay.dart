@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
+import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
@@ -28,7 +31,14 @@ class GarageOverlay extends StatefulWidget {
 class _GarageOverlayState extends State<GarageOverlay> {
   /// The weapons tab (not a cosmetics category).
   static const _armory = 'armory';
-  String _selectedCategory = CosmeticsService.catShip;
+  late String _selectedCategory;
+
+  /// Items that were news when their tab was opened this visit: they keep
+  /// their ribbon until the Garage closes, though they're marked seen.
+  final Map<String, GarageMark> _shownMarks = {};
+
+  /// A paid item waiting for "Buy & fit".
+  CosmeticItem? _confirm;
 
   static const _tabs = [
     (CosmeticsService.catShip, 'Liveries', Icons.rocket_rounded),
@@ -37,6 +47,40 @@ class _GarageOverlayState extends State<GarageOverlay> {
     (CosmeticsService.catPlume, 'Plumes', Icons.local_fire_department_outlined),
     (_armory, 'Armory', Icons.gps_fixed_rounded),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = _firstTab(GarageNotices.current());
+    _view(_selectedCategory);
+  }
+
+  /// Open on what's new; else on gear the player owns but never flew.
+  static String _firstTab(GarageSnapshot snap) {
+    for (final (id, _, _) in _tabs) {
+      if (snap.fresh.any((i) => i.category == id)) return id;
+    }
+    final unused = snap.unusedGear;
+    if (unused.isNotEmpty) return unused.first.category;
+    return CosmeticsService.catShip;
+  }
+
+  void _view(String category) {
+    if (category == _armory) return;
+    final snap = GarageNotices.current();
+    final fresh = [for (final i in snap.fresh) if (i.category == category) i];
+    for (final i in fresh) {
+      _shownMarks[i.id] = snap.markFor(i);
+    }
+    if (fresh.isNotEmpty) unawaited(GarageNotices.markSeen(fresh));
+  }
+
+  void _select(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _view(category);
+    });
+  }
 
   Future<void> _onItemTap(
     CosmeticItem item,
@@ -54,98 +98,268 @@ class _GarageOverlayState extends State<GarageOverlay> {
         if (mounted) setState(() {});
       }
     } else {
-      final success = await CosmeticsService.unlock(item);
-      if (success) {
-        await CosmeticsService.equip(item);
-        if (mounted) setState(() {});
-      }
+      // Coins are spent only after a confirm that shows what they buy.
+      setState(() => _confirm = item);
     }
   }
+
+  Future<void> _buy(CosmeticItem item) async {
+    setState(() => _confirm = null);
+    final success = await CosmeticsService.unlock(item);
+    if (success) {
+      await CosmeticsService.equip(item);
+      if (mounted) setState(() {});
+    }
+  }
+
+  /// Why a locked tile can't be had yet, as a SnackBar.
+  void _explainLocked(CosmeticItem item, int coins) {
+    final String message;
+    if (CosmeticsService.isRankLocked(item)) {
+      final xp = (item.requiredRank.minXp - CareerService.xp).clamp(0, 1 << 30);
+      message =
+          '${item.name} is free at ${item.requiredRank.title} — $xp XP to go. '
+          'Fly missions to earn XP.';
+    } else {
+      message =
+          'Need ${item.cost - coins} more 💰 for ${item.name}. '
+          'Stars and promotions pay coins.';
+    }
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
+  /// Sort: stock first, then owned, then for sale by price, then rank items.
+  static int _order(CosmeticItem i) {
+    if (i.cost == 0 && i.rankRequired == 0 && !i.supporterOnly) return 0;
+    if (CosmeticsService.isUnlocked(i)) return 1;
+    if (CosmeticsService.isRankLocked(i)) return 3;
+    return 2;
+  }
+
+  static String? _caption(String category) => switch (category) {
+    CosmeticsService.catShip ||
+    CosmeticsService.catPlume => 'Looks only · no effect on flight',
+    CosmeticsService.catRope =>
+      'Sidegrades: each line trades one strength for a weakness · '
+          '▲▼ compare with the one you fly now',
+    CosmeticsService.catKit =>
+      'Sidegrades: easier handling, paid in fuel or tank · '
+          '▲▼ compare with the one you fly now',
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {
     final currency = ProgressService.instance.getCosmeticCurrency();
-    final items = CosmeticsService.all
-        .where((e) => e.category == _selectedCategory)
-        .toList();
+    final snap = GarageNotices.current();
+    final items =
+        CosmeticsService.all
+            .where((e) => e.category == _selectedCategory)
+            .toList()
+          ..sort((a, b) {
+            final o = _order(a).compareTo(_order(b));
+            if (o != 0) return o;
+            final r = a.rankRequired.compareTo(b.rankRequired);
+            return r != 0 ? r : a.cost.compareTo(b.cost);
+          });
+    final caption = _caption(_selectedCategory);
+    final confirm = _confirm;
 
-    return SpaceScreen(
-      title: 'Garage',
-      accent: _garageAccent,
-      onBack: () => widget.game.closeScreen(OverlayIds.cosmetics),
-      trailing: [
-        HoloChip(
-          leading: const Text('💰', style: TextStyle(fontSize: 12)),
-          label: '$currency',
-          color: SpaceColors.green,
-        ),
-      ],
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: SpaceScreen(
+            title: 'Garage',
+            accent: _garageAccent,
+            onBack: () => widget.game.closeScreen(OverlayIds.cosmetics),
+            trailing: [
+              HoloChip(
+                leading: const Text('💰', style: TextStyle(fontSize: 12)),
+                label: '$currency',
+                color: SpaceColors.green,
+              ),
+            ],
+            child: Column(
               children: [
-                for (final (id, label, icon) in _tabs) ...[
-                  Expanded(
-                    child: _SegmentTab(
-                      label: label,
-                      icon: icon,
-                      selected: _selectedCategory == id,
-                      onTap: () => setState(() => _selectedCategory = id),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Row(
+                    children: [
+                      for (final (id, label, icon) in _tabs) ...[
+                        Expanded(
+                          child: _SegmentTab(
+                            label: label,
+                            icon: icon,
+                            selected: _selectedCategory == id,
+                            dot: id != _selectedCategory &&
+                                id != _armory &&
+                                snap.tabHasNews(id),
+                            onTap: () => _select(id),
+                          ),
+                        ),
+                        if (id != _armory) const SizedBox(width: 6),
+                      ],
+                    ],
+                  ),
+                ),
+                if (caption != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+                    child: Text(
+                      caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
                     ),
                   ),
-                  if (id != _armory) const SizedBox(width: 6),
-                ],
+                Expanded(
+                  child: _selectedCategory == _armory
+                      ? ArmoryList(onCoinsChanged: () => setState(() {}))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          itemCount: items.length,
+                          itemBuilder: (context, i) =>
+                              _tile(items[i], snap, currency),
+                        ),
+                ),
               ],
             ),
           ),
+        ),
+        if (confirm != null)
+          Positioned.fill(
+            child: _BuyConfirm(
+              item: confirm,
+              coins: currency,
+              onBuy: () => _buy(confirm),
+              onCancel: () => setState(() => _confirm = null),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _tile(CosmeticItem item, GarageSnapshot snap, int currency) {
+    final unlocked = CosmeticsService.isUnlocked(item);
+    final equipped =
+        CosmeticsService.getSavedEquippedId(item.category) == item.id;
+    final trying = CosmeticsService.trialOverride[item.category] == item.id;
+    final rankLocked = CosmeticsService.isRankLocked(item);
+    final affordable = item.cost <= currency;
+    // Coin items can be test-flown for one level via an ad.
+    final canTry = !unlocked && !trying && !item.supporterOnly && !rankLocked;
+    final locked = !unlocked && !item.supporterOnly && (rankLocked || !affordable);
+    var mark = _shownMarks[item.id] ?? snap.markFor(item);
+    // Bought or fitted since the tab opened: the news is spent.
+    if (mark == GarageMark.affordable && unlocked) mark = GarageMark.none;
+    if (equipped) mark = GarageMark.none;
+    return CosmeticTile(
+      item: item,
+      unlocked: unlocked,
+      equipped: equipped,
+      trying: trying,
+      locked: locked,
+      mark: mark,
+      coins: currency,
+      compareTo: equipped
+          ? null
+          : CosmeticsService.getSavedEquippedId(item.category),
+      tryButton: canTry
+          ? _TryButton(
+              onReward: () =>
+                  setState(() => CosmeticsService.startTrial(item)),
+            )
+          : null,
+      onLocked: () => _explainLocked(item, currency),
+      onTap: () => _onItemTap(item, unlocked, equipped),
+    );
+  }
+}
+
+/// "Buy & fit" confirm: what the coins buy and what's left after.
+class _BuyConfirm extends StatelessWidget {
+  const _BuyConfirm({
+    required this.item,
+    required this.coins,
+    required this.onBuy,
+    required this.onCancel,
+  });
+  final CosmeticItem item;
+  final int coins;
+  final VoidCallback onBuy;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final equippedId = CosmeticsService.getSavedEquippedId(item.category);
+    final gear = isGear(item);
+    return HoloDialog(
+      accent: _garageAccent,
+      maxWidth: 440,
+      title: gear ? 'Buy & fit' : 'Buy & wear',
+      footer: Row(
+        children: [
           Expanded(
-            child: _selectedCategory == _armory
-                ? ArmoryList(onCoinsChanged: () => setState(() {}))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) {
-                      final item = items[i];
-                      final unlocked = CosmeticsService.isUnlocked(item);
-                      final equipped =
-                          CosmeticsService.getSavedEquippedId(item.category) ==
-                          item.id;
-                      final trying =
-                          CosmeticsService.trialOverride[item.category] ==
-                          item.id;
-                      final rankLocked = CosmeticsService.isRankLocked(item);
-                      final affordable = item.cost <= currency;
-                      // Coin items can be test-flown for one level via an ad.
-                      final canTry =
-                          !unlocked &&
-                          !trying &&
-                          !item.supporterOnly &&
-                          !rankLocked;
-                      return CosmeticTile(
-                        item: item,
-                        unlocked: unlocked,
-                        equipped: equipped,
-                        trying: trying,
-                        locked:
-                            !unlocked &&
-                            !item.supporterOnly &&
-                            (rankLocked || !affordable),
-                        tryButton: canTry
-                            ? _TryButton(
-                                onReward: () => setState(
-                                  () => CosmeticsService.startTrial(item),
-                                ),
-                              )
-                            : null,
-                        onTap: () => _onItemTap(item, unlocked, equipped),
-                      );
-                    },
+            child: HoloButton(
+              label: 'Cancel',
+              variant: HoloVariant.ghost,
+              height: 40,
+              onPressed: onCancel,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: HoloButton.primary(
+              label: 'Buy · ${item.cost} 💰',
+              height: 40,
+              onPressed: onBuy,
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(item.icon, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  item.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
+                ),
+              ),
+            ],
+          ),
+          if (item.category == CosmeticsService.catRope)
+            RopeStatsView(rope: ropeById(item.id), compareTo: ropeById(equippedId)),
+          if (item.category == CosmeticsService.catKit)
+            KitStatsView(kit: kitById(item.id), compareTo: kitById(equippedId)),
+          if (!gear)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'A new look. It does not change how the ship flies.',
+                style: TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            'You have $coins 💰 · ${coins - item.cost} 💰 left after. '
+            '${gear ? 'You can switch back to any gear you own at any time.' : 'Switch looks any time.'}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
       ),
@@ -159,11 +373,15 @@ class _SegmentTab extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.dot = false,
   });
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Something new in this tab.
+  final bool dot;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +425,18 @@ class _SegmentTab extends StatelessWidget {
                 Icon(icon, size: 15, color: color),
                 const SizedBox(width: 6),
                 Text(label.toUpperCase(), style: hudLabel(11.5, color: color)),
+                if (dot) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    key: const ValueKey('tab-dot'),
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: SpaceColors.gold,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -262,7 +492,8 @@ class _TryButton extends StatelessWidget {
   }
 }
 
-/// One Garage item. [locked] items (rank or coins short) buzz on tap.
+/// One Garage item. [locked] items (rank or coins short) buzz on tap and
+/// say why ([onLocked]).
 class CosmeticTile extends StatelessWidget {
   const CosmeticTile({
     super.key,
@@ -273,6 +504,10 @@ class CosmeticTile extends StatelessWidget {
     this.trying = false,
     this.locked = false,
     this.tryButton,
+    this.mark = GarageMark.none,
+    this.coins = 0,
+    this.compareTo,
+    this.onLocked,
   });
   final CosmeticItem item;
   final bool unlocked;
@@ -284,23 +519,56 @@ class CosmeticTile extends StatelessWidget {
   final bool trying;
   final Widget? tryButton;
 
+  /// NEW / AFFORDABLE / NOT FITTED ribbon.
+  final GarageMark mark;
+  final int coins;
+
+  /// Id of the equipped item in this category, for ▲▼ stat deltas.
+  final String? compareTo;
+  final VoidCallback? onLocked;
+
+  Widget _small(String text, Color color) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: Text(
+      text,
+      textAlign: TextAlign.right,
+      style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final gear = isGear(item);
     final Widget status;
     if (trying) {
-      status = Text(
-        'ON TRIAL · NEXT LEVEL',
-        style: hudLabel(10.5, color: SpaceColors.gold),
+      status = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('ON TRIAL · NEXT LEVEL', style: hudLabel(10.5, color: SpaceColors.gold)),
+          if (item.cost > 0) _small('own it for ${item.cost} 💰', Colors.white54),
+        ],
       );
     } else if (equipped) {
       status = HoloChip(
         icon: Icons.check_rounded,
-        label: 'EQUIPPED',
+        label: gear ? 'FITTED' : 'EQUIPPED',
         color: _garageAccent,
         highlight: true,
       );
     } else if (unlocked) {
-      status = Text('EQUIP', style: hudLabel(11, color: Colors.white54));
+      status = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoloChip(
+            icon: Icons.add_rounded,
+            label: gear ? 'FIT' : 'USE',
+            color: SpaceColors.cyan,
+          ),
+          _small('owned', Colors.white54),
+        ],
+      );
     } else if (item.supporterOnly) {
       status = const Text(
         '💎 Supporter Pack',
@@ -311,27 +579,44 @@ class CosmeticTile extends StatelessWidget {
         ),
       );
     } else if (CosmeticsService.isRankLocked(item)) {
-      status = Text(
-        '🔒 ${item.requiredRank.title}',
-        style: const TextStyle(
-          color: SpaceColors.gold,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+      final xpToGo = (item.requiredRank.minXp - CareerService.xp).clamp(0, 1 << 30);
+      status = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '🔒 ${item.requiredRank.title}',
+            style: const TextStyle(
+              color: SpaceColors.gold,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          _small('free · $xpToGo XP to go', Colors.white54),
+        ],
       );
     } else {
-      status = HoloChip(
-        leading: const Text('💰', style: TextStyle(fontSize: 12)),
-        label: '${item.cost}',
-        color: locked ? Colors.white38 : SpaceColors.green,
+      status = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoloChip(
+            leading: const Text('💰', style: TextStyle(fontSize: 12)),
+            label: '${item.cost}',
+            color: locked ? Colors.white38 : SpaceColors.green,
+          ),
+          if (locked) _small('need ${item.cost - coins} more', Colors.white38),
+        ],
       );
     }
 
+    final compare = compareTo;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: _ItemTap(
         locked: locked,
         onTap: onTap,
+        onLocked: onLocked,
         child: HoloPanel(
           accent: equipped ? _garageAccent : const Color(0xFF3A5068),
           glow: equipped ? 0.6 : 0,
@@ -346,18 +631,31 @@ class CosmeticTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.name,
-                      style: TextStyle(
-                        color: unlocked ? Colors.white : Colors.white60,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          item.name,
+                          style: TextStyle(
+                            color: unlocked ? Colors.white : Colors.white60,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                        ?_ribbon(mark),
+                      ],
                     ),
                     if (item.category == CosmeticsService.catRope)
-                      RopeStatsView(rope: ropeById(item.id)),
+                      RopeStatsView(
+                        rope: ropeById(item.id),
+                        compareTo: compare == null ? null : ropeById(compare),
+                      ),
                     if (item.category == CosmeticsService.catKit)
-                      KitStatsView(kit: kitById(item.id)),
+                      KitStatsView(
+                        kit: kitById(item.id),
+                        compareTo: compare == null ? null : kitById(compare),
+                      ),
                   ],
                 ),
               ),
@@ -365,6 +663,32 @@ class CosmeticTile extends StatelessWidget {
               status,
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  static Widget? _ribbon(GarageMark mark) {
+    final (text, color) = switch (mark) {
+      GarageMark.none => (null, Colors.transparent),
+      GarageMark.newUnlock => ('NEW', SpaceColors.gold),
+      GarageMark.affordable => ('AFFORDABLE', SpaceColors.green),
+      GarageMark.notFitted => ('NOT FITTED', SpaceColors.cyan),
+    };
+    if (text == null) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+      decoration: ShapeDecoration(
+        color: color,
+        shape: ChamferBorder(cut: 4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: SpaceColors.bg,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -378,9 +702,11 @@ class _ItemTap extends StatefulWidget {
     required this.locked,
     required this.onTap,
     required this.child,
+    this.onLocked,
   });
   final bool locked;
   final VoidCallback onTap;
+  final VoidCallback? onLocked;
   final Widget child;
 
   @override
@@ -408,6 +734,7 @@ class _ItemTapState extends State<_ItemTap>
         if (widget.locked) {
           AudioService.playUi(UiSound.denied);
           _shake.forward(from: 0);
+          widget.onLocked?.call();
           return;
         }
         AudioService.playUi(UiSound.select);
@@ -430,12 +757,18 @@ class _ItemTapState extends State<_ItemTap>
 
 /// Tow gear stats on a Garage tile: the trade-off line and four bars.
 class RopeStatsView extends StatelessWidget {
-  const RopeStatsView({super.key, required this.rope});
+  const RopeStatsView({super.key, required this.rope, this.compareTo});
   final RopeSpec rope;
+
+  /// The line flown now: each bar shows ▲/▼ against it.
+  final RopeSpec? compareTo;
 
   @override
   Widget build(BuildContext context) {
     final st = RopeStats.of(rope);
+    final cmp = compareTo == null || compareTo!.id == rope.id
+        ? null
+        : RopeStats.of(compareTo!);
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Column(
@@ -450,10 +783,11 @@ class RopeStatsView extends StatelessWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _StatBar(label: 'REACH', value: st.reach),
-              _StatBar(label: 'GIVE', value: st.give),
-              _StatBar(label: 'STEADY', value: st.steadiness),
-              _StatBar(label: 'FUEL', value: st.economy),
+              _StatBar(label: 'REACH', value: st.reach, was: cmp?.reach),
+              // Give is a trait, not a strength: shown without a verdict.
+              _StatBar(label: 'GIVE', value: st.give, was: cmp?.give, neutral: true),
+              _StatBar(label: 'STEADY', value: st.steadiness, was: cmp?.steadiness),
+              _StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
             ],
           ),
         ],
@@ -464,12 +798,18 @@ class RopeStatsView extends StatelessWidget {
 
 /// Handling kit stats on a Garage tile: the trade-off line and three bars.
 class KitStatsView extends StatelessWidget {
-  const KitStatsView({super.key, required this.kit});
+  const KitStatsView({super.key, required this.kit, this.compareTo});
   final KitSpec kit;
+
+  /// The kit fitted now: each bar shows ▲/▼ against it.
+  final KitSpec? compareTo;
 
   @override
   Widget build(BuildContext context) {
     final st = KitStats.of(kit);
+    final cmp = compareTo == null || compareTo!.id == kit.id
+        ? null
+        : KitStats.of(compareTo!);
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Column(
@@ -484,9 +824,9 @@ class KitStatsView extends StatelessWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _StatBar(label: 'TURN', value: st.turn),
-              _StatBar(label: 'STEADY', value: st.steady),
-              _StatBar(label: 'FUEL', value: st.economy),
+              _StatBar(label: 'TURN', value: st.turn, was: cmp?.turn),
+              _StatBar(label: 'STEADY', value: st.steady, was: cmp?.steady),
+              _StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
             ],
           ),
         ],
@@ -496,9 +836,20 @@ class KitStatsView extends StatelessWidget {
 }
 
 class _StatBar extends StatelessWidget {
-  const _StatBar({required this.label, required this.value});
+  const _StatBar({
+    required this.label,
+    required this.value,
+    this.was,
+    this.neutral = false,
+  });
   final String label;
   final double value;
+
+  /// The same stat on the equipped item (null: no comparison).
+  final double? was;
+
+  /// More isn't better or worse (rope give): arrow without a colour verdict.
+  final bool neutral;
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +877,24 @@ class _StatBar extends StatelessWidget {
             segments: 8,
           ),
         ),
+        SizedBox(width: 14, child: _delta()),
       ],
+    );
+  }
+
+  Widget? _delta() {
+    final w = was;
+    if (w == null) return null;
+    final d = value - w;
+    if (d.abs() < 0.03) return null;
+    final up = d > 0;
+    final color = neutral
+        ? Colors.white54
+        : (up ? const Color(0xFF7DD3C0) : SpaceColors.coral);
+    return Text(
+      up ? '▲' : '▼',
+      textAlign: TextAlign.center,
+      style: TextStyle(color: color, fontSize: 9),
     );
   }
 }

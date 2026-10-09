@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/cargo_attachment.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -16,6 +17,20 @@ void main() {
     expect(kStockRope.attachCenterDistance, CargoAttachment.attachCenterDistanceMax);
   });
 
+  test('stock hook catches from a hover, with air under the tail', () {
+    for (final ship in kShips.values) {
+      // Hovering straight above the pod: the winch hook reaches it while
+      // the tail is still well clear of the pod's top.
+      final catchRadius = ship.hookRadius + kCargoRadius + kStockRope.hookReach;
+      final air = catchRadius - kCargoRadius;
+      expect(air, greaterThanOrEqualTo(0.6), reason: ship.id);
+      // ...and the hook really is under the tail, where the rope hangs.
+      expect(ship.hookLocalY, ship.rearLocalY, reason: ship.id);
+    }
+    // The shortest tow keeps the pod clear of the hull.
+    expect(kStockRope.minTowLength, greaterThan(kCargoRadius + 0.6));
+  });
+
   test('every rope in the Garage has tow stats, and only those', () {
     final ropes = CosmeticsService.all.where((i) => i.category == CosmeticsService.catRope);
     expect({for (final r in ropes) r.id}, kRopes.keys.toSet());
@@ -24,8 +39,9 @@ void main() {
 
   test('tow gear stays inside sane bounds', () {
     for (final r in kRopes.values) {
-      expect(r.hookReach, inInclusiveRange(0.35, 1.0), reason: r.id); // never below stock: pods on slopes roll away
-      expect(r.approachDistance, greaterThanOrEqualTo(r.attachCenterDistance), reason: r.id);
+      expect(r.hookReach, inInclusiveRange(kStockHookReach, 1.25), reason: r.id); // never below stock: pods on slopes roll away
+      expect(r.approachDistance, greaterThanOrEqualTo(r.attachCenterDistance + 0.5), reason: r.id);
+      expect(r.minTowLength, inInclusiveRange(0.8, 2.0), reason: r.id);
       if (r.isElastic && !r.isBeam) {
         expect(r.stiffnessHz, inInclusiveRange(0.8, 8), reason: r.id);
         expect(r.maxStretch, inInclusiveRange(0.1, 1.0), reason: r.id);

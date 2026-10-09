@@ -89,6 +89,8 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
    - Scrape a wall and touch down hard-ish on rock. Does the shield flare and glow feel fair?
    - Is the glow red near bars and turrets?
 4. **Loadout:** tow gear (Chain, Long Line, Magnetic Grapple, Shock Cord, Tractor Beam) and the Handling kits (Gyro, Vernier, Dampers). Does each feel like a real trade-off?
+   - **Hook-up (new):** on tut_01, does the stock cable catch the pod from a comfortable hover (~0.8 m of air under the tail), and does the pod hang visibly below the ship (≥ 1.0 m tow)? Tuning: `kStockHookReach` / `minTowLength` in `loadout.dart`, then re-run the autopilot (mine_04 is the canary).
+   - **Garage notices (new):** earn coins until something is affordable. Do you see the result-screen note, the hangar "N NEW" badge and the tab dot, and do they clear once seen? At a promotion, does **Fit now** work? Does owned gear you never fitted show "FIT" in the hangar and "not fitted" in the briefing? Does every paid item ask *Buy & fit* first?
 5. **Weapons:**
    - Supply crates: are the 35% odds right?
    - Charge, bomb, laser, seeker and flak.

@@ -78,7 +78,7 @@ categoryShip      = 0x0002  (player ship)
 categoryCargo     = 0x0004  (cargo object)
 categoryGoalCargo = 0x0008  (cargo landing sensor)
 categoryGoalShip  = 0x0010  (ship landing sensor)
-categoryHook      = 0x0020  (ship's nose hook sensor)
+categoryHook      = 0x0020  (ship's winch hook sensor, under the tail)
 categoryRope      = 0x0040  (rope segments - unused in current implementation)
 ```
 
@@ -112,9 +112,9 @@ Linear damping: 0.22 (air resistance)
 Angular damping: 0 (rotation controlled directly)
 ```
 
-**Nose Hook Sensor:**
-- Position: `(0, -0.24)` in local space (at nose)
-- Radius: `0.14 m`
+**Winch Hook Sensor:**
+- Position: `(0, rearLocalY)` in local space (the winch under the tail, where the rope hangs)
+- Radius: `0.21 m` (× hull scale)
 - Sensor fixture (no collision, only overlap detection)
 - Used to detect cargo proximity for rope attachment
 
@@ -187,12 +187,12 @@ Angular damping: 0.6
 **Two attachment conditions (either triggers attachment):**
 
 1. **Hook proximity:**
-   - Hook world position calculated from ship's nose sensor
-   - Distance from hook to cargo center ≤ `hookRadius + cargoRadius + 0.35m`
-   - Catch radius: `0.14 + 0.14 + 0.35 = 0.63 meters`
+   - Hook world position = the winch under the tail (where the rope hangs)
+   - Distance from hook to cargo center ≤ `hookRadius + cargoRadius + hookReach`
+   - Stock catch radius: `0.21 + 0.28 + 0.6 = 1.09 meters` (~0.8 m of air under the tail)
 
 2. **Center proximity (gameplay-friendly fallback):**
-   - Ship center to cargo center ≤ `1.2 meters`
+   - Ship center to cargo center ≤ `1.7 meters` (+ extra reach of the tow gear)
    - Ensures attachment even if hook sensor misses
 
 **Attachment Process:**
@@ -202,7 +202,7 @@ Angular damping: 0.6
 - Rope reveal progress locked to 1.0 (fully visible)
 
 **Contact-based attachment:**
-- If nose hook sensor makes contact with cargo (via Forge2D collision)
+- If the winch hook sensor makes contact with cargo (via Forge2D collision)
 - `onHookTouchesCargo()` callback triggers immediate attachment attempt
 
 ---
@@ -575,9 +575,10 @@ Density:                 2.0 (heavier than ship)
 
 **Rope:**
 ```dart
-Approach reveal range:   2.5 m
-Hook catch extra radius: 0.35 m
-Center attach max dist:  1.2 m
+Approach reveal range:   3.0 m
+Hook catch extra radius: 0.6 m
+Center attach max dist:  1.7 m
+Shortest tow (winch):    1.0 m
 Reveal animation time:   1.15 seconds
 Min reveal to attach:    5%
 ```

@@ -36,17 +36,17 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   final double ropeMaxLengthMeters;
 
   /// Rope UI fades in while ship–cargo centers are within this range (stock rope).
-  static const double approachDistanceMeters = 2.5;
+  static const double approachDistanceMeters = 3.0;
 
   static const double ropeRevealDuration = 1.15;
 
   static const double minRevealToAttach = 0.05;
 
-  /// Nose hook can “grab” within this radius of cargo center.
-  static const double hookCatchExtraMeters = 0.35;
+  /// Winch hook (under the tail) can “grab” this far beyond touching the pod.
+  static const double hookCatchExtraMeters = kStockHookReach;
 
   /// If hull centers are this close (m), attach even if the hook circle misses (gameplay-friendly).
-  static const double attachCenterDistanceMax = 1.2;
+  static const double attachCenterDistanceMax = kAttachCenterBase;
 
   bool attached = false;
   double ropeRevealProgress = 0;

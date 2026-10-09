@@ -226,9 +226,12 @@ class Autopilot {
         if (game.cargoAttachment?.attached ?? false) {
           final rope = game.cargoAttachment!.rope;
           // A beam reels the pod in to its hold length under the winch.
-          _ropeLength = rope.isBeam
-              ? rope.beamHoldLength + _ship.spec.rearLocalY
-              : (_cargo.body.position - _ship.body.position).length;
+          // A rope pays out to at least its shortest tow below the winch.
+          final winch = _ship.body.worldPoint(Vector2(0, _ship.spec.rearLocalY));
+          _ropeLength = (rope.isBeam
+                  ? rope.beamHoldLength
+                  : math.max((_cargo.body.position - winch).length, rope.minTowLength)) +
+              _ship.spec.rearLocalY;
           if (!_planTow()) {
             lastEvent = 'no tow route';
             gaveUp = true;
@@ -306,7 +309,7 @@ class Autopilot {
   bool _planApproach() {
     final c = _cargo.body.position;
     _aimedAt = Pt(c.x, c.y);
-    // Hover point right above the pod (attach needs centres within 1.2 m).
+    // Hover point right above the pod (the winch hook catches on the way down).
     final target = _bestHoverAbove(c, 0.85);
     final from = _pt(_ship.body.position);
     var path = _planVia(from, target, tolerance: 0.2);
