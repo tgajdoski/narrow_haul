@@ -106,9 +106,7 @@ abstract final class LevelRegistry {
   /// flown; the Kestrel's comes from completing Training Grounds.
   static bool hasTypeRating(String shipId) {
     final progress = ProgressService.instance;
-    if (shipId == kKestrel.id) {
-      return progress.getStarsById(worlds.first.levels.last.saveId) > 0;
-    }
+    if (shipId == kKestrel.id) return trainingComplete;
     return progress.getStarsById('rating_$shipId') > 0;
   }
 
@@ -143,14 +141,18 @@ abstract final class LevelRegistry {
     return (worlds.last, worlds.last.levels.length - 1);
   }
 
-  static int totalStars() {
+  /// The last Training Grounds mission (tut_10).
+  static LevelDef get trainingFinale => worlds.first.levels.last;
+
+  static bool get trainingComplete =>
+      ProgressService.instance.getStarsById(trainingFinale.saveId) > 0;
+
+  static int starsIn(Iterable<LevelDef> levels) {
     final progress = ProgressService.instance;
-    int total = 0;
-    for (final def in flat) {
-      total += progress.getStarsById(def.saveId);
-    }
-    return total;
+    return levels.fold(0, (sum, def) => sum + progress.getStarsById(def.saveId));
   }
+
+  static int totalStars() => starsIn(flat);
 
   static bool isWorldUnlocked(WorldDef world) =>
       totalStars() >= world.starsRequired;

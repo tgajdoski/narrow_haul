@@ -11,6 +11,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/game/overlay_ids.dart';
 
 /// 'levelSelect' overlay: a horizontally scrolling star chart, one route per
 /// world, missions as hexagonal beacons.
@@ -23,7 +24,7 @@ class LevelSelectOverlay extends StatelessWidget {
     final total = LevelRegistry.totalLevels;
     return SpaceScreen(
       title: 'Missions',
-      onBack: () => game.closeScreen('levelSelect'),
+      onBack: () => game.closeScreen(OverlayIds.levelSelect),
       trailing: [
         HoloChip(
           leading: const StarIcon(filled: true, size: 13),
@@ -362,11 +363,7 @@ class _WorldHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = (gameThemes[world.themeId] ?? tutorialTheme).uiAccent;
-    final progress = ProgressService.instance;
-    final worldStars = world.levels.fold<int>(
-      0,
-      (sum, l) => sum + progress.getStarsById(l.saveId),
-    );
+    final worldStars = LevelRegistry.starsIn(world.levels);
     return SizedBox(
       width: 126,
       child: Center(

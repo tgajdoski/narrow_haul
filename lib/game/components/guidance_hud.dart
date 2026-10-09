@@ -269,7 +269,12 @@ class CoachMarkHud extends PositionComponent {
       Paint()..color = a.color.withValues(alpha: 0.85 * e),
     );
 
-    canvas.saveLayer(rect.inflate(2), Paint()..color = Colors.white.withValues(alpha: e));
+    // Fading in/out needs a layer; fully shown it's a plain save (cheaper).
+    if (e < 0.99) {
+      canvas.saveLayer(rect.inflate(2), Paint()..color = Colors.white.withValues(alpha: e));
+    } else {
+      canvas.save();
+    }
     var y = rect.top + padV;
     var x = rect.left + padH;
     if (m.glyph != null) {
@@ -760,7 +765,11 @@ class CommsHud extends PositionComponent {
       Paint()..color = HudColors.gold.withValues(alpha: 0.9 * a),
     );
 
-    canvas.saveLayer(rect.inflate(2), Paint()..color = Colors.white.withValues(alpha: a));
+    if (a < 0.99) {
+      canvas.saveLayer(rect.inflate(2), Paint()..color = Colors.white.withValues(alpha: a));
+    } else {
+      canvas.save();
+    }
     final x = rect.left + padH;
     var y = rect.top + padV;
     call.paint(canvas, Offset(x, y));

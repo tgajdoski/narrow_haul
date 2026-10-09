@@ -10,6 +10,7 @@ import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/ui/armory.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
+import 'package:narrow_haul/game/overlay_ids.dart';
 
 const _garageAccent = SpaceColors.coral;
 
@@ -71,7 +72,7 @@ class _GarageOverlayState extends State<GarageOverlay> {
     return SpaceScreen(
       title: 'Garage',
       accent: _garageAccent,
-      onBack: () => widget.game.closeScreen('cosmetics'),
+      onBack: () => widget.game.closeScreen(OverlayIds.cosmetics),
       trailing: [
         HoloChip(
           leading: const Text('💰', style: TextStyle(fontSize: 12)),

@@ -55,6 +55,7 @@ class PauseButtonHud extends PositionComponent with TapCallbacks {
 class CountdownHud extends PositionComponent {
   CountdownHud() : super(priority: 4930);
 
+  final _label = HudText();
   String? _text;
   double _age = 0;
   Color accent = Colors.white;
@@ -93,21 +94,21 @@ class CountdownHud extends PositionComponent {
     final alpha = text == 'GO'
         ? (1 - _age / _goSeconds).clamp(0.0, 1.0)
         : (1 - math.max(0, _age - 0.7) / 0.3).clamp(0.0, 1.0);
-    final tp = TextPainter(
-      text: TextSpan(
+    final q = quantizeAlpha(alpha);
+    final tp = _label.layout(
+      TextSpan(
         text: text,
         style: TextStyle(
-          color: (text == 'GO' ? accent : Colors.white).withValues(alpha: alpha),
+          color: (text == 'GO' ? accent : Colors.white).withValues(alpha: q),
           fontFamily: kDisplayFont,
           fontSize: 64,
           fontWeight: FontWeight.w900,
           shadows: [
-            Shadow(color: Colors.black.withValues(alpha: alpha * 0.7), blurRadius: 12),
+            Shadow(color: Colors.black.withValues(alpha: q * 0.7), blurRadius: 12),
           ],
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
     canvas.save();
     canvas.translate(size.x / 2, size.y * 0.5);
     canvas.scale(scale);
@@ -119,6 +120,10 @@ class CountdownHud extends PositionComponent {
 /// World + level name card that fades in and out at level start.
 class LevelIntroHud extends PositionComponent {
   LevelIntroHud() : super(priority: 4920);
+
+  final _sub = HudText();
+  final _titleText = HudText();
+  final _noteText = HudText();
 
   String _title = '';
   String _subtitle = '';
@@ -163,38 +168,37 @@ class LevelIntroHud extends PositionComponent {
         ? (_duration - _t) / _fade
         : 1.0;
     final rise = (1 - a) * 10;
+    final q = quantizeAlpha(a);
 
-    final sub = TextPainter(
-      text: TextSpan(
+    final sub = _sub.layout(
+      TextSpan(
         text: _subtitle.toUpperCase(),
         style: TextStyle(
-          color: _accent.withValues(alpha: a * 0.9),
+          color: _accent.withValues(alpha: q * 0.9),
           fontSize: 13,
           fontWeight: FontWeight.w700,
           letterSpacing: 4,
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final title = TextPainter(
-      text: TextSpan(
+    );
+    final title = _titleText.layout(
+      TextSpan(
         text: _title,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: a),
+          color: Colors.white.withValues(alpha: q),
           fontFamily: kDisplayFont,
           fontSize: 30,
           fontWeight: FontWeight.w900,
           letterSpacing: 1.5,
           shadows: [
             Shadow(
-              color: Colors.black.withValues(alpha: a * 0.7),
+              color: Colors.black.withValues(alpha: q * 0.7),
               blurRadius: 8,
             ),
           ],
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    );
 
     final cy = size.y * 0.28 + rise;
     sub.paint(canvas, Offset((size.x - sub.width) / 2, cy));
@@ -212,18 +216,17 @@ class LevelIntroHud extends PositionComponent {
         ..strokeWidth = 2,
     );
     if (_note.isNotEmpty) {
-      final note = TextPainter(
-        text: TextSpan(
+      final note = _noteText.layout(
+        TextSpan(
           text: _note,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: a * 0.75),
+            color: Colors.white.withValues(alpha: q * 0.75),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.5,
           ),
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+      );
       note.paint(canvas, Offset((size.x - note.width) / 2, lineY + 8));
     }
   }
@@ -555,7 +558,8 @@ class CombatStatusHud extends PositionComponent {
       color = Color.lerp(
         const Color(0xFFFF3D00),
         const Color(0xFFFFD180),
-        0.5 + 0.5 * math.sin(_t * rate),
+        // Snapped so the pulsing label re-lays out ~32 times per beat.
+        quantizeAlpha(0.5 + 0.5 * math.sin(_t * rate)),
       )!;
     } else if (turretsOfflineLeft > 0) {
       text = 'TURRETS OFFLINE  ${turretsOfflineLeft.ceil()}s';

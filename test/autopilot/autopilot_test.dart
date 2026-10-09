@@ -239,7 +239,7 @@ void main() {
       final def = LevelRegistry.defAt(i);
       if (wanted != null && !wanted.contains(def.saveId)) continue;
       await h.loadLevel(i);
-      final grid = _gridFor(def, h);
+      final grid = h.navGrid(def);
       final (real, profileResults) =
           _cleanOnly ? (null, const <FlightResult>[]) : await _bestOver(h, i, grid, def, clean: false);
       final (clean, _) = await _bestOver(h, i, grid, def, clean: true);
@@ -516,19 +516,3 @@ double _dist(Pt a, Pt b) => math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * 
 double _score(FlightResult r, LevelDef def) =>
     r.stars * 10 + (r.fuelLeft - def.stars.star3Fuel) - r.seconds / def.stars.star3Time * 0.01;
 
-NavGrid _gridFor(LevelDef def, GameHarness h) {
-  return switch (def) {
-    CaveLevelDef d => NavGrid.forCave(d.spec),
-    TmxLevelDef() => () {
-        final l = h.game.currentLevel!;
-        return NavGrid.forRects(
-          [
-            for (final w in l.walls)
-              (cx: w.center.x, cy: w.center.y, hw: w.halfWidth, hh: w.halfHeight),
-          ],
-          l.worldSize.x,
-          l.worldSize.y,
-        );
-      }(),
-  };
-}

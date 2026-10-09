@@ -2,6 +2,7 @@
 // saves screenshots of the rendered frames for eyeballing.
 //   flutter test integration_test/visual_smoke_test.dart -d macos
 // Screenshots go to the app's temp dir (path printed as SHOTS_DIR=...).
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flame/game.dart';
@@ -105,7 +106,7 @@ void main() {
     await shot('09_game_over');
 
     // Level complete screen (forced: a real delivery can't be scripted).
-    game.restartLevel();
+    unawaited(game.restartLevel());
     await wait(0.5);
     game
       ..lastLevelStars = 2

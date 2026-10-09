@@ -69,14 +69,19 @@ class ThemeAssets {
       }
     }
 
+    // All seven decode side by side (first visit to a world only).
+    final [rock, far, mid, near, decor, cargo, cargoHeavy] = await Future.wait([
+      for (final f in const ['rock', 'far', 'mid', 'near', 'decor', 'cargo', 'cargo_heavy'])
+        tryLoad('$f.png'),
+    ]);
     final assets = ThemeAssets(
-      rock: await tryLoad('rock.png'),
-      far: await tryLoad('far.png'),
-      mid: await tryLoad('mid.png'),
-      near: await tryLoad('near.png'),
-      decor: await tryLoad('decor.png'),
-      cargo: await tryLoad('cargo.png'),
-      cargoHeavy: await tryLoad('cargo_heavy.png'),
+      rock: rock,
+      far: far,
+      mid: mid,
+      near: near,
+      decor: decor,
+      cargo: cargo,
+      cargoHeavy: cargoHeavy,
     );
     _cache[theme.id] = assets;
     return assets;

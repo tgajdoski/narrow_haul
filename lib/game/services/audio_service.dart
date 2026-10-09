@@ -127,20 +127,27 @@ class AudioService {
       _log('audio context not applied', e);
     }
     _loaded.clear();
-    for (final file in _files) {
-      try {
-        await FlameAudio.audioCache.load(file);
-        _loaded.add(file);
-      } catch (e) {
-        _log('$file failed to load, skipped', e);
-      }
-    }
-    if (_loaded.contains('thrust_loop.wav')) await _prewarmThrustLoop();
-    for (final MapEntry(key: file, value: size) in _poolSizes.entries) {
-      if (!_loaded.contains(file)) continue;
-      final pool = await _pool(file, size);
-      if (pool != null) _pools[file] = pool;
-    }
+    // Files and pools load side by side (one at a time took ~0.8 s of the
+    // game's start); each still fails on its own.
+    await Future.wait([
+      for (final file in _files)
+        () async {
+          try {
+            await FlameAudio.audioCache.load(file);
+            _loaded.add(file);
+          } catch (e) {
+            _log('$file failed to load, skipped', e);
+          }
+        }(),
+    ]);
+    await Future.wait([
+      if (_loaded.contains('thrust_loop.wav')) _prewarmThrustLoop(),
+      for (final MapEntry(key: file, value: size) in _poolSizes.entries)
+        if (_loaded.contains(file))
+          _pool(file, size).then((pool) {
+            if (pool != null) _pools[file] = pool;
+          }),
+    ]);
     _ready = _loaded.isNotEmpty;
     _log('initialized ${_loaded.length}/${_files.length} sounds');
   }

@@ -10,6 +10,7 @@
 // Each target lays the app out at the device's logical size and saves it at
 // the device's pixel size, so the HUD has the same proportions as on the
 // device. Uses mocked prefs with a played-in save, never the real one.
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -171,7 +172,7 @@ void main() {
 
       // Result screen (a real delivery can't be scripted; forced like the
       // smoke test).
-      game.restartLevel();
+      unawaited(game.restartLevel());
       await cap.wait(0.5);
       game
         ..lastLevelStars = 3

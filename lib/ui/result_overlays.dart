@@ -44,7 +44,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
     if (m.adsRemoved || p.hasPurchased || !m.canBuy(ProductIds.removeAds)) {
       return false;
     }
-    final tutorialDone = p.getStarsById('tut_10') > 0;
+    final tutorialDone = LevelRegistry.trainingComplete;
     if (!tutorialDone && p.lastInterstitialMs == 0) return false;
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now - p.removeAdsOfferMs < const Duration(days: 3).inMilliseconds) {
@@ -66,7 +66,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
     _anim.forward().whenComplete(() {
       final reward = widget.game.lastRunReward;
       if (mounted && reward != null && reward.rankedUp) {
-        widget.game.overlays.add('rankUp');
+        widget.game.showRankUp();
       }
     });
   }
@@ -629,7 +629,7 @@ class _RankUpOverlayState extends State<RankUpOverlay>
     super.dispose();
   }
 
-  void _close() => widget.game.overlays.remove('rankUp');
+  void _close() => widget.game.closeRankUp();
 
   @override
   Widget build(BuildContext context) {

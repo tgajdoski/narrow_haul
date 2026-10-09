@@ -583,7 +583,7 @@ class MonetizationService {
     }
     await _p.setHasPurchased(true);
     await _p.setAdsRemoved(true);
-    _interstitial?.dispose();
+    unawaited(_interstitial?.dispose());
     _interstitial = null;
     if (productId == ProductIds.supporterPack) {
       await _p.unlockCosmetic(kSupporterSkinId);

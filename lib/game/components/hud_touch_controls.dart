@@ -5,6 +5,7 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
@@ -673,7 +674,7 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
         text: 'THRUST',
         style: hudFont(
           9.5,
-          Colors.white.withValues(alpha: 0.55 + 0.4 * _heat),
+          Colors.white.withValues(alpha: quantizeAlpha(0.55 + 0.4 * _heat)),
           spacing: 1.8,
         ),
       ),
@@ -775,7 +776,7 @@ class _FireButton extends _ThrustButton {
         text: text,
         style: hudFont(
           10.5,
-          Colors.white.withValues(alpha: 0.7 + 0.3 * _heat),
+          Colors.white.withValues(alpha: quantizeAlpha(0.7 + 0.3 * _heat)),
           spacing: 1.1,
         ),
       ),
@@ -1059,7 +1060,7 @@ class FuelGaugeHud extends PositionComponent {
           text: 'LOW FUEL',
           style: hudFont(
             11,
-            const Color(0xFFFF6B35).withValues(alpha: blink),
+            const Color(0xFFFF6B35).withValues(alpha: quantizeAlpha(blink)),
             spacing: 1.5,
           ),
         ),
@@ -1099,7 +1100,7 @@ class FuelGaugeHud extends PositionComponent {
     final pct = _costFrac * 100;
     final text = '−${pct < 1 ? pct.toStringAsFixed(1) : pct.round()}%';
     final tp = _costLabel.layout(
-      TextSpan(text: text, style: hudFont(9, HudColors.thrustHot.withValues(alpha: a), spacing: 0.6)),
+      TextSpan(text: text, style: hudFont(9, HudColors.thrustHot.withValues(alpha: quantizeAlpha(a)), spacing: 0.6)),
     );
     // In the empty part of the bar when it fits, else over the lit cells.
     final right = innerLeft + innerW;
@@ -1133,9 +1134,7 @@ class LevelInfoHud extends PositionComponent {
 
   double elapsed = 0;
   double fuelFraction = 1;
-  double star3Fuel = 0.7;
-  double star2Fuel = 0.4;
-  double star3Time = 60;
+  StarSpec starSpec = const StarSpec();
 
   static const _gold = Color(0xFFFFD166);
 
@@ -1215,13 +1214,13 @@ class LevelInfoHud extends PositionComponent {
   }
 
   (int, String, Color) _target() {
-    final pct3 = (star3Fuel * 100).round();
-    if (fuelFraction >= star3Fuel && elapsed <= star3Time) {
-      final left = (star3Time - elapsed).ceil();
-      return (3, 'keep ≥$pct3% fuel · ${left}s left', _gold);
+    final s = starSpec;
+    if (s.earnsThree(fuelFraction, elapsed)) {
+      final left = (s.star3Time - elapsed).ceil();
+      return (3, 'keep ≥${(s.star3Fuel * 100).round()}% fuel · ${left}s left', _gold);
     }
-    if (fuelFraction >= star2Fuel) {
-      return (2, 'keep ≥${(star2Fuel * 100).round()}% fuel', const Color(0xFFE0E0E0));
+    if (s.earnsTwo(fuelFraction)) {
+      return (2, 'keep ≥${(s.star2Fuel * 100).round()}% fuel', const Color(0xFFE0E0E0));
     }
     return (1, 'deliver the cargo', const Color(0xFFB0B0B0));
   }

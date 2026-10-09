@@ -99,8 +99,7 @@ class PauseOverlay extends StatelessWidget {
                     label: 'Settings',
                     accent: Colors.white70,
                     onTap: () {
-                      game.overlays.remove('pause');
-                      game.overlays.add('settings');
+                      game.openSettingsFromPause();
                     },
                   ),
                 ),
@@ -144,9 +143,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   }
 
   void _back() {
-    final game = widget.game;
-    game.overlays.remove('settings');
-    game.overlays.add(game.isPaused ? 'pause' : 'menu');
+    widget.game.closeSettings();
   }
 
   @override
@@ -450,8 +447,7 @@ class _AboutSection extends StatelessWidget {
         ),
         if (!game.isPaused)
           _linkRow(Icons.favorite_border_rounded, 'Credits · Delivered by', () {
-            game.overlays.remove('settings');
-            game.overlays.add('menu');
+            game.closeSettings();
             game.creditsVisible.value = true;
           }),
         if (!game.isPaused)
@@ -508,8 +504,7 @@ class _AboutSection extends StatelessWidget {
     );
     CosmeticsService.clearTrials();
     game.applySettings();
-    game.overlays.remove('settings');
-    game.overlays.add('menu');
+    game.closeSettings();
   }
 
   Widget _linkRow(

@@ -3,6 +3,8 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'package:flame/components.dart';
 import 'package:flutter/widgets.dart';
+import 'package:narrow_haul/game/level/cave/route_planner.dart';
+import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -145,6 +147,22 @@ class GameHarness {
     }
   }
 
+  /// The autopilot's planning grid for the loaded level [def].
+  NavGrid navGrid(LevelDef def) => switch (def) {
+        CaveLevelDef d => NavGrid.forCave(d.spec),
+        TmxLevelDef() => () {
+            final l = game.currentLevel!;
+            return NavGrid.forRects(
+              [
+                for (final w in l.walls)
+                  (cx: w.center.x, cy: w.center.y, hw: w.halfWidth, hh: w.halfHeight),
+              ],
+              l.worldSize.x,
+              l.worldSize.y,
+            );
+          }(),
+      };
+
   /// Steps until delivery, crash or [maxSeconds] of game time. [pilot] is
   /// called before every frame with the frame index.
   Future<FlightResult> fly(
@@ -152,6 +170,7 @@ class GameHarness {
     double maxSeconds = 240,
     String Function()? describe,
     bool Function()? abort,
+    void Function()? afterStep,
   }) async {
     final maxFrames = (maxSeconds / kStepDt).round();
     for (var frame = 0; frame < maxFrames; frame++) {
@@ -161,6 +180,7 @@ class GameHarness {
       game.thrustHeld = input.thrust;
       game.fireHeld = input.fire;
       game.update(kStepDt);
+      afterStep?.call();
       // Rope attach and the win sequence complete in microtasks.
       await _yield();
       if (game.runState == RunState.won) {

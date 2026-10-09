@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:narrow_haul/firebase_options.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/perf/perf_monitor.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
@@ -29,11 +31,15 @@ import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/game/overlay_ids.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PerfMonitor.mark('main');
+  PerfMonitor.install();
   ErrorReporter.install();
-  await _initFirebase();
+  // Firebase and the save load don't depend on each other: start both.
+  final firebase = _initFirebase();
   // The bundled title font's licence, shown in Settings → Licenses.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks([
@@ -52,6 +58,8 @@ void main() async {
   // Point the global Flame image cache at assets/ (not the default assets/images/).
   Flame.images.prefix = 'assets/';
   await ProgressService.init();
+  await firebase;
+  PerfMonitor.mark('firebase + save');
   FlightTuning.load(
     steerName: ProgressService.instance.steerMode,
     cameraName: ProgressService.instance.cameraMode,
@@ -62,14 +70,15 @@ void main() async {
     // A failed XP backfill must not keep the game from starting.
     ErrorReporter.report(e, st, context: 'save_v3 migration');
   }
-  SystemChrome.setPreferredOrientations([
+  unawaited(SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
-  ]);
+  ]));
   final game = NarrowHaulGame();
+  PerfMonitor.mark('runApp');
   runApp(_NarrowHaulApp(game: game));
   // After runApp: the UMP consent form needs a live UI. Never blocks play.
-  MonetizationService.instance.init();
+  unawaited(MonetizationService.instance.init());
 }
 
 /// Firebase (Android / iOS only). Crashlytics: native crashes are captured by
@@ -170,29 +179,29 @@ class _NarrowHaulApp extends StatelessWidget {
                   child: GameWidget(
                     game: game,
                     overlayBuilderMap: {
-                      'menu': (context, game) =>
+                      OverlayIds.menu: (context, game) =>
                           MenuOverlay(game: game as NarrowHaulGame),
-                      'levelSelect': (context, game) =>
+                      OverlayIds.levelSelect: (context, game) =>
                           LevelSelectOverlay(game: game as NarrowHaulGame),
-                      'achievements': (context, game) =>
+                      OverlayIds.achievements: (context, game) =>
                           AchievementsOverlay(game: game as NarrowHaulGame),
-                      'cosmetics': (context, game) =>
+                      OverlayIds.cosmetics: (context, game) =>
                           GarageOverlay(game: game as NarrowHaulGame),
-                      'gameOver': (context, game) =>
+                      OverlayIds.gameOver: (context, game) =>
                           GameOverOverlay(game: game as NarrowHaulGame),
-                      'demo': (context, game) =>
+                      OverlayIds.demo: (context, game) =>
                           DemoFlightOverlay(game: game as NarrowHaulGame),
-                      'levelComplete': (context, game) =>
+                      OverlayIds.levelComplete: (context, game) =>
                           LevelCompleteOverlay(game: game as NarrowHaulGame),
-                      'rankUp': (context, game) =>
+                      OverlayIds.rankUp: (context, game) =>
                           RankUpOverlay(game: game as NarrowHaulGame),
-                      'pause': (context, game) =>
+                      OverlayIds.pause: (context, game) =>
                           PauseOverlay(game: game as NarrowHaulGame),
-                      'settings': (context, game) =>
+                      OverlayIds.settings: (context, game) =>
                           SettingsOverlay(game: game as NarrowHaulGame),
-                      'pilotProfile': (context, game) =>
+                      OverlayIds.pilotProfile: (context, game) =>
                           PilotLogbookOverlay(game: game as NarrowHaulGame),
-                      'briefing': (context, game) =>
+                      OverlayIds.briefing: (context, game) =>
                           MissionBriefingOverlay(game: game as NarrowHaulGame),
                     },
                   ),

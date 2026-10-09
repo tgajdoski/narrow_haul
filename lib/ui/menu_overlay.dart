@@ -14,6 +14,7 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/tow_art.dart';
+import 'package:narrow_haul/game/overlay_ids.dart';
 
 /// Main menu ('menu' overlay): the hangar. LAUNCH flies the next mission,
 /// the tile rail opens every other screen, and the top bar carries the
@@ -58,7 +59,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
             behavior: HitTestBehavior.opaque,
             onTap: () {
               AudioService.playUi(UiSound.select);
-              game.openScreen('pilotProfile');
+              game.openScreen(OverlayIds.pilotProfile);
             },
             child: CareerProgress(xp: p.getXp(), badgeSize: 34, compact: true),
           ),
@@ -164,7 +165,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
             subtitle:
                 '${LevelRegistry.worlds.length} worlds · '
                 '${LevelRegistry.totalLevels} missions',
-            onTap: () => game.openScreen('levelSelect'),
+            onTap: () => game.openScreen(OverlayIds.levelSelect),
           ),
         ),
         const SizedBox(height: 10),
@@ -180,7 +181,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   subtitle: 'Gear · Armory',
                   accent: SpaceColors.coral,
                   badge: canBuySomething ? 'NEW' : null,
-                  onTap: () => game.openScreen('cosmetics'),
+                  onTap: () => game.openScreen(OverlayIds.cosmetics),
                 ),
               ),
               const SizedBox(width: 10),
@@ -190,7 +191,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   label: 'Logbook',
                   subtitle: rankTitle(p.getXp()),
                   accent: SpaceColors.gold,
-                  onTap: () => game.openScreen('pilotProfile'),
+                  onTap: () => game.openScreen(OverlayIds.pilotProfile),
                 ),
               ),
             ],
@@ -210,7 +211,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                       '${AchievementService.unlocked.length}'
                       '/${AchievementService.all.length}',
                   accent: SpaceColors.violet,
-                  onTap: () => game.openScreen('achievements'),
+                  onTap: () => game.openScreen(OverlayIds.achievements),
                 ),
               ),
               const SizedBox(width: 10),
@@ -220,7 +221,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   label: 'Settings',
                   subtitle: 'Sound · Controls',
                   accent: Colors.white70,
-                  onTap: () => game.openScreen('settings'),
+                  onTap: () => game.openScreen(OverlayIds.settings),
                 ),
               ),
             ],

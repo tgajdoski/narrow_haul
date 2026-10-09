@@ -121,6 +121,19 @@ class StarSpec {
   final double star3Fuel;
   final double star2Fuel;
   final double star3Time;
+
+  /// Fuel left and time good enough for ★★★ (before any cap).
+  bool earnsThree(double fuelFraction, double seconds) =>
+      fuelFraction >= star3Fuel && seconds <= star3Time;
+
+  bool earnsTwo(double fuelFraction) => fuelFraction >= star2Fuel;
+
+  /// The one star rule. [capped]: a continued, guided or carried-weapon run,
+  /// which can never be perfect.
+  int rate(double fuelFraction, double seconds, {bool capped = false}) {
+    if (!capped && earnsThree(fuelFraction, seconds)) return 3;
+    return earnsTwo(fuelFraction) ? 2 : 1;
+  }
 }
 
 // ── Obstacles (all kill the ship on contact, like terrain) ────────────────

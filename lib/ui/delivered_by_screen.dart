@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -123,7 +124,7 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
       await Future<void>.delayed(_hold);
       if (!mounted || _leaving) return;
     }
-    _leave();
+    unawaited(_leave());
   }
 
   Future<void> _leave() async {

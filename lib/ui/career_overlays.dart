@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/game/overlay_ids.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Awards
@@ -27,7 +28,7 @@ class AchievementsOverlay extends StatelessWidget {
     return SpaceScreen(
       title: 'Awards',
       accent: SpaceColors.violet,
-      onBack: () => game.closeScreen('achievements'),
+      onBack: () => game.closeScreen(OverlayIds.achievements),
       trailing: [
         HoloChip(
           icon: Icons.emoji_events_outlined,
@@ -158,7 +159,7 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
     return SpaceScreen(
       title: 'Pilot Logbook',
       accent: SpaceColors.gold,
-      onBack: () => widget.game.closeScreen('pilotProfile'),
+      onBack: () => widget.game.closeScreen(OverlayIds.pilotProfile),
       trailing: [
         if (kDebugMode && !kStoreCapture)
           HoloButton(

@@ -195,6 +195,20 @@ Base zoom `_baseZoom = 28` (px/meter) on a reference phone 390 logical px tall; 
 
 In `kDebugMode` (Flutter debug builds), gravity is reduced to 70% (unless `--dart-define=STORE_CAPTURE=true`). Use `flutter run --profile` for real-feel playtests; if Xcode's debug attach times out, install with `xcrun devicectl device install app --device <id> build/ios/iphoneos/Runner.app` and launch with `xcrun devicectl device process launch --device <id> com.zafrk.narrowhaul`.
 
+### Performance probe
+
+`--dart-define=PERF=true` turns on `PerfMonitor` (`lib/game/perf/`, off = const-folded away). It tracks engine frame timings (UI build and raster), `update` and `render` per frame, game-logic laps (`PerfMonitor.lap`), load time and startup marks, and prints one `PERF <level> <outcome> …` line per flight, with an FPS readout in the corner. There are two benches:
+- `test/autopilot/perf_bench_test.dart` (headless, every level, `build/perf_report.md`).
+- `integration_test/perf_flight_test.dart`: demo replays with real rendering, run with `flutter drive --profile` and `--driver=test_driver/perf_driver.dart`; writes `build/perf_device_<level>.json`.
+
+Numbers and the open GPU items are in `docs/PERF_BASELINE.md`. Measure before optimising: on the CPU the game is cheap (update p95 < 1 ms), so the open questions are raster cost on a phone.
+
+**Async rules:**
+- `unawaited_futures` is on.
+- Level loads are cancel-safe: `_spawnLevel` adds entities through `_addToLevel(c, gen)`, which tracks them before adding and throws `_LoadSuperseded` once `_levelGen` moves on.
+- A delivery whose booking throws still shows the result screen (`test/level_lifecycle_test.dart`).
+- Overlay keys live in `OverlayIds` (`lib/game/overlay_ids.dart`). The star rule is `StarSpec.rate`.
+
 ## Release builds & store setup
 
 - **App id:** `com.zafrk.narrowhaul` on Android (`applicationId`; the Kotlin `namespace` stays `com.narrowhaul.narrow_haul`) and iOS (team `4G9RSHCAJN`). Store records exist in App Store Connect and Play Console.
