@@ -67,13 +67,22 @@ void main() {
 
     // Short hop (long enough to count as "used thrust"), shot mid-air.
     game.thrustHeld = true;
-    await wait(0.5);
+    await wait(0.65);
     game.thrustHeld = false;
-    await wait(0.6);
+    await wait(0.2);
     await shot('04b_tut1_hint_after_thrust');
 
     int indexOf(String id) =>
         LevelRegistry.flat.indexWhere((d) => d.saveId.contains(id));
+
+    // Guidance: the star rules on tut_02's pad (comms + target frame), and
+    // a defended level before the first shot (FIRE coach + turret brackets).
+    game.startLevel(1);
+    await wait(4.2);
+    await shot('04c_tut2_star_rules_comms');
+    game.startLevel(indexOf('redoubt_02'));
+    await wait(3.4);
+    await shot('04d_redoubt_fire_coach');
 
     for (final id in ['ice_03', 'lava_03', 'alien_05', 'mine_03']) {
       game.startLevel(indexOf(id));

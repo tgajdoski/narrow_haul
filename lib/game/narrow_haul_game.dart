@@ -19,6 +19,7 @@ import 'package:narrow_haul/game/components/dual_landing_zone.dart';
 import 'package:narrow_haul/game/components/force_field_system.dart';
 import 'package:narrow_haul/game/components/well_core.dart';
 import 'package:narrow_haul/game/components/flight_hud.dart';
+import 'package:narrow_haul/game/components/guidance_hud.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
@@ -61,6 +62,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/guidance/flight_guidance.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
@@ -298,8 +300,9 @@ class NarrowHaulGame extends Forge2DGame
 
   /// A short line shown in the hint slot after picking up a crate.
   // Timed hint: a picked-up weapon, or the first scrape ever.
-  String? _weaponHint;
-  double _weaponHintLeft = 0;
+  /// A crate just collected: its weapon is coached on FIRE for a moment.
+  CrateNotice? _crateNotice;
+  double _crateNoticeLeft = 0;
 
   /// Rock touches this flight that didn't crash, and the cooldown that keeps
   /// a slide along a wall from machine-gunning sound and haptics.
@@ -362,7 +365,9 @@ class NarrowHaulGame extends Forge2DGame
   /// the onboarding levels and in demos). Any input launches it sooner.
   double? _countdown;
   static const double _countdownSeconds = 4.0;
-  HintHud? _hint;
+  CoachMarkHud? _coach;
+  WorldMarkerHud? _markers;
+  CommsHud? _comms;
   DualLandingZone? _landingZone;
 
   // Onboarding: step hints on the first tutorial levels until first clear.
@@ -527,8 +532,16 @@ class NarrowHaulGame extends Forge2DGame
     camera.viewport.add(_levelIntro!);
     _countdownHud = CountdownHud();
     camera.viewport.add(_countdownHud!);
-    _hint = HintHud();
-    camera.viewport.add(_hint!);
+    _markers = WorldMarkerHud();
+    camera.viewport.add(_markers!);
+    _coach = CoachMarkHud(controls: _hudControls!);
+    camera.viewport.add(_coach!);
+    _comms = CommsHud(
+      controls: _hudControls!,
+      avoid: () => _coach?.plateRect,
+      onLine: (_) => AudioService.playUi(UiSound.open),
+    );
+    camera.viewport.add(_comms!);
     _combatHud = CombatStatusHud();
     camera.viewport.add(_combatHud!);
     _applySafeInsets();
@@ -566,6 +579,8 @@ class NarrowHaulGame extends Forge2DGame
     _gravityHud?.position = topLeft.clone();
     _levelInfoHud?.position = topLeft.clone();
     _hudControls?.insets = _safeInsets;
+    _combatHud?.insets = _safeInsets;
+    _markers?.insets = _safeInsets;
     _minimap?.refreshLayout();
   }
 
@@ -981,6 +996,8 @@ class NarrowHaulGame extends Forge2DGame
         ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0;
     _pauseButton?.visible = !demoMode;
     _syncRouteGuide();
+    _clearGuidance();
+    _scheduleComms(retry: _currentLevelRetried);
     _fuelGauge?.starMarks = [
       currentLevelDef.stars.star3Fuel,
       currentLevelDef.stars.star2Fuel,
@@ -1127,8 +1144,8 @@ class NarrowHaulGame extends Forge2DGame
     _laserBeam = null;
     _crate = null;
     _rumble = 0;
-    _weaponHint = null;
-    _weaponHintLeft = 0;
+    _crateNotice = null;
+    _crateNoticeLeft = 0;
     scrapesThisRun = 0;
     _scrapeFxCooldown = 0;
     _scrapeSoundCooldown = 0;
@@ -1151,7 +1168,7 @@ class NarrowHaulGame extends Forge2DGame
     _timing = false;
     isPaused = false;
     _landingZone = null;
-    _hint?.message = null;
+    _clearGuidance();
     _winTimer = 0;
     _winReady = false;
     _crashTimer = 0;
@@ -1226,8 +1243,14 @@ class NarrowHaulGame extends Forge2DGame
     final progress = ProgressService.instance;
     if (!progress.scrapeHintSeen) {
       progress.markScrapeHintSeen();
-      _weaponHint = 'Shields hold on slow touches — hit the rock fast and you crash';
-      _weaponHintLeft = 3.5;
+      _comms?.say(
+        const CommsLine(
+          id: 'scrape',
+          callsign: 'TOWER',
+          text: 'Shields take slow touches. Hit the rock fast and you crash.',
+        ),
+        urgent: true,
+      );
     }
   }
 
@@ -1294,7 +1317,7 @@ class NarrowHaulGame extends Forge2DGame
     _resetInputState();
     runState = RunState.gameOver;
     _pauseButton?.visible = false;
-    _hint?.message = null;
+    _clearGuidance();
     _meltdownAtCrash = _meltdownLeft;
     _crashElapsed = elapsedSeconds;
     _meltdownLeft = null;
@@ -1339,7 +1362,7 @@ class NarrowHaulGame extends Forge2DGame
     _turretsOfflineLeft = 0;
     _syncCombatHud();
     _pauseButton?.visible = false;
-    _hint?.message = null;
+    _clearGuidance();
     Haptics.medium();
     ship?.setInput(rotate: 0, thrust: false);
     _resetInputState();
@@ -2134,72 +2157,134 @@ class NarrowHaulGame extends Forge2DGame
     );
   }
 
-  /// Landing status beats tutorial steps: it explains the both-on-pad rule
-  /// at exactly the moment a player is confused by it.
-  String? _currentHint() {
-    if (_weaponHintLeft > 0 && _weaponHint != null) return _weaponHint;
+  /// Coach marks and world markers for this frame ([resolveGuidance]); the
+  /// route-guide comms once the guide is on.
+  void _updateGuidance(ShipBody s) {
     final zone = _landingZone;
-    if (zone != null && zone.shipInside != zone.cargoInside) {
-      return zone.shipInside
-          ? 'Lower the cargo onto the pad too'
-          : 'Cargo is on the pad — now land the ship';
+    final crate = _crateNotice;
+    final g = resolveGuidance(GuidanceInputs(
+      demo: demoMode,
+      desktop: _desktop,
+      pointSteer: FlightTuning.steer.isPointer,
+      tutorial: _tutorialHints,
+      starRulesStep: _starRulesStep && !s.launched,
+      thrustUsed: _thrustUsed,
+      rotateUsed: _rotateUsed,
+      attached: cargoAttachment?.attached == true,
+      shipOnPad: zone?.shipInside ?? false,
+      podOnPad: zone?.cargoInside ?? false,
+      armed: s.spec.armed,
+      combatLevel: currentLevel?.hasCombat == true,
+      shotsFired: s.shotsFired,
+      levelStarred:
+          ProgressService.instance.getStarsById(currentLevelDef.saveId) > 0,
+      fuelPerShotFrac: s.spec.fuelPerShot * s.fuelDrainMultiplier / s.maxFuel,
+      crate: crate,
+      canisterUnseen: _pickupHint() != null,
+    ));
+    _coach?.mark = g.coach;
+    _levelInfoHud?.frameTarget = g.frameStarTarget;
+
+    final m = _markers;
+    if (m != null) {
+      m
+        ..project = (p) {
+          final v = camera.localToGlobal(Vector2(p.dx, p.dy));
+          return Offset(v.x, v.y);
+        }
+        ..zoom = camera.viewfinder.zoom
+        ..turrets = g.markTurrets
+            ? [
+                for (final c in world.children)
+                  if (c is Turret && !c.destroyed)
+                    Offset(c.spec.base.x, c.spec.base.y),
+              ]
+            : const []
+        ..turretRadius = Turret.domeRadius
+        ..podTag = g.pod
+        ..pod = _cargoPos()
+        ..padCenter = zone == null ? null : Offset(zone.padCenter.x, zone.padCenter.y)
+        ..pad = g.pad
+        ..canister = g.markCanister ? _nearestCanister(s) : null
+        ..podRadius = CargoBody.radius;
     }
-    if (_meltdownLeft != null) return 'Reactor critical — deliver the pod before it blows!';
-    final s = ship;
-    if (s != null &&
-        s.spec.armed &&
-        s.shotsFired == 0 &&
-        currentLevel?.hasCombat == true &&
-        ProgressService.instance.getStarsById(currentLevelDef.saveId) == 0) {
-      return _desktop
-          ? 'Press F or Enter to fire at turrets — each shot costs fuel'
-          : 'Tap FIRE to knock out turrets — each shot costs fuel';
-    }
+
     if (routeGuideOn &&
-        s != null &&
         s.spec.armed &&
-        elapsedSeconds < 8 &&
+        !demoMode &&
         (currentRoute?.shots.isNotEmpty ?? false)) {
-      return 'Route guide: stop at each red ⊕ and fire along its dashes. Red dots = under fire';
+      _comms?.say(const CommsLine(
+        id: 'route',
+        callsign: 'OPS',
+        text: 'Route is on your screen. Hold at each red ⊕ and fire along its '
+            'dashes. Red dots are under fire.',
+      ));
     }
-    final pickupHint = _pickupHint();
-    if (!_tutorialHints) {
-      // First seconds of a flight: what the unfamiliar ship does, then the
-      // canisters (until the pilot has collected one, ever).
-      final shipHint = _shipHint();
-      final t = elapsedSeconds;
-      if (shipHint != null && t < 7) return shipHint;
-      if (pickupHint != null && t < (shipHint != null ? 14 : 7)) return pickupHint;
-      return null;
+  }
+
+  Offset? _cargoPos() {
+    final c = cargo;
+    if (c == null) return null;
+    final p = c.body.position;
+    return Offset(p.x, p.y);
+  }
+
+  Offset? _nearestCanister(ShipBody s) {
+    final p = s.body.position;
+    Offset? best;
+    var bestD = double.infinity;
+    for (final c in world.children) {
+      if (c is! FuelCell || c.collected) continue;
+      final d = (c.spec.pos.x - p.x) * (c.spec.pos.x - p.x) +
+          (c.spec.pos.y - p.y) * (c.spec.pos.y - p.y);
+      if (d < bestD) {
+        bestD = d;
+        best = Offset(c.spec.pos.x, c.spec.pos.y);
+      }
     }
-    final attached = cargoAttachment?.attached == true;
-    // Second mission, waiting on the pad: how stars are earned, before the
-    // first flight that's scored on them. The live target sits under the
-    // fuel bar during flight.
-    if (levelIndex == 1 && ship?.launched == false) {
-      return 'Stars: ★ deliver · ★★ save fuel · ★★★ save more fuel and beat '
-          'the clock. Targets show under the fuel bar';
+    return best;
+  }
+
+  /// tut_02 before its first clear: the star rules are explained on the pad.
+  bool get _starRulesStep => _tutorialHints && levelIndex == 1;
+
+  /// The comms lines a flight opens with, after the intro card.
+  void _scheduleComms({required bool retry}) {
+    final comms = _comms;
+    if (comms == null || demoMode) return;
+    const afterIntro = 2.6;
+    if (_starRulesStep) {
+      comms.say(
+        const CommsLine(
+          id: 'stars',
+          callsign: 'TOWER',
+          text: 'Stars: ★ deliver, ★★ save fuel, ★★★ save more and beat the '
+              'clock. Your target is under the fuel bar.',
+        ),
+        delay: afterIntro,
+      );
     }
-    final steerSide = _hudControls?.leftHanded == true ? 'right' : 'left';
-    final thrustSide = _hudControls?.leftHanded == true ? 'left' : 'right';
-    if (_thrustUsed < 0.6) {
-      return _desktop
-          ? 'Hold ↑, W or Space (or the THRUST button) to fire the engine'
-          : 'Hold the THRUST button ($thrustSide) to fire the engine';
+    final shipHint = _shipHint();
+    if (shipHint != null && !retry) {
+      comms.say(CommsLine(id: 'ship', callsign: 'OPS', text: shipHint), delay: afterIntro);
     }
-    if (_rotateUsed < 0.5) {
-      return _desktop
-          ? 'Press ← → or A D to rotate the ship'
-          : FlightTuning.steer.isPointer
-          ? 'Drag on the $steerSide side toward where the nose should point'
-          : 'Drag on the $steerSide side to rotate the ship';
+    if (_pickupHint() != null) {
+      comms.say(
+        const CommsLine(
+          id: 'canister',
+          callsign: 'OPS',
+          text: 'Fuel canister marked. Fly through it to top up the tank.',
+        ),
+        delay: afterIntro,
+      );
     }
-    if (!attached) {
-      return pickupHint != null
-          ? 'Fly close to the cargo to hook it — fuel canisters top up your tank'
-          : 'Fly close to the cargo — the rope hooks on by itself';
-    }
-    return 'Bring ship and cargo down onto the green pad';
+  }
+
+  void _clearGuidance() {
+    _coach?.clear();
+    _markers?.clear();
+    _comms?.clear();
+    _levelInfoHud?.frameTarget = false;
   }
 
   static bool get _desktop =>
@@ -2214,7 +2299,7 @@ class NarrowHaulGame extends Forge2DGame
     final spec = ship?.spec;
     if (spec == null || demoMode || spec.id == kKestrel.id) return null;
     if (LevelRegistry.hasTypeRating(spec.id)) return null;
-    return '${spec.name}: ${spec.blurb}';
+    return "You're flying the ${spec.name}. ${spec.blurb}";
   }
 
   /// Until the first canister ever is collected, on levels that have one.
@@ -2400,6 +2485,10 @@ class NarrowHaulGame extends Forge2DGame
     ));
     AudioService.playShot();
     Haptics.light();
+    final s = ship;
+    if (s != null && !demoMode) {
+      _fuelGauge?.flashCost(s.spec.fuelPerShot * s.fuelDrainMultiplier / s.maxFuel);
+    }
   }
 
   @override
@@ -2607,10 +2696,15 @@ class NarrowHaulGame extends Forge2DGame
     Analytics.crateCollected(crate.weapon.id);
     _syncWeaponHud();
     final w = crate.weapon;
-    final amount = w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}';
-    final fire = _desktop ? 'press F' : 'tap ${_weaponLabel(w)}';
-    _weaponHint = '${w.name} $amount — $fire';
-    _weaponHintLeft = 3.5;
+    _crateNotice = CrateNotice(
+      kind: w.kind,
+      name: w.name,
+      label: _weaponLabel(w),
+      amount: w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}',
+    );
+    _crateNoticeLeft = 4;
+    final from = camera.localToGlobal(Vector2(crate.pos.dx, crate.pos.dy));
+    _coach?.flyIn(Offset(from.x, from.y), w.kind);
     AudioService.playPickup();
     Haptics.medium();
   }
@@ -2739,7 +2833,10 @@ class NarrowHaulGame extends Forge2DGame
   void _updateWeapons(double dt, ShipBody s) {
     _laserBeam?.active = s.laserFiring;
     if (!s.laserFiring) _laserTick = 0;
-    if (_weaponHintLeft > 0) _weaponHintLeft -= dt;
+    if (_crateNoticeLeft > 0) {
+      _crateNoticeLeft -= dt;
+      if (_crateNoticeLeft <= 0) _crateNotice = null;
+    }
     if (_scrapeFxCooldown > 0) _scrapeFxCooldown -= dt;
     if (_scrapeSoundCooldown > 0) _scrapeSoundCooldown -= dt;
     if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
@@ -3003,8 +3100,7 @@ class NarrowHaulGame extends Forge2DGame
       if (_timing && s.launched) elapsedSeconds += dt;
       if (thrustHeld) _thrustUsed += dt;
       if (rotateAxis.abs() > 0.3) _rotateUsed += dt;
-      _hint?.message = _currentHint();
-      _hint?.belowBanner = _combatHud?.showing ?? false;
+      _updateGuidance(s);
       final worldSize = _currentWorldSize;
       if (worldSize != null) _followCamera(s, worldSize, dt);
 

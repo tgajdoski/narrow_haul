@@ -432,82 +432,6 @@ class _Debris {
   final double life;
 }
 
-/// Short contextual hint pill (tutorial steps, landing status). Set [message]
-/// every frame; changes cross-fade, null fades out.
-class HintHud extends PositionComponent {
-  HintHud() : super(priority: 4910);
-
-  final _text = HudText();
-
-  String? message;
-  String _shown = '';
-  double _alpha = 0;
-
-  /// Slide below the combat banner while it's up (else just under pause).
-  bool belowBanner = false;
-  static const double _topClear = 56;
-  static const double _topBelowBanner = 92;
-  double _top = _topClear;
-
-  @override
-  void onGameResize(Vector2 size) {
-    super.onGameResize(size);
-    this.size = size;
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    final goal = belowBanner ? _topBelowBanner : _topClear;
-    _top += (goal - _top) * math.min(1, dt * 10);
-    final target = message;
-    if (target != null && target == _shown) {
-      _alpha = math.min(1, _alpha + dt * 4);
-    } else {
-      // Fade out the old text before swapping in the new one.
-      _alpha = math.max(0, _alpha - dt * 5);
-      if (_alpha == 0 && target != null) _shown = target;
-    }
-  }
-
-  @override
-  void render(Canvas canvas) {
-    if (_alpha <= 0 || _shown.isEmpty) return;
-    final tp = _text.layout(
-      TextSpan(
-        text: _shown,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: _alpha),
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textAlign: TextAlign.center,
-      maxWidth: math.min(420, size.x - 280),
-    );
-    final w = tp.width + 32;
-    final h = tp.height + 16;
-    // Top-center just under the pause button, clear of both thumbs.
-    final top = _top;
-    final r = RRect.fromRectAndRadius(
-      Rect.fromLTWH((size.x - w) / 2, top, w, h),
-      Radius.circular(h / 2),
-    );
-    canvas.drawRRect(
-      r,
-      Paint()..color = const Color(0xCC0D1B2A).withValues(alpha: 0.8 * _alpha),
-    );
-    canvas.drawRRect(
-      r,
-      Paint()
-        ..color = const Color(0xFF4ADE80).withValues(alpha: 0.6 * _alpha)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-    tp.paint(canvas, Offset((size.x - tp.width) / 2, top + 8));
-  }
-}
-
 /// Delivery celebration in world space (meters): confetti fountaining up
 /// from the pad. Removes itself when finished.
 class CelebrationBurst extends Component {
@@ -591,6 +515,10 @@ class CombatStatusHud extends PositionComponent {
   CombatStatusHud() : super(priority: 4920);
 
   final _text = HudText();
+  final _bang = HudText();
+
+  /// Safe-area insets: the banner sits under the top one.
+  EdgeInsets insets = EdgeInsets.zero;
 
   /// Seconds left to deliver before the reactor blows; null = no meltdown.
   double? meltdownLeft;
@@ -638,29 +566,48 @@ class CombatStatusHud extends PositionComponent {
     final tp = _text.layout(
       TextSpan(
         text: text,
-        style: TextStyle(
-          color: color,
-          fontSize: melt != null ? 16 : 13,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-        ),
+        style: hudFont(melt != null ? 14 : 12, color, spacing: 1.4),
       ),
     );
-    const top = 54.0;
-    final w = tp.width + 28;
+    // A chamfered alert plate under the pause button: hex warning glyph on
+    // the left, hazard stripes on both ends.
+    final top = 54.0 + insets.top;
+    const stripeW = 16.0;
+    const glyphW = 22.0;
+    final w = tp.width + glyphW + stripeW * 2 + 22;
     final h = tp.height + 12;
-    final r = RRect.fromRectAndRadius(
-      Rect.fromLTWH((size.x - w) / 2, top, w, h),
-      Radius.circular(h / 2),
+    final rect = Rect.fromLTWH((size.x - w) / 2, top, w, h);
+    final plate = chamferRect(rect, 8);
+    drawGlow(canvas, plate, color, melt != null ? 0.7 : 0.4);
+    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
+    canvas.save();
+    canvas.clipPath(plate);
+    final stripe = Paint()..color = color.withValues(alpha: 0.55);
+    for (final x0 in [rect.left, rect.right - stripeW]) {
+      for (var x = x0 - h; x < x0 + stripeW; x += 7) {
+        canvas.drawPath(
+          Path()
+            ..moveTo(x, rect.bottom)
+            ..lineTo(x + 3.5, rect.bottom)
+            ..lineTo(x + 3.5 + h, rect.top)
+            ..lineTo(x + h, rect.top)
+            ..close(),
+          stripe,
+        );
+      }
+    }
+    canvas.restore();
+    // Keep the stripes out of the text area.
+    canvas.drawRect(
+      Rect.fromLTRB(rect.left + stripeW, rect.top + 1, rect.right - stripeW, rect.bottom - 1),
+      Paint()..color = HudColors.plateDark,
     );
-    canvas.drawRRect(r, Paint()..color = const Color(0xCC0D1B2A));
-    canvas.drawRRect(
-      r,
-      Paint()
-        ..color = color.withValues(alpha: 0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-    tp.paint(canvas, Offset((size.x - tp.width) / 2, top + 6));
+    drawStroke(canvas, plate, color.withValues(alpha: 0.85), 1.4);
+    final gc = Offset(rect.left + stripeW + 6 + glyphW / 2 - 4, rect.center.dy);
+    final hex = hexPath(gc, 8);
+    drawStroke(canvas, hex, color, 1.5);
+    final bang = _bang.layout(TextSpan(text: '!', style: hudFont(10, color, spacing: 0)));
+    bang.paint(canvas, gc - Offset(bang.width / 2, bang.height / 2));
+    tp.paint(canvas, Offset(gc.dx + glyphW / 2 + 4, rect.top + 6));
   }
 }

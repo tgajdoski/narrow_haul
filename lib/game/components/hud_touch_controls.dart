@@ -91,6 +91,13 @@ class HudTouchControls extends PositionComponent {
     _relayout(size);
   }
 
+  /// Where the controls sit right now; null before the first layout.
+  HudButtonLayout? get layout => _layout;
+  HudButtonLayout? _layout;
+
+  /// The ammo rail is on screen.
+  bool get railShown => _rail != null && (weapon?.showRail ?? false);
+
   _FloatingJoystick? _joystick;
   _ThrustButton? _thrustBtn;
   _FireButton? _fireBtn;
@@ -121,22 +128,18 @@ class HudTouchControls extends PositionComponent {
     _rail?.removeFromParent();
     _rail = null;
 
-    _joystick = _FloatingJoystick(
-      areaSize: Vector2(sz.x * 0.5, sz.y),
-      position: Vector2(_leftHanded ? sz.x * 0.5 : 0, 0),
-      onAxisChanged: onRotateAxis,
-      onStick: onStick,
-      hintFraction: _leftHanded ? 0.78 : 0.22,
-      // The joystick covers one half: only that half's outer edge is inset.
-      hintInsets: _leftHanded
-          ? EdgeInsets.only(right: _insets.right, bottom: _insets.bottom)
-          : EdgeInsets.only(left: _insets.left, bottom: _insets.bottom),
-    );
-
-    final layout = HudButtonLayout(
+    final layout = _layout = HudButtonLayout(
       Size(sz.x, sz.y),
       insets: _insets,
       leftHanded: _leftHanded,
+    );
+    final joyLeft = _leftHanded ? sz.x * 0.5 : 0.0;
+    _joystick = _FloatingJoystick(
+      areaSize: Vector2(sz.x * 0.5, sz.y),
+      position: Vector2(joyLeft, 0),
+      onAxisChanged: onRotateAxis,
+      onStick: onStick,
+      restCenter: layout.dialRest - Offset(joyLeft, 0),
     );
     _thrustBtn = _ThrustButton(
       center: Vector2(layout.thrust.dx, layout.thrust.dy),
@@ -250,6 +253,44 @@ class HudButtonLayout {
   /// Toward the screen centre: −1 for a right-hand layout.
   double get innerSide => leftHanded ? 1 : -1;
 
+  /// Outer radius of the steering dial.
+  static const double dialRadius = 68;
+
+  /// Where the steering dial rests (it floats to the thumb while dragged):
+  /// 22% into its half of the screen, clear of the safe-area edge.
+  Offset get dialRest {
+    final half = screen.width / 2;
+    const edge = dialRadius + 12;
+    // The dial covers one half: only that half's outer edge is inset.
+    final inL = leftHanded ? 0.0 : insets.left;
+    final inR = leftHanded ? insets.right : 0.0;
+    final local = (half * (leftHanded ? 0.78 : 0.22))
+        .clamp(inL + edge, math.max(inL + edge, half - inR - edge))
+        .toDouble();
+    return Offset(
+      (leftHanded ? half : 0) + local,
+      screen.height - insets.bottom - dialRadius - 16,
+    );
+  }
+
+  /// How far past THRUST's centre the inner-side controls reach: the pad,
+  /// plus the ammo rail and its counts when it's up.
+  static double innerReach({required bool rail}) =>
+      thrustRadius + 14 + (rail ? slotRadius * 2 + 44 : 0);
+
+  /// The free strip along the bottom between the steering dial and THRUST
+  /// (or the rail): where the comms line goes.
+  Rect bottomBand({required bool rail}) {
+    final dialEdge = dialRest.dx - innerSide * (dialRadius + 14);
+    final thrustEdge = thrust.dx + innerSide * innerReach(rail: rail);
+    return Rect.fromLTRB(
+      math.min(dialEdge, thrustEdge),
+      0,
+      math.max(dialEdge, thrustEdge),
+      screen.height - insets.bottom - 12,
+    );
+  }
+
   /// Centres of [n] rail slots, top to bottom: a column on the screen-centre
   /// side of THRUST/FIRE, centred on FIRE where it fits, squeezed (never
   /// tighter than the slots) when it doesn't.
@@ -278,8 +319,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
     required Vector2 position,
     required this.onAxisChanged,
     this.onStick,
-    this.hintFraction = 0.22,
-    this.hintInsets = EdgeInsets.zero,
+    required this.restCenter,
   }) : super(
           position: position,
           size: areaSize,
@@ -289,14 +329,12 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   final void Function(double axis) onAxisChanged;
   final void Function(double x, double y)? onStick;
 
-  /// Horizontal position of the idle hint within the joystick area.
-  final double hintFraction;
-
-  /// Keeps the idle hint clear of the notch / home indicator.
-  final EdgeInsets hintInsets;
+  /// Where the idle dial rests, in this area's coordinates
+  /// ([HudButtonLayout.dialRest]).
+  final Offset restCenter;
 
   static const double _maxKnobRadius = 56.0;
-  static const double _baseOuterRadius = 68.0;
+  static const double _baseOuterRadius = HudButtonLayout.dialRadius;
   static const double _knobRadius = 28.0;
   static const double _deadzone = FlightTuning.stickDeadzone;
 
@@ -372,13 +410,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   /// Resting position hint: the full dial (base + centred knob) at a fixed
   /// bottom corner so the player always sees where to steer.
   void _drawHint(Canvas canvas) {
-    const edge = _baseOuterRadius + 12;
-    final cx = (size.x * hintFraction).clamp(
-      hintInsets.left + edge,
-      math.max(hintInsets.left + edge, size.x - hintInsets.right - edge),
-    ).toDouble();
-    final cy = size.y - hintInsets.bottom - _baseOuterRadius - 16;
-    final c = Offset(cx, cy);
+    final c = restCenter;
     _drawBase(canvas, c, active: false);
     _drawKnob(canvas, c, active: false);
   }
@@ -928,14 +960,28 @@ class FuelGaugeHud extends PositionComponent {
   static const double lowFuel = 0.15;
   double _t = 0;
 
+  /// Fuel just spent on shots (share of the tank), shown at the fill edge
+  /// for a moment: the cost lands where the pilot reads the tank.
+  double _costFrac = 0;
+  double _costLeft = 0;
+  static const double _costSeconds = 0.9;
+
+  /// A shot (or burst) cost [frac] of the tank; quick shots add up.
+  void flashCost(double frac) {
+    _costFrac = (_costLeft > 0 ? _costFrac : 0) + frac;
+    _costLeft = _costSeconds;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
     _t += dt;
+    if (_costLeft > 0) _costLeft = math.max(0, _costLeft - dt);
   }
 
   final _fuelLabel = HudText();
   final _lowLabel = HudText();
+  final _costLabel = HudText();
 
   static const double _barW = 220.0;
   static const double _barH = 26.0;
@@ -1005,6 +1051,8 @@ class FuelGaugeHud extends PositionComponent {
       );
     }
 
+    if (_costLeft > 0) _drawCost(canvas, innerLeft, innerW, innerTop, innerH);
+
     if (low) {
       final tp = _lowLabel.layout(
         TextSpan(
@@ -1029,6 +1077,41 @@ class FuelGaugeHud extends PositionComponent {
       drawGlow(canvas, hex, const Color(0xFF4ADE80), 0.8);
       canvas.drawPath(hex, Paint()..color = const Color(0xFF4ADE80));
     }
+  }
+
+  /// The burnt slice flashes at the fill edge with '−0.5%' beside it.
+  void _drawCost(
+    Canvas canvas,
+    double innerLeft,
+    double innerW,
+    double innerTop,
+    double innerH,
+  ) {
+    final a = (_costLeft / _costSeconds).clamp(0.0, 1.0);
+    final edge = innerLeft + innerW * fuelFraction.clamp(0.0, 1.0);
+    final slice = math.max(3.0, innerW * _costFrac);
+    final burnt = Rect.fromLTWH(edge, innerTop - 1, slice, innerH + 2);
+    canvas.drawRect(
+      burnt,
+      Paint()..color = Color.lerp(HudColors.thrust, Colors.white, a * 0.5)!
+          .withValues(alpha: 0.9 * a),
+    );
+    final pct = _costFrac * 100;
+    final text = '−${pct < 1 ? pct.toStringAsFixed(1) : pct.round()}%';
+    final tp = _costLabel.layout(
+      TextSpan(text: text, style: hudFont(9, HudColors.thrustHot.withValues(alpha: a), spacing: 0.6)),
+    );
+    // In the empty part of the bar when it fits, else over the lit cells.
+    final right = innerLeft + innerW;
+    final x = edge + slice + 4 + tp.width <= right
+        ? edge + slice + 4
+        : edge - 4 - tp.width;
+    final y = innerTop + (innerH - tp.height) / 2;
+    canvas.drawRect(
+      Rect.fromLTWH(x - 2, y, tp.width + 4, tp.height),
+      Paint()..color = HudColors.plateDark.withValues(alpha: 0.9 * a),
+    );
+    tp.paint(canvas, Offset(x, y));
   }
 }
 
@@ -1055,6 +1138,18 @@ class LevelInfoHud extends PositionComponent {
   double star3Time = 60;
 
   static const _gold = Color(0xFFFFD166);
+
+  /// Outline the target line (the comms is explaining the star rules).
+  bool frameTarget = false;
+  double _frame = 0;
+  double _t = 0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+    _frame = (_frame + (frameTarget ? dt : -dt) * 4).clamp(0.0, 1.0);
+  }
 
   @override
   void render(Canvas canvas) {
@@ -1106,7 +1201,17 @@ class LevelInfoHud extends PositionComponent {
         ],
       ),
     );
-    line.paint(canvas, Offset(left, top + tp.height + 3));
+    final lineTop = top + tp.height + 3;
+    line.paint(canvas, Offset(left, lineTop));
+    if (_frame > 0) {
+      final pulse = 0.6 + 0.4 * math.sin(_t * 5);
+      final frame = chamferRect(
+        Rect.fromLTWH(left - 6, lineTop - 3, line.width + 12, line.height + 6),
+        6,
+      );
+      drawGlow(canvas, frame, _gold, 0.5 * _frame * pulse);
+      drawStroke(canvas, frame, _gold.withValues(alpha: 0.85 * _frame * pulse), 1.3);
+    }
   }
 
   (int, String, Color) _target() {
