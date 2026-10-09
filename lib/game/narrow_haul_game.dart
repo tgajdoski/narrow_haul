@@ -939,6 +939,8 @@ class NarrowHaulGame extends Forge2DGame
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
       spec: shipSpec,
       kit: kitById(CosmeticsService.getEquippedId(CosmeticsService.catKit)),
+      // The hull's rim light picks up the cave's glow.
+      rimColor: (theme.edgeGlow ?? theme.uiAccent).withValues(alpha: 1),
     );
     final cargoBody = CargoBody(
       initialPosition: Vector2.copy(data.cargoSpawn),

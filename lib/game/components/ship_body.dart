@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/flame.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/ship_fx.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -27,11 +31,14 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     this.fuelDrainMultiplier = 1.0,
     this.spec = kKestrel,
     this.kit = kStockKit,
+    Color? rimColor,
   }) : _initialPosition = initialPosition,
        fuel = spec.maxFuel * kit.tankMul,
        super(
          paint: Paint()..color = const Color(0xFF00B4D8),
-       );
+       ) {
+    if (rimColor != null) _lighting.rimColor = rimColor;
+  }
 
   /// Multiplier applied to fuel drain rate (daily challenge modifier).
   final double fuelDrainMultiplier;
@@ -46,6 +53,18 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   ui.Image? _shipImage;
   bool _usingFallbackArt = false;
+
+  /// Baked from the sprite ([hullNormalMap]); null until ready (or in
+  /// tests), when the hull is drawn flat.
+  ui.Image? _normalImage;
+  final HullLighting _lighting = HullLighting();
+  final ShipLook _look = ShipLook();
+  final RcsPuffs _puffs = RcsPuffs();
+  final NavLights _navLights = NavLights();
+  final EngineHeat _heat = EngineHeat();
+  late final HullPoints _points = HullPoints.of(spec);
+  double _lookTime = 0;
+  double? _lastAngle;
   final void Function() onWallHit;
 
   /// A slow rock touch that didn't crash: world point, rock normal, kind.
@@ -198,19 +217,28 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     await super.onLoad();
     body.userData = this;
     await add(ThrustPlume(
-      isThrusting: () => isThrusting,
+      thrustLevel: () => _wrecked ? 0 : _look.thrust,
       flameStartY: rearLocalY,
     ));
     // Bespoke art if present, else the Kestrel sprite + the spec's tint.
     for (final path in {spec.sprite, kKestrel.sprite}) {
       try {
-        _shipImage = await Flame.images.load(path);
+        final img = _shipImage = await Flame.images.load(path);
         _usingFallbackArt = path != spec.sprite;
         renderBody = false;
+        // Lighting comes in once its normal map is baked (cached per sprite).
+        if (!_inTest) {
+          unawaited(hullNormalMap(path, img).then((n) {
+            if (n != null && n.width == img.width) _normalImage = n;
+          }));
+        }
         break;
       } catch (_) {}
     }
   }
+
+  static final bool _inTest =
+      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   // Same scale on both axes, nozzle row on the engine anchor: the hull
   // polygons ([ShipSpec.hullPolygons]) are traced from this very framing.
@@ -236,8 +264,16 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   void render(Canvas canvas) {
     if (_wrecked) return;
     super.render(canvas); // no-op when renderBody = false
+    final k = spec.hullScale;
+    _puffs.render(canvas, body, k);
     final img = _shipImage;
     if (img != null) {
+      // Bank: the hull narrows as it rolls into the turn; a burn's first
+      // frames push it a touch bigger.
+      final grow = 1 + 0.025 * _look.kick;
+      canvas
+        ..save()
+        ..scale((1 - 0.12 * _look.bank.abs()) * grow, grow);
       final skinId = CosmeticsService.getEquippedId(CosmeticsService.catShip);
       final paint = Paint();
       final skinTint = _skinTints[skinId];
@@ -248,12 +284,59 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         paint.colorFilter = ColorFilter.mode(Color(spec.tint!), BlendMode.srcATop);
       }
       
-      canvas.drawImageRect(
-        img,
-        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-        _spriteRect,
-        paint,
-      );
+      final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+      canvas.drawImageRect(img, src, _spriteRect, paint);
+      final normals = _normalImage;
+      if (normals != null) {
+        // Light fixed in the world: shade, then the glint and the rim.
+        _lighting.aim(body.angle, _look.bank);
+        canvas
+          ..drawImageRect(normals, src, _spriteRect, _lighting.shade)
+          ..drawImageRect(normals, src, _spriteRect, _lighting.gloss)
+          ..drawImageRect(normals, src, _spriteRect, _lighting.rimPaint);
+      }
+      _heat.render(canvas, rearLocalY, _look.heat, k);
+      _navLights.render(canvas, _points, _lookTime, k);
+      canvas.restore();
+    }
+  }
+
+  /// Bank, engine envelope and RCS puffs. The angle is read from the pose,
+  /// so a demo replay (kinematic, no angular velocity) banks too.
+  void _updateLook(double dt) {
+    final angle = body.angle;
+    var w = 0.0;
+    final last = _lastAngle;
+    if (last != null && dt > 0) {
+      var da = (angle - last) % (2 * math.pi);
+      if (da > math.pi) da -= 2 * math.pi;
+      w = da / dt;
+    }
+    _lastAngle = angle;
+    _lookTime += dt;
+    final pairs = _look.update(
+      dt,
+      angularVelocity: w,
+      turnRate: turnRate,
+      thrusting: isThrusting,
+    );
+    _puffs.update(dt);
+    if (_wrecked) return;
+    // Spinning clockwise (+): the nose's left jet and the right tail jet
+    // fire outward; the stop burst is the mirror image.
+    final side = _look.angAccel >= 0 ? 1.0 : -1.0;
+    final v = body.linearVelocity;
+    final nose = _points.noseSide, tip = _points.wingTip;
+    for (var i = 0; i < pairs; i++) {
+      _puffs
+        ..emit(
+          body.worldPoint(Vector2(-side * nose.dx, nose.dy)),
+          v + body.worldVector(Vector2(-side * 1.3, 0)),
+        )
+        ..emit(
+          body.worldPoint(Vector2(side * tip.dx, tip.dy)),
+          v + body.worldVector(Vector2(side * 1.3, 0)),
+        );
     }
   }
 
@@ -341,6 +424,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     }
 
     _updateCannon(dt);
+    _updateLook(dt);
 
     if (_thrustInput && fuel > 0) {
       fuel -= spec.fuelDrainPerSecond * kit.fuelDrainMul * fuelDrainMultiplier * dt;

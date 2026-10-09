@@ -15,9 +15,10 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 /// A Y-flip is applied so the core sits at the engine bell and the
 /// tips extend away from the ship.
 class ThrustPlume extends Component {
-  ThrustPlume({required this.isThrusting, required this.flameStartY});
+  ThrustPlume({required this.thrustLevel, required this.flameStartY});
 
-  final bool Function() isThrusting;
+  /// Eased engine output 0…1: the flame grows in and fades out with it.
+  final double Function() thrustLevel;
 
   /// Local Y of the engine bell on the parent ship (meters).
   final double flameStartY;
@@ -57,27 +58,29 @@ class ThrustPlume extends Component {
 
   @override
   void render(Canvas canvas) {
-    if (!isThrusting()) return;
+    final level = thrustLevel();
+    if (level < 0.03) return;
 
     if (_exhaustImage != null) {
-      _renderSprite(canvas);
+      _renderSprite(canvas, level);
     } else {
-      _renderProcedural(canvas);
+      _renderProcedural(canvas, level);
     }
   }
 
-  void _renderSprite(Canvas canvas) {
+  void _renderSprite(Canvas canvas, double level) {
     final frame = (_time / _stepTime).floor() % _frameCount;
     final srcRect = Rect.fromLTWH(frame * _frameW, 0, _frameW, _frameH);
+    final height = _flameHeight * (0.35 + 0.65 * level);
     final dstRect = Rect.fromLTWH(
-      -_flameHalfWidth,
+      -_flameHalfWidth * (0.7 + 0.3 * level),
       0,
-      _flameHalfWidth * 2,
-      _flameHeight,
+      _flameHalfWidth * 2 * (0.7 + 0.3 * level),
+      height,
     );
-    
+
     final plumeId = CosmeticsService.getEquippedId(CosmeticsService.catPlume);
-    final paint = Paint();
+    final paint = Paint()..color = Color.fromRGBO(255, 255, 255, level.clamp(0.0, 1.0));
     if (plumeId == 'plume_green') {
       paint.colorFilter = const ColorFilter.mode(Color(0xFF00FF00), BlendMode.hue);
     } else if (plumeId == 'plume_red') {
@@ -100,15 +103,15 @@ class ThrustPlume extends Component {
     // Flip vertically so the core appears at the engine bell (flameStartY)
     // and the tips extend downward (increasing Y = away from ship).
     canvas.save();
-    canvas.translate(0, flameStartY + _flameHeight);
+    canvas.translate(0, flameStartY + height);
     canvas.scale(1.0, -1.0);
     canvas.drawImageRect(_exhaustImage!, srcRect, dstRect, paint);
     canvas.restore();
   }
 
-  void _renderProcedural(Canvas canvas) {
+  void _renderProcedural(Canvas canvas, double level) {
     final base = flameStartY;
-    final flicker = 0.85 + math.sin(_time * 28) * 0.15;
+    final flicker = (0.85 + math.sin(_time * 28) * 0.15) * (0.35 + 0.65 * level);
     
     final plumeId = CosmeticsService.getEquippedId(CosmeticsService.catPlume);
     Color coreC = _coreColor;
@@ -184,7 +187,7 @@ class ThrustPlume extends Component {
         path,
         Paint()
           ..color = Color.fromARGB(
-            opacities[layer],
+            (opacities[layer] * level).round(),
             (color.r * 255).round(),
             (color.g * 255).round(),
             (color.b * 255).round(),
