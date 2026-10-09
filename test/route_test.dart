@@ -329,9 +329,11 @@ void main() {
         expect(_d(at.x, at.y, at.cx, at.cy), lessThan(2.0),
             reason: '$id: rope attaches with the ship away from the pod');
         final end = route.samples.last;
-        expect((end.x - data.goalCenter.x).abs(), lessThan(data.goalHalfWidth + 0.5),
+        // Delivery counts once any part of the hull reaches the pad box.
+        final reach = LevelRegistry.shipFor(i).circumradius + 0.4;
+        expect((end.x - data.goalCenter.x).abs(), lessThan(data.goalHalfWidth + reach),
             reason: '$id: route ends off the pad');
-        expect((end.y - data.goalCenter.y).abs(), lessThan(data.goalHalfHeight + 1.0),
+        expect((end.y - data.goalCenter.y).abs(), lessThan(data.goalHalfHeight + reach),
             reason: '$id: route ends off the pad');
         final grid = switch (def) {
           CaveLevelDef d => NavGrid.forCave(d.spec),

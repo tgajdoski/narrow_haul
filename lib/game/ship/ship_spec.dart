@@ -95,8 +95,14 @@ class ShipSpec {
   static const double _legacyRearHalfW = 0.315;
   static const double _hookRadius = 0.21;
 
+  /// Size of the drawn ship and its hull relative to the first traced
+  /// version (0.0068 m/px): big enough to read on a phone, with every cave
+  /// level still passing the validator up to ×1.3. Mass and thrust don't
+  /// depend on it.
+  static const double hullGrowth = 1.25;
+
   /// Sprite scale at hull scale 1 (m per sprite pixel, both axes).
-  static const double artMetersPerPx = 0.0068;
+  static const double artMetersPerPx = 0.0068 * hullGrowth;
 
   /// Sprite pixel row of the engine nozzle line (every sprite is framed so).
   static const double artNozzleRow = 181;
@@ -141,7 +147,7 @@ class ShipSpec {
       rearLocalY + (hull.first.rows.first.$1 - artNozzleRow) * artScale;
 
   /// Local +Y anchor at engine bell (rope + plume).
-  double get rearLocalY => _rearY * hullScale;
+  double get rearLocalY => _rearY * hullGrowth * hullScale;
 
   /// Nose hook: just behind the nose tip, where the pod is caught.
   double get hookLocalY => noseLocalY + 0.15 * hullScale;
@@ -179,7 +185,7 @@ class ShipSpec {
 
   /// Where the flight mass sits (local), as on the original triangle hull:
   /// its centroid. Keeps the ship's balance on its base as it was.
-  double get massCenterY => (_legacyNoseY + 2 * _rearY) / 3 * hullScale;
+  double get massCenterY => (_legacyNoseY + 2 * _rearY) / 3 * hullGrowth * hullScale;
 
   /// Rotational inertia about [massCenterY] of the original triangle hull.
   double get massInertia {

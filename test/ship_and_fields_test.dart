@@ -14,7 +14,7 @@ void main() {
       expect(kKestrel.fuelDrainPerSecond, 12);
       expect(kKestrel.density, 1.15);
       expect(kKestrel.linearDamping, 0.22);
-      expect(kKestrel.rearLocalY, 0.39);
+      expect(kKestrel.rearLocalY, closeTo(0.39 * ShipSpec.hullGrowth, 1e-9));
       expect(kKestrel.hookRadius, 0.21);
       expect(kKestrel.ropeLengthMul, 1.0);
       // Flight mass is the original triangle hull's (base ±0.315 at +0.39,
@@ -40,7 +40,7 @@ void main() {
         expect(ys.reduce((a, b) => a < b ? a : b), closeTo(s.noseLocalY, 1e-9), reason: s.id);
         // Hook just behind the nose, inside the hull's reach.
         expect(s.hookLocalY, greaterThan(s.noseLocalY), reason: s.id);
-        expect(s.circumradius, lessThan(0.7), reason: s.id);
+        expect(s.circumradius, lessThan(0.85), reason: s.id);
         // Balance point of the legacy hull, above the base.
         expect(s.massCenterY, lessThan(s.rearLocalY), reason: s.id);
       }

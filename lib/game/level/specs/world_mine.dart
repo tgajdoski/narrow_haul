@@ -215,7 +215,8 @@ final List<LevelDef> mineLevels = [
       ],
       chambers: [
         ChamberSpec(Pt(5, 14), 2.4),
-        ChamberSpec(Pt(21, 14), 2.6),
+        // Room for the full-size hull to fly round the bar's sweep.
+        ChamberSpec(Pt(21, 14), 3.1),
         ChamberSpec(Pt(18, 20), 1.7),
         ChamberSpec(Pt(38, 14), 2.4),
       ],

@@ -157,8 +157,8 @@ final List<LevelDef> lavaLevels = [
         ChamberSpec(Pt(38, 14), 2.4),
       ],
       obstacles: [
-        SlidingBlockSpec(Pt(16, 11), Pt(16, 19), halfW: 0.55, halfH: 0.7, periodSec: 2.8),
-        SlidingBlockSpec(Pt(30, 19), Pt(30, 11), halfW: 0.55, halfH: 0.7, periodSec: 2.8, phase: 0.5),
+        SlidingBlockSpec(Pt(16, 11), Pt(16, 19), halfW: 0.55, halfH: 0.7, periodSec: 3.4),
+        SlidingBlockSpec(Pt(30, 19), Pt(30, 11), halfW: 0.55, halfH: 0.7, periodSec: 3.4, phase: 0.5),
       ],
       shipSpawn: Pt(5, 14),
       cargoSpawn: Pt(22, 8.5),

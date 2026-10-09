@@ -201,7 +201,8 @@ final List<LevelDef> orbitLevels = [
         WindZoneSpec(Pt(31.5, 16.5), halfW: 2.5, halfH: 3, ax: -0.3, ay: 0, gustAmp: 0.5, gustPeriod: 3.5),
       ],
       shipSpawn: Pt(5, 22),
-      cargoSpawn: Pt(25, 7.3),
+      // Low enough under the chamber roof to hover over with the full-size hull.
+      cargoSpawn: Pt(25, 7.9),
       goal: GoalSpec(Pt(35, 23.2)),
     ),
   ),
