@@ -1302,12 +1302,15 @@ class NarrowHaulGame extends Forge2DGame
         nose.dot(up) >= math.cos(kTouchdownMaxTilt) &&
         near.normal.dot(up) >= math.cos(kTouchdownMaxSlope);
     final limit = landing ? kTouchdownMaxSpeed : kScrapeMaxSpeed;
-    final danger = ((near.approach - 0.6 * limit) / (0.6 * limit)).clamp(
-      0.0,
-      1.0,
-    );
+    // Machinery, turrets and well cores crash at any speed: always red.
+    final danger = near.lethal
+        ? 1.0
+        : ((near.approach - 0.6 * limit) / (0.6 * limit)).clamp(0.0, 1.0);
     glow.show(-near.normal, closeness * closeness, danger);
-    if (danger >= 1 && near.gap < 0.5 && _proximityBuzzCooldown <= 0) {
+    if (danger >= 1 &&
+        near.approach > 0.05 &&
+        near.gap < 0.5 &&
+        _proximityBuzzCooldown <= 0) {
       _proximityBuzzCooldown = 1.0;
       Haptics.light();
     }

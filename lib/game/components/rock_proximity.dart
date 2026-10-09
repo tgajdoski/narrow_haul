@@ -6,7 +6,7 @@ import 'package:narrow_haul/game/tags.dart';
 
 /// The nearest solid thing (rock, obstacle) around the ship.
 class RockNearby {
-  RockNearby(this.gap, this.normal, this.approach);
+  RockNearby(this.gap, this.normal, this.approach, {this.lethal = false});
 
   /// Distance from the hull's own edge to the surface (m).
   final double gap;
@@ -16,6 +16,10 @@ class RockNearby {
 
   /// The ship's velocity into that surface (m/s, ≤ 0 = moving away).
   final double approach;
+
+  /// Not forgiving rock (a moving obstacle, turret, reactor, well core):
+  /// any touch crashes, whatever the speed.
+  final bool lethal;
 }
 
 /// Finds the closest [WallTag] surface within [range] of the hull with
@@ -47,7 +51,12 @@ RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1
     final gap = ray.fraction * length - reach;
     if (best == null || gap < best.gap) {
       final normal = ray.normal.clone();
-      best = RockNearby(gap, normal, -body.linearVelocity.dot(normal));
+      best = RockNearby(
+        gap,
+        normal,
+        -body.linearVelocity.dot(normal),
+        lethal: !ray.rock,
+      );
     }
   }
   return best;
@@ -59,6 +68,7 @@ class _NearRay extends RayCastCallback {
   _NearRay(this.ship);
   final Body ship;
   bool hit = false;
+  bool rock = false;
   double fraction = 1;
   final Vector2 normal = Vector2.zero();
 
@@ -71,6 +81,7 @@ class _NearRay extends RayCastCallback {
   double reportFixture(Fixture f, Vector2 p, Vector2 n, double frac) {
     if (f.isSensor || f.body == ship || f.userData is! WallTag) return -1;
     hit = true;
+    rock = f.userData is RockTag;
     fraction = frac;
     normal.setFrom(n);
     return frac; // keep only the nearest

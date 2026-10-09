@@ -3,7 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
+import 'package:narrow_haul/game/level/cave/level_spec.dart';
+import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
 
@@ -85,6 +89,7 @@ void main() {
         s.body.setTransform(s.body.position, 0);
         final near = probeRockNearby(g.world, s);
         if (near != null && near.gap < 1.0 && near.normal.y < -0.5) {
+          expect(near.lethal, isFalse, reason: 'rock forgives');
           gaps.add(near.gap);
           expect(near.approach, closeTo(0.4 * -near.normal.y, 0.05));
         }
@@ -95,6 +100,27 @@ void main() {
       expect(gaps.length, greaterThan(20));
       expect(gaps.first, greaterThan(0.8));
       expect(gaps.last, lessThan(0.05));
+    });
+
+    test('machinery near the ship reads as lethal (always red)', () async {
+      final index = [
+        for (var i = 0; i < LevelRegistry.totalLevels; i++) i,
+      ].firstWhere((i) {
+        final d = LevelRegistry.defAt(i);
+        return d is CaveLevelDef && d.spec.obstacles.any((o) => o is RotatingBarSpec);
+      });
+      await h.loadLevel(index);
+      final g = h.game;
+      final bar = g.world.children.whereType<RotatingBar>().first;
+      final pivot = bar.body.position.clone();
+      bar.body
+        ..setTransform(pivot, 0)
+        ..angularVelocity = 0;
+      final s = g.ship!;
+      s.body.setTransform(pivot - Vector2(0, 0.6 + s.spec.circumradius), 0);
+      final near = probeRockNearby(g.world, s);
+      expect(near, isNotNull);
+      expect(near!.lethal, isTrue);
     });
 
     for (final (name, level) in [('tutorial walls', 0), ('cave rock', 10)]) {
