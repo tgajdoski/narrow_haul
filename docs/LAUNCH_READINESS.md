@@ -25,7 +25,7 @@
 ## Open — your actions
 
 ### Before the first test build
-- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, forgiving rock and the shield glow, the guidance HUD, the briefing and the intro.
+- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing and the intro.
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
   - Consider adding a weapons shot, the Armory and the briefing. See `art_src/store/README.md`.
@@ -85,6 +85,7 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
    - All of it in left-handed mode.
 3. **Flight feel:**
    - Try each steering preset (Two-speed, Smooth, Agile, **Point**, Classic) and each camera preset.
+   - **Dynamic camera** (new default): does a fast dive zoom out early enough to see the wall? Does a slow pad landing tighten gently? Is a pod on a long line or the tractor beam still on screen? Does the view ever pump in and out? Do the crash, blast and meltdown shakes feel right? Is Centred still? Tuning: `CameraMode` in `flight_tuning.dart`, rationale in `docs/CAMERA.md`.
    - Scrape a wall and touch down hard-ish on rock. Does the shield flare and glow feel fair?
    - Is the glow red near bars and turrets?
 4. **Loadout:** tow gear (Chain, Long Line, Magnetic Grapple, Shock Cord, Tractor Beam) and the Handling kits (Gyro, Vernier, Dampers). Does each feel like a real trade-off?
@@ -165,6 +166,7 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 - **Flight feel:**
   - forgiving rock (scrape/touchdown), deflector shield flare and proximity glow
   - two-speed steering with five presets; camera presets with look-ahead and tow zoom
+  - Dynamic camera (default): speed and wall-ahead zoom-out, careful zoom-in, pod framing, trauma shake (`docs/CAMERA.md`)
   - hull traced from the art; ship 1.6× and pod 3× real size; camera scaled to the screen
   - flat pad shelves, so landings are reliable
   - player fire shoots down turret shells

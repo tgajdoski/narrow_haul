@@ -161,6 +161,7 @@ class _NarrowHaulApp extends StatelessWidget {
         final mq = MediaQuery.of(context);
         // The HUD (drawn by Flame) keeps clear of the notch / home indicator.
         game.setSafeInsets(mq.viewPadding);
+        game.reducedMotion = mq.disableAnimations;
         // Large system font sizes would overflow buttons on short landscape
         // phones; allow some scaling, not unlimited.
         return MediaQuery(

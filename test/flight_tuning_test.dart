@@ -160,11 +160,13 @@ void main() {
     });
 
     test('Centred camera is the original camera', () {
-      const c = CameraMode.centered;
-      expect([c.lead, c.towZoomOut, c.zoomMul], [0, 0, 1]);
+      final c = CameraMode.centered.profile;
+      expect(c.isStatic, isTrue);
+      expect(c.zoomMul, 1);
       for (final m in CameraMode.values) {
-        expect(m.zoomMul, inInclusiveRange(0.8, 1.0));
-        expect(m.towZoomOut, inInclusiveRange(0.0, 0.15));
+        expect(m.profile.zoomMul, inInclusiveRange(0.8, 1.0), reason: m.name);
+        expect(m.profile.towZoomOut, inInclusiveRange(0.0, 0.15), reason: m.name);
+        expect(m.profile.speedZoomOut, inInclusiveRange(0.0, 0.25), reason: m.name);
       }
     });
 
@@ -174,7 +176,7 @@ void main() {
       expect(FlightTuning.camera, CameraMode.wide);
       FlightTuning.load(steerName: 'bogus');
       expect(FlightTuning.steer, SteerMode.twoSpeed);
-      expect(FlightTuning.camera, CameraMode.lookAhead);
+      expect(FlightTuning.camera, CameraMode.dynamicZoom);
     });
   });
 }

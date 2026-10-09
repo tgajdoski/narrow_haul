@@ -64,6 +64,34 @@ RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1
 
 const int _rays = 12;
 
+/// Gap (m, from the hull's edge) to the nearest [WallTag] surface along
+/// [dir] (unit) and ±15° either side, within [range]; null when clear.
+/// The camera uses it to see a wall coming at speed.
+double? probeAhead(Forge2DWorld world, ShipBody ship, Vector2 dir, {double range = 8}) {
+  final body = ship.body;
+  final from = body.position;
+  final ray = _NearRay(body);
+  double? best;
+  for (final turn in const [0.0, 0.26, -0.26]) {
+    final c = math.cos(turn), s = math.sin(turn);
+    final d = Vector2(dir.x * c - dir.y * s, dir.x * s + dir.y * c);
+    final local = body.localVector(d);
+    var reach = 0.0;
+    for (final poly in ship.spec.hullPolygons) {
+      for (final (x, y) in poly) {
+        reach = math.max(reach, x * local.x + y * local.y);
+      }
+    }
+    final length = reach + range;
+    ray.reset();
+    world.raycast(ray, from, from + d * length);
+    if (!ray.hit) continue;
+    final gap = math.max(0.0, ray.fraction * length - reach);
+    if (best == null || gap < best) best = gap;
+  }
+  return best;
+}
+
 class _NearRay extends RayCastCallback {
   _NearRay(this.ship);
   final Body ship;

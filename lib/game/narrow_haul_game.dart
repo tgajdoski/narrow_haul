@@ -26,6 +26,7 @@ import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
+import 'package:narrow_haul/game/camera/camera_director.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
@@ -284,7 +285,6 @@ class NarrowHaulGame extends Forge2DGame
   int _levelGen = 0;
   MiningLaserBeam? _laserBeam;
   double _laserTick = 0;
-  double _rumble = 0;
 
   /// Chance per attempt of a supply crate on a level flown by an unarmed
   /// ship. `--dart-define=CRATES=always` (or `never`) overrides it.
@@ -406,11 +406,7 @@ class NarrowHaulGame extends Forge2DGame
 
   // Crash sequence: explosion + shake play out before the gameOver overlay.
   static const double _crashDelay = 0.9;
-  static const double _shakeDuration = 0.45;
   double _crashTimer = 0;
-  double _shakeTimer = 0;
-  Vector2? _shakeBase;
-  final math.Random _shakeRng = math.Random();
   ParallaxBackground? _parallax;
   Vector2? _currentWorldSize;
 
@@ -1060,12 +1056,20 @@ class NarrowHaulGame extends Forge2DGame
   /// Smallest zoom that still keeps the view inside the world.
   double _minContainZoom = 0;
 
-  /// Smoothed camera lead ahead of the ship (m).
-  final Vector2 _cameraLead = Vector2.zero();
+  /// Decides focus and zoom from the flight (pure, `camera/camera_director.dart`);
+  /// this class only clamps it to the world and adds the shake.
+  final CameraDirector _director = CameraDirector(FlightTuning.camera.profile);
 
-  /// Camera follow per 1/60 s frame; [_followCamera] keeps it frame-rate
-  /// independent, so 120 Hz phones track exactly like 60 Hz ones.
-  static const double _cameraFollow = 0.18;
+  /// Crash, blasts and the meltdown rumble, added after the follow.
+  final TraumaShake _shake = TraumaShake();
+  Vector2 _shakeApplied = Vector2.zero();
+
+  /// The system asks for reduced motion (set by the app): softer zoom and shake.
+  bool reducedMotion = false;
+
+  /// Rock along the velocity, refreshed every other frame.
+  double? _aheadGap;
+  bool _aheadTick = false;
 
   void _applyContainedCamera(Vector2 worldSize) {
     final viewportSize = camera.viewport.size;
@@ -1073,49 +1077,74 @@ class NarrowHaulGame extends Forge2DGame
     final minZoomX = viewportSize.x / worldSize.x;
     final minZoomY = viewportSize.y / worldSize.y;
     _minContainZoom = math.max(minZoomX, minZoomY) * 1.01;
-    camera.viewfinder.zoom = _restZoom;
+    camera.viewfinder.zoom = math.max(_restZoom * _director.zoom, _minContainZoom);
   }
 
   /// Normal zoom for the camera mode, never showing outside the world.
-  double get _restZoom =>
-      math.max(_baseZoom * _screenScale * FlightTuning.camera.zoomMul, _minContainZoom);
+  double get _restZoom => math.max(
+        _baseZoom * _screenScale * FlightTuning.camera.profile.zoomMul,
+        _minContainZoom,
+      );
 
   void _followCamera(ShipBody s, Vector2 worldSize, double dt) {
-    final frames = dt * 60;
-    double ease(double perFrame) =>
-        1 - math.pow(1 - perFrame, frames).toDouble();
-
-    // Camera mode (Settings): look ahead along the velocity and open up a
-    // little while towing. Centred mode is the original camera.
-    final mode = FlightTuning.camera;
-    final leadSeconds = mode.lead;
-    final desiredLead = Vector2.zero();
-    if (leadSeconds > 0 && s.launched) {
-      desiredLead.setFrom(s.body.linearVelocity * leadSeconds);
-      if (desiredLead.length > FlightTuning.cameraLeadMaxMeters) {
-        desiredLead.scaleTo(FlightTuning.cameraLeadMaxMeters);
-      }
+    _director.profile = FlightTuning.camera.profile;
+    final vel = s.body.linearVelocity;
+    final speed = vel.length;
+    if (_aheadTick = !_aheadTick) {
+      _aheadGap = speed > 0.5 && _director.profile.impactZoomOut > 0
+          ? probeAhead(world, s, vel / speed)
+          : null;
     }
-    _cameraLead.add((desiredLead - _cameraLead) * ease(0.04));
-
-    final towing = cargoAttachment?.attached ?? false;
+    final towing = demoMode ? _demoTowing : (cargoAttachment?.attached ?? false);
+    final pod = towing ? cargo?.body.position : null;
+    // Local gravity (fields included) sets "down"; none in zero-g.
+    final g = s.localAccel;
+    final gLen = g.length;
+    final down = gLen > 0.2 * baseGravityY() ? g / gLen : Vector2.zero();
     final restZoom = _restZoom;
-    final zoomTarget = math.max(
-      _minContainZoom,
-      towing ? restZoom * (1 - mode.towZoomOut) : restZoom,
+    final view = camera.viewport.size;
+    final shot = _director.update(
+      CameraInputs(
+        shipX: s.body.position.x,
+        shipY: s.body.position.y,
+        velX: vel.x,
+        velY: vel.y,
+        launched: s.launched,
+        towing: towing,
+        podX: pod?.x,
+        podY: pod?.y,
+        aheadGap: _aheadGap,
+        downX: down.x,
+        downY: down.y,
+        viewHalfW: view.x / restZoom / 2,
+        viewHalfH: view.y / restZoom / 2,
+      ),
+      dt,
     );
-    final zoom = camera.viewfinder.zoom;
-    if ((zoomTarget - zoom).abs() > 1e-3) {
-      camera.viewfinder.zoom = zoom + (zoomTarget - zoom) * ease(0.03);
-    }
-
-    final target = _clampedCameraTarget(
-      s.body.position + _cameraLead,
-      worldSize,
-    );
-    final current = camera.viewfinder.position;
+    // Reduced motion halves the zoom swings (in log space).
+    final factor = reducedMotion ? math.sqrt(shot.zoom) : shot.zoom;
+    camera.viewfinder.zoom = math.max(restZoom * factor, _minContainZoom);
     camera.viewfinder.position =
-        current + (target - current) * ease(_cameraFollow);
+        _clampedCameraTarget(Vector2(shot.x, shot.y), worldSize);
+  }
+
+  /// Takes last frame's shake out of the camera, so nothing reads or keeps it.
+  void _removeShake() {
+    if (_shakeApplied.x == 0 && _shakeApplied.y == 0) return;
+    camera.viewfinder.position -= _shakeApplied;
+    _shakeApplied = Vector2.zero();
+  }
+
+  /// Adds this frame's shake on top of the settled camera.
+  void _applyShake(double dt) {
+    if (_meltdownLeft == null) _shake.floor = 0;
+    _shake
+      ..scale = reducedMotion ? 0.3 : 1
+      ..update(dt);
+    final (x, y) = _shake.offset;
+    if (x == 0 && y == 0) return;
+    _shakeApplied = Vector2(x, y);
+    camera.viewfinder.position += _shakeApplied;
   }
 
   void _applyCameraBounds(Vector2 worldSize) {
@@ -1129,7 +1158,13 @@ class NarrowHaulGame extends Forge2DGame
     final s = ship;
     final worldSize = _currentWorldSize;
     if (s == null || worldSize == null) return;
-    _cameraLead.setZero();
+    _director
+      ..profile = FlightTuning.camera.profile
+      ..reset(s.body.position.x, s.body.position.y);
+    _shake.clear();
+    _shakeApplied = Vector2.zero();
+    _aheadGap = null;
+    camera.viewfinder.zoom = math.max(_restZoom, _minContainZoom);
     camera.viewfinder.position = _clampedCameraTarget(
       s.body.position,
       worldSize,
@@ -1167,7 +1202,6 @@ class NarrowHaulGame extends Forge2DGame
     _carveBusy = false;
     _laserBeam = null;
     _crate = null;
-    _rumble = 0;
     _crateNotice = null;
     _crateNoticeLeft = 0;
     scrapesThisRun = 0;
@@ -1196,7 +1230,7 @@ class NarrowHaulGame extends Forge2DGame
     _winTimer = 0;
     _winReady = false;
     _crashTimer = 0;
-    _shakeTimer = 0;
+    _shake.clear();
     _pauseButton?.visible = false;
     _hudControls?.showFire = false;
     _meltdownLeft = null;
@@ -1366,8 +1400,7 @@ class NarrowHaulGame extends Forge2DGame
       world.add(burst);
       _levelEntities.add(burst);
     }
-    _shakeBase = camera.viewfinder.position.clone();
-    _shakeTimer = _shakeDuration;
+    _shake.add(1);
     _crashTimer = _crashDelay;
   }
 
@@ -2067,7 +2100,7 @@ class NarrowHaulGame extends Forge2DGame
     _syncCombatHud();
     _snapshots.clear();
     _snapshotTimer = 0;
-    _shakeTimer = 0;
+    _shake.clear();
     _crashTimer = 0;
     _resetInputState();
     runState = RunState.playing;
@@ -2907,15 +2940,6 @@ class NarrowHaulGame extends Forge2DGame
     if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
       _syncWeaponHud();
     }
-    if (_rumble > 0) {
-      _rumble = math.max(0, _rumble - dt);
-      final amp = 0.14 * (_rumble / 0.35);
-      camera.viewfinder.position += Vector2(
-            _combatRng.nextDouble() - 0.5,
-            _combatRng.nextDouble() - 0.5,
-          ) *
-          (2 * amp);
-    }
   }
 
   /// How far [p] is from the surface of a shootable body (m).
@@ -2979,7 +3003,7 @@ class NarrowHaulGame extends Forge2DGame
     _burstAt(Offset(at.x, at.y), ringRadius: r);
     AudioService.playBoom();
     Haptics.medium();
-    _rumble = 0.35;
+    _shake.add(0.55);
   }
 
   Iterable<Shell> _liveShells({required bool fromPlayer}) => world.children
@@ -3104,16 +3128,12 @@ class NarrowHaulGame extends Forge2DGame
       _turretsOfflineLeft = math.max(0, _turretsOfflineLeft - dt);
     }
     final melt = _meltdownLeft;
+    _shake.floor = 0;
     if (melt != null) {
       final left = melt - dt;
       _meltdownLeft = left;
       // The cave rumbles harder as the clock runs down.
-      final amp = 0.03 + 0.07 * (1 - (left / 30).clamp(0.0, 1.0));
-      camera.viewfinder.position += Vector2(
-            _combatRng.nextDouble() - 0.5,
-            _combatRng.nextDouble() - 0.5,
-          ) *
-          (2 * amp);
+      _shake.floor = 0.26 + 0.21 * (1 - (left / 30).clamp(0.0, 1.0));
       if (left <= 0) {
         _meltdownLeft = null;
         _crashedByMeltdown = true;
@@ -3144,7 +3164,9 @@ class NarrowHaulGame extends Forge2DGame
     final clock = PerfMonitor.sampling ? (Stopwatch()..start()) : null;
     super.update(dt);
     final logicStart = clock?.elapsedMicroseconds ?? 0;
+    _removeShake();
     _updateGame(dt);
+    _applyShake(dt);
     if (clock != null) {
       final now = clock.elapsedMicroseconds;
       PerfMonitor.update.add(now / 1000);
@@ -3160,15 +3182,6 @@ class NarrowHaulGame extends Forge2DGame
         pauseEngine();
         overlays.add(OverlayIds.gameOver);
       }
-    }
-    final shakeBase = _shakeBase;
-    if (_shakeTimer > 0 && shakeBase != null) {
-      _shakeTimer = math.max(0, _shakeTimer - dt);
-      final amp = 0.35 * (_shakeTimer / _shakeDuration);
-      camera.viewfinder.position =
-          shakeBase +
-          Vector2(_shakeRng.nextDouble() - 0.5, _shakeRng.nextDouble() - 0.5) *
-              (2 * amp);
     }
 
     if (_winTimer > 0) _winTimer -= dt;

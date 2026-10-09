@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:narrow_haul/game/camera/camera_director.dart';
+
 /// Steering and camera presets the player picks in Settings → Cockpit
 /// ([steer] / [camera], loaded in `main.dart`). Pure Dart, no Flame imports.
 ///
@@ -47,54 +49,58 @@ enum SteerMode {
 }
 
 enum CameraMode {
-  /// The original camera: centred on the ship, same view while towing.
-  centered('Centred', 'Locked on the ship', lead: 0, towZoomOut: 0, zoomMul: 1),
+  /// Zooms out with speed and when rock comes up fast, tightens when the
+  /// ship is still or creeping in to land, keeps a towed pod in view.
+  dynamicZoom(
+    'Dynamic',
+    'Zooms out when fast, in when landing',
+    CameraProfile(
+      lead: 0.4,
+      downBias: 0.5,
+      deadZone: 0.2,
+      speedZoomOut: 0.22,
+      impactZoomOut: 0.15,
+      restZoomIn: 0.08,
+      towZoomOut: 0.12,
+      podFraming: true,
+    ),
+  ),
 
   /// Leads 0.4 s of velocity (1 m at a 2.5 m/s cruise, ~15% of a phone's
   /// half-height, capped at 2 m) and opens 12% while towing (~0.9 m more
-  /// below the pod).
+  /// below the pod); a long tow line opens it further.
   lookAhead(
     'Look-ahead',
     'Leads where you fly, opens up while towing',
-    lead: 0.4,
-    towZoomOut: 0.12,
-    zoomMul: 1,
+    CameraProfile(lead: 0.4, towZoomOut: 0.12, podFraming: true),
   ),
 
-  /// 15% further out at all times, a smaller lead.
+  /// The original camera: centred on the ship, one zoom, for players who
+  /// prefer a still view.
+  centered('Centred', 'Locked on the ship, no zooming', CameraProfile()),
+
+  /// 15% further out at all times, a smaller lead, a little speed zoom.
   wide(
     'Wide',
     'See more of the cave, smaller ship',
-    lead: 0.3,
-    towZoomOut: 0.08,
-    zoomMul: 0.85,
+    CameraProfile(
+      lead: 0.3,
+      speedZoomOut: 0.10,
+      towZoomOut: 0.08,
+      podFraming: true,
+      zoomMul: 0.85,
+    ),
   );
 
-  const CameraMode(
-    this.label,
-    this.blurb, {
-    required this.lead,
-    required this.towZoomOut,
-    required this.zoomMul,
-  });
+  const CameraMode(this.label, this.blurb, this.profile);
   final String label;
   final String blurb;
-
-  /// Seconds of the ship's velocity to lead by.
-  final double lead;
-
-  /// Zoom-out while towing, as a fraction of the normal zoom.
-  final double towZoomOut;
-
-  /// Normal zoom relative to the base zoom (< 1 = further out).
-  final double zoomMul;
+  final CameraProfile profile;
 }
 
 abstract final class FlightTuning {
   static SteerMode steer = SteerMode.twoSpeed;
-  static CameraMode camera = CameraMode.lookAhead;
-
-  static const cameraLeadMaxMeters = 2.0;
+  static CameraMode camera = CameraMode.dynamicZoom;
 
   /// The joystick's own dead zone (`_FloatingJoystick._deadzone`).
   static const double stickDeadzone = 0.06;
@@ -134,7 +140,7 @@ abstract final class FlightTuning {
   /// Restores saved preset names; unknown or missing ones keep the default.
   static void load({String? steerName, String? cameraName}) {
     steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
-    camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
+    camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.dynamicZoom;
   }
 
   /// Maps a raw stick axis (−1…1, after the joystick's dead zone) to rotate
