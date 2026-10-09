@@ -21,6 +21,7 @@ import 'package:narrow_haul/ui/career_overlays.dart';
 import 'package:narrow_haul/ui/delivered_by_screen.dart';
 import 'package:narrow_haul/ui/fonts.dart';
 import 'package:narrow_haul/ui/garage_overlay.dart';
+import 'package:narrow_haul/ui/launch_intro.dart';
 import 'package:narrow_haul/ui/level_select_overlay.dart';
 import 'package:narrow_haul/ui/menu_overlay.dart';
 import 'package:narrow_haul/ui/mission_briefing.dart';
@@ -192,6 +193,20 @@ class _NarrowHaulApp extends StatelessWidget {
                   ),
                 ),
                 const _AchievementToastHost(),
+                // Launch intro (every start without the credits): takes over
+                // from the native splash and covers loading. Positioned, for
+                // the same reason as the credits below.
+                Positioned.fill(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: game.introVisible,
+                    builder: (context, visible, _) => visible
+                        ? LaunchIntro(
+                            ready: game.loaded,
+                            onDone: () => game.introVisible.value = false,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
                 // "Delivered by" credits: above everything, so on the first
                 // launch they also cover the game while it loads. Always
                 // positioned: a non-positioned child would size the Stack to

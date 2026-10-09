@@ -67,6 +67,12 @@ void main() {
     expect(game.creditsVisible.value, isFalse);
     expect(active, ['menu']);
 
+    // So does the launch intro.
+    game.introVisible.value = true;
+    expect(game.handleBack(), isTrue);
+    expect(game.introVisible.value, isFalse);
+    expect(active, ['menu']);
+
     expect(game.handleBack(), isFalse, reason: 'menu lets the app close');
   });
 }

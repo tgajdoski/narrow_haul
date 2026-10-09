@@ -13,6 +13,7 @@ import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/ui/tow_art.dart';
 
 /// Main menu ('menu' overlay): the hangar. LAUNCH flies the next mission,
 /// the tile rail opens every other screen, and the top bar carries the
@@ -486,60 +487,12 @@ class _HeroPainter extends CustomPainter {
             ),
     );
 
-    // Tow line with a little sag.
-    final mid = Offset.lerp(winch, podCenter, 0.5)! + const Offset(4, 0);
-    canvas.drawPath(
-      Path()
-        ..moveTo(winch.dx, winch.dy)
-        ..quadraticBezierTo(mid.dx, mid.dy, podCenter.dx, podCenter.dy),
-      Paint()
-        ..color = const Color(0xCC9FB3C8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6,
-    );
-
-    // Engine plume, flickering.
-    final f =
-        0.8 +
-        0.2 * math.sin(flicker * 2 * math.pi * 9) +
-        0.08 * math.sin(flicker * 2 * math.pi * 23);
-    final nozzle = center + Offset(0, shipSize * 0.2);
-    final len = shipSize * 0.42 * f;
-    final w = shipSize * 0.11;
-    final plume = Path()
-      ..moveTo(nozzle.dx - w, nozzle.dy)
-      ..quadraticBezierTo(
-        nozzle.dx - w * 0.6,
-        nozzle.dy + len * 0.6,
-        nozzle.dx,
-        nozzle.dy + len,
-      )
-      ..quadraticBezierTo(
-        nozzle.dx + w * 0.6,
-        nozzle.dy + len * 0.6,
-        nozzle.dx + w,
-        nozzle.dy,
-      )
-      ..close();
-    final rect = Rect.fromLTWH(nozzle.dx - w, nozzle.dy, w * 2, len);
-    canvas.drawPath(
-      plume,
-      Paint()
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFF3C4), Color(0xFFFF9F43), Color(0x00FF5E3A)],
-        ).createShader(rect),
-    );
-    canvas.drawPath(
-      plume,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.white, Color(0xCCFFC46B), Color(0x00FF7B3A)],
-        ).createShader(rect),
+    paintTowLine(canvas, winch, podCenter);
+    paintThrustPlume(
+      canvas,
+      center + Offset(0, shipSize * 0.2),
+      shipSize,
+      flicker,
     );
   }
 

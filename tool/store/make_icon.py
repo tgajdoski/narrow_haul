@@ -4,6 +4,7 @@ Fallback icon that needs no image generator: the Kestrel (assets/ship.png)
 towing a cargo pod on its rope through a cave gap.
 
     python tool/store/make_icon.py            # writes art_src/icon/*.png
+    python tool/store/make_icon.py --splash   # only splash_logo.png
 
 Outputs (all 1024x1024 unless noted):
   icon_1024.png        full icon, opaque (App Store, iOS, macOS, legacy Android)
@@ -12,7 +13,8 @@ Outputs (all 1024x1024 unless noted):
                        inside the 66/108 safe zone) - also the iOS dark icon
   icon_mono_1024.png   white silhouette of the foreground (Android 13 themed)
   icon_tinted_1024.png grayscale foreground on black (iOS 18 tinted icon)
-  splash_logo.png      foreground scaled for the launch screen (transparent)
+  splash_logo.png      the ship alone (no pod) for the launch screen,
+                       transparent; fits Android 12's circular mask
   play_icon_512.png    Google Play listing icon (32-bit PNG)
 
 If you have AI art instead, run tool/store/prepare_icon.py on it; it writes
@@ -132,7 +134,7 @@ def plume(length, width):
     return im
 
 
-def subject():
+def subject(with_pod=True):
     """Ship + plume + taut rope + pod on a transparent canvas (cropped later)."""
     W = 2 * N
     out = Image.new('RGBA', (W, W), (0, 0, 0, 0))
@@ -157,13 +159,17 @@ def subject():
 
     # Rope from the ship rear (just above the nozzle) to the pod's tow eye.
     ax, ay = to_canvas(-sw * 0.06, sh * 0.40)
+    if not with_pod:
+        tilt = 0  # upright, like the launch intro's first frame
+        cx = cy = W / 2
     rope = ImageDraw.Draw(out)
     end = (px, py - pr - 2 * SS)
-    rope.line([(ax, ay), end], fill=(*OUTLINE, 255), width=16 * SS)
-    rope.line([(ax, ay), end], fill=(*ROPE, 255), width=8 * SS)
 
-    pod = cargo(pr)
-    out.alpha_composite(pod, (int(px - pod.width / 2), int(py - pod.height / 2)))
+    if with_pod:
+        rope.line([(ax, ay), end], fill=(*OUTLINE, 255), width=16 * SS)
+        rope.line([(ax, ay), end], fill=(*ROPE, 255), width=8 * SS)
+        pod = cargo(pr)
+        out.alpha_composite(pod, (int(px - pod.width / 2), int(py - pod.height / 2)))
 
     # Ship + plume in a local box, rotated about the ship centre.
     pl = plume(sh * 0.55, sw * 0.18)
@@ -191,6 +197,13 @@ def down(im, size=1024):
     return im.resize((size, size), Image.LANCZOS)
 
 
+def splash():
+    """Android 12 masks the splash icon to a circle 2/3 of its canvas; the
+    upright ship (plume included) at 0.5 of the canvas stays inside it. The
+    launch intro starts from this ship, centred, then flies it into orbit."""
+    down(fit_center(subject(with_pod=False), 0.50)).save(os.path.join(OUT, 'splash_logo.png'))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     bg = background()
@@ -216,10 +229,14 @@ def main():
     dark = fit_center(subj, 0.80)
     down(dark).save(os.path.join(OUT, 'icon_dark_1024.png'))
 
-    # Android 12 splash: icon inside a 2/3-diameter circle of a 288dp canvas.
-    down(fit_center(subj, 0.60)).save(os.path.join(OUT, 'splash_logo.png'))
+    splash()
     print('wrote', OUT)
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if '--splash' in sys.argv:
+        splash()
+        print('wrote', os.path.join(OUT, 'splash_logo.png'))
+    else:
+        main()

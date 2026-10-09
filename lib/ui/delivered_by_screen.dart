@@ -25,7 +25,7 @@ const kDeliveredBy = [
   DeliveredByCrew('Nina', 'assets/credits/nina.jpg'),
 ];
 
-const _backdrop = Color(0xFF0B132B); // native splash colour: seamless hand-off
+const _backdrop = SpaceColors.bg; // native splash colour: seamless hand-off
 const _accent = Color(0xFF00B4D8);
 
 // Timeline (seconds).

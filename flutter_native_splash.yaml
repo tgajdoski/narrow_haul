@@ -5,10 +5,10 @@
 # (git checkout android/app/src/main/AndroidManifest.xml). It also re-indents
 # ios/Runner/Info.plist; keep only the UIStatusBarHidden keys.
 flutter_native_splash:
-  color: "#0B132B"
+  color: "#050816"
   image: art_src/icon/splash_logo.png
   android_12:
-    color: "#0B132B"
+    color: "#050816"
     image: art_src/icon/splash_logo.png
   fullscreen: true
   web: false

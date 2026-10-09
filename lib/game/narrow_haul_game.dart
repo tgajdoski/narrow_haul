@@ -384,6 +384,12 @@ class NarrowHaulGame extends Forge2DGame
     !ProgressService.instance.creditsSeen,
   );
 
+  /// The launch intro (ship orbiting a planet while the game loads), drawn by
+  /// the app above the game on every start that doesn't play the credits.
+  final introVisible = ValueNotifier<bool>(
+    ProgressService.instance.creditsSeen,
+  );
+
   // Crash sequence: explosion + shake play out before the gameOver overlay.
   static const double _crashDelay = 0.9;
   static const double _shakeDuration = 0.45;
@@ -2271,17 +2277,19 @@ class NarrowHaulGame extends Forge2DGame
   /// the app may close; everywhere else it steps back one screen.
   bool handleBack() {
     final active = overlays.activeOverlays;
+    final covered = creditsVisible.value || introVisible.value;
     // The briefing pops over the hangar too, so it goes before the
     // hangar's "let the app close" check.
-    if (!creditsVisible.value && active.contains('briefing')) {
+    if (!covered && active.contains('briefing')) {
       AudioService.playUi(UiSound.back);
       closeBriefing();
       return true;
     }
-    if (!creditsVisible.value && active.contains('menu')) return false;
+    if (!covered && active.contains('menu')) return false;
     AudioService.playUi(UiSound.back);
-    if (creditsVisible.value) {
+    if (covered) {
       creditsVisible.value = false;
+      introVisible.value = false;
     } else if (active.contains('rankUp')) {
       overlays.remove('rankUp');
     } else if (active.contains('settings')) {
