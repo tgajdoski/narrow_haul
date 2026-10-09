@@ -10,15 +10,17 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App icon (iOS / Android / macOS, in the build) | `art_src/icon/icon_1024.png` → generated into the platform folders | ✅ built from the game sprites (AI version optional: prompts A/B) |
 | Play listing icon 512×512 | `art_src/icon/play_icon_512.png` | ✅ |
 | Launch screen (dark, ship mark) | in the build | ✅ |
-| iPhone 6.9" screenshots 2868×1320 | `screenshots/ios_69/` | ✅ 13 shots |
-| iPad 13" screenshots 2752×2064 | `screenshots/ios_ipad13/` | ✅ 13 shots (captured on the simulator) |
-| Play phone + tablet screenshots 1920×1080 | `screenshots/play_1080/` | ✅ 13 shots |
-| Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ✅ placeholder from gameplay (AI key art optional: prompt C) |
+| iPhone 6.9" screenshots 2868×1320 | `screenshots/ios_69/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) |
+| iPad 13" screenshots 2752×2064 | `screenshots/ios_ipad13/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) (iPad simulator) |
+| Play phone + tablet screenshots 1920×1080 | `screenshots/play_1080/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) |
+| Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ⚠ **regenerate** after the screenshots (old ship/pod size); AI key art optional: prompt C |
 | Store texts | `listing_en.md` | ✅ checked against the character limits |
 | App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
 | IAP review screenshot (both products) | — | ⏳ Settings on the iPhone with a sandbox account: the buy rows only show when the store returns products |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
 | Ammo pack images (`nh_demo_kit`, `nh_arsenal_crate`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
+
+Worth adding to the set: a weapons shot (a charge carving rock), Garage → Armory, and the mission briefing.
 
 Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `04_lava_03`,
 `05_orbit_02`, `06_redoubt_02`, `03_ice_03`, `10_level_complete`, `02_mine_03`, `08_missions`,

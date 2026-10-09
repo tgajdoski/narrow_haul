@@ -24,10 +24,10 @@ Thrust, rotate and haul a swinging cargo pod through 60 hand-built caves. Seven 
 thrust,lander,cave,flyer,gravity,physics,rope,tow,cargo,spaceship,retro,arcade,skill,pilot,fuel
 
 **Description** [4000]
-Fly a tiny cargo ship through narrow caves, hook a heavy pod on a rope and bring both home. Every pod swings, every wall is deadly, and every drop of fuel counts.
+Fly a tiny cargo ship through narrow caves, hook a heavy pod on a rope and bring both home. Every pod swings, every hard knock is your last, and every drop of fuel counts.
 
 THRUST, ROTATE, HAUL
-Two controls, real physics. Feather the thrust and fight gravity. The pod swings on its rope behind you. Land the ship and the pod on the pad to deliver.
+Two controls, real physics. Feather the thrust and fight gravity. The pod swings on its rope behind you. Your deflector shield shrugs off a gentle scrape and glows when rock gets close, but a hard hit ends the run. Land the ship and the pod on the pad to deliver. Pick the steering that suits your thumb in Settings.
 
 60 HAND-BUILT LEVELS IN 7 WORLDS
 • Training Grounds: learn to fly and tow
@@ -41,16 +41,19 @@ Two controls, real physics. Feather the thrust and fight gravity. The pod swings
 SIX SHIPS
 Kestrel, Hopper, Mule, Skate, Vector and the armed Talon each fly differently. Earn a type rating to fly each one.
 
+BLAST A WAY THROUGH
+Find supply crates with demolition charges, gravity bombs, a mining laser, seeker missiles and flak. Wreck moving machinery, shoot down incoming fire and carve new tunnels through the rock.
+
 MASTER EVERY RUN
 Earn up to 3 stars per level for fuel and time. Chase your best times, take on a new Daily Challenge every day, and finish daily contracts.
 
 BUILD A PILOT CAREER
-Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achievements and customise your ship, rope and engine plume in the Garage.
+Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achievements and fit out your ship in the Garage: liveries, engine plumes, tow gear with real trade-offs (from a heavy chain to a tractor beam), handling kits and an Armory of weapons.
 
 SOUND OF SPACE
 A spacey soundtrack that changes from flight to flight, a battle theme in The Redoubt, and crisp engine, rope and cannon sounds.
 
-Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. A one-time purchase removes the ads between missions.
+Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. A one-time purchase removes the ads between missions. Optional ammo packs are never needed, and a flight that uses bought ammo earns at most two stars.
 
 ## Google Play
 
