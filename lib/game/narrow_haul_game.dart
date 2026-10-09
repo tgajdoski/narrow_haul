@@ -31,6 +31,7 @@ import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/components/world_frame.dart';
 import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/components/ship_fx.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
 import 'package:narrow_haul/game/components/world_dromes.dart';
 import 'package:narrow_haul/game/keyboard_input.dart';
@@ -952,8 +953,8 @@ class NarrowHaulGame extends Forge2DGame
       fuelDrainMultiplier: _fuelDrainMultiplier * mods.fuelDrainMul,
       spec: shipSpec,
       kit: kitById(CosmeticsService.getEquippedId(CosmeticsService.catKit)),
-      // The hull's rim light picks up the cave's glow.
-      rimColor: (theme.edgeGlow ?? theme.uiAccent).withValues(alpha: 1),
+      // The hull's rim light picks up the cave's glow (neutral without one).
+      rimColor: theme.edgeGlow?.withValues(alpha: 1) ?? HullLighting.defaultRim,
     );
     final cargoBody = CargoBody(
       initialPosition: Vector2.copy(data.cargoSpawn),

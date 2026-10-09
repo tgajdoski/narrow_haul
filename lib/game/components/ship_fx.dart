@@ -11,32 +11,32 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 // engine heat. Visual only; nothing here touches the body or its fixtures.
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Normal map
+// Normals
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Bakes a normal map from a ship sprite ([rgba] straight alpha, [w]×[h]).
+/// Per-pixel unit normals (x, y, z interleaved; y down, z toward the viewer)
+/// for a ship sprite ([rgba] straight alpha, [w]×[h]).
 ///
 /// The hull is a soft bevelled slab (height rises over [bevelPx] from the
 /// silhouette) on a low dome (over [domePx]), so whole faces turn toward or
-/// away from the light; the art's dark outline and panel lines are cut in as
-/// grooves, and brighter paint is embossed a little. Returns premultiplied
-/// RGBA (normal encoded as `n * 0.5 + 0.5`, alpha = the sprite's), ready for
-/// [ui.decodeImageFromPixels].
-Uint8List bakeHullNormals(
+/// away from the light. Thin dark lines (darker than their 5×5 surroundings,
+/// the art's panel lines) are cut in as grooves; flat dark paint is not.
+Float32List hullNormals(
   Uint8List rgba,
   int w,
   int h, {
   double bevelPx = 12,
   double bevelHeight = 7,
   double domePx = 48,
-  double domeHeight = 14,
-  double grooveDepth = 1.6,
-  double emboss = 0.8,
+  double domeHeight = 9,
+  double grooveDepth = 1.4,
 }) {
   final n = w * h;
   final inside = Uint8List(n);
+  final lum = Float32List(n);
   for (var i = 0; i < n; i++) {
     inside[i] = rgba[i * 4 + 3] >= 128 ? 1 : 0;
+    lum[i] = (0.3 * rgba[i * 4] + 0.59 * rgba[i * 4 + 1] + 0.11 * rgba[i * 4 + 2]) / 255;
   }
 
   // Chamfer (3-4) distance to the nearest outside pixel, two passes.
@@ -72,18 +72,39 @@ Uint8List bakeHullNormals(
     }
   }
 
-  // Height: a quarter-round bevel, minus grooves on dark lines, plus emboss.
+  // Mean brightness of the hull pixels in each 5×5 window (summed areas).
+  final sumL = Float64List((w + 1) * (h + 1));
+  final sumN = Float64List((w + 1) * (h + 1));
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      final i = y * w + x;
+      final s = (y + 1) * (w + 1) + x + 1;
+      sumL[s] = (inside[i] == 1 ? lum[i] : 0) + sumL[s - 1] + sumL[s - w - 1] - sumL[s - w - 2];
+      sumN[s] = inside[i] + sumN[s - 1] + sumN[s - w - 1] - sumN[s - w - 2];
+    }
+  }
+  double box(Float64List t, int x0, int y0, int x1, int y1) =>
+      t[y1 * (w + 1) + x1] - t[y0 * (w + 1) + x1] - t[y1 * (w + 1) + x0] + t[y0 * (w + 1) + x0];
+
+  // Height: quarter-round bevel + dome, minus grooves on thin dark lines.
   var hf = Float32List(n);
-  for (var i = 0; i < n; i++) {
-    if (inside[i] == 0) continue;
-    final t = math.min(d[i] / 3.0 / bevelPx, 1.0);
-    final s = 1 - t;
-    final td = 1 - math.min(d[i] / 3.0 / domePx, 1.0);
-    var v = bevelHeight * math.sqrt(1 - s * s) + domeHeight * math.sqrt(1 - td * td);
-    final lum = (0.3 * rgba[i * 4] + 0.59 * rgba[i * 4 + 1] + 0.11 * rgba[i * 4 + 2]) / 255;
-    final groove = ((0.32 - lum) / 0.17).clamp(0.0, 1.0);
-    v += emboss * lum - grooveDepth * groove;
-    hf[i] = v;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      final i = y * w + x;
+      if (inside[i] == 0) continue;
+      final t = math.min(d[i] / 3.0 / bevelPx, 1.0);
+      final s = 1 - t;
+      final td = 1 - math.min(d[i] / 3.0 / domePx, 1.0);
+      var v = bevelHeight * math.sqrt(1 - s * s) + domeHeight * math.sqrt(1 - td * td);
+      final x0 = math.max(x - 2, 0), y0 = math.max(y - 2, 0);
+      final x1 = math.min(x + 3, w), y1 = math.min(y + 3, h);
+      final count = box(sumN, x0, y0, x1, y1);
+      if (count > 0) {
+        final mean = box(sumL, x0, y0, x1, y1) / count;
+        v -= grooveDepth * ((mean - lum[i] - 0.15) / 0.15).clamp(0.0, 1.0);
+      }
+      hf[i] = v;
+    }
   }
 
   // Two 3×3 box blurs soften the steps.
@@ -104,74 +125,32 @@ Uint8List bakeHullNormals(
     hf = out;
   }
 
-  final px = Uint8List(n * 4);
+  final normals = Float32List(n * 3);
   for (var y = 0; y < h; y++) {
     for (var x = 0; x < w; x++) {
       final i = y * w + x;
-      final a = rgba[i * 4 + 3];
-      if (a == 0) continue;
       final gx = (hf[y * w + math.min(x + 1, w - 1)] - hf[y * w + math.max(x - 1, 0)]) * 0.5;
       final gy = (hf[math.min(y + 1, h - 1) * w + x] - hf[math.max(y - 1, 0) * w + x]) * 0.5;
       final len = math.sqrt(gx * gx + gy * gy + 1);
-      final k = a / 255;
-      px[i * 4] = ((-gx / len * 0.5 + 0.5) * 255 * k).round();
-      px[i * 4 + 1] = ((-gy / len * 0.5 + 0.5) * 255 * k).round();
-      px[i * 4 + 2] = ((1 / len * 0.5 + 0.5) * 255 * k).round();
-      px[i * 4 + 3] = a;
+      normals[i * 3] = -gx / len;
+      normals[i * 3 + 1] = -gy / len;
+      normals[i * 3 + 2] = 1 / len;
     }
   }
-  return px;
-}
-
-Uint8List _bakeEntry((Uint8List, int, int) a) => bakeHullNormals(a.$1, a.$2, a.$3);
-
-final Map<String, Future<ui.Image?>> _normalCache = {};
-
-/// The baked normal map for [sprite] (once per sprite, off the UI isolate).
-/// Null if anything fails: the ship is then drawn flat, as before.
-Future<ui.Image?> hullNormalMap(String key, ui.Image sprite) =>
-    _normalCache[key] ??= _bake(sprite);
-
-Future<ui.Image?> _bake(ui.Image sprite) async {
-  try {
-    final data = await sprite.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
-    if (data == null) return null;
-    final w = sprite.width, h = sprite.height;
-    final px = await compute(_bakeEntry, (data.buffer.asUint8List(), w, h));
-    final done = Completer<ui.Image>();
-    ui.decodeImageFromPixels(px, w, h, ui.PixelFormat.rgba8888, done.complete);
-    return await done.future;
-  } catch (_) {
-    return null;
-  }
+  return normals;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lighting
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A colour matrix that turns a normal map pixel into
-/// `tint × clamp(k·(n·dir) + b)`, with `n = 2c − 1`. The light is linear in
-/// the normal, so a plain [ColorFilter.matrix] lights the hull.
-List<double> normalLightMatrix(
-  double dx,
-  double dy,
-  double dz, {
-  required double k,
-  required double b,
-  Color tint = Colors.white,
-}) {
-  final off = 255 * (b - k * (dx + dy + dz));
-  List<double> row(double t) => [2 * k * dx * t, 2 * k * dy * t, 2 * k * dz * t, 0, off * t];
-  return [
-    ...row(tint.r),
-    ...row(tint.g),
-    ...row(tint.b),
-    0, 0, 0, 1, 0,
-  ];
-}
-
-/// World-fixed light rig, rotated into the ship's frame each frame.
+/// World-fixed hull lighting, pre-baked.
+///
+/// The light rig is fixed in the world, so what the hull looks like depends
+/// only on the ship's angle. [bakeHullLightAtlas] renders one overlay per
+/// angle bucket on the CPU (pure Dart, exact); [draw] cross-fades the two
+/// nearest with plain `srcOver`. No colour filters or blend modes, so it
+/// looks the same on Skia and Impeller.
 class HullLighting {
   /// Key light: from above-left of the screen, toward the viewer.
   static final Vector3 key = Vector3(-0.5, -0.75, 0.45)..normalize();
@@ -182,42 +161,126 @@ class HullLighting {
   /// Rim: cave glow from below-right, grazing.
   static final Vector3 rim = Vector3(0.45, 0.88, 0.06)..normalize();
 
-  /// Roll for a full bank (rad).
-  static const double maxRoll = 0.55;
+  /// Angle buckets in the atlas (a 4×4 grid).
+  static const int buckets = 16;
+  static const int _cols = 4;
+
+  /// The darkest the overlay ever makes the art (fraction removed).
+  static const double maxDark = 0.28;
+
+  /// Default rim when the theme has no edge glow: a neutral cool white.
+  static const Color defaultRim = Color(0xFFBFE6FF);
 
   /// [world] in the ship's frame: undo the body [angle] (y down, so a
-  /// positive angle turns clockwise), then roll by [bank] about the hull's
-  /// long axis (a positive bank dips the right side away from the viewer).
-  static Vector3 toLocal(Vector3 world, double angle, double bank) {
+  /// positive angle turns clockwise).
+  static Vector3 toLocal(Vector3 world, double angle) {
     final c = math.cos(angle), s = math.sin(angle);
-    final lx = world.x * c + world.y * s;
-    final ly = -world.x * s + world.y * c;
-    final phi = bank * maxRoll;
-    final cp = math.cos(phi), sp = math.sin(phi);
-    return Vector3(lx * cp - world.z * sp, ly, lx * sp + world.z * cp);
+    return Vector3(world.x * c + world.y * s, -world.x * s + world.y * c, world.z);
   }
 
-  final Paint shade = Paint()..blendMode = BlendMode.multiply;
-  final Paint gloss = Paint()
-    ..blendMode = BlendMode.plus
-    ..color = const Color(0x8CFFFFFF);
-  final Paint rimPaint = Paint()..blendMode = BlendMode.plus;
+  /// The overlay cell of bucket [i] in an atlas of [w]×[h] sprites.
+  static Rect cell(int i, int w, int h) =>
+      Rect.fromLTWH((i % _cols) * w.toDouble(), (i ~/ _cols) * h.toDouble(), w.toDouble(), h.toDouble());
 
-  Color rimColor = const Color(0xFFBFE6FF);
+  /// The two buckets around [angle] and the blend toward the second.
+  static (int, int, double) bucketsFor(double angle) {
+    var f = angle / (2 * math.pi) * buckets % buckets;
+    if (f < 0) f += buckets;
+    final i0 = f.floor() % buckets;
+    return (i0, (i0 + 1) % buckets, f - f.floor());
+  }
 
-  /// Sets the three filters for the ship at [angle] with [bank].
-  void aim(double angle, double bank, {double rimStrength = 0.55}) {
-    final kl = toLocal(key, angle, bank);
-    shade.colorFilter = ColorFilter.matrix(normalLightMatrix(kl.x, kl.y, kl.z, k: 0.5, b: 0.66));
-    final gl = toLocal(glint, angle, bank);
-    gloss.colorFilter = ColorFilter.matrix(normalLightMatrix(
-      gl.x, gl.y, gl.z,
-      k: 2.4, b: -1.25, tint: const Color(0xFFFFF4E0),
-    ));
-    final rl = toLocal(rim, angle, bank);
-    rimPaint
-      ..color = Color.fromRGBO(255, 255, 255, rimStrength)
-      ..colorFilter = ColorFilter.matrix(normalLightMatrix(rl.x, rl.y, rl.z, k: 2.6, b: -0.95, tint: rimColor));
+  final Paint _a = Paint();
+  final Paint _b = Paint();
+
+  /// Lights the sprite just drawn in [dst] for a ship at [angle].
+  void draw(Canvas canvas, ui.Image atlas, double angle, Rect dst, int w, int h) {
+    final (i0, i1, t) = bucketsFor(angle);
+    _a.color = Color.fromRGBO(255, 255, 255, 1 - t);
+    _b.color = Color.fromRGBO(255, 255, 255, t);
+    canvas.drawImageRect(atlas, cell(i0, w, h), dst, _a);
+    if (t > 0.01) canvas.drawImageRect(atlas, cell(i1, w, h), dst, _b);
+  }
+}
+
+/// One premultiplied RGBA overlay per [HullLighting.buckets] angle, packed in
+/// a 4×4 atlas (`4w × 4h`). Drawn `srcOver` on the sprite it gives:
+/// faces turned away from the key light up to [HullLighting.maxDark] darker,
+/// faces turned toward it a little brighter, a warm glint on bevels facing
+/// the light and a [rimArgb] rim from below-right. Flat hull stays the art.
+Uint8List bakeHullLightAtlas(Uint8List rgba, int w, int h, int rimArgb) {
+  final normals = hullNormals(rgba, w, h);
+  const cols = 4;
+  final aw = w * cols;
+  final out = Uint8List(aw * h * cols * 4);
+  final rr = ((rimArgb >> 16) & 0xFF) / 255;
+  final rg = ((rimArgb >> 8) & 0xFF) / 255;
+  final rb = (rimArgb & 0xFF) / 255;
+  const gr = 1.0, gg = 0.96, gb = 0.88; // warm glint
+  for (var b = 0; b < HullLighting.buckets; b++) {
+    final angle = b * 2 * math.pi / HullLighting.buckets;
+    final k = HullLighting.toLocal(HullLighting.key, angle);
+    final g = HullLighting.toLocal(HullLighting.glint, angle);
+    final r = HullLighting.toLocal(HullLighting.rim, angle);
+    final ox = (b % cols) * w, oy = (b ~/ cols) * h;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        final cover = rgba[i * 4 + 3] / 255;
+        if (cover == 0) continue;
+        final nx = normals[i * 3], ny = normals[i * 3 + 1], nz = normals[i * 3 + 2];
+        // Diffuse relative to a flat face, so flat paint keeps its colour.
+        final dif = nx * k.x + ny * k.y + nz * k.z - k.z;
+        final shadow = HullLighting.maxDark * (-dif / 0.6).clamp(0.0, 1.0);
+        final lift = 0.12 * (dif / 0.5).clamp(0.0, 1.0);
+        final gloss = 0.45 * (2.4 * (nx * g.x + ny * g.y + nz * g.z) - 1.25).clamp(0.0, 1.0);
+        final rimA = 0.5 * (2.6 * (nx * r.x + ny * r.y + nz * r.z) - 0.95).clamp(0.0, 1.0);
+        final light = math.min(lift + gloss + rimA, 1.0);
+        final norm = light > 0 ? light / (lift + gloss + rimA) : 0.0;
+        // srcOver: art·(1−A) + C, with A = 1 − (1−shadow)(1−light).
+        final a = (1 - (1 - shadow) * (1 - light)) * cover;
+        final cr = (lift * 1 + gloss * gr + rimA * rr) * norm * cover;
+        final cg = (lift * 1 + gloss * gg + rimA * rg) * norm * cover;
+        final cb = (lift * 1 + gloss * gb + rimA * rb) * norm * cover;
+        final o = ((oy + y) * aw + ox + x) * 4;
+        out[o] = (math.min(cr, a) * 255).round();
+        out[o + 1] = (math.min(cg, a) * 255).round();
+        out[o + 2] = (math.min(cb, a) * 255).round();
+        out[o + 3] = (a * 255).round();
+      }
+    }
+  }
+  return out;
+}
+
+Uint8List _bakeEntry((Uint8List, int, int, int) a) => bakeHullLightAtlas(a.$1, a.$2, a.$3, a.$4);
+
+final Map<String, Future<ui.Image?>> _atlasCache = {};
+
+/// The light atlas for [sprite] with a [rim] colour, baked once off the UI
+/// isolate. Null if anything fails: the ship is then drawn flat.
+Future<ui.Image?> hullLightAtlas(String spritePath, ui.Image sprite, Color rim) {
+  final key = '$spritePath|${rim.toARGB32()}';
+  final hit = _atlasCache[key];
+  if (hit != null) return hit;
+  // One level's worth is enough; older atlases (about 4 MB each) go.
+  while (_atlasCache.length >= 3) {
+    _atlasCache.remove(_atlasCache.keys.first);
+  }
+  return _atlasCache[key] = _bake(sprite, rim);
+}
+
+Future<ui.Image?> _bake(ui.Image sprite, Color rim) async {
+  try {
+    final data = await sprite.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
+    if (data == null) return null;
+    final w = sprite.width, h = sprite.height;
+    final px = await compute(_bakeEntry, (data.buffer.asUint8List(), w, h, rim.toARGB32()));
+    final done = Completer<ui.Image>();
+    ui.decodeImageFromPixels(px, w * 4, h * 4, ui.PixelFormat.rgba8888, done.complete);
+    return await done.future;
+  } catch (_) {
+    return null;
   }
 }
 

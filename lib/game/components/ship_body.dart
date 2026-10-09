@@ -31,14 +31,12 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     this.fuelDrainMultiplier = 1.0,
     this.spec = kKestrel,
     this.kit = kStockKit,
-    Color? rimColor,
+    this.rimColor = HullLighting.defaultRim,
   }) : _initialPosition = initialPosition,
        fuel = spec.maxFuel * kit.tankMul,
        super(
          paint: Paint()..color = const Color(0xFF00B4D8),
-       ) {
-    if (rimColor != null) _lighting.rimColor = rimColor;
-  }
+       );
 
   /// Multiplier applied to fuel drain rate (daily challenge modifier).
   final double fuelDrainMultiplier;
@@ -54,9 +52,12 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   ui.Image? _shipImage;
   bool _usingFallbackArt = false;
 
-  /// Baked from the sprite ([hullNormalMap]); null until ready (or in
+  /// Rim light colour (the level's cave glow), baked into [_lightAtlas].
+  final Color rimColor;
+
+  /// Baked from the sprite ([hullLightAtlas]); null until ready (or in
   /// tests), when the hull is drawn flat.
-  ui.Image? _normalImage;
+  ui.Image? _lightAtlas;
   final HullLighting _lighting = HullLighting();
   final ShipLook _look = ShipLook();
   final RcsPuffs _puffs = RcsPuffs();
@@ -226,10 +227,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         final img = _shipImage = await Flame.images.load(path);
         _usingFallbackArt = path != spec.sprite;
         renderBody = false;
-        // Lighting comes in once its normal map is baked (cached per sprite).
+        // Lighting comes in once its atlas is baked (cached per sprite + rim).
         if (!_inTest) {
-          unawaited(hullNormalMap(path, img).then((n) {
-            if (n != null && n.width == img.width) _normalImage = n;
+          unawaited(hullLightAtlas(path, img, rimColor).then((a) {
+            if (a != null && a.width == img.width * 4) _lightAtlas = a;
           }));
         }
         break;
@@ -286,14 +287,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       
       final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
       canvas.drawImageRect(img, src, _spriteRect, paint);
-      final normals = _normalImage;
-      if (normals != null) {
-        // Light fixed in the world: shade, then the glint and the rim.
-        _lighting.aim(body.angle, _look.bank);
-        canvas
-          ..drawImageRect(normals, src, _spriteRect, _lighting.shade)
-          ..drawImageRect(normals, src, _spriteRect, _lighting.gloss)
-          ..drawImageRect(normals, src, _spriteRect, _lighting.rimPaint);
+      final atlas = _lightAtlas;
+      if (atlas != null) {
+        // Light fixed in the world: the overlay baked for this angle.
+        _lighting.draw(canvas, atlas, body.angle, _spriteRect, img.width, img.height);
       }
       _heat.render(canvas, rearLocalY, _look.heat, k);
       _navLights.render(canvas, _points, _lookTime, k);
