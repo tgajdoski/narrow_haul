@@ -4,6 +4,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart' show BillingResponse;
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:narrow_haul/game/services/ad_pacing.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
@@ -144,6 +146,15 @@ class MonetizationService {
   bool _storeInitInFlight = false;
   bool _restoredAtStartup = false;
   Completer<BuyOutcome>? _pendingBuy;
+
+  /// The product [_pendingBuy] waits for: other products' events (a
+  /// restore on start, a stale cancel) never settle it.
+  String? _pendingProductId;
+  DateTime _pendingSince = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// The player tapped Restore; restores outside it (Android checks owned
+  /// items on every start) are logged as `restored_startup`.
+  bool _userRestore = false;
 
   ProgressService get _p => ProgressService.instance;
 
@@ -486,6 +497,16 @@ class MonetizationService {
   /// Starts a purchase and reports how it ended, so the UI can explain a
   /// pending (e.g. Ask to Buy) or unavailable purchase.
   Future<BuyOutcome> purchase(String productId) async {
+    // One store sheet at a time: a double tap must not end the first buy.
+    // A buy the store never answered stops blocking after two minutes.
+    final open = _pendingBuy;
+    if (open != null) {
+      if (DateTime.now().difference(_pendingSince) < const Duration(minutes: 2)) {
+        return BuyOutcome.failed;
+      }
+      _clearPending();
+      open.complete(BuyOutcome.failed);
+    }
     final product = _products[productId];
     Analytics.purchaseAttempt(productId);
     if (!_storeAvailable || product == null) {
@@ -495,13 +516,19 @@ class MonetizationService {
       refreshIfNeeded();
       return BuyOutcome.unavailable;
     }
-    _pendingBuy?.complete(BuyOutcome.failed);
     final pending = _pendingBuy = Completer<BuyOutcome>();
+    _pendingProductId = productId;
+    _pendingSince = DateTime.now();
     bool started;
     try {
       final param = PurchaseParam(productDetails: product);
+      // Consumed by hand after the grant (_consumeIfNeeded): the plugin's
+      // auto-consume only works in the session that started the purchase.
       started = ProductIds.consumables.contains(productId)
-          ? await InAppPurchase.instance.buyConsumable(purchaseParam: param)
+          ? await InAppPurchase.instance.buyConsumable(
+              purchaseParam: param,
+              autoConsume: false,
+            )
           : await InAppPurchase.instance.buyNonConsumable(purchaseParam: param);
     } catch (e) {
       // e.g. StoreKit still finishing an earlier transaction for this product.
@@ -509,7 +536,7 @@ class MonetizationService {
       started = false;
     }
     if (!started) {
-      _pendingBuy = null;
+      _clearPending();
       Analytics.purchaseResult(productId, 'not_started');
       return BuyOutcome.failed;
     }
@@ -525,6 +552,7 @@ class MonetizationService {
       return null;
     }
     _restoredCount = 0;
+    _userRestore = true;
     try {
       await InAppPurchase.instance.restorePurchases();
       // Restored purchases arrive on the purchase stream just after.
@@ -533,32 +561,79 @@ class MonetizationService {
     } catch (e) {
       _log('MonetizationService: restore failed ($e)');
       return null;
+    } finally {
+      _userRestore = false;
     }
+  }
+
+  void _clearPending() {
+    _pendingBuy = null;
+    _pendingProductId = null;
+  }
+
+  /// Ends the open purchase if [productId] is the one it waits for. An
+  /// error without a product id (some store failures) ends it too.
+  void _settle(String productId, BuyOutcome outcome) {
+    final pending = _pendingBuy;
+    if (pending == null) return;
+    if (productId != _pendingProductId && !(productId.isEmpty && outcome == BuyOutcome.failed)) {
+      return;
+    }
+    _clearPending();
+    pending.complete(outcome);
+  }
+
+  /// Android: a granted ammo pack is consumed so it can be bought again.
+  /// Returns false when consuming failed; the purchase then stays owned and
+  /// unfinished, comes back on the next start, and is consumed then (the
+  /// grant is once per transaction, so nothing is paid twice).
+  Future<bool> _consumeIfNeeded(PurchaseDetails purchase) async {
+    if (!Platform.isAndroid || !ProductIds.consumables.contains(purchase.productID)) {
+      return false;
+    }
+    try {
+      final android =
+          InAppPurchase.instance.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final result = await android.consumePurchase(purchase);
+      if (result.responseCode == BillingResponse.ok) return true;
+      _log('MonetizationService: consume ${purchase.productID} → ${result.responseCode}');
+    } catch (e) {
+      _log('MonetizationService: consume ${purchase.productID} failed ($e)');
+    }
+    return false;
   }
 
   int _restoredCount = 0;
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      Analytics.purchaseResult(purchase.productID, purchase.status.name);
+      final quietRestore = purchase.status == PurchaseStatus.restored && !_userRestore;
+      Analytics.purchaseResult(
+        purchase.productID,
+        quietRestore ? 'restored_startup' : purchase.status.name,
+      );
+      var consumed = false;
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           if (purchase.status == PurchaseStatus.restored) _restoredCount++;
           await grant(purchase.productID, purchaseId: purchase.purchaseID);
-          _pendingBuy?.complete(BuyOutcome.purchased);
-          _pendingBuy = null;
+          // Consuming also acknowledges the purchase on Play.
+          consumed = await _consumeIfNeeded(purchase);
+          _settle(purchase.productID, BuyOutcome.purchased);
         case PurchaseStatus.error:
         case PurchaseStatus.canceled:
-          _pendingBuy?.complete(BuyOutcome.failed);
-          _pendingBuy = null;
+          _settle(purchase.productID, BuyOutcome.failed);
         case PurchaseStatus.pending:
           // Waiting on approval (Ask to Buy, slow card): it's granted when
           // the store later reports it purchased.
-          _pendingBuy?.complete(BuyOutcome.pending);
-          _pendingBuy = null;
+          _settle(purchase.productID, BuyOutcome.pending);
       }
-      if (purchase.pendingCompletePurchase) {
+      final unconsumedPack = Platform.isAndroid &&
+          ProductIds.consumables.contains(purchase.productID) &&
+          (purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored);
+      if (purchase.pendingCompletePurchase && (consumed || !unconsumedPack)) {
         await InAppPurchase.instance.completePurchase(purchase);
       }
     }
