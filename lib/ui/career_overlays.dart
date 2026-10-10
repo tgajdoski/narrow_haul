@@ -11,6 +11,7 @@ import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/ui/story_card.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,6 +159,11 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
       ('Daily streak', '🔥 ${progress.getDailyStreak()}'),
     ];
 
+    // The story so far: every world's intro and outro (docs/STORY.md).
+    final chapters = [
+      for (final w in LevelRegistry.worlds) ...[?Chapter.intro(w), ?Chapter.outro(w)],
+    ];
+
     return SpaceScreen(
       title: 'Pilot Logbook',
       accent: SpaceColors.gold,
@@ -211,6 +217,13 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
                     ),
                   ),
                 const SizedBox(height: 14),
+                PanelTitle(
+                  'Mission log  ${chapters.where((c) => !c.unseen).length}/${chapters.length}',
+                  color: SpaceColors.gold,
+                ),
+                const SizedBox(height: 4),
+                for (final c in chapters) _MissionLogRow(chapter: c),
+                const SizedBox(height: 14),
                 const PanelTitle('Type ratings', color: SpaceColors.gold),
                 const SizedBox(height: 4),
                 for (final ship in kShips.values)
@@ -220,7 +233,7 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
                   ),
                 const SizedBox(height: 14),
                 PanelTitle(
-                  'Salvage log  ${kSalvage.where((e) => progress.salvageFound(e.id) > 0).length}/${kSalvage.length}',
+                  'Relic catalogue  ${kSalvage.where((e) => progress.salvageFound(e.id) > 0).length}/${kSalvage.length}',
                   color: SpaceColors.gold,
                 ),
                 const SizedBox(height: 4),
@@ -357,6 +370,59 @@ class _TypeRatingRow extends StatelessWidget {
 }
 
 /// One Salvage Log entry: a mystery-cache effect, unknown until found once.
+/// One story chapter in the logbook: read ones replay on tap.
+class _MissionLogRow extends StatelessWidget {
+  const _MissionLogRow({required this.chapter});
+
+  final Chapter chapter;
+
+  void _replay(BuildContext context) {
+    showGeneralDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      pageBuilder: (ctx, _, _) => ChapterCard(
+        chapter: chapter,
+        doneLabel: 'Close',
+        onDone: () => Navigator.of(ctx).pop(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final read = !chapter.unseen;
+    final color = read ? chapter.accent : Colors.white24;
+    return InkWell(
+      onTap: read ? () => _replay(context) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(read ? Icons.menu_book_rounded : Icons.lock_outline_rounded, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    read ? chapter.title : '? ? ?',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                  Text(
+                    chapter.kicker,
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            if (read) Icon(Icons.play_arrow_rounded, size: 18, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SalvageLogRow extends StatelessWidget {
   const _SalvageLogRow({required this.spec, required this.found});
 

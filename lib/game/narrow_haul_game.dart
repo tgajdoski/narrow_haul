@@ -1161,10 +1161,13 @@ class NarrowHaulGame extends Forge2DGame
     _levelIntro?.show(
       title: currentLevelDef.name,
       subtitle: isChallengeMode
-          ? 'Daily Challenge · ${activeChallengeConfig?.modifierName ?? ''}'
+          ? 'Daily dispatch · ${activeChallengeConfig?.modifierName ?? ''}'
           : '${levelWorld.name} · ${indexInWorld + 1}/${levelWorld.levels.length}',
       accent: theme.uiAccent,
-      note: _flightNote(shipSpec, g0 * gravityMul / baseGravityY()),
+      note: [
+        if (!isChallengeMode) ?storyFor(currentLevelDef.saveId)?.cargo,
+        _flightNote(shipSpec, g0 * gravityMul / baseGravityY()),
+      ].join(' · '),
     );
   }
 

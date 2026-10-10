@@ -237,6 +237,21 @@ void main() {
     expect(find.text('LAUNCH'), findsOneWidget);
   });
 
+  testWidgets('the logbook mission log replays a read chapter', (tester) async {
+    await ProgressService.instance.markStorySeen('intro_tutorial');
+    await pump(tester, _sizes.first, 1, PilotLogbookOverlay(game: NarrowHaulGame()));
+    final log = find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first;
+    final row = find.text('Training Grounds');
+    await tester.scrollUntilVisible(row, 100, scrollable: log);
+    expect(find.text('// MISSION LOG  1/14'), findsOneWidget);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('chapter-card')), findsOneWidget);
+    await tester.tap(find.text('SKIP'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('chapter-card')), findsNothing);
+  });
+
   testWidgets('mission briefing fits, busiest level with the route', (
     tester,
   ) async {

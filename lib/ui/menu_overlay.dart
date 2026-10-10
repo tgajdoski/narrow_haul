@@ -280,7 +280,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                     child: PanelEntrance(
                       sound: false,
                       child: HoloPanel(
-                        title: "Today's contracts",
+                        title: 'Relief requests',
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                         child: ContractsList(contracts: contracts),
                       ),
