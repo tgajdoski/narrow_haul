@@ -74,7 +74,7 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 1. **Start and onboarding:**
    - Cold start on iOS and Android 12+: does the splash ship line up with the intro, with no colour flash?
    - Credits on first launch.
-   - Mission briefing on LAUNCH: does the extra tap feel slow?
+   - Mission briefing on LAUNCH: does the extra tap feel slow? Does the mission's ship on its small stand (wide phones only, never on a Test Flight day) look right?
    - Countdown 3·2·1·GO.
    - tut_01–03 coach marks.
 2. **Guidance HUD:**
@@ -90,6 +90,7 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
    - Is the glow red near bars and turrets?
 4. **Loadout:** tow gear (Chain, Long Line, Magnetic Grapple, Shock Cord, Tractor Beam) and the Handling kits (Gyro, Vernier, Dampers). Does each feel like a real trade-off?
    - **Hook-up (new):** on tut_01, does the stock cable catch the pod from a comfortable hover (~0.8 m of air under the tail), and does the pod hang visibly below the ship (≥ 1.0 m tow)? Tuning: `kStockHookReach` / `minTowLength` in `loadout.dart`, then re-run the autopilot (mine_04 is the canary).
+   - **Garage turntable (new):** on Liveries and Plumes, the ship turns on a tilted holo pad beside the list. Does it read as 3D (hull thickness, shadow, the light sweeping as it turns)? Is the 14 s spin right, and does dragging spin it nicely? Tap a livery or plume you don't own: is it previewed on the ship, marked "preview"? Do the arrows switch between your next mission's ship and your type-rated ships? Does the screen stay smooth (it redraws every frame)? Code: `lib/ui/ship_showcase.dart`.
    - **Garage notices (new):** earn coins until something is affordable. Do you see the result-screen note, the hangar "N NEW" badge and the tab dot, and do they clear once seen? At a promotion, does **Fit now** work? Does owned gear you never fitted show "FIT" in the hangar and "not fitted" in the briefing? Does every paid item ask *Buy & fit* first?
 5. **Weapons:**
    - Supply crates: are the 35% odds right?
@@ -127,7 +128,8 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 - **Audio:** volume sliders, pro SFX, and confirm the source of `attach.mp3` / `crash.mp3`.
 - **Tests:** layout checks for the `rankUp` and `demo` overlays and the contracts popover; a drawn-HUD check (coach marks, comms) at 568×320 left-handed.
 - **IAP:** an ammo pack's grant writes each weapon before marking the transaction. A crash in between re-grants the whole pack once, which errs toward the player.
-- **Cleanup:** prune old per-day prefs keys (`daily_*`, `contracts_*`, `replay_xp_*`).
+- **Cleanup:** prune old per-day prefs keys (`daily_*`, `contracts_*`, `replay_xp_*`). Point `ShipBody._skinTints` and `ThrustPlume`'s plume colours at `lib/game/ship/livery.dart` (`kLiveryTints`, `plumePalette`), the copy the Garage turntable uses, so the two can't drift apart.
+- **Ship close-ups still to try:** a "meet your ship" orbit on a new ship's type-rating level, a short punch-in on a crash, and the ship turning behind the pause menu (`ShipShowcase` can do the last).
 - **Website:** self-host Google Fonts or mention them in the privacy policy; hard-code the contact details instead of setting them from JS.
 - **Reach:** localization, a colourblind check (green markers vs red hazards), control-size options.
 - **macOS**, if it ever ships: bundle id and network entitlement.
@@ -168,12 +170,14 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 - **Flight feel:**
   - forgiving rock (scrape/touchdown), deflector shield flare and proximity glow
   - two-speed steering with five presets; camera presets with look-ahead and tow zoom
-  - Dynamic camera (default): speed and wall-ahead zoom-out, careful zoom-in, pod framing, trauma shake (`docs/CAMERA.md`)
+  - Dynamic camera (default): speed and wall-ahead zoom-out, careful zoom-in, pod framing, trauma shake (`docs/CAMERA.md`); retuned closer, zooms in once you let go, keeps the ship clear of the controls and help text
+  - ship close-ups: the level opens close on the ship and eases out over 3 · 2 · 1; a delivery pushes in on ship and pod
   - hull traced from the art; ship 1.6× and pod 3× real size; camera scaled to the screen
   - flat pad shelves, so landings are reliable
   - player fire shoots down turret shells
 - **UI:**
   - holo hangar, drawn flight controls, mission and daily briefings, world tabs
+  - Garage ship turntable with a 3D look (tilted pad, hull thickness, shadow, sweeping light; preview any livery or plume) and the mission's ship on the briefing
   - FIRE pad with ammo ring and the ammo rail
   - guidance HUD (coach marks, world markers, comms) instead of the hint pill
   - animated launch intro and "Delivered by" credits
