@@ -23,6 +23,7 @@ class AchievementIds {
   static const orbitalMechanic = 'orbital_mechanic';
   static const heavyLifter = 'heavy_lifter';
   static const testPilot = 'test_pilot';
+  static const offType = 'off_type';
   static const weaponsHot = 'weapons_hot';
   static const meltdownEscape = 'meltdown_escape';
   static const holdFire = 'hold_fire';
@@ -147,6 +148,12 @@ class AchievementService {
       title: 'Fleet Qualified',
       description: 'Hold a type rating for every ship.',
       icon: '🛩️',
+    ),
+    AchievementMeta(
+      id: AchievementIds.offType,
+      title: 'Off Type',
+      description: 'Earn 3 stars on a mission in a ship other than its own.',
+      icon: '🔀',
     ),
     AchievementMeta(
       id: AchievementIds.stormRider,

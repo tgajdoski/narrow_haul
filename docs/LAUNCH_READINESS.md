@@ -25,7 +25,7 @@
 ## Open — your actions
 
 ### Before the first test build
-- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro and the mystery salvage caches.
+- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro, the mystery salvage caches and the fleet (pick another ship in a briefing and in the Garage Ships tab, buy one with coins, check its stars feel fair and that *With route* hides off par).
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
   - Consider adding a weapons shot, the Armory and the briefing. See `art_src/store/README.md`.
@@ -61,7 +61,7 @@
     - Device or other IDs (AdMob).
     - All collected, not shared, encrypted in transit.
 - [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
-- [ ] IAP review screenshots (sandbox account): Settings buy rows, and Garage → Armory → AMMO PACKS. Submit the 4 IAPs with 1.0, with the ammo packs as **consumables** in both stores.
+- [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 10 IAPs with 1.0: the ammo packs as **consumables**; `nh_remove_ads`, `nh_supporter_pack`, the five `nh_ship_<hopper|skate|mule|vector|talon>` ($1.99) and `nh_fleet_pass` ($4.99) as **non-consumables**, in both stores.
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.

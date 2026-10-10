@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../game/services/monetization_service.dart';
+import '../game/ship/ship_spec.dart';
 import '../game/ship/weapons.dart';
 import 'armory.dart' show ammoText;
 
@@ -31,6 +32,13 @@ String _deliveredMessage(String productId) {
     ].join(' · ');
     return '${ProductIds.names[productId] ?? 'Ammo'} delivered to your Armory: '
         '$items';
+  }
+  if (productId == ProductIds.fleetPass) {
+    return 'Fleet Pass active: every ship is in your hangar. Thanks!';
+  }
+  if (ProductIds.ships.contains(productId)) {
+    final ship = shipById(productId.substring('nh_ship_'.length));
+    return '${ship.name} delivered to your hangar. Pick it in the Garage or a briefing.';
   }
   if (productId == ProductIds.supporterPack) {
     return 'Thanks for your support! Ads removed, Supporter Livery and '

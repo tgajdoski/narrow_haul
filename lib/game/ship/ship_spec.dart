@@ -3,8 +3,9 @@ import 'dart:math' as math;
 /// Flight characteristics of one rocket. Pure const data (no Flame imports) so
 /// the headless level validator can reason about clearance, lift and fuel.
 ///
-/// Levels pick the ship (`LevelSpec.shipId` / `WorldDef.defaultShipId`), so a
-/// level is always balanced and validated against exactly one ship.
+/// Levels pick their *par ship* (`LevelSpec.shipId` / `WorldDef.defaultShipId`),
+/// the one they're balanced, validated, routed and autopiloted for. The pilot
+/// may fly another owned ship where its validator passes (`ship/fleet.dart`).
 class ShipSpec {
   const ShipSpec({
     required this.id,

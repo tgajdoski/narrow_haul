@@ -223,6 +223,24 @@ class ProgressService {
     await _prefs.setStringList('garage_seen', current.toList());
   }
 
+  // ── Fleet ────────────────────────────────────────────────────────────────
+
+  /// A ship bought with coins before its type rating (IAP ships are
+  /// `iap_granted_nh_ship_<id>`, kept on reset).
+  bool isShipBought(String id) => _bool('ship_owned_$id') ?? false;
+  Future<void> setShipBought(String id) async => _prefs.setBool('ship_owned_$id', true);
+
+  /// The Garage's "Fly by default" ship (null: each level's par ship).
+  String? get preferredShip => _string('ship_preferred');
+  Future<void> setPreferredShip(String? id) async => id == null
+      ? _prefs.remove('ship_preferred')
+      : _prefs.setString('ship_preferred', id);
+
+  /// The ship last picked for one level in its briefing.
+  String? shipChoiceFor(String saveId) => _string('ship_choice_$saveId');
+  Future<void> setShipChoice(String saveId, String id) async =>
+      _prefs.setString('ship_choice_$saveId', id);
+
   /// Tow gear / kit the player has flown with at some point.
   bool isGearFitted(String id) => _bool('gear_fitted_$id') ?? false;
   Future<void> markGearFitted(String id) async =>

@@ -243,10 +243,10 @@ void main() {
       final (real, profileResults) =
           _cleanOnly ? (null, const <FlightResult>[]) : await _bestOver(h, i, grid, def, clean: false);
       final (clean, _) = await _bestOver(h, i, grid, def, clean: true);
-      if (_exportRoutes) _exportRoute(def, profileResults, real, armed: LevelRegistry.shipFor(i).armed);
+      if (_exportRoutes && kBotShip.isEmpty) _exportRoute(def, profileResults, real, armed: LevelRegistry.shipFor(i).armed);
       _candidates.clear();
       final l = h.game.currentLevel!;
-      final report = LevelReport(def, LevelRegistry.shipFor(i).id, real, clean,
+      final report = LevelReport(def, h.game.ship?.spec.id ?? LevelRegistry.shipFor(i).id, real, clean,
           grid: grid,
           anchors: [
             for (final v in [l.shipSpawn, l.cargoSpawn, l.goalCenter]) Pt(v.x, v.y),

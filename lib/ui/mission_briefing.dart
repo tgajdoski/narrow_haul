@@ -8,11 +8,14 @@ import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
+import 'package:narrow_haul/ui/garage_overlay.dart' show GarageOverlay;
 import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 
@@ -39,7 +42,10 @@ List<BriefingFact> briefingFacts(
   bool testFlight = false,
 }) {
   final def = LevelRegistry.defAt(index);
-  final ship = LevelRegistry.shipFor(index);
+  // A daily flies the level's own ship (or the Test Flight's).
+  final ship = daily != null || testFlight
+      ? LevelRegistry.shipFor(index)
+      : FleetService.flownShipFor(index);
   final m = def.modifiers;
   final facts = <BriefingFact>[
     if (testFlight)
@@ -213,12 +219,24 @@ String _trim(double v) =>
 
 /// 'briefing' overlay: what a mission holds before launch. From the star
 /// chart (Launch / Launch with route) or the hangar's Daily button.
-class MissionBriefingOverlay extends StatelessWidget {
+class MissionBriefingOverlay extends StatefulWidget {
   const MissionBriefingOverlay({super.key, required this.game});
 
+  final NarrowHaulGame game;
+
+  @override
+  State<MissionBriefingOverlay> createState() => _MissionBriefingOverlayState();
+}
+
+class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
   /// The ship turntable's square (px).
   static const double _shipCard = 120;
-  final NarrowHaulGame game;
+  NarrowHaulGame get game => widget.game;
+
+  Future<void> _pick(int index, ShipSpec ship) async {
+    await FleetService.setChoice(index, ship.id);
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,11 +260,24 @@ class MissionBriefingOverlay extends StatelessWidget {
         ? SpaceColors.gold
         : (gameThemes[def.themeId] ?? tutorialTheme).uiAccent;
     final facts = briefingFacts(index, daily: config, testFlight: testFlight);
-    final ship = LevelRegistry.shipFor(index);
+    final par = LevelRegistry.shipFor(index);
+    final ship = daily ? par : FleetService.flownShipFor(index);
     final newShip = !testFlight && isNewShip(ship);
     final stars = progress.getStarsById(def.saveId);
     final best = progress.getBestTimeById(def.saveId);
-    final routeOffered = !daily && progress.isRouteUnlocked(def.saveId);
+    // Routes were recorded with the par ship (a guided run flies it).
+    final routeOffered =
+        !daily && progress.isRouteUnlocked(def.saveId) && ship.id == par.id;
+    final picker = daily
+        ? null
+        : _ShipPicker(
+            index: index,
+            flown: ship,
+            par: par,
+            accent: accent,
+            onPick: (s) => _pick(index, s),
+            onMore: () => game.openGarageFromBriefing(tab: GarageOverlay.shipsTab),
+          );
     final (three, two) = starTargets(def.stars);
 
     final title = daily
@@ -336,7 +367,9 @@ class MissionBriefingOverlay extends StatelessWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final f in facts)
+            // The ship chips stand in for the ship fact when they show.
+            if (picker != null && picker.shows) ...picker.chips(context),
+            for (final f in picker != null && picker.shows ? facts.skip(1) : facts)
               HoloChip(
                 icon: f.icon,
                 label: f.label,
@@ -448,6 +481,121 @@ class MissionBriefingOverlay extends StatelessWidget {
       child: content,
     );
   }
+}
+
+/// Briefing: which ship flies this mission. One chip (the ship flown, `par`
+/// when it's the one the mission is built for) that opens a menu of the
+/// fleet: owned ships that fit are picked, the rest say why not, and
+/// "Get more ships…" opens the Garage fleet while any are locked.
+class _ShipPicker {
+  const _ShipPicker({
+    required this.index,
+    required this.flown,
+    required this.par,
+    required this.accent,
+    required this.onPick,
+    required this.onMore,
+  });
+  final int index;
+  final ShipSpec flown;
+  final ShipSpec par;
+  final Color accent;
+  final void Function(ShipSpec ship) onPick;
+  final VoidCallback onMore;
+
+  bool get _parOnly => isParOnly(LevelRegistry.defAt(index));
+
+  bool get _moreToGet => !FleetService.ownsAll;
+
+  /// Worth a chip: there's a choice to make, or ships still to get.
+  bool get shows =>
+      !_parOnly && (FleetService.owned.any((s) => s.id != par.id) || _moreToGet);
+
+  static const _more = 'more';
+
+  Future<void> _open(BuildContext chip) async {
+    final box = chip.findRenderObject()! as RenderBox;
+    final overlay = Overlay.of(chip).context.findRenderObject()! as RenderBox;
+    final rect = Rect.fromPoints(
+      box.localToGlobal(Offset.zero, ancestor: overlay),
+      box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+    );
+    const style = TextStyle(color: Colors.white, fontSize: 13);
+    final picked = await showMenu<String>(
+      context: chip,
+      color: SpaceColors.panelDeep,
+      position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
+      items: [
+        for (final s in FleetService.fleet)
+          if ((FleetService.owns(s.id) || s.id == par.id, FleetService.fitOn(index, s))
+              case (final owned, final fit))
+            PopupMenuItem<String>(
+              key: ValueKey('pick-${s.id}'),
+              value: s.id,
+              enabled: owned && fit.flies && s.id != flown.id,
+              height: 36,
+              child: Row(
+                children: [
+                  Icon(
+                    s.id == flown.id
+                        ? Icons.check_rounded
+                        : owned
+                        ? Icons.rocket_outlined
+                        : Icons.lock_outline_rounded,
+                    size: 16,
+                    color: owned && fit.flies ? accent : Colors.white30,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    s.id == par.id ? '${s.name} · par' : s.name,
+                    style: style.copyWith(
+                      color: owned && fit.flies ? Colors.white : Colors.white38,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      !owned ? 'not in your hangar' : fit.flies ? shipTrait(s) : fit.reason,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        if (_moreToGet)
+          PopupMenuItem<String>(
+            key: const ValueKey('pick-more'),
+            value: _more,
+            height: 36,
+            child: Text(
+              'Get more ships…',
+              style: style.copyWith(color: SpaceColors.gold),
+            ),
+          ),
+      ],
+    );
+    if (picked == null) return;
+    if (picked == _more) {
+      onMore();
+    } else if (kShips[picked] case final s?) {
+      onPick(s);
+    }
+  }
+
+  List<Widget> chips(BuildContext context) => [
+        Builder(
+          builder: (chip) => HoloChip(
+            key: const ValueKey('ship-picker'),
+            icon: Icons.rocket_rounded,
+            label: '${flown.id == par.id ? '${flown.name} · par' : flown.name}'
+                '${isNewShip(flown) ? ' · new' : ''}  ▾',
+            color: isNewShip(flown) ? SpaceColors.coral : accent,
+            highlight: isNewShip(flown) || flown.id != par.id,
+            onTap: () => _open(chip),
+          ),
+        ),
+      ];
 }
 
 /// Briefing: the tow gear and kit this flight takes, and a nudge (with a

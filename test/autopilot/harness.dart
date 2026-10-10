@@ -8,11 +8,17 @@ import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Tow gear for every flight (`--dart-define=ROPE=rope_tractor`); empty = stock.
 const kBotRope = String.fromEnvironment('ROPE');
+
+/// Ship for every flight where it fits (`--dart-define=SHIP=mule`); empty =
+/// each level's own. Stars use the fleet's fuel normalisation, so the report
+/// calibrates `normalisedFuelLeft`. Routes are never exported with it.
+const kBotShip = String.fromEnvironment('SHIP');
 
 const double kStepDt = 1 / 60;
 
@@ -139,6 +145,11 @@ class GameHarness {
     game.debugNoSalvage = true;
     // ROPE=<cosmetic id> flies every level with that tow gear.
     if (kBotRope.isNotEmpty) CosmeticsService.trialOverride[CosmeticsService.catRope] = kBotRope;
+    if (kBotShip.isNotEmpty) {
+      final p = ProgressService.instance;
+      await p.markProductGranted(ProductIds.fleetPass);
+      await p.setPreferredShip(kBotShip);
+    }
     game.overlays.removeAll(game.overlays.activeOverlays.toList());
     game.levelIndex = index;
     game.runState = RunState.playing;

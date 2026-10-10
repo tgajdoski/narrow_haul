@@ -28,7 +28,24 @@ class ProductIds {
   static const demolitionKit = 'nh_demo_kit';
   static const arsenalCrate = 'nh_arsenal_crate';
 
-  static const nonConsumables = {removeAds, supporterPack};
+  /// One ship each, before its type rating (non-consumables). Ships never
+  /// remove ads: they're a shortcut, every one is also earned by play.
+  static const shipHopper = 'nh_ship_hopper';
+  static const shipSkate = 'nh_ship_skate';
+  static const shipMule = 'nh_ship_mule';
+  static const shipVector = 'nh_ship_vector';
+  static const shipTalon = 'nh_ship_talon';
+
+  /// Every ship, now and later (non-consumable).
+  static const fleetPass = 'nh_fleet_pass';
+
+  static const ships = {shipHopper, shipSkate, shipMule, shipVector, shipTalon, fleetPass};
+
+  /// Product for one ship (null for the Kestrel).
+  static String? forShip(String shipId) =>
+      ships.contains('nh_ship_$shipId') ? 'nh_ship_$shipId' : null;
+
+  static const nonConsumables = {removeAds, supporterPack, ...ships};
   static const consumables = {demolitionKit, arsenalCrate};
   static const all = {...nonConsumables, ...consumables};
   static const supporterCoins = 500;
@@ -54,6 +71,7 @@ class ProductIds {
   static const names = {
     demolitionKit: 'Demolition Kit',
     arsenalCrate: 'Arsenal Crate',
+    fleetPass: 'Fleet Pass',
   };
 }
 
@@ -168,8 +186,9 @@ class MonetizationService {
   String priceOf(String productId) =>
       _products[productId]?.price ??
       switch (productId) {
-        ProductIds.supporterPack || ProductIds.arsenalCrate => r'$4.99',
+        ProductIds.supporterPack || ProductIds.arsenalCrate || ProductIds.fleetPass => r'$4.99',
         ProductIds.demolitionKit => r'$1.99',
+        _ when ProductIds.ships.contains(productId) => r'$1.99',
         _ => r'$2.99',
       };
 
@@ -655,6 +674,14 @@ class MonetizationService {
       }
       if (purchaseId != null) await _p.markTransactionGranted(purchaseId);
       await _p.setHasPurchased(true);
+      entitlements.value++;
+      return;
+    }
+    if (ProductIds.ships.contains(productId)) {
+      // Owned through `iap_granted_<id>` (FleetService.owns). No ads change.
+      if (!_p.isProductGranted(productId)) Analytics.shipUnlock(productId, 'iap');
+      await _p.setHasPurchased(true);
+      await _p.markProductGranted(productId);
       entitlements.value++;
       return;
     }

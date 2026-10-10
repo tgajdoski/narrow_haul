@@ -10,7 +10,10 @@ import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
+import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/ui/career_overlays.dart';
@@ -224,6 +227,52 @@ void main() {
     expect(find.text('WITH ROUTE'), findsOneWidget);
   });
 
+  testWidgets('mission briefing fits with the whole fleet to pick from', (
+    tester,
+  ) async {
+    await MonetizationService.instance.grant(ProductIds.fleetPass);
+    var busiest = 0;
+    for (var i = 0; i < LevelRegistry.totalLevels; i++) {
+      if (briefingFacts(i).length > briefingFacts(busiest).length) busiest = i;
+    }
+    await each(
+      tester,
+      'briefing (fleet)',
+      () => MissionBriefingOverlay(
+        game: NarrowHaulGame()..briefingLevel = busiest,
+      ),
+    );
+    expect(find.text('LAUNCH'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ship-picker')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pick-more')), findsNothing, reason: 'owns all');
+    expect(find.byKey(const ValueKey('pick-mule')), findsOneWidget);
+  });
+
+  testWidgets('Garage ships tab fits and buys a ship with coins', (tester) async {
+    await each(
+      tester,
+      'garage ships',
+      () => GarageOverlay(game: NarrowHaulGame(), initialTab: GarageOverlay.shipsTab),
+      mustNotScroll: false,
+    );
+    expect(find.text('Mission ship'), findsOneWidget);
+    final coins = ProgressService.instance.getCosmeticCurrency();
+    // The cheapest ship this pilot doesn't own yet.
+    final locked = FleetService.fleet.where((s) => !FleetService.owns(s.id)).toList()
+      ..sort((a, b) => kShipCoinPrice[a.id]!.compareTo(kShipCoinPrice[b.id]!));
+    final ship = locked.first;
+    final price = kShipCoinPrice[ship.id]!;
+    expect(coins, greaterThanOrEqualTo(price));
+    await tester.ensureVisible(find.text(ship.name));
+    await tester.tap(find.text(ship.name));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.textContaining('BUY · $price'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(FleetService.owns(ship.id), isTrue);
+    expect(ProgressService.instance.getCosmeticCurrency(), coins - price);
+  });
+
   testWidgets('daily briefing fits', (tester) async {
     await each(
       tester,
@@ -375,14 +424,16 @@ void main() {
     tester,
   ) async {
     await pump(tester, _sizes.first, 1, MenuOverlay(game: NarrowHaulGame()));
-    final news = GarageNotices.current().fresh;
-    expect(news, isNotEmpty);
-    expect(find.text('${news.length} NEW'), findsOneWidget);
+    int newsCount() => GarageNotices.current().fresh.length + FleetService.fresh.length;
+    final news = newsCount();
+    expect(news, greaterThan(0));
+    expect(find.text('$news NEW'), findsOneWidget);
 
     // Opening the Garage marks the first tab with news as seen.
     await pump(tester, _sizes.first, 1, GarageOverlay(game: NarrowHaulGame()));
-    expect(GarageNotices.current().fresh.length, lessThan(news.length));
+    expect(newsCount(), lessThan(news));
     for (final (_, icon) in const [
+      ('ships', Icons.flight_rounded),
       ('ship', Icons.rocket_rounded),
       ('rope', Icons.link_rounded),
       ('kit', Icons.tune_rounded),
@@ -391,7 +442,7 @@ void main() {
       await tester.tap(find.byIcon(icon).first);
       await tester.pump(const Duration(milliseconds: 400));
     }
-    expect(GarageNotices.current().fresh, isEmpty);
+    expect(newsCount(), 0);
     await pump(tester, _sizes.first, 1, MenuOverlay(game: NarrowHaulGame()));
     expect(find.textContaining(' NEW'), findsNothing);
   });

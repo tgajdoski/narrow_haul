@@ -194,7 +194,10 @@ class _NarrowHaulApp extends StatelessWidget {
                       OverlayIds.achievements: (context, game) =>
                           AchievementsOverlay(game: game as NarrowHaulGame),
                       OverlayIds.cosmetics: (context, game) =>
-                          GarageOverlay(game: game as NarrowHaulGame),
+                          GarageOverlay(
+                            game: game as NarrowHaulGame,
+                            initialTab: game.takeGarageTab(),
+                          ),
                       OverlayIds.gameOver: (context, game) =>
                           GameOverOverlay(game: game as NarrowHaulGame),
                       OverlayIds.demo: (context, game) =>

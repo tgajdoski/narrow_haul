@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
@@ -13,6 +14,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/armory.dart';
+import 'package:narrow_haul/ui/garage_ships.dart';
 import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
@@ -20,12 +22,18 @@ import 'package:narrow_haul/game/overlay_ids.dart';
 
 const _garageAccent = SpaceColors.coral;
 
-/// 'cosmetics' overlay — the Garage: liveries, tow gear, plumes and the
-/// Armory, behind a segmented cockpit tab bar.
+/// 'cosmetics' overlay — the Garage: ships, liveries, tow gear, plumes and
+/// the Armory, behind a segmented cockpit tab bar.
 class GarageOverlay extends StatefulWidget {
-  const GarageOverlay({super.key, required this.game});
+  const GarageOverlay({super.key, required this.game, this.initialTab});
 
   final NarrowHaulGame game;
+
+  /// Tab to open on (null: what's new). [GarageOverlay.shipsTab] opens the
+  /// fleet, e.g. from a briefing's "Get it".
+  final String? initialTab;
+
+  static const shipsTab = 'ships';
 
   @override
   State<GarageOverlay> createState() => _GarageOverlayState();
@@ -34,6 +42,12 @@ class GarageOverlay extends StatefulWidget {
 class _GarageOverlayState extends State<GarageOverlay> {
   /// The weapons tab (not a cosmetics category).
   static const _armory = 'armory';
+
+  /// The fleet tab (not a cosmetics category either).
+  static const _ships = GarageOverlay.shipsTab;
+
+  /// A locked ship waiting on [ShipOfferDialog].
+  ShipSpec? _shipOffer;
   late String _selectedCategory;
 
   /// Items that were news when their tab was opened this visit: they keep
@@ -52,6 +66,7 @@ class _GarageOverlayState extends State<GarageOverlay> {
   int _shipAt = 0;
 
   static const _tabs = [
+    (_ships, 'Ships', Icons.flight_rounded),
     (CosmeticsService.catShip, 'Liveries', Icons.rocket_rounded),
     (CosmeticsService.catRope, 'Tow gear', Icons.link_rounded),
     (CosmeticsService.catKit, 'Handling', Icons.tune_rounded),
@@ -62,12 +77,13 @@ class _GarageOverlayState extends State<GarageOverlay> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = _firstTab(GarageNotices.current());
+    _selectedCategory = widget.initialTab ?? _firstTab(GarageNotices.current());
     _view(_selectedCategory);
   }
 
   /// Open on what's new; else on gear the player owns but never flew.
   static String _firstTab(GarageSnapshot snap) {
+    if (FleetService.fresh.isNotEmpty) return _ships;
     for (final (id, _, _) in _tabs) {
       if (snap.fresh.any((i) => i.category == id)) return id;
     }
@@ -76,7 +92,16 @@ class _GarageOverlayState extends State<GarageOverlay> {
     return CosmeticsService.catShip;
   }
 
+  /// Ships with news when the Ships tab opened: ribbons until the Garage
+  /// closes, though they're marked seen.
+  Set<String> _shipNews = const {};
+
   void _view(String category) {
+    if (category == _ships) {
+      _shipNews = {..._shipNews, ...FleetService.fresh};
+      unawaited(FleetService.markSeen());
+      return;
+    }
     if (category == _armory) return;
     final snap = GarageNotices.current();
     final fresh = [for (final i in snap.fresh) if (i.category == category) i];
@@ -164,6 +189,9 @@ class _GarageOverlayState extends State<GarageOverlay> {
   }
 
   static String? _caption(String category) => switch (category) {
+    _ships =>
+      'Each ship flies differently · fly any you own where it fits · '
+          'stars stay fair (fuel scaled by range)',
     CosmeticsService.catShip ||
     CosmeticsService.catPlume => 'Looks only · no effect on flight',
     CosmeticsService.catRope =>
@@ -220,7 +248,9 @@ class _GarageOverlayState extends State<GarageOverlay> {
                             selected: _selectedCategory == id,
                             dot: id != _selectedCategory &&
                                 id != _armory &&
-                                snap.tabHasNews(id),
+                                (id == _ships
+                                    ? FleetService.fresh.isNotEmpty
+                                    : snap.tabHasNews(id)),
                             onTap: () => _select(id),
                           ),
                         ),
@@ -242,6 +272,13 @@ class _GarageOverlayState extends State<GarageOverlay> {
                 Expanded(
                   child: _selectedCategory == _armory
                       ? ArmoryList(onCoinsChanged: () => setState(() {}))
+                      : _selectedCategory == _ships
+                      ? ShipHangar(
+                          accent: _garageAccent,
+                          news: _shipNews,
+                          onOffer: (s) => setState(() => _shipOffer = s),
+                          onChanged: () => setState(() {}),
+                        )
                       : LayoutBuilder(
                           builder: (context, box) {
                             final list = ListView.builder(
@@ -274,6 +311,18 @@ class _GarageOverlayState extends State<GarageOverlay> {
             ),
           ),
         ),
+        if (_shipOffer case final offer?)
+          Positioned.fill(
+            child: ShipOfferDialog(
+              ship: offer,
+              accent: _garageAccent,
+              onDone: (bought) {
+                if (!mounted) return;
+                setState(() => _shipOffer = null);
+                if (bought) unawaited(FleetService.setPreferred(offer.id));
+              },
+            ),
+          ),
         if (confirm != null)
           Positioned.fill(
             child: _BuyConfirm(
@@ -901,11 +950,11 @@ class RopeStatsView extends StatelessWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _StatBar(label: 'REACH', value: st.reach, was: cmp?.reach),
+              StatBar(label: 'REACH', value: st.reach, was: cmp?.reach),
               // Give is a trait, not a strength: shown without a verdict.
-              _StatBar(label: 'GIVE', value: st.give, was: cmp?.give, neutral: true),
-              _StatBar(label: 'STEADY', value: st.steadiness, was: cmp?.steadiness),
-              _StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
+              StatBar(label: 'GIVE', value: st.give, was: cmp?.give, neutral: true),
+              StatBar(label: 'STEADY', value: st.steadiness, was: cmp?.steadiness),
+              StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
             ],
           ),
         ],
@@ -942,9 +991,9 @@ class KitStatsView extends StatelessWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _StatBar(label: 'TURN', value: st.turn, was: cmp?.turn),
-              _StatBar(label: 'STEADY', value: st.steady, was: cmp?.steady),
-              _StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
+              StatBar(label: 'TURN', value: st.turn, was: cmp?.turn),
+              StatBar(label: 'STEADY', value: st.steady, was: cmp?.steady),
+              StatBar(label: 'FUEL', value: st.economy, was: cmp?.economy),
             ],
           ),
         ],
@@ -953,8 +1002,10 @@ class KitStatsView extends StatelessWidget {
   }
 }
 
-class _StatBar extends StatelessWidget {
-  const _StatBar({
+/// One Garage stat: label, segmented bar, ▲/▼ against the fitted item.
+class StatBar extends StatelessWidget {
+  const StatBar({
+    super.key,
     required this.label,
     required this.value,
     this.was,

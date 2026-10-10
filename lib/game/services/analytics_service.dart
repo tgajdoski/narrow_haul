@@ -67,6 +67,7 @@ class Analytics {
     required String levelId,
     required String world,
     required String ship,
+    required String par,
     required String rope,
     required String mode,
     required int attempt,
@@ -75,6 +76,7 @@ class Analytics {
     'level_name': levelId,
     'world': world,
     'ship': ship,
+    'par_ship': par,
     'rope': rope,
     'mode': mode,
     'attempt': attempt,
@@ -117,8 +119,10 @@ class Analytics {
     required bool continued,
     required bool carriedAmmo,
     required String mode,
+    String ship = '',
   }) => log('level_end', {
     'level_name': levelId,
+    'ship': ship,
     'success': 1,
     'stars': stars,
     'first_clear': prevStars == 0,
@@ -173,6 +177,15 @@ class Analytics {
     'spend_virtual_currency',
     {'virtual_currency_name': 'coins', 'value': amount, 'item_name': item},
   );
+
+  /// A ship joined the fleet ([source]: `rating`, `coins` or `iap`; for an
+  /// IAP [shipId] is the product id).
+  static void shipUnlock(String shipId, String source) =>
+      log('ship_unlock', {'ship': shipId, 'source': source});
+
+  /// The pilot picked a ship ([where]: `garage` or `briefing`).
+  static void shipSelected(String shipId, String where) =>
+      log('ship_selected', {'ship': shipId, 'where': where});
 
   static void weaponUsed(String weaponId, {required bool carried}) =>
       log('weapon_used', {'weapon': weaponId, 'carried': carried});

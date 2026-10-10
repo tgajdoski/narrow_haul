@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -148,7 +149,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
     // Garage news: newly unlocked or affordable items (until looked at),
     // then gear owned but never flown; the subtitle names the next goal.
     final garage = GarageNotices.current();
-    final garageNews = garage.fresh.length;
+    final garageNews = garage.fresh.length + FleetService.fresh.length;
     final garageBadge = garageNews > 0
         ? '$garageNews NEW'
         : garage.unusedGear.isNotEmpty

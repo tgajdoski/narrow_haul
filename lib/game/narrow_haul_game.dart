@@ -59,6 +59,7 @@ import 'package:narrow_haul/game/route/route_repository.dart';
 import 'package:narrow_haul/game/salvage/salvage.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
@@ -70,6 +71,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
+import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/guidance/flight_guidance.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
@@ -862,6 +864,7 @@ class NarrowHaulGame extends Forge2DGame
       levelId: id,
       world: world.id,
       ship: ship?.spec.id ?? '',
+      par: LevelRegistry.shipFor(levelIndex).id,
       rope: cargoAttachment?.rope.id ?? '',
       mode: _analyticsMode,
       attempt: _attempt,
@@ -1021,9 +1024,14 @@ class NarrowHaulGame extends Forge2DGame
 
     late final CargoAttachment cargoLink;
     final challengeShip = isChallengeMode ? activeChallengeConfig?.shipId : null;
+    // Dailies fly their own ship (par, or the Test Flight's). The route
+    // guide and demos replay the par ship's recording, so they fly it too;
+    // otherwise the pilot's pick (FleetService) when it fits.
     final shipSpec = challengeShip != null
         ? shipById(challengeShip)
-        : LevelRegistry.shipFor(levelIndex);
+        : isChallengeMode || demoMode || routeGuideOn
+            ? LevelRegistry.shipFor(levelIndex)
+            : FleetService.flownShipFor(levelIndex);
     _levelGravityG = g0 * gravityMul / baseGravityY();
     // Carried ammo stays home in a daily (a skill run) and in demos.
     final carryAmmo = !isChallengeMode && !demoMode;
@@ -1782,7 +1790,12 @@ class NarrowHaulGame extends Forge2DGame
       continued: continuedThisRun,
       carriedAmmo: carriedWeaponUsedThisRun,
       mode: _analyticsMode,
+      ship: ship?.spec.id ?? '',
     );
+    final saveId = currentLevelDef.saveId;
+    if (prevStars == 0 && saveId.startsWith('rating_')) {
+      Analytics.shipUnlock(saveId.substring('rating_'.length), 'rating');
+    }
     _attemptLevel = null; // the next flight here is a fresh attempt series
     final currencyMul = CareerService.currencyMultiplier;
     int currency = 0;
@@ -2023,8 +2036,13 @@ class NarrowHaulGame extends Forge2DGame
 
   int _calculateStars(double fuelRemaining, double timeSeconds) {
     // A continued (rewarded ad) or guided run can never buy a perfect rating.
+    final flown = ship?.spec;
+    final fuelLeft = fuelRemaining / _shipMaxFuel;
     return currentLevelDef.stars.rate(
-      fuelRemaining / _shipMaxFuel,
+      // Another ship than the level's own: fuel scaled by range (fleet.dart).
+      flown == null || isChallengeMode
+          ? fuelLeft
+          : normalisedFuelLeft(fuelLeft, flown, LevelRegistry.shipFor(levelIndex)),
       timeSeconds,
       capped: continuedThisRun || guidedThisRun || carriedWeaponUsedThisRun,
     );
@@ -2081,6 +2099,9 @@ class NarrowHaulGame extends Forge2DGame
       candidates.add(AchievementIds.orbitalMechanic);
     }
     if (_levelGravityG >= 1.5) candidates.add(AchievementIds.heavyLifter);
+    if (stars >= 3 && !isChallengeMode && !flyingParShip) {
+      candidates.add(AchievementIds.offType);
+    }
     if (kShips.keys.every(LevelRegistry.hasTypeRating)) {
       candidates.add(AchievementIds.fleetQualified);
     }
@@ -2183,8 +2204,13 @@ class NarrowHaulGame extends Forge2DGame
   /// The pause toggle: this level's route was unlocked before.
   bool get routeGuideAvailable =>
       currentRoute != null &&
+      flyingParShip &&
       !isChallengeMode &&
       ProgressService.instance.isRouteUnlocked(currentLevelDef.saveId);
+
+  /// The level's own ship is flying (routes were recorded with it).
+  bool get flyingParShip =>
+      ship == null || ship!.spec.id == LevelRegistry.shipFor(levelIndex).id;
 
   /// Game-over help: after [CrashStreak.offerAfter] crashes in a row, or
   /// whenever this level's route was unlocked before.
@@ -2754,7 +2780,8 @@ class NarrowHaulGame extends Forge2DGame
 
   /// Briefing → Garage (change tow gear or kit); closing it comes back to
   /// the same briefing.
-  void openGarageFromBriefing() {
+  void openGarageFromBriefing({String? tab}) {
+    garageTab = tab;
     final under = overlays.isActive(OverlayIds.levelSelect)
         ? OverlayIds.levelSelect
         : OverlayIds.menu;
@@ -2762,6 +2789,15 @@ class NarrowHaulGame extends Forge2DGame
     MonetizationService.instance.refreshIfNeeded();
     overlays.removeAll([OverlayIds.briefing, under]);
     overlays.add(OverlayIds.cosmetics);
+  }
+
+  /// Tab the Garage opens on next (read once by the overlay; null: news).
+  String? garageTab;
+
+  String? takeGarageTab() {
+    final tab = garageTab;
+    garageTab = null;
+    return tab;
   }
 
   /// LAUNCH and NEXT MISSION brief a mission first only when it's new: no
