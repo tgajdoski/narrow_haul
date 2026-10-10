@@ -1,10 +1,13 @@
 """Store images for the in-app purchases: the ammo packs (nh_demo_kit,
-nh_arsenal_crate) and the Fleet Pass (nh_fleet_pass).
+nh_arsenal_crate), the Fleet Pass (nh_fleet_pass), Remove Ads
+(nh_remove_ads) and the Supporter Pack (nh_supporter_pack).
 
     python tool/store/make_pack_images.py
 
 Ammo packs: the in-game supply crate (amber box, red chevron). Fleet Pass:
-the six ship sprites (assets/ship*.png) in formation. Each on the game's
+the six ship sprites (assets/ship*.png) in formation. Remove Ads: the
+Kestrel flying past a struck-out AD badge. Supporter Pack: the Kestrel in
+the Supporter Livery with a gem and coins. Each on the game's
 backdrop with its name, in 1024x1024 (App Store promotional image) and
 512x512 (Play), RGB without alpha. Writes art_src/store/iap/<id>_<size>.png.
 """
@@ -91,10 +94,20 @@ FLEET = [
 ]
 
 
-def ship(im, sprite, cx, cy, w):
+TEAL = (51, 214, 201)  # Supporter Livery (kLiveryTints, 0x7733D6C9)
+
+
+def ship(im, sprite, cx, cy, w, tint=None):
     """Pastes a ship sprite (hull x 58-198 of 256) [w] wide, centred, with a
     plume glow under its nozzle (row 181)."""
     src = Image.open(os.path.join(ASSETS, sprite)).convert('RGBA')
+    if tint is not None:
+        # srcATop tint, as the game draws a livery.
+        color, a = tint
+        flat = Image.new('RGBA', src.size, color + (255,))
+        mixed = Image.blend(src, flat, a)
+        mixed.putalpha(src.getchannel('A'))
+        src = mixed
     scale = w / (198 - 58)
     side = int(256 * scale)
     art = src.resize((side, side), Image.LANCZOS)
@@ -127,6 +140,85 @@ def make_fleet(pid, title, line):
     d.text(((size - tw) / 2, size * 0.71), title, font=tf, fill=(255, 255, 255))
     lw = d.textlength(line, font=lf)
     d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=AMBER)
+    _save(pid, im)
+
+
+def _backdrop(size, color):
+    im = Image.new('RGBA', (size, size), BACK + (255,))
+    im.alpha_composite(glow(size, (size // 2, int(size * 0.36)), int(size * 0.4), color, 55))
+    d = ImageDraw.Draw(im)
+    for i in range(70):
+        x = (i * 7919) % size
+        y = (i * 104729) % int(size * 0.68)
+        r = 2 + (i % 3) * 2
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(200, 220, 255, 90 + (i % 4) * 30))
+    return im
+
+
+def _title(im, title, line, line_color=AMBER):
+    size = im.size[0]
+    d = ImageDraw.Draw(im)
+    # Long titles shrink to keep a margin (≤ 84% of the width).
+    pt = size * 0.105
+    tf = ImageFont.truetype(FONT, int(pt))
+    while d.textlength(title, font=tf) > size * 0.84:
+        pt *= 0.96
+        tf = ImageFont.truetype(FONT, int(pt))
+    lf = ImageFont.truetype(FONT, int(size * 0.038))
+    tw = d.textlength(title, font=tf)
+    d.text(((size - tw) / 2, size * 0.71), title, font=tf, fill=(255, 255, 255))
+    lw = d.textlength(line, font=lf)
+    d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=line_color)
+
+
+def make_remove_ads(pid):
+    size = S * 2
+    im = _backdrop(size, CYAN)
+    d = ImageDraw.Draw(im)
+    # A struck-out AD badge, left; the Kestrel flying clear of it, right.
+    bx, by, bw, bh = size * 0.33, size * 0.34, size * 0.36, size * 0.24
+    box = (bx - bw / 2, by - bh / 2, bx + bw / 2, by + bh / 2)
+    d.rounded_rectangle(box, size * 0.03, fill=(22, 32, 60), outline=(150, 165, 190), width=int(size * 0.012))
+    af = ImageFont.truetype(FONT, int(size * 0.13))
+    aw = d.textlength('AD', font=af)
+    d.text((bx - aw / 2, by - size * 0.085), 'AD', font=af, fill=(150, 165, 190))
+    r = size * 0.19
+    d.ellipse((bx - r, by - r, bx + r, by + r), outline=RED, width=int(size * 0.03))
+    off = r * 0.707
+    d.line((bx - off, by + off, bx + off, by - off), fill=RED, width=int(size * 0.03))
+    ship(im, 'ship.png', size * 0.73, size * 0.30, size * 0.26)
+    _title(im, 'REMOVE ADS', 'NO ADS BETWEEN MISSIONS')
+    _save(pid, im)
+
+
+def gem(d, cx, cy, w):
+    h = w * 0.85
+    top = cy - h * 0.45
+    girdle = cy - h * 0.12
+    pts = [(cx - w / 2, girdle), (cx - w * 0.28, top), (cx + w * 0.28, top), (cx + w / 2, girdle), (cx, cy + h * 0.55)]
+    d.polygon(pts, fill=(40, 190, 200), outline=(200, 255, 250))
+    d.line([(cx - w / 2, girdle), (cx + w / 2, girdle)], fill=(200, 255, 250), width=max(3, int(w * 0.03)))
+    for x in (-0.28, 0.28):
+        d.line([(cx + w * x, top), (cx, cy + h * 0.55)], fill=(150, 240, 240), width=max(2, int(w * 0.02)))
+    d.polygon([(cx - w * 0.28, top), (cx, girdle), (cx + w * 0.28, top)], fill=(120, 235, 240))
+
+
+def coin(d, cx, cy, r):
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(240, 180, 40), outline=(255, 225, 120), width=max(3, int(r * 0.14)))
+    d.ellipse((cx - r * 0.62, cy - r * 0.62, cx + r * 0.62, cy + r * 0.62), outline=(200, 140, 20), width=max(2, int(r * 0.1)))
+
+
+def make_supporter(pid):
+    size = S * 2
+    im = _backdrop(size, TEAL)
+    im.alpha_composite(glow(size, (int(size * 0.5), int(size * 0.3)), int(size * 0.2), TEAL, 70))
+    d = ImageDraw.Draw(im)
+    for cx, cy, r in ((0.15, 0.5, 0.05), (0.22, 0.58, 0.045), (0.11, 0.6, 0.04), (0.86, 0.55, 0.05), (0.8, 0.62, 0.04)):
+        coin(d, size * cx, size * cy, size * r)
+    gem(d, size * 0.16, size * 0.24, size * 0.14)
+    gem(d, size * 0.84, size * 0.27, size * 0.11)
+    ship(im, 'ship.png', size * 0.5, size * 0.30, size * 0.32, tint=(TEAL, 0x77 / 255))
+    _title(im, 'SUPPORTER PACK', 'NO ADS · SUPPORTER LIVERY · 500 COINS', line_color=TEAL)
     _save(pid, im)
 
 
@@ -175,3 +267,5 @@ if __name__ == '__main__':
     for pid, (title, line, crates) in PACKS.items():
         make(pid, title, line, crates)
     make_fleet('nh_fleet_pass', 'FLEET PASS', 'EVERY SHIP · NOW AND LATER')
+    make_remove_ads('nh_remove_ads')
+    make_supporter('nh_supporter_pack')
