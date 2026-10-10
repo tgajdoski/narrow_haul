@@ -1027,13 +1027,20 @@ class StatBar extends StatelessWidget {
       children: [
         SizedBox(
           width: 44,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+          // One line always ("STEADY" wrapped at large text sizes).
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ),

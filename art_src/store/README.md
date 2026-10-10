@@ -18,7 +18,7 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
 | IAP review screenshot (both products) | — | ⏳ Settings on the iPhone with a sandbox account: the buy rows only show when the store returns products |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
-| Ammo pack images (`nh_demo_kit`, `nh_arsenal_crate`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
+| IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
 
 Worth adding to the set: a weapons shot (a charge carving rock), Garage → Armory, and the mission briefing.
 
@@ -51,6 +51,7 @@ The product id must match exactly; the app finds the product by it (`ProductIds.
 | Display name (≤ 30) | Fleet Pass |
 | Description (App Store ≤ 45) | Every ship in the hangar, now and later. |
 | Description (Play ≤ 200) | Unlock every ship in the hangar right away, plus every ship added in future updates. Each ship can also be earned for free by playing. Does not remove ads. |
+| Promotional image (App Store, optional) | `art_src/store/iap/nh_fleet_pass_1024.png` (1024×1024). Play one-time products take no image |
 | Review screenshot | Garage → Ships → tap a locked ship (the offer dialog with the Fleet Pass button). If every ship is already yours, run with `--dart-define=FLEET_PREVIEW=true`: all ships but the Kestrel show locked and the button shows before the store loads (save untouched) |
 | Review notes | Non-consumable. Grants all ships (Garage → Ships). Restorable via Settings → Restore purchases. Ships can also be earned in game by completing each world's first mission. |
 

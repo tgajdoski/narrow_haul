@@ -425,8 +425,9 @@ class ShipOfferDialog extends StatelessWidget {
           ShipStatsView(ship: ship),
           const SizedBox(height: 8),
           Text(
-            'Free: pass the ${kShipEarnedIn[ship.id]} type rating (its first '
-            'mission). Or skip ahead now and fly it on every mission it fits.',
+            'Free: fly its type rating, the first mission of '
+            '${kShipEarnedIn[ship.id]}. Or skip ahead now and fly it on every '
+            'mission it fits.',
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 10),

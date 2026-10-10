@@ -1,9 +1,11 @@
-"""Store images for the ammo packs (nh_demo_kit, nh_arsenal_crate).
+"""Store images for the in-app purchases: the ammo packs (nh_demo_kit,
+nh_arsenal_crate) and the Fleet Pass (nh_fleet_pass).
 
     python tool/store/make_pack_images.py
 
-Draws the in-game supply crate (amber box, red chevron) on the game's
-backdrop with the pack name, in 1024x1024 (App Store promotional image) and
+Ammo packs: the in-game supply crate (amber box, red chevron). Fleet Pass:
+the six ship sprites (assets/ship*.png) in formation. Each on the game's
+backdrop with its name, in 1024x1024 (App Store promotional image) and
 512x512 (Play), RGB without alpha. Writes art_src/store/iap/<id>_<size>.png.
 """
 import math
@@ -74,6 +76,69 @@ def burst(d, cx, cy, r):
     d.polygon(pts, fill=(255, 232, 176))
 
 
+CYAN = (51, 214, 255)
+ASSETS = os.path.join(ROOT, 'assets')
+
+# (sprite, x, y, width) as fractions of the canvas: two rows of three, the
+# armed Talon and heavy Mule behind, the Kestrel leading the front row.
+FLEET = [
+    ('ship_mule.png', 0.19, 0.19, 0.21),
+    ('ship_talon.png', 0.5, 0.17, 0.22),
+    ('ship_vector.png', 0.81, 0.19, 0.20),
+    ('ship_hopper.png', 0.19, 0.47, 0.17),
+    ('ship.png', 0.5, 0.46, 0.20),
+    ('ship_skate.png', 0.81, 0.47, 0.19),
+]
+
+
+def ship(im, sprite, cx, cy, w):
+    """Pastes a ship sprite (hull x 58-198 of 256) [w] wide, centred, with a
+    plume glow under its nozzle (row 181)."""
+    src = Image.open(os.path.join(ASSETS, sprite)).convert('RGBA')
+    scale = w / (198 - 58)
+    side = int(256 * scale)
+    art = src.resize((side, side), Image.LANCZOS)
+    x0 = int(cx - 128 * scale)
+    y0 = int(cy - 120 * scale)
+    nozzle = (int(cx), int(y0 + 181 * scale + w * 0.08))
+    im.alpha_composite(glow(im.size[0], nozzle, int(w * 0.16), CYAN, 150))
+    im.alpha_composite(art, (x0, y0))
+
+
+def make_fleet(pid, title, line):
+    ss = 2
+    size = S * ss
+    im = Image.new('RGBA', (size, size), BACK + (255,))
+    im.alpha_composite(glow(size, (size // 2, int(size * 0.36)), int(size * 0.4), CYAN, 55))
+    im.alpha_composite(glow(size, (size // 2, int(size * 0.24)), int(size * 0.18), AMBER, 45))
+    d = ImageDraw.Draw(im)
+    # A few stars behind the formation (fixed, so reruns match).
+    for i in range(70):
+        x = (i * 7919) % size
+        y = (i * 104729) % int(size * 0.68)
+        r = 2 + (i % 3) * 2
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(200, 220, 255, 90 + (i % 4) * 30))
+    for sprite, fx, fy, fw in FLEET:
+        ship(im, sprite, size * fx, size * fy, size * fw)
+    d = ImageDraw.Draw(im)
+    tf = ImageFont.truetype(FONT, int(size * 0.11))
+    lf = ImageFont.truetype(FONT, int(size * 0.04))
+    tw = d.textlength(title, font=tf)
+    d.text(((size - tw) / 2, size * 0.71), title, font=tf, fill=(255, 255, 255))
+    lw = d.textlength(line, font=lf)
+    d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=AMBER)
+    _save(pid, im)
+
+
+def _save(pid, im):
+    final = im.convert('RGB').resize((S, S), Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    for px in (1024, 512):
+        path = os.path.join(OUT, f'{pid}_{px}.png')
+        (final if px == S else final.resize((px, px), Image.LANCZOS)).save(path, optimize=True)
+        print(path)
+
+
 def make(pid, title, line, crates):
     ss = 2
     size = S * ss
@@ -103,14 +168,10 @@ def make(pid, title, line, crates):
     lw = d.textlength(line, font=lf)
     d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=AMBER)
 
-    final = im.convert('RGB').resize((S, S), Image.LANCZOS)
-    os.makedirs(OUT, exist_ok=True)
-    for px in (1024, 512):
-        path = os.path.join(OUT, f'{pid}_{px}.png')
-        (final if px == S else final.resize((px, px), Image.LANCZOS)).save(path, optimize=True)
-        print(path)
+    _save(pid, im)
 
 
 if __name__ == '__main__':
     for pid, (title, line, crates) in PACKS.items():
         make(pid, title, line, crates)
+    make_fleet('nh_fleet_pass', 'FLEET PASS', 'EVERY SHIP · NOW AND LATER')
