@@ -16,7 +16,7 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ⚠ **regenerate** after the screenshots (old ship/pod size); AI key art optional: prompt C |
 | Store texts | `listing_en.md` | ✅ checked against the character limits |
 | App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
-| IAP review screenshot (both products) | — | ⏳ Settings on the iPhone with a sandbox account: the buy rows only show when the store returns products |
+| IAP review screenshots (per product) | `iap_review/` | ✅ 4 shots, 2868×1320; which goes where in *IAP review screenshots and notes* below |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
 | IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`, `nh_full_game`, `nh_supporter_pack`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
 
