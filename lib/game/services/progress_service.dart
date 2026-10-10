@@ -225,8 +225,8 @@ class ProgressService {
 
   // ── Fleet ────────────────────────────────────────────────────────────────
 
-  /// A ship bought with coins before its type rating (IAP ships are
-  /// `iap_granted_nh_ship_<id>`, kept on reset).
+  /// A ship bought with coins before its type rating (the Fleet Pass is
+  /// `iap_granted_nh_fleet_pass`, kept on reset).
   bool isShipBought(String id) => _bool('ship_owned_$id') ?? false;
   Future<void> setShipBought(String id) async => _prefs.setBool('ship_owned_$id', true);
 

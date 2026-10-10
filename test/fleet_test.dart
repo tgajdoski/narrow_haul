@@ -42,12 +42,11 @@ void main() {
       expect(ShipStats.of(kHopper).compact, greaterThan(ShipStats.of(kKestrel).compact));
     });
 
-    test('every ship but the Kestrel has a coin price, a product and a world', () {
+    test('every ship but the Kestrel has a coin price and a world', () {
       for (final id in kFleetOrder) {
         expect(kShipEarnedIn[id], isNotNull, reason: id);
         if (id == kKestrel.id) continue;
         expect(kShipCoinPrice[id], greaterThan(0), reason: id);
-        expect(ProductIds.forShip(id), isNotNull, reason: id);
       }
       expect(kFleetOrder.toSet(), kShips.keys.toSet());
     });
@@ -141,27 +140,24 @@ void main() {
       expect(FleetService.flownShipFor(levelIndexOf('rating_hopper')).id, 'hopper');
     });
 
-    test('a ship IAP or the Fleet Pass grants ships and never removes ads', () async {
-      final m = MonetizationService.instance;
+    test('the Fleet Pass grants every ship and never removes ads', () async {
       final p = ProgressService.instance;
-      await m.grant(ProductIds.shipVector);
+      await MonetizationService.instance.grant(ProductIds.fleetPass);
+      expect(FleetService.ownsAll, isTrue);
       expect(FleetService.sourceOf('vector'), ShipSource.iap);
-      expect(FleetService.owns('talon'), isFalse);
       expect(p.adsRemoved, isFalse);
       expect(p.hasPurchased, isTrue);
-      await m.grant(ProductIds.fleetPass);
-      expect(FleetService.ownsAll, isTrue);
-      expect(p.adsRemoved, isFalse);
     });
 
-    test('reset keeps store ships, drops coin ships', () async {
+    test('reset drops coin ships, keeps the Fleet Pass', () async {
       final p = ProgressService.instance;
       await p.addCosmeticCurrency(1000);
       await FleetService.buyWithCoins('skate');
-      await MonetizationService.instance.grant(ProductIds.shipTalon);
       await p.resetProgress();
       expect(FleetService.owns('skate'), isFalse);
-      expect(FleetService.owns('talon'), isTrue);
+      await MonetizationService.instance.grant(ProductIds.fleetPass);
+      await p.resetProgress();
+      expect(FleetService.ownsAll, isTrue);
     });
 
     test('affordable and newly rated ships are news until seen', () async {

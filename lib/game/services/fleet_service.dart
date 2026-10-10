@@ -18,11 +18,7 @@ class FleetService {
   static ShipSource sourceOf(String id) {
     if (id == kKestrel.id) return ShipSource.stock;
     if (LevelRegistry.hasTypeRating(id)) return ShipSource.rated;
-    final product = ProductIds.forShip(id);
-    if (_p.isProductGranted(ProductIds.fleetPass) ||
-        (product != null && _p.isProductGranted(product))) {
-      return ShipSource.iap;
-    }
+    if (_p.isProductGranted(ProductIds.fleetPass)) return ShipSource.iap;
     if (_p.isShipBought(id)) return ShipSource.coins;
     return ShipSource.locked;
   }

@@ -28,24 +28,12 @@ class ProductIds {
   static const demolitionKit = 'nh_demo_kit';
   static const arsenalCrate = 'nh_arsenal_crate';
 
-  /// One ship each, before its type rating (non-consumables). Ships never
-  /// remove ads: they're a shortcut, every one is also earned by play.
-  static const shipHopper = 'nh_ship_hopper';
-  static const shipSkate = 'nh_ship_skate';
-  static const shipMule = 'nh_ship_mule';
-  static const shipVector = 'nh_ship_vector';
-  static const shipTalon = 'nh_ship_talon';
-
-  /// Every ship, now and later (non-consumable).
+  /// Every ship, now and later (non-consumable). The one store route to
+  /// ships: single ships are bought with coins, and every ship is also
+  /// earned by play, so it never removes ads.
   static const fleetPass = 'nh_fleet_pass';
 
-  static const ships = {shipHopper, shipSkate, shipMule, shipVector, shipTalon, fleetPass};
-
-  /// Product for one ship (null for the Kestrel).
-  static String? forShip(String shipId) =>
-      ships.contains('nh_ship_$shipId') ? 'nh_ship_$shipId' : null;
-
-  static const nonConsumables = {removeAds, supporterPack, ...ships};
+  static const nonConsumables = {removeAds, supporterPack, fleetPass};
   static const consumables = {demolitionKit, arsenalCrate};
   static const all = {...nonConsumables, ...consumables};
   static const supporterCoins = 500;
@@ -188,7 +176,6 @@ class MonetizationService {
       switch (productId) {
         ProductIds.supporterPack || ProductIds.arsenalCrate || ProductIds.fleetPass => r'$4.99',
         ProductIds.demolitionKit => r'$1.99',
-        _ when ProductIds.ships.contains(productId) => r'$1.99',
         _ => r'$2.99',
       };
 
@@ -677,7 +664,7 @@ class MonetizationService {
       entitlements.value++;
       return;
     }
-    if (ProductIds.ships.contains(productId)) {
+    if (productId == ProductIds.fleetPass) {
       // Owned through `iap_granted_<id>` (FleetService.owns). No ads change.
       if (!_p.isProductGranted(productId)) Analytics.shipUnlock(productId, 'iap');
       await _p.setHasPurchased(true);

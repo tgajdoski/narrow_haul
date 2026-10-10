@@ -61,7 +61,7 @@
     - Device or other IDs (AdMob).
     - All collected, not shared, encrypted in transit.
 - [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
-- [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 10 IAPs with 1.0: the ammo packs as **consumables**; `nh_remove_ads`, `nh_supporter_pack`, the five `nh_ship_<hopper|skate|mule|vector|talon>` ($1.99) and `nh_fleet_pass` ($4.99) as **non-consumables**, in both stores.
+- [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 5 IAPs with 1.0: the ammo packs as **consumables**; `nh_remove_ads`, `nh_supporter_pack` and `nh_fleet_pass` ($4.99) as **non-consumables**, in both stores.
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.

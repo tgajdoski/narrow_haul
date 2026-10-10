@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
@@ -348,6 +349,15 @@ class _PurchasesSection extends StatelessWidget {
                   '${ProductIds.supporterCoins} 💰',
               trailing: m.priceOf(ProductIds.supporterPack),
               onTap: () => buyWithFeedback(context, ProductIds.supporterPack),
+            ),
+          if (m.canBuy(ProductIds.fleetPass) && !FleetService.ownsAll)
+            _row(
+              icon: Icons.flight_rounded,
+              title: 'Fleet Pass',
+              subtitle: 'Every ship now, and every ship to come. '
+                  'Each one is also earned by play.',
+              trailing: m.priceOf(ProductIds.fleetPass),
+              onTap: () => buyWithFeedback(context, ProductIds.fleetPass),
             ),
           if (m.adsRemoved)
             _row(

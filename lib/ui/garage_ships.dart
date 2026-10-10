@@ -383,8 +383,8 @@ class ShipStatsView extends StatelessWidget {
 }
 
 /// How to get a ship that isn't in the hangar: its type rating (free), coins,
-/// the store, or the Fleet Pass. Store rows show only when the store has the
-/// product (offline: coins and the rating only).
+/// or the Fleet Pass (every ship). The Fleet Pass row shows only when the
+/// store has it (offline: coins and the rating only).
 class ShipOfferDialog extends StatelessWidget {
   const ShipOfferDialog({
     super.key,
@@ -403,7 +403,6 @@ class ShipOfferDialog extends StatelessWidget {
     final m = MonetizationService.instance;
     final coins = ProgressService.instance.getCosmeticCurrency();
     final price = FleetService.coinPrice(ship.id);
-    final product = ProductIds.forShip(ship.id);
     final canCoins = price != null && coins >= price;
     Future<void> store(String id) async {
       final ok = await buyWithFeedback(context, id);
@@ -442,14 +441,6 @@ class ShipOfferDialog extends StatelessWidget {
                     }
                   : null,
             ),
-          if (product != null && m.canBuy(product)) ...[
-            const SizedBox(height: 8),
-            HoloButton(
-              label: 'Buy · ${m.priceOf(product)}',
-              height: 40,
-              onPressed: () => store(product),
-            ),
-          ],
           if (m.canBuy(ProductIds.fleetPass)) ...[
             const SizedBox(height: 8),
             HoloButton(
