@@ -174,7 +174,8 @@ class MonetizationService {
   String priceOf(String productId) =>
       _products[productId]?.price ??
       switch (productId) {
-        ProductIds.supporterPack || ProductIds.arsenalCrate || ProductIds.fleetPass => r'$4.99',
+        ProductIds.supporterPack || ProductIds.arsenalCrate => r'$4.99',
+        ProductIds.fleetPass => r'$3.99',
         ProductIds.demolitionKit => r'$1.99',
         _ => r'$2.99',
       };
