@@ -53,6 +53,7 @@ import 'package:narrow_haul/game/level/tiled_level_loader.dart';
 import 'package:narrow_haul/game/combat/intercept.dart';
 import 'package:narrow_haul/game/perf/perf_monitor.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/story/story.dart';
 import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/route/route_repository.dart';
@@ -762,6 +763,7 @@ class NarrowHaulGame extends Forge2DGame
       OverlayIds.gameOver,
       OverlayIds.levelComplete,
       OverlayIds.rankUp,
+      OverlayIds.story,
       OverlayIds.pause,
       OverlayIds.settings,
     ]);
@@ -1076,6 +1078,7 @@ class NarrowHaulGame extends Forge2DGame
       onAttached: () {
         AudioService.playAttach();
         Haptics.light();
+        _sayStory(BeatCue.hooked);
       },
     )..onBeamLost = Haptics.medium;
 
@@ -2528,7 +2531,7 @@ class NarrowHaulGame extends Forge2DGame
         return;
       }
     }
-    overlays.removeAll([OverlayIds.levelComplete, OverlayIds.rankUp]);
+    overlays.removeAll([OverlayIds.levelComplete, OverlayIds.rankUp, OverlayIds.story]);
     _resetInputState();
     CosmeticsService.clearTrials(); // a trial lasts until its level is won
     if (!isChallengeMode) {
@@ -2553,7 +2556,7 @@ class NarrowHaulGame extends Forge2DGame
     CosmeticsService.clearTrials();
     // Quitting mid-flight still counts the time flown.
     _recordPlaytime();
-    overlays.removeAll([OverlayIds.levelComplete, OverlayIds.rankUp]);
+    overlays.removeAll([OverlayIds.levelComplete, OverlayIds.rankUp, OverlayIds.story]);
     _recordSpentFuel();
     _resetInputState();
     _clearLevel();
@@ -2690,6 +2693,7 @@ class NarrowHaulGame extends Forge2DGame
     if (shipHint != null && !retry) {
       comms.say(CommsLine(id: 'ship', callsign: 'OPS', text: shipHint), delay: afterIntro);
     }
+    _sayStory(BeatCue.start, after: afterIntro);
     if (_pickupHint() != null) {
       comms.say(
         const CommsLine(
@@ -2698,6 +2702,22 @@ class NarrowHaulGame extends Forge2DGame
           text: 'Fuel canister marked. Fly through it to top up the tank.',
         ),
         delay: afterIntro,
+      );
+    }
+  }
+
+  /// The mission's story beats for [cue] (docs/STORY.md), once per flight
+  /// and not on a retry, a demo or a daily.
+  void _sayStory(BeatCue cue, {double after = 0}) {
+    final comms = _comms;
+    if (comms == null || demoMode || isChallengeMode || _currentLevelRetried) return;
+    final story = storyFor(currentLevelDef.saveId);
+    if (story == null) return;
+    for (final (i, b) in story.beats.indexed) {
+      if (b.cue != cue) continue;
+      comms.say(
+        CommsLine(id: 'story_$i', callsign: b.callsign, text: b.text),
+        delay: after + b.delay,
       );
     }
   }
@@ -2757,6 +2777,34 @@ class NarrowHaulGame extends Forge2DGame
   /// The rank-up card over the results screen.
   void showRankUp() => overlays.add(OverlayIds.rankUp);
   void closeRankUp() => overlays.remove(OverlayIds.rankUp);
+
+  /// The world whose story outro is showing (docs/STORY.md).
+  WorldDef? storyOutroWorld;
+
+  /// After the result screen's entrance: the world's story outro, the first
+  /// time its last mission is delivered (never in a daily). Returns false
+  /// when there's none, so the caller shows the rank-up card instead.
+  bool showStoryOutroIfDue() {
+    if (isChallengeMode || runState != RunState.won) return false;
+    final (world, inWorld) = LevelRegistry.worldOf(levelIndex);
+    if (inWorld != world.levels.length - 1) return false;
+    final key = 'outro_${world.id}';
+    if (worldStoryFor(world.id) == null || ProgressService.instance.storySeen(key)) {
+      return false;
+    }
+    storyOutroWorld = world;
+    overlays.add(OverlayIds.story);
+    return true;
+  }
+
+  /// Outro read → the rank-up card if this run earned one.
+  void closeStoryOutro() {
+    overlays.remove(OverlayIds.story);
+    storyOutroWorld = null;
+    if (overlays.isActive(OverlayIds.levelComplete) && (lastRunReward?.rankedUp ?? false)) {
+      showRankUp();
+    }
+  }
 
   /// A sub-screen → back to the hangar (or to the briefing the Garage was
   /// opened from).
@@ -2852,6 +2900,8 @@ class NarrowHaulGame extends Forge2DGame
       introVisible.value = false;
     } else if (active.contains(OverlayIds.rankUp)) {
       closeRankUp();
+    } else if (active.contains(OverlayIds.story)) {
+      closeStoryOutro();
     } else if (active.contains(OverlayIds.settings)) {
       closeSettings();
     } else if (active.contains(OverlayIds.pause)) {

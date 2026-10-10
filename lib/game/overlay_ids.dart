@@ -13,9 +13,12 @@ abstract final class OverlayIds {
   static const levelComplete = 'levelComplete';
   static const rankUp = 'rankUp';
 
+  /// A world's story outro over the results ([NarrowHaulGame.showStoryOutroIfDue]).
+  static const story = 'story';
+
   /// Hangar sub-screens ([NarrowHaulGame.openScreen]).
   static const subScreens = [levelSelect, achievements, cosmetics, pilotProfile];
 
   /// Everything shown during or after a flight.
-  static const flight = [pause, settings, demo, gameOver, levelComplete, rankUp];
+  static const flight = [pause, settings, demo, gameOver, levelComplete, rankUp, story];
 }

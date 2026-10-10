@@ -14,10 +14,12 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/game/story/story.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/garage_overlay.dart' show GarageOverlay;
 import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/ui/story_card.dart';
 
 /// One line of a mission briefing: what the pilot will face (or get).
 class BriefingFact {
@@ -233,6 +235,9 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
   static const double _shipCard = 120;
   NarrowHaulGame get game => widget.game;
 
+  /// The chapter card was read (or skipped) on this briefing.
+  bool _chapterRead = false;
+
   Future<void> _pick(int index, ShipSpec ship) async {
     await FleetService.setChoice(index, ship.id);
     if (mounted) setState(() {});
@@ -245,6 +250,16 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
     final def = LevelRegistry.defAt(index);
     final (world, inWorld) = LevelRegistry.worldOf(index);
     final progress = ProgressService.instance;
+
+    // A world's first mission opens its story chapter, once per save.
+    final chapter = daily || inWorld != 0 || _chapterRead ? null : Chapter.intro(world);
+    if (chapter != null && chapter.unseen) {
+      return ChapterCard(
+        chapter: chapter,
+        doneLabel: 'Briefing',
+        onDone: () => setState(() => _chapterRead = true),
+      );
+    }
 
     DailyChallengeConfig? config;
     var testFlight = false;
@@ -345,11 +360,16 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
     );
 
     final reward = dailyReward();
+    final story = daily ? null : storyFor(def.saveId);
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         header,
+        if (story != null) ...[
+          const SizedBox(height: 4),
+          _StoryLine(story: story, accent: accent),
+        ],
         if (note != null && note.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(
@@ -655,6 +675,39 @@ class _LoadoutLine extends StatelessWidget {
           onPressed: game.openGarageFromBriefing,
         ),
       ],
+    );
+  }
+}
+
+/// The story line: the cargo, who briefs it, then the brief.
+class _StoryLine extends StatelessWidget {
+  const _StoryLine({required this.story, required this.accent});
+
+  final LevelStory story;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '${story.cargo.toUpperCase()} · ${story.from}  ',
+            style: hudLabel(10, color: accent, spacing: 1.4),
+          ),
+          TextSpan(
+            text: story.brief,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+      // A landscape phone keeps the dialog to one story line.
+      maxLines: MediaQuery.sizeOf(context).height < 400 ? 1 : 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

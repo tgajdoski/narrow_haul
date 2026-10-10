@@ -31,6 +31,7 @@ import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/ui/story_card.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
 
 void main() async {
@@ -206,6 +207,8 @@ class _NarrowHaulApp extends StatelessWidget {
                           LevelCompleteOverlay(game: game as NarrowHaulGame),
                       OverlayIds.rankUp: (context, game) =>
                           RankUpOverlay(game: game as NarrowHaulGame),
+                      OverlayIds.story: (context, game) =>
+                          StoryChapterOverlay(game: game as NarrowHaulGame),
                       OverlayIds.pause: (context, game) =>
                           PauseOverlay(game: game as NarrowHaulGame),
                       OverlayIds.settings: (context, game) =>

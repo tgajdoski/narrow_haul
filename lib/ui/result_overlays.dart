@@ -13,6 +13,7 @@ import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
+import 'package:narrow_haul/game/story/story.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mission complete
@@ -87,8 +88,9 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   void initState() {
     super.initState();
     _anim.forward().whenComplete(() {
+      if (!mounted || widget.game.showStoryOutroIfDue()) return;
       final reward = widget.game.lastRunReward;
-      if (mounted && reward != null && reward.rankedUp) {
+      if (reward != null && reward.rankedUp) {
         widget.game.showRankUp();
       }
     });
@@ -131,8 +133,10 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
               Text(
                 isChallengeMode
                     ? game.activeChallengeConfig?.modifierDesc ?? ''
-                    : '"${game.currentLevelDef.name}" delivered.',
-                maxLines: 1,
+                    : storyFor(game.currentLevelDef.saveId)?.debrief ??
+                          '"${game.currentLevelDef.name}" delivered.',
+                // The story's debrief gets a second line where there's room.
+                maxLines: MediaQuery.sizeOf(context).height < 400 ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white54, fontSize: 12.5),
               ),

@@ -23,6 +23,7 @@ import 'package:narrow_haul/ui/menu_overlay.dart';
 import 'package:narrow_haul/ui/mission_briefing.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
+import 'package:narrow_haul/ui/story_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Landscape phones (and an iPad) the menus must fit without overflowing.
@@ -203,6 +204,37 @@ void main() {
       () => LevelCompleteOverlay(game: won()),
     );
     expect(find.text('NEXT MISSION'), findsOneWidget);
+  });
+
+  testWidgets('story chapter cards fit, every world and page', (tester) async {
+    for (final w in LevelRegistry.worlds) {
+      for (final c in [Chapter.intro(w)!, Chapter.outro(w)!]) {
+        for (var page = 0; page < c.pages.length; page++) {
+          await each(
+            tester,
+            '${c.key} page $page',
+            () => ChapterCard(chapter: c, onDone: () {}, initialPage: page),
+          );
+        }
+      }
+    }
+  });
+
+  testWidgets("a world's first briefing opens its chapter, once", (tester) async {
+    SharedPreferences.setMockInitialValues({'save_v2': true, 'save_v3': true});
+    await ProgressService.init();
+    Widget briefing() => MissionBriefingOverlay(game: NarrowHaulGame()..briefingLevel = 0);
+    await pump(tester, _sizes.first, 1, briefing());
+    expect(find.byKey(const ValueKey('chapter-card')), findsOneWidget);
+    expect(find.text('// OPERATION LIFELINE'), findsOneWidget, reason: 'prologue first');
+    await tester.tap(find.text('SKIP'));
+    await tester.pumpAndSettle();
+    expect(find.text('LAUNCH'), findsOneWidget);
+    expect(ProgressService.instance.storySeen('intro_tutorial'), isTrue);
+
+    await pump(tester, _sizes.first, 1, briefing());
+    expect(find.byKey(const ValueKey('chapter-card')), findsNothing);
+    expect(find.text('LAUNCH'), findsOneWidget);
   });
 
   testWidgets('mission briefing fits, busiest level with the route', (

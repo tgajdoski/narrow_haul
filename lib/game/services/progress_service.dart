@@ -262,6 +262,11 @@ class ProgressService {
       _prefs.setBool('crate_hint_$weaponId', true);
   Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
 
+  /// Story chapter cards seen (`intro_<world>` / `outro_<world>`); a reset
+  /// tells the story again.
+  bool storySeen(String key) => _bool('story_$key') ?? false;
+  Future<void> markStorySeen(String key) async => _prefs.setBool('story_$key', true);
+
   bool get minimapEnabled => _bool('minimap_enabled') ?? true;
   Future<void> setMinimapEnabled(bool v) async =>
       _prefs.setBool('minimap_enabled', v);
