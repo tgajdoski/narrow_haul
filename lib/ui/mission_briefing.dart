@@ -13,6 +13,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
+import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 
 /// One line of a mission briefing: what the pilot will face (or get).
@@ -214,6 +215,9 @@ String _trim(double v) =>
 /// chart (Launch / Launch with route) or the hangar's Daily button.
 class MissionBriefingOverlay extends StatelessWidget {
   const MissionBriefingOverlay({super.key, required this.game});
+
+  /// The ship turntable's square (px).
+  static const double _shipCard = 120;
   final NarrowHaulGame game;
 
   @override
@@ -406,12 +410,42 @@ class MissionBriefingOverlay extends StatelessWidget {
       ],
     );
 
+    // The ship on a small turntable beside the facts, where the dialog
+    // still leaves the facts their full width (a Test Flight ship is a
+    // surprise until launch).
+    final content = testFlight
+        ? body
+        : LayoutBuilder(
+            builder: (context, box) {
+              if (box.maxWidth < 560 + _shipCard + 12) return body;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: _shipCard,
+                    height: _shipCard,
+                    child: ShipShowcase(
+                      key: const ValueKey('briefing-ship'),
+                      ship: ship,
+                      livery: CosmeticsService.getEquippedId(CosmeticsService.catShip),
+                      plume: CosmeticsService.getEquippedId(CosmeticsService.catPlume),
+                      accent: accent,
+                      interactive: false,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: body),
+                ],
+              );
+            },
+          );
+
     return HoloDialog(
       title: title,
       accent: accent,
-      maxWidth: 600,
+      maxWidth: 600 + _shipCard + 12 + 28,
       footer: footer,
-      child: body,
+      child: content,
     );
   }
 }

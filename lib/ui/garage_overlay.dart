@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
@@ -10,7 +11,9 @@ import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/armory.dart';
+import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
@@ -39,6 +42,14 @@ class _GarageOverlayState extends State<GarageOverlay> {
 
   /// A paid item waiting for "Buy & fit".
   CosmeticItem? _confirm;
+
+  /// The livery / plume last tapped (owned or not), shown on the turntable.
+  final Map<String, String> _preview = {};
+
+  /// The ships on the turntable: the next mission's, then every ship the
+  /// player is type-rated on. [_shipAt] picks one.
+  late final List<ShipSpec> _fleet = garageFleet();
+  int _shipAt = 0;
 
   static const _tabs = [
     (CosmeticsService.catShip, 'Liveries', Icons.rocket_rounded),
@@ -87,6 +98,7 @@ class _GarageOverlayState extends State<GarageOverlay> {
     bool unlocked,
     bool equipped,
   ) async {
+    _showOnTurntable(item);
     if (equipped) return;
     if (unlocked) {
       await CosmeticsService.equip(item);
@@ -112,8 +124,19 @@ class _GarageOverlayState extends State<GarageOverlay> {
     }
   }
 
+  /// Liveries and plumes go on the turntable when tapped, even before
+  /// they're bought.
+  void _showOnTurntable(CosmeticItem item) {
+    if (!_hasTurntable(item.category)) return;
+    setState(() => _preview[item.category] = item.id);
+  }
+
+  static bool _hasTurntable(String category) =>
+      category == CosmeticsService.catShip || category == CosmeticsService.catPlume;
+
   /// Why a locked tile can't be had yet, as a SnackBar.
   void _explainLocked(CosmeticItem item, int coins) {
+    _showOnTurntable(item);
     final String message;
     if (CosmeticsService.isRankLocked(item)) {
       final xp = (item.requiredRank.minXp - CareerService.xp).clamp(0, 1 << 30);
@@ -219,14 +242,32 @@ class _GarageOverlayState extends State<GarageOverlay> {
                 Expanded(
                   child: _selectedCategory == _armory
                       ? ArmoryList(onCoinsChanged: () => setState(() {}))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 6,
-                          ),
-                          itemCount: items.length,
-                          itemBuilder: (context, i) =>
-                              _tile(items[i], snap, currency),
+                      : LayoutBuilder(
+                          builder: (context, box) {
+                            final list = ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              itemCount: items.length,
+                              itemBuilder: (context, i) =>
+                                  _tile(items[i], snap, currency),
+                            );
+                            // Looks tabs: the ship on its stand beside the
+                            // list, where the screen is wide enough.
+                            if (!_hasTurntable(_selectedCategory) || box.maxWidth < 600) {
+                              return list;
+                            }
+                            return Row(
+                              children: [
+                                SizedBox(
+                                  width: (box.maxWidth * 0.36).clamp(200.0, 360.0),
+                                  child: _turntable(),
+                                ),
+                                Expanded(child: list),
+                              ],
+                            );
+                          },
                         ),
                 ),
               ],
@@ -243,6 +284,72 @@ class _GarageOverlayState extends State<GarageOverlay> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _turntable() {
+    final ship = _fleet[_shipAt % _fleet.length];
+    String look(String cat) =>
+        _preview[cat] ?? CosmeticsService.getEquippedId(cat);
+    final livery = look(CosmeticsService.catShip);
+    final plume = look(CosmeticsService.catPlume);
+    final shown = CosmeticsService.all.where(
+      (i) => i.id == (_selectedCategory == CosmeticsService.catPlume ? plume : livery),
+    );
+    final item = shown.isEmpty ? null : shown.first;
+    final owned = item == null || CosmeticsService.isUnlocked(item);
+    Widget arrow(IconData icon, int step) => _fleet.length < 2
+        ? const SizedBox(width: 28)
+        : IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+            color: Colors.white70,
+            icon: Icon(icon),
+            onPressed: () => setState(() => _shipAt = (_shipAt + step) % _fleet.length),
+          );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 0, 6),
+      child: Column(
+        children: [
+          Expanded(
+            child: ShipShowcase(
+              key: const ValueKey('garage-turntable'),
+              ship: ship,
+              livery: livery,
+              plume: plume,
+              accent: _garageAccent,
+            ),
+          ),
+          Row(
+            children: [
+              arrow(Icons.chevron_left_rounded, _fleet.length - 1),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      ship.name.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: hudLabel(13, spacing: 2),
+                    ),
+                    if (item != null)
+                      Text(
+                        owned ? item.name : '${item.name} · preview',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: owned ? Colors.white60 : SpaceColors.gold,
+                          fontSize: 11,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              arrow(Icons.chevron_right_rounded, 1),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -281,6 +388,17 @@ class _GarageOverlayState extends State<GarageOverlay> {
       onTap: () => _onItemTap(item, unlocked, equipped),
     );
   }
+}
+
+/// The Garage turntable's ships: the next mission's first, then each ship
+/// the player holds a type rating on.
+List<ShipSpec> garageFleet() {
+  final next = LevelRegistry.shipFor(LevelRegistry.nextLevelIndex());
+  return [
+    next,
+    for (final s in kShips.values)
+      if (s.id != next.id && LevelRegistry.hasTypeRating(s.id)) s,
+  ];
 }
 
 /// "Buy & fit" confirm: what the coins buy and what's left after.
