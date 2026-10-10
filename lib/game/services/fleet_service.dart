@@ -5,6 +5,11 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
+/// Store screenshots: `--dart-define=FLEET_PREVIEW=true` shows every ship but
+/// the Kestrel as locked and the Fleet Pass offer even before the store
+/// answers (the save is untouched; buying still needs the real store).
+const kFleetPreview = bool.fromEnvironment('FLEET_PREVIEW');
+
 /// How a ship joined the fleet (or that it hasn't).
 enum ShipSource { stock, rated, coins, iap, locked }
 
@@ -17,6 +22,7 @@ class FleetService {
 
   static ShipSource sourceOf(String id) {
     if (id == kKestrel.id) return ShipSource.stock;
+    if (kFleetPreview) return ShipSource.locked;
     if (LevelRegistry.hasTypeRating(id)) return ShipSource.rated;
     if (_p.isProductGranted(ProductIds.fleetPass)) return ShipSource.iap;
     if (_p.isShipBought(id)) return ShipSource.coins;

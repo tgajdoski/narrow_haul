@@ -441,7 +441,7 @@ class ShipOfferDialog extends StatelessWidget {
                     }
                   : null,
             ),
-          if (m.canBuy(ProductIds.fleetPass)) ...[
+          if (m.canBuy(ProductIds.fleetPass) || kFleetPreview) ...[
             const SizedBox(height: 8),
             HoloButton(
               label: 'Fleet Pass · every ship · ${m.priceOf(ProductIds.fleetPass)}',

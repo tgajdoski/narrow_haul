@@ -350,7 +350,7 @@ class _PurchasesSection extends StatelessWidget {
               trailing: m.priceOf(ProductIds.supporterPack),
               onTap: () => buyWithFeedback(context, ProductIds.supporterPack),
             ),
-          if (m.canBuy(ProductIds.fleetPass) && !FleetService.ownsAll)
+          if ((m.canBuy(ProductIds.fleetPass) || kFleetPreview) && !FleetService.ownsAll)
             _row(
               icon: Icons.flight_rounded,
               title: 'Fleet Pass',

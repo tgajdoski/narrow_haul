@@ -51,7 +51,7 @@ The product id must match exactly; the app finds the product by it (`ProductIds.
 | Display name (≤ 30) | Fleet Pass |
 | Description (App Store ≤ 45) | Every ship in the hangar, now and later. |
 | Description (Play ≤ 200) | Unlock every ship in the hangar right away, plus every ship added in future updates. Each ship can also be earned for free by playing. Does not remove ads. |
-| Review screenshot | Garage → Ships → tap a locked ship (the offer dialog with the Fleet Pass button), 1290×2796 or any accepted size |
+| Review screenshot | Garage → Ships → tap a locked ship (the offer dialog with the Fleet Pass button). If every ship is already yours, run with `--dart-define=FLEET_PREVIEW=true`: all ships but the Kestrel show locked and the button shows before the store loads (save untouched) |
 | Review notes | Non-consumable. Grants all ships (Garage → Ships). Restorable via Settings → Restore purchases. Ships can also be earned in game by completing each world's first mission. |
 
 **App Store Connect:** My Apps → Narrow Haul → Monetization → **In-App Purchases** → **+** → *Non-Consumable* → fill the table → Availability: all countries → Price Schedule → add the English (U.S.) localization → upload the review screenshot → Save. Then in the 1.0 version page, **In-App Purchases and Subscriptions** → **+** → select Fleet Pass so it's reviewed with the build (the first IAPs must ship with a version).
