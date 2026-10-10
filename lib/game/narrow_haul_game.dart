@@ -757,6 +757,7 @@ class NarrowHaulGame extends Forge2DGame
     if (!retry && !demoMode) AudioService.playStartLevel();
     if (!demoMode) _logLevelStart();
     _countdown = (demoMode || _tutorialHints) ? null : _countdownSeconds;
+    _startCloseUp(retry: retry);
     _countdownHud
       ?..text = null
       ..accent = data.theme.uiAccent;
@@ -1101,6 +1102,41 @@ class NarrowHaulGame extends Forge2DGame
   /// zooms in once they let go).
   double _idleFor = 0;
 
+  /// Level-start close-up of the ship and the delivery push-in.
+  final CloseUp _closeUp = CloseUp();
+
+  /// Close-up zooms (× the flight zoom): a first look at a new mission, a
+  /// new ship's first flight (shown off longest), and a quick one on retry.
+  static const double _closeUpFirst = 2.2;
+  static const double _closeUpNewShip = 2.6;
+  static const double _closeUpRetry = 1.5;
+  static const double _closeUpDelivery = 1.5;
+
+  /// Where the ship sits in a close-up (fraction of the screen height):
+  /// below the level card (top third) and the 3 · 2 · 1 (centre).
+  static const double _closeUpShipY = 0.72;
+
+  /// Opens a level on the ship: it holds through the level card, then
+  /// eases out over 3 · 2 · 1 to the flight view at GO. Without a countdown
+  /// (onboarding) it holds until the first input. Any input releases it.
+  void _startCloseUp({required bool retry}) {
+    _closeUp.reset();
+    if (demoMode || kStoreCapture || FlightTuning.camera.profile.isStatic) return;
+    final s = ship;
+    if (s == null) return;
+    // Kestrel is the training ship, so it's never new (as in the briefing).
+    final newShip =
+        !retry && s.spec.id != kKestrel.id && !LevelRegistry.hasTypeRating(s.spec.id);
+    var peak = retry ? _closeUpRetry : (newShip ? _closeUpNewShip : _closeUpFirst);
+    if (reducedMotion) peak = 1 + (peak - 1) * 0.4;
+    final countdown = _countdown;
+    _closeUp.intro(
+      peak: peak,
+      hold: countdown == null ? double.infinity : countdown - 3,
+      out: 3,
+    );
+  }
+
   /// Camera shift (m) that keeps the ship out from under the controls,
   /// eased in quickly and out slowly.
   final Spring _nudgeX = Spring();
@@ -1159,8 +1195,23 @@ class NarrowHaulGame extends Forge2DGame
     );
     // Reduced motion halves the zoom swings (in log space).
     final factor = reducedMotion ? math.sqrt(shot.zoom) : shot.zoom;
-    camera.viewfinder.zoom = math.max(restZoom * factor, _minContainZoom);
-    final base = _clampedCameraTarget(Vector2(shot.x, shot.y), worldSize);
+    if (s.launched) _closeUp.release();
+    _closeUp.update(dt);
+    final close = _closeUp.factor;
+    final zoom = math.max(restZoom * factor * close, _minContainZoom);
+    camera.viewfinder.zoom = zoom;
+    var focus = Vector2(shot.x, shot.y);
+    final w = _closeUp.weight;
+    if (w > 0) {
+      // Frame the subject: the ship a little low (level start), or ship
+      // and pod together on the pad (delivery).
+      final podNow = cargo?.body.position;
+      final subject = runState == RunState.won && podNow != null
+          ? (s.body.position + podNow) / 2
+          : s.body.position - Vector2(0, (_closeUpShipY - 0.5) * view.y / zoom);
+      focus += (subject - focus) * w;
+    }
+    final base = _clampedCameraTarget(focus, worldSize);
     final want = _safeFrameShift(s, base);
     double time(Spring n, double w) => w.abs() > n.x.abs() ? 0.3 : 0.8;
     _nudgeX.step(want.x, time(_nudgeX, want.x), dt);
@@ -1564,6 +1615,10 @@ class NarrowHaulGame extends Forge2DGame
     }
     _winTimer = _winDelay;
     _winReady = false;
+    // A slow push-in on ship and pod sitting on the pad.
+    if (!FlightTuning.camera.profile.isStatic && !kStoreCapture) {
+      _closeUp.pushIn(reducedMotion ? 1.2 : _closeUpDelivery, _winDelay);
+    }
     final fuelLeft = ship?.fuel ?? 0.0;
     lastLevelFuelFraction = fuelLeft / _shipMaxFuel;
 
@@ -1818,6 +1873,10 @@ class NarrowHaulGame extends Forge2DGame
     final s = ship, worldSize = _currentWorldSize;
     if (s != null && worldSize != null) _followCamera(s, worldSize, dt);
   }
+
+  /// Tests: the close-up zoom (× the flight zoom) right now.
+  @visibleForTesting
+  double get debugCloseUp => _closeUp.factor;
 
   /// Tests: the crate notice currently on air.
   @visibleForTesting
@@ -3353,6 +3412,11 @@ class NarrowHaulGame extends Forge2DGame
     }
 
     final s = ship;
+    // The camera keeps going on the pad, for the delivery push-in.
+    final wonWorld = _currentWorldSize;
+    if (s != null && runState == RunState.won && wonWorld != null) {
+      _followCamera(s, wonWorld, dt);
+    }
     if (s != null && runState == RunState.playing) {
       // The clock starts with the first input (the ship waits on its pad).
       if (_timing && s.launched) elapsedSeconds += dt;

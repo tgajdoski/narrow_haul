@@ -306,6 +306,82 @@ double smoothstep(double lo, double hi, double x) {
   return t * t * (3 - 2 * t);
 }
 
+/// A cinematic zoom on top of the follow camera: a close-up of the ship at
+/// the start of a level that eases out over the countdown, and a push-in on
+/// the pad when the cargo is delivered. [factor] multiplies the zoom
+/// (log-space smoothstep, so it eases evenly); [weight] (0…1) says how much
+/// the shot should frame the close-up subject instead of the follow focus.
+class CloseUp {
+  double _factor = 1;
+  double _from = 1, _to = 1;
+  double _hold = 0, _t = 0, _dur = 0;
+  bool _intro = false;
+
+  double get factor => _factor;
+
+  /// Full framing from a 1.5× close-up up.
+  double get weight => (math.log(_factor) / math.log(1.5)).clamp(0.0, 1.0);
+
+  /// The level-start close-up is on screen (not yet released).
+  bool get inIntro => _intro && _factor > 1.0001;
+
+  /// Starts at [peak], holds [hold] s (forever if infinite, until
+  /// [release]), then eases back to 1 over [out] s.
+  void intro({required double peak, required double hold, required double out}) {
+    _factor = _from = peak;
+    _to = 1;
+    _hold = hold;
+    _t = 0;
+    _dur = out;
+    _intro = true;
+  }
+
+  /// The player took the controls: ease back to the flight zoom quickly.
+  void release({double time = 0.45}) {
+    if (!_intro) return;
+    _intro = false;
+    if (_factor <= 1.0001) return;
+    _ease(1, time);
+  }
+
+  /// Eases from the current factor to [peak] over [time] s.
+  void pushIn(double peak, double time) {
+    _intro = false;
+    _ease(peak, time);
+  }
+
+  void reset() {
+    _factor = _from = _to = 1;
+    _hold = _t = _dur = 0;
+    _intro = false;
+  }
+
+  void _ease(double to, double time) {
+    _from = _factor;
+    _to = to;
+    _hold = 0;
+    _t = 0;
+    _dur = time;
+  }
+
+  void update(double dt) {
+    if (_hold > 0) {
+      _hold -= dt;
+      if (_hold > 0) return;
+      dt = -_hold;
+      _hold = 0;
+    }
+    if (_factor == _to) return;
+    _t += dt;
+    final u = _dur <= 0 ? 1.0 : smoothstep(0, 1, _t / _dur);
+    _factor = math.exp(math.log(_from) + (math.log(_to) - math.log(_from)) * u);
+    if (u >= 1) {
+      _factor = _to;
+      if (_to == 1) _intro = false;
+    }
+  }
+}
+
 /// How far (m) the camera may look past the world's edge to keep the ship
 /// clear of the controls ([safeFrameNudge]); the rock is drawn that far out.
 const double kCameraOverscroll = 6;

@@ -191,6 +191,51 @@ void main() {
     });
   });
 
+  group('close-up', () {
+    double run(CloseUp c, double seconds) {
+      for (var t = 0.0; t < seconds - 1e-9; t += _dt) {
+        c.update(_dt);
+      }
+      return c.factor;
+    }
+
+    test('level start: holds through the card, out by GO', () {
+      final c = CloseUp()..intro(peak: 2.2, hold: 1, out: 3);
+      expect(run(c, 0.9), 2.2);
+      expect(c.weight, 1);
+      var last = c.factor;
+      for (var t = 0.0; t < 3.0; t += _dt) {
+        c.update(_dt);
+        expect(c.factor, lessThanOrEqualTo(last + 1e-12));
+        last = c.factor;
+      }
+      expect(run(c, 0.2), 1);
+      expect(c.inIntro, isFalse);
+      expect(c.weight, 0);
+    });
+
+    test('taking the controls releases it quickly', () {
+      final c = CloseUp()..intro(peak: 2.2, hold: 1, out: 3);
+      run(c, 0.3);
+      c.release();
+      expect(run(c, 0.5), 1);
+    });
+
+    test('without a countdown it waits for the first input', () {
+      final c = CloseUp()..intro(peak: 2.2, hold: double.infinity, out: 3);
+      expect(run(c, 30), 2.2);
+      c.release();
+      expect(run(c, 0.5), 1);
+    });
+
+    test('delivery push-in reaches its zoom and release leaves it alone', () {
+      final c = CloseUp()..pushIn(1.5, 1.1);
+      expect(run(c, 1.2), closeTo(1.5, 1e-9));
+      c.release(); // not an intro: no effect
+      expect(run(c, 1), closeTo(1.5, 1e-9));
+    });
+  });
+
   test('trauma shake is bounded and calms down', () {
     final s = TraumaShake()..add(1);
     var peak = 0.0;
