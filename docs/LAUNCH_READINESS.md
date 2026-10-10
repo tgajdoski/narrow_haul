@@ -1,5 +1,12 @@
 # Narrow Haul — Launch Readiness
 
+**Update 2026-10-10:**
+- The story, Operation Lifeline (`docs/STORY.md`), with a brief, radio lines and a debrief for every mission, plus chapter cards and the Mission Log.
+- The **Expeditions** world (8 multi-leg levels, generator-built E1–E7).
+- The **Full Game** IAP (`nh_full_game`), which replaces Remove Ads.
+- Tests now number 577, and all pass. The autopilot proves **68/68 levels** at 3★, and all 68 routes are bundled.
+- Still to do: a phone playtest of all of it, and creating the new IAP (see *Open*).
+
 **Third check:** 2026-10-09, after 53 commits since the second check (`59b9532`): weapons, loadout, flight feel, the holo UI, the bigger ship and pod, the launch intro, the guidance HUD, offline recovery, the perf pass, and the fixes under *Done in this pass*.
 
 ## Verdict

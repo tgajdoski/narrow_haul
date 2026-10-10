@@ -155,7 +155,9 @@ The Warden's fortress. The militia lends you the Talon.
 
 ## 3. Act II: Expeditions, "The Long Night" (Full Game)
 
-These are long multi-leg convoys (3–5 legs, 120–250 m, 3–6 min) with staging pads that refuel and save a checkpoint, as planned. One campaign follows the Tide arriving. Unlocked after the Redoubt; the first one is free from tut_10 as a taster.
+These are long multi-leg convoys (3–5 legs, 125–220 m, 1–2 min for the bot) with staging pads that refuel and save a checkpoint. One campaign follows the Tide arriving. The world opens with the Alien world (8 career stars). E0 is free, and the rest need the Full Game (`nh_full_game`).
+
+Built: E0 by hand (`specs/expeditions.dart`), and E1–E7 by the generator from `lib/game/level/gen/outlines.dart` (`specs/expeditions_gen.dart`). All 8 are autopilot-proven at 3★, and each has its route guide and demo. Their text is in `lib/game/story/story_act2.dart`, with radio beats per leg (`StoryBeat.leg`, `BeatCue.landed`). **Not built yet:** hard time limits per leg. The tremor (E1), the warming vaccine (E2) and the eruption (E3) are told in the radio lines and star clock only.
 | # | Expedition | World | Legs (story) |
 |---|---|---|---|
 | E0 *(free)* | **Lifeline Convoy** | Xenar | A seed vault to each of 3 Grove farms; OPS teaches staging pads |
