@@ -38,6 +38,28 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
 6. **In-App Purchases:** for each of `nh_remove_ads` and `nh_supporter_pack` (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $4.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
+### Fleet Pass (`nh_fleet_pass`): copy-ready
+
+The product id must match exactly; the app finds the product by it (`ProductIds.fleetPass`).
+
+| Field | Value |
+|---|---|
+| Type | Non-consumable (App Store) · One-time product (Play) |
+| Product ID | `nh_fleet_pass` |
+| Reference name (App Store only) | Fleet Pass |
+| Price | $4.99 (Tier 5 / USD 4.99; let the stores convert other countries) |
+| Display name (≤ 30) | Fleet Pass |
+| Description (App Store ≤ 45) | Every ship in the hangar, now and later. |
+| Description (Play ≤ 200) | Unlock every ship in the hangar right away, plus every ship added in future updates. Each ship can also be earned for free by playing. Does not remove ads. |
+| Review screenshot | Garage → Ships → tap a locked ship (the offer dialog with the Fleet Pass button), 1290×2796 or any accepted size |
+| Review notes | Non-consumable. Grants all ships (Garage → Ships). Restorable via Settings → Restore purchases. Ships can also be earned in game by completing each world's first mission. |
+
+**App Store Connect:** My Apps → Narrow Haul → Monetization → **In-App Purchases** → **+** → *Non-Consumable* → fill the table → Availability: all countries → Price Schedule → add the English (U.S.) localization → upload the review screenshot → Save. Then in the 1.0 version page, **In-App Purchases and Subscriptions** → **+** → select Fleet Pass so it's reviewed with the build (the first IAPs must ship with a version).
+
+**Play Console:** Narrow Haul → Monetize with Play → Products → **One-time products** → **Create one-time product** → Product ID `nh_fleet_pass`, name and description from the table → **Add a purchase option** (buy, non-rentable) → set price $4.99 → Activate. Play only shows products to builds uploaded *after* the app has the BILLING permission (the `in_app_purchase` plugin adds it), so an internal-testing build must be live first.
+
+**Test it:** sandbox / licence-tester account → Settings shows a *Fleet Pass* row and a locked ship's offer shows the button → buy → every ship turns owned, ads still show → Settings → *Reset purchases (dev)* → *Restore purchases* brings it back.
+
 ## Play Console → Narrow Haul → Grow users → Store presence → Main store listing
 
 1. **App icon:** `art_src/icon/play_icon_512.png`
