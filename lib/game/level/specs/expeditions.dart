@@ -1,6 +1,7 @@
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/specs/expeditions_gen.dart';
 
 /// Ship flown on an Expedition unless it names one.
 const expeditionShipId = 'hopper';
@@ -59,4 +60,6 @@ final List<LevelDef> expeditionLevels = [
       ],
     ),
   ),
+  // E1–E7, laid out by the generator (lib/game/level/gen/outlines.dart).
+  ...generatedExpeditions,
 ];

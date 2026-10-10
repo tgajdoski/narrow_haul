@@ -25,6 +25,12 @@
 ## Open — your actions
 
 ### Before the first test build
+- [ ] **Create the `nh_full_game` IAP** ($4.99, non-consumable) in both stores, and re-price the Supporter Pack to $7.99 with its new text: copy-ready in `art_src/store/README.md` → *Full Game*. Don't create `nh_remove_ads`; it's gone.
+- [ ] **Playtest the story and the Expeditions** (added 2026-10-10):
+  - the prologue and chapter cards, and the radio lines (tut_09 Severance, alien_08, redoubt_05 outro)
+  - `exp_00` Lifeline Convoy: refuel and checkpoint pads, *Resume · pad N*
+  - one long generated Expedition (e.g. `exp_01` Cave-in), for length and fun
+  - a sandbox Full Game buy: gold beacons open, interstitials stop
 - [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro, the mystery salvage caches and the fleet (pick another ship in a briefing and in the Garage Ships tab, buy one with coins, check its stars feel fair and that *With route* hides off par).
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.

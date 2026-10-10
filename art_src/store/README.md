@@ -38,6 +38,34 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
 6. **In-App Purchases:** for each of `nh_full_game` (Full Game, $4.99: every Expedition + no ads) and `nh_supporter_pack` (Supporter Pack, $7.99: the Full Game + livery + 500 coins) (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $3.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
+### Full Game (`nh_full_game`): copy-ready
+
+Bought once, kept for life (non-consumable, restorable). The product id must match exactly (`ProductIds.fullGame`). It replaces the earlier `nh_remove_ads`: don't create that one. If it already exists, leave it unused; product ids can't be reused or renamed.
+
+| Field | Value |
+|---|---|
+| Type | Non-consumable (App Store) · One-time product (Play) |
+| Product ID | `nh_full_game` |
+| Reference name (App Store only) | Full Game |
+| Price | $4.99 (USD 4.99; let the stores convert other countries) |
+| Display name (≤ 30) | Full Game |
+| Description (App Store ≤ 45) | Every Expedition, and no ads between missions. |
+| Description (Play ≤ 200) | Unlock every Expedition (Act II: long multi-leg hauls with staging pads, the first one is free to try) and turn off the ads between missions for good. Optional rewarded ads stay available. |
+| Promotional image (App Store, optional) | `art_src/store/iap/nh_full_game_1024.png` (1024×1024) |
+| Review screenshot | A real in-app screenshot at an App Store screenshot size, **not** the 1024×1024 image (App Store Connect rejects that size here). On an iPhone 16 Pro Max / 17 Pro Max simulator: Missions → *The Long Night* tab → tap a gold **FULL GAME** beacon (any Expedition after the first) → ⌘S in Simulator saves a 2868×1320 (or 2796×1290) shot of the briefing with the Full Game button. Settings → the *Full Game* row works too |
+| Review notes | Non-consumable. Unlocks the Expeditions after the free first one (Missions → The Long Night) and removes interstitial ads. Restorable via Settings → Restore purchases. Also included in the Supporter Pack. |
+
+The **Supporter Pack** (`nh_supporter_pack`) now includes the Full Game. Set its price to **$7.99**, with description (≤ 45) "Full Game, Supporter Livery and 500 coins." Play (≤ 200): "Everything in the Full Game (every Expedition, no ads between missions), plus the exclusive Supporter ship livery and 500 coins."
+
+**App Store Connect:** My Apps → Narrow Haul → Monetization → **In-App Purchases** → **+** → *Non-Consumable* → Reference name `Full Game`, Product ID `nh_full_game` → Availability: all countries → Price Schedule: $4.99 → Localization (English U.S.): display name and description from the table → Review information: the screenshot and notes → Save. Then on the 1.0 version page, **In-App Purchases and Subscriptions** → **+** → select Full Game (and the other IAPs) so they're reviewed with the build.
+
+**Play Console:** Narrow Haul → Monetize with Play → Products → **One-time products** → **Create one-time product** → Product ID `nh_full_game`, name and description from the table → **Add a purchase option** (buy, non-rentable) → price $4.99 → **Activate**. The app sees it only in a build uploaded after the BILLING permission is in (any internal-testing build of this app).
+
+**Test it:** sandbox / licence-tester account:
+1. Settings shows a *Full Game* row, and the briefing of a locked Expedition shows the button.
+2. Buy it. The beacons open, the *Full Game* row turns into "Full Game · Thanks", and no interstitials show.
+3. Settings → *Reset purchases (dev)* → *Restore purchases* brings it back.
+
 ### Fleet Pass (`nh_fleet_pass`): copy-ready
 
 The product id must match exactly; the app finds the product by it (`ProductIds.fleetPass`).

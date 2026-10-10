@@ -122,7 +122,7 @@ Operation Lifeline: the Narrows lose their jump gate (the *Severance*, on tut_09
 
 ### Expeditions (Act II, multi-leg hauls)
 
-An Expedition is one long cave with several hauls (`LevelSpec.expedition(legs: [LegSpec(pod, pad), …])`; `legs`, `allLegs`, `isExpedition`). Leg 1's pod and pad are also `cargoSpawn` / `goal`, so single-haul tools still see something sensible. The builder calms the rock around every anchor (`anchorPoints`) and lays a shelf under every pad (`allGoals`). The validator checks each leg on its own (`forLeg(k)`: the ship starts on the previous pad at `legShipSpawn`, later pods are clamped, full tank), and issues are prefixed `leg N:`. `analyzeLegs` gives per-leg flight estimates. The preview tool numbers pods `1 2 3` and pads `A B C`. Specs live in `specs/expeditions.dart` (`exp_00` *Lifeline Convoy*, hand-built: 3 legs, ~125 m, Hopper). They form the world `expeditions` ("The Long Night", `WorldDef.expedition`), which sits outside the career: `LevelRegistry.career` / `careerLevels`, `totalStars()` counts career stars only (gates, hangar, logbook, contracts, the "every mission" award), and dailies and contracts never pick one (`isExpedition`).
+An Expedition is one long cave with several hauls (`LevelSpec.expedition(legs: [LegSpec(pod, pad), …])`; `legs`, `allLegs`, `isExpedition`). Leg 1's pod and pad are also `cargoSpawn` / `goal`, so single-haul tools still see something sensible. The builder calms the rock around every anchor (`anchorPoints`) and lays a shelf under every pad (`allGoals`). The validator checks each leg on its own (`forLeg(k)`: the ship starts on the previous pad at `legShipSpawn`, later pods are clamped, full tank), and issues are prefixed `leg N:`. `analyzeLegs` gives per-leg flight estimates. The preview tool numbers pods `1 2 3` and pads `A B C`. Specs live in `specs/expeditions.dart`. `exp_00` *Lifeline Convoy* is hand-built: 3 legs, ~125 m, Hopper. `exp_01`–`exp_07` (Cave-in, Cold Chain, Exodus, Shield Ring, The Warden's Peace, Into the Heart, The Long Night: 3–5 legs, 130–220 m) come from the generator below. They form the world `expeditions` ("The Long Night", `WorldDef.expedition`), which sits outside the career: `LevelRegistry.career` / `careerLevels`, `totalStars()` counts career stars only (gates, hangar, logbook, contracts, the "every mission" award), and dailies and contracts never pick one (`isExpedition`).
 
 Runtime (`narrow_haul_game.dart`, `LevelData.legs` / `LegData`):
 - **Pods and pads:** every leg's pod spawns at load, with later pods locked. Every pad is drawn. Only the current leg has a tow line (`_towFor`) and win sensors (`_padFor`).
@@ -131,7 +131,16 @@ Runtime (`narrow_haul_game.dart`, `LevelData.legs` / `LegData`):
 - **Crash screen:** offers *Resume · pad N* (`canResumeFromPad`, `resumeFromPad`). This reloads the level at that leg, with earlier pods parked (`parkedPod`), the clock restored, and the run capped at 2★ (`checkpointUsedThisRun`). *Restart* starts over.
 - **Stars:** rate the mean fuel left over every pad.
 - **Story beats:** `StoryBeat.leg` limits a beat to one leg.
-- **Not built yet:** no route guide or demo for Expeditions, and the autopilot skips them (multi-leg flying is X3). Tests: `test/expedition_test.dart`.
+- **Autopilot, routes, demo:** the autopilot flies every leg (it replans for the next pod when `legIndex` changes, gets its time limit per leg, and the report rates the burn per leg). Recordings keep `FlightRoute.legT` (when each pad took its leg), so a demo parks the pod and tows the next on cue (`_demoNextLeg`). `route_test` checks every staging pad. Tests: `test/expedition_test.dart`.
+- **Full Game gating:** `LevelRegistry.freeExpeditions` (1: `exp_00`) open for free. The rest need `ProgressService.hasFullGame` (see Monetization).
+
+**Generator** (`lib/game/level/gen/`, pure Dart, authoring time only):
+- **Outlines:** `kExpeditionOutlines` (`outlines.dart`) sets each Expedition's theme, ship, modifiers and, per leg, a list of `Room`s: `plain squeeze climb drop bar pendulum block zeroG updraft crosswind well turret canister`.
+- **Layout:** `generateExpedition` lays them left to right (`_Builder`). The spawn cave comes first. Every leg leaves its start level, puts the pod in a bowl under the tunnel after `podAfter` rooms, and ends in a pad chamber. Widths come from the ship's `circumradius`, and a pod within 8 m of a field is clamped.
+- **Selection:** reseeds until 3 layouts pass `validateCaveSpec` on every leg, keeps the one whose route is closest to 40 m a leg, and derives `StarSpec` from `analyzeLegs`.
+- **Output:** `dart run tool/generate_expedition.dart` writes `specs/expeditions_gen.dart` (`generatedExpeditions`, appended to `expeditionLevels`), and the output is deterministic.
+- **After editing an outline:** regenerate, then re-run the autopilot for it (`LEVELS=exp_0N EXPORT_ROUTES=true`), and add its story beats in `story_act2.dart`.
+- **Tests:** `test/expedition_generator_test.dart`.
 
 ### Services (`lib/game/services/`)
 

@@ -252,6 +252,23 @@ void main() {
     expect(find.byKey(const ValueKey('chapter-card')), findsNothing);
   });
 
+  testWidgets('a paid Expedition briefing sells the Full Game and fits', (tester) async {
+    final paid = [
+      for (var i = 0; i < LevelRegistry.totalLevels; i++)
+        if (LevelRegistry.needsFullGame(i)) i,
+    ];
+    expect(paid, isNotEmpty);
+    // Read its chapter first, so the briefing itself shows.
+    await ProgressService.instance.markStorySeen('intro_expeditions');
+    await each(
+      tester,
+      'briefing (Full Game)',
+      () => MissionBriefingOverlay(game: NarrowHaulGame()..briefingLevel = paid.first),
+    );
+    expect(find.byKey(const ValueKey('buy-full-game')), findsOneWidget);
+    expect(find.text('LAUNCH'), findsNothing);
+  });
+
   testWidgets('mission briefing fits, busiest level with the route', (
     tester,
   ) async {

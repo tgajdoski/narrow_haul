@@ -142,7 +142,8 @@ List<Pt> _spots(LevelSpec spec, ShipSpec ship, {required bool defended}) {
     return true;
   }
 
-  final anchors = [spec.shipSpawn, spec.cargoSpawn, spec.goal.center];
+  // Every pod and pad (an Expedition has several).
+  final anchors = spec.anchorPoints;
   bool nearAnchor(Pt p) => anchors.any((a) => _dist(a, p) < kCrateAnchorClearance);
 
   bool inSweep(Pt p) {

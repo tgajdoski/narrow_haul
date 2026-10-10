@@ -54,7 +54,16 @@ void main() {
 
   test('every world has its pod, and a heavy one exactly where pods are heavy',
       () {
-    for (final w in LevelRegistry.worlds) {
+    // Expeditions mix themes; each level loads its own theme's pods.
+    for (final l in LevelRegistry.worlds.where((w) => w.expedition).expand((w) => w.levels)) {
+      final dir = 'assets/themes/${l.themeId}';
+      expect(File('$dir/cargo.png').existsSync(), isTrue, reason: '${l.saveId}: $dir/cargo.png');
+      if (l.modifiers.cargoDensityMul > 1.0) {
+        expect(File('$dir/cargo_heavy.png').existsSync(), isTrue,
+            reason: '${l.saveId} is heavy but $dir has no cargo_heavy.png');
+      }
+    }
+    for (final w in LevelRegistry.worlds.where((w) => !w.expedition)) {
       final dir = 'assets/themes/${w.themeId}';
       expect(File('$dir/cargo.png').existsSync(), isTrue,
           reason: '$dir/cargo.png missing');
