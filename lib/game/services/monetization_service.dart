@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart' show BillingResponse;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:narrow_haul/game/physics_constants.dart' show kStoreCapture;
 import 'package:narrow_haul/game/services/ad_pacing.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
@@ -172,7 +173,10 @@ class MonetizationService {
   bool get storeAvailable => _storeAvailable;
 
   /// The store returned this product, so it can actually be bought.
-  bool canBuy(String productId) => _products.containsKey(productId);
+  /// Store screenshot builds (`STORE_CAPTURE`) show every product's buy
+  /// row with its fallback price, for the IAP review screenshots.
+  bool canBuy(String productId) =>
+      _products.containsKey(productId) || (kStoreCapture && ProductIds.all.contains(productId));
 
   /// Localized store price, or a fallback before the store answers.
   String priceOf(String productId) =>

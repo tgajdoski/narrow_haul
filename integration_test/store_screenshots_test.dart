@@ -17,6 +17,9 @@ import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/services/fleet_service.dart';
+import 'package:narrow_haul/ui/garage_ships.dart';
+import 'package:narrow_haul/ui/garage_overlay.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
@@ -202,6 +205,54 @@ void main() {
       await cap.wait(1.0);
       await shot('13_settings_iap');
       game.overlays.remove('settings');
+
+      // IAP review screenshot for the Full Game: a paid Expedition's
+      // briefing over the missions map, with the Full Game button.
+      final paid = [
+        for (var i = 0; i < LevelRegistry.totalLevels; i++)
+          if (LevelRegistry.offersFullGame(i)) i,
+      ];
+      if (paid.isNotEmpty) {
+        game.overlays
+          ..remove('menu')
+          ..add('levelSelect');
+        game.openBriefing(paid.first);
+        await cap.wait(1.2);
+        await shot('14_full_game_iap');
+        game.closeBriefing();
+        game.overlays.remove('levelSelect');
+      }
+
+      // Fleet Pass: a locked ship's offer in Garage → Ships.
+      game.garageTab = GarageOverlay.shipsTab;
+      game.overlays.add('cosmetics');
+      await cap.wait(1.2);
+      final locked = find.byWidgetPredicate((w) => w is ShipTile && !FleetService.owns(w.ship.id));
+      // Locked ships sit low in the fleet list: drag it up a bit at a time.
+      for (var i = 0; i < 4 && locked.evaluate().isEmpty; i++) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, -250));
+        await cap.wait(0.4);
+      }
+      if (locked.evaluate().isNotEmpty) {
+        await tester.tap(locked.first, warnIfMissed: false);
+        await cap.wait(1.0);
+        await shot('15_fleet_pass_iap');
+      }
+      game.overlays.remove('cosmetics');
+      await cap.wait(0.4);
+
+      // Ammo packs: Garage → Armory.
+      game.garageTab = 'armory';
+      game.overlays.add('cosmetics');
+      await cap.wait(1.2);
+      // The packs are under the weapons: drag the list until they're near the top.
+      final packs = find.text('AMMO PACKS');
+      for (var i = 0; i < 8 && (packs.evaluate().isEmpty || tester.getTopLeft(packs).dy > 260); i++) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, -220));
+        await cap.wait(0.4);
+      }
+      await shot('16_ammo_packs_iap');
+      game.overlays.remove('cosmetics');
     }
 
     await binding.setSurfaceSize(null);
