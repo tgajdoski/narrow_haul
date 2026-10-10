@@ -28,9 +28,10 @@ class RockNearby {
 RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1.0}) {
   final body = ship.body;
   final spec = ship.spec;
+  final k = ship.sizeMul;
   final hull = [
     for (final poly in spec.hullPolygons)
-      for (final (x, y) in poly) Vector2(x, y),
+      for (final (x, y) in poly) Vector2(x * k, y * k),
   ];
   final from = body.position;
   final ray = _NearRay(body);
@@ -79,7 +80,7 @@ double? probeAhead(Forge2DWorld world, ShipBody ship, Vector2 dir, {double range
     var reach = 0.0;
     for (final poly in ship.spec.hullPolygons) {
       for (final (x, y) in poly) {
-        reach = math.max(reach, x * local.x + y * local.y);
+        reach = math.max(reach, (x * local.x + y * local.y) * ship.sizeMul);
       }
     }
     final length = reach + range;

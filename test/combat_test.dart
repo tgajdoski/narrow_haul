@@ -28,6 +28,10 @@ class _FakeHost implements CombatHost {
   @override
   bool get turretsDisabled => false;
   @override
+  bool get shipCloaked => false;
+  @override
+  bool get shipFlared => false;
+  @override
   void spawnShell(Shell shell) => events.add('shell');
   @override
   void onShipShot() => events.add('shot');

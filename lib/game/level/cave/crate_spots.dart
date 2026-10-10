@@ -21,12 +21,30 @@ const double kCrateRouteMax = 6.0;
 /// off the shortest route. Empty on levels with defences (armed ships have
 /// their own gun). Deterministic; memoized per level and ship.
 List<Pt> crateSpots(LevelSpec spec, {ShipSpec ship = kKestrel}) =>
-    _cache['${spec.id}/${ship.id}'] ??= _spots(spec, ship);
+    _cache['${spec.id}/${ship.id}'] ??= _spots(spec, ship, defended: false);
+
+/// Mystery-salvage spots: the same rules as [crateSpots], but defended
+/// levels get them too, outside every turret's view (a cache is a gamble,
+/// not a trap) and clear of the reactor.
+List<Pt> salvageSpots(LevelSpec spec, {ShipSpec ship = kKestrel}) =>
+    _cache['salvage/${spec.id}/${ship.id}'] ??= _spots(spec, ship, defended: true);
 
 final Map<String, List<Pt>> _cache = {};
 
-List<Pt> _spots(LevelSpec spec, ShipSpec ship) {
-  if (spec.obstacles.any((o) => o is TurretSpec || o is ReactorSpec)) return const [];
+/// A turret at [t] could see a ship at [p]: in range (+1 m), in its arc
+/// (+0.2 rad) and with open cave between them.
+bool turretMightSee(TurretSpec t, Pt p, bool Function(Pt a, Pt b) clearLine) {
+  final dx = p.x - t.base.x, dy = p.y - t.base.y;
+  if (dx * dx + dy * dy > (t.range + 1) * (t.range + 1)) return false;
+  var off = (math.atan2(dy, dx) - t.facing) % (2 * math.pi);
+  if (off > math.pi) off -= 2 * math.pi;
+  if (off.abs() > t.aimArc + 0.2) return false;
+  return clearLine(t.base, p);
+}
+
+List<Pt> _spots(LevelSpec spec, ShipSpec ship, {required bool defended}) {
+  final hasDefences = spec.obstacles.any((o) => o is TurretSpec || o is ReactorSpec);
+  if (hasDefences && !defended) return const [];
   final cave = buildCave(spec);
   final field = caveFieldWithCores(cave, spec);
   final nx = cave.nx;
@@ -110,6 +128,20 @@ List<Pt> _spots(LevelSpec spec, ShipSpec ship) {
   // Thin the route for the distance test.
   final routePts = <Pt>[for (var k = 0; k < route.length; k += 5) route[k]];
 
+  // Open cave all along a→b (the dome itself sits in rock, so the first
+  // metre is skipped).
+  bool clearLine(Pt a, Pt b) {
+    final d = _dist(a, b);
+    final n = (d / cell).ceil();
+    for (var k = 0; k <= n; k++) {
+      final t = k / math.max(1, n);
+      if (t * d < 1.0) continue;
+      final x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+      if (field[key(Pt(x, y))] >= 0) return false;
+    }
+    return true;
+  }
+
   final anchors = [spec.shipSpawn, spec.cargoSpawn, spec.goal.center];
   bool nearAnchor(Pt p) => anchors.any((a) => _dist(a, p) < kCrateAnchorClearance);
 
@@ -122,8 +154,10 @@ List<Pt> _spots(LevelSpec spec, ShipSpec ship) {
           if (_dist(s.pivot, p) < s.length + s.bobRadius + 0.9) return true;
         case SlidingBlockSpec s:
           if (_segDist(s.from, s.to, p) < math.max(s.halfW, s.halfH) + 0.9) return true;
-        case TurretSpec() || ReactorSpec():
-          return true;
+        case TurretSpec t:
+          if (!defended || turretMightSee(t, p, clearLine)) return true;
+        case ReactorSpec r:
+          if (!defended || _dist(r.center, p) < r.radius + 2.5) return true;
       }
     }
     for (final f in spec.fields) {

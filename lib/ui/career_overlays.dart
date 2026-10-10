@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/salvage_fx.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/salvage/salvage.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -216,6 +218,14 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
                     ship: ship,
                     rated: LevelRegistry.hasTypeRating(ship.id),
                   ),
+                const SizedBox(height: 14),
+                PanelTitle(
+                  'Salvage log  ${kSalvage.where((e) => progress.salvageFound(e.id) > 0).length}/${kSalvage.length}',
+                  color: SpaceColors.gold,
+                ),
+                const SizedBox(height: 4),
+                for (final effect in kSalvage)
+                  _SalvageLogRow(spec: effect, found: progress.salvageFound(effect.id)),
               ],
             ),
           ),
@@ -344,4 +354,60 @@ class _TypeRatingRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One Salvage Log entry: a mystery-cache effect, unknown until found once.
+class _SalvageLogRow extends StatelessWidget {
+  const _SalvageLogRow({required this.spec, required this.found});
+
+  final SalvageSpec spec;
+  final int found;
+
+  @override
+  Widget build(BuildContext context) {
+    final known = found > 0;
+    final color = known ? salvageColor(spec) : Colors.white24;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox.square(
+            dimension: 26,
+            child: CustomPaint(painter: _SalvageGlyphPainter(known ? spec.effect : null, color)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  known ? spec.name : '? ? ?',
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+                Text(
+                  known ? spec.blurb : (spec.good ? 'An undiscovered boon.' : 'An undiscovered curse.'),
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (known) Text('×$found', style: hudLabel(12, spacing: 1)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SalvageGlyphPainter extends CustomPainter {
+  _SalvageGlyphPainter(this.effect, this.color);
+  final SalvageEffect? effect;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      drawSalvageGlyph(canvas, size.center(Offset.zero), size.shortestSide * 0.8, effect, color);
+
+  @override
+  bool shouldRepaint(_SalvageGlyphPainter old) => old.effect != effect || old.color != color;
 }

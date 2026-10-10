@@ -180,6 +180,10 @@ class Analytics {
   static void crateCollected(String weaponId) =>
       log('crate_collected', {'weapon': weaponId});
 
+  /// A mystery salvage cache opened: what it rolled.
+  static void salvageOpened(String effect, {required bool good}) =>
+      log('salvage_opened', {'effect': effect, 'good': good});
+
   // ── Ads & purchases ───────────────────────────────────────────────────────
 
   static void rewardedAd(String placement, {required bool earned}) =>

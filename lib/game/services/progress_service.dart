@@ -352,6 +352,12 @@ class ProgressService {
   static const statShellsIntercepted = 'shells_intercepted';
   static const statReactorEscapes = 'reactor_escapes';
   static const statFuelCells = 'fuel_cells';
+  static const statSalvageOpened = 'salvage_opened';
+  static const statSalvageCurses = 'salvage_curses';
+  static const statSalvageGrit = 'salvage_grit';
+
+  /// Boons opened in a row (Four-Leaf Clover at 3).
+  static const statSalvageBoonStreak = 'salvage_boon_streak';
 
   /// Sets a one-time flag; true only the first time (e.g. first reactor
   /// escape on a level, which pays its bonus once).
@@ -364,6 +370,13 @@ class ProgressService {
   int getStat(String name) => _int('stat_$name') ?? 0;
   Future<void> incrementStat(String name, [int by = 1]) async =>
       _prefs.setInt('stat_$name', getStat(name) + by);
+  Future<void> setStat(String name, int value) async =>
+      _prefs.setInt('stat_$name', value);
+
+  /// Mystery salvage: how often each effect was found (the Salvage Log).
+  int salvageFound(String effectId) => getStat('salvage_$effectId');
+  Future<void> recordSalvageFound(String effectId) =>
+      incrementStat('salvage_$effectId');
 
   // ── Daily challenge ──────────────────────────────────────────────────────
 

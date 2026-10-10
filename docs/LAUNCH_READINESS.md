@@ -25,11 +25,11 @@
 ## Open — your actions
 
 ### Before the first test build
-- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing and the intro.
+- [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro and the mystery salvage caches.
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
   - Consider adding a weapons shot, the Armory and the briefing. See `art_src/store/README.md`.
-- [ ] **Deploy the website** (`website/deploy.sh`). The privacy policy now covers the ammo packs, every analytics event, and that Analytics doesn't collect the ad ID.
+- [ ] **Deploy the website** (`website/deploy.sh`). The privacy policy now covers the ammo packs, every analytics event (including `salvage_opened`), and that Analytics doesn't collect the ad ID.
 - [ ] **Back up** `~/narrowhaul-upload.jks` and `android/key.properties` off this machine. If they're lost, you can't ship updates on Play.
 - [ ] **AdMob:** confirm the IDFA explainer message is published. The ATT prompt comes from it.
 - [ ] Bump the build number in `pubspec.yaml`. It's `1.0.0+3`; use +4 unless 3 was never uploaded.
@@ -121,6 +121,22 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 11. **Achievements:**
     - "Fuel Miser" (≥ 85%) on mine_03 or rating_mule.
     - "Perfect Pilot" feels achievable.
+12. **Mystery salvage (new, 2026-10-10):**
+    - Force each effect with `flutter run --profile --dart-define=SALVAGE=<effect>`. `SALVAGE=always` gives a cache every flight with the normal odds.
+      - Effects: overshield, topOff, afterburner, fuelSaver, stealth, compactor, chrono, antiGrav, lucky, ammoCache, swarmSting, fuelLeak, sporeTrip, crossedWires, sputter, blackout, hiccups, heavyHeart, flareBeacon.
+      - Try stealth / flareBeacon on a Redoubt level, and heavyHeart with the pod in tow.
+    - Feel and readability:
+      - Does the roulette read well, and is the badge clear of the fuel gauge, the level info and the minimap?
+      - Are the radio quips funny, not chatty?
+    - Fairness:
+      - Does a curse ever feel like it caused a crash?
+      - The swell growing next to rock, and the Compactor growing back in a tight tunnel.
+      - Crossed Wires resting near the pad.
+      - Is Hiccups too strong? Is Blackout too dark?
+    - Spore Trip: does the shader look right on iOS (Impeller), and what is the frame time while it runs (`--dart-define=PERF=true`)? It redraws the whole world each frame for 8 s.
+    - Chrono: is slow motion fun, and does the music or engine sound odd?
+    - Odds: is 40% per attempt the right amount? Are durations of 5–15 s right? Tuning: `kSalvage` / `kSalvageChance`.
+    - Meta: the Salvage log in the Pilot Logbook, the achievement toasts, the Grit line on the result screen, the salvage contracts, and a Salvage Chaos daily (three caches).
 
 ## Post-launch / nice to have
 - **Art:** themed backdrops (`far/mid/near`) and decor for the 7 worlds. Every world has rock and pod art, but the parallax uses the shared tinted fallback. Key-art feature graphic. Real liveries instead of tints; check that "Stealth" stays visible on dark caves.

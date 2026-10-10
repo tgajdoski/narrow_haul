@@ -20,6 +20,8 @@ enum ContractKind {
   quickDelivery,
   dailyChallenge,
   destroyTurrets,
+  salvageDelivery,
+  cursedDelivery,
 }
 
 /// One daily task. [param] meaning depends on [kind]: world index, fuel %, or
@@ -40,6 +42,8 @@ class Contract {
         ContractKind.quickDelivery => 100,
         ContractKind.dailyChallenge => 75,
         ContractKind.destroyTurrets => 100,
+        ContractKind.salvageDelivery => 75,
+        ContractKind.cursedDelivery => 100,
       };
 
   String get description => switch (kind) {
@@ -53,6 +57,10 @@ class Contract {
         ContractKind.quickDelivery => 'Deliver in under ${param}s',
         ContractKind.dailyChallenge => "Complete today's daily challenge",
         ContractKind.destroyTurrets => 'Destroy $target turrets and deliver',
+        ContractKind.salvageDelivery => target == 1
+            ? 'Open a mystery cache and deliver'
+            : 'Open a mystery cache and deliver, $target times',
+        ContractKind.cursedDelivery => 'Deliver after a salvage curse',
       };
 
   String encode() => '${kind.name}|$target|$param';
@@ -83,6 +91,8 @@ class DeliveryEvent {
     required this.newStars,
     required this.personalBest,
     this.turretsDestroyed = 0,
+    this.salvageOpened = 0,
+    this.cursed = false,
   });
 
   final int worldIndex;
@@ -93,6 +103,10 @@ class DeliveryEvent {
   final int newStars;
   final bool personalBest;
   final int turretsDestroyed;
+
+  /// Mystery caches opened on this flight, and whether one was a curse.
+  final int salvageOpened;
+  final bool cursed;
 }
 
 /// Progress a single delivery adds to [c] (pure).
@@ -105,6 +119,8 @@ int contractProgress(Contract c, DeliveryEvent e) => switch (c.kind) {
       ContractKind.quickDelivery => e.seconds < c.param ? 1 : 0,
       ContractKind.dailyChallenge => e.challenge ? 1 : 0,
       ContractKind.destroyTurrets => e.turretsDestroyed,
+      ContractKind.salvageDelivery => e.salvageOpened > 0 ? 1 : 0,
+      ContractKind.cursedDelivery => e.cursed ? 1 : 0,
     };
 
 /// Deterministic pick of 3 contracts for [date] (pure). Only offers what the
@@ -132,6 +148,11 @@ List<Contract> generateContracts(
     Contract(ContractKind.quickDelivery, target: 1, param: [40, 45, 50][rng.nextInt(3)]),
     if (!dailyDone) const Contract(ContractKind.dailyChallenge, target: 1),
     if (armedUnlocked) Contract(ContractKind.destroyTurrets, target: 4 + rng.nextInt(3)),
+    // Mystery caches turn up in the cave worlds (index 0 is the tutorial).
+    if (unlockedWorlds.any((w) => w > 0)) ...[
+      Contract(ContractKind.salvageDelivery, target: 1 + rng.nextInt(2)),
+      const Contract(ContractKind.cursedDelivery, target: 1),
+    ],
   ]..shuffle(rng);
   return pool.take(3).toList();
 }

@@ -72,6 +72,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Fragment shaders (Spore Trip's warp, lib/game/components/salvage_fx.dart).
+  shaders:
+    - shaders/spore.frag
+
   assets:
     - assets/
     - assets/audio/

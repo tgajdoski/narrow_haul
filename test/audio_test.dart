@@ -80,7 +80,7 @@ void main() {
   test('every one-shot sound plays from a pool (loops excepted)', () {
     // Pooled players recycle on completion; one-off low-latency players
     // pile up on Android.
-    const loops = {'thrust_loop.wav', 'alarm.wav'};
+    const loops = {'thrust_loop.wav', 'alarm.wav', 'bee_loop.wav', 'spore_loop.wav'};
     expect(AudioService.poolSizes.keys.toSet(), AudioService.files.toSet().difference(loops));
   });
 

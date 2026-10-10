@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:isolate';
+import 'dart:ui' show FragmentProgram;
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
@@ -28,6 +30,7 @@ import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
 import 'package:narrow_haul/game/camera/camera_director.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
+import 'package:narrow_haul/game/components/salvage_fx.dart';
 import 'package:narrow_haul/game/components/world_frame.dart';
 import 'package:narrow_haul/game/components/shield_flash.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
@@ -53,6 +56,7 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/route/route_repository.dart';
+import 'package:narrow_haul/game/salvage/salvage.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
@@ -325,6 +329,66 @@ class NarrowHaulGame extends Forge2DGame
   CrateNotice? _crateNotice;
   double _crateNoticeLeft = 0;
 
+  // ── Mystery salvage (lib/game/salvage/) ─────────────────────────────────
+  /// Chance per attempt of a "?" cache on a cave level.
+  /// `--dart-define=SALVAGE=always|never|<effect>` overrides it (an effect
+  /// name, e.g. `swarmSting`, also forces what's inside).
+  static const double kSalvageChance = 0.4;
+  static const String _salvageDefine = String.fromEnvironment('SALVAGE');
+
+  /// Test-only: no salvage caches (the autopilot flies a fixed level). Off
+  /// by default under `flutter test`, so a random cache never changes a
+  /// test's flight; tests that want one switch it on.
+  @visibleForTesting
+  bool debugNoSalvage = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+
+  /// Source of salvage odds, spots and contents (seedable in tests).
+  @visibleForTesting
+  math.Random salvageRng = math.Random();
+
+  /// The effect running this flight (one at a time).
+  final ActiveSalvage salvage = ActiveSalvage();
+
+  /// The caches on the current level (three on a chaos day; tests).
+  List<SalvageCache> get salvageCaches => _salvageCaches;
+  SalvageCache? get salvageCache => _salvageCaches.firstOrNull;
+  final List<SalvageCache> _salvageCaches = [];
+  SalvageHud? _salvageHud;
+  SalvageAura? _salvageAura;
+  SalvageScreenFx? _salvageFx;
+
+  /// Spore Trip's warp shader (null where shaders aren't available) and
+  /// the post process running it.
+  static FragmentProgram? _sporeProgram;
+  SporePostProcess? _sporePost;
+
+  /// Caches opened this flight, Lucky Salvage coins riding on delivery, and
+  /// the Hiccups / Ghost Protocol timers.
+  int _salvageOpenedThisRun = 0;
+  int _luckyCoins = 0;
+  double _hiccupIn = 0;
+  double _ghostCheckIn = 0;
+
+  /// Rolled on pickup, applied when the roulette stops.
+  SalvageSpec? _salvagePending;
+  double _salvageRevealLeft = 0;
+
+  /// Bad luck protection: the last cache (this session) was a curse.
+  bool _lastSalvageCurse = false;
+
+  /// Curses taken this flight (a delivery pays a grit bonus).
+  final List<SalvageSpec> _cursesThisRun = [];
+
+  /// After an absorbed hit, a bounce back into the rock doesn't count.
+  double _hitImmunity = 0;
+  double? _salvageLastAngle;
+
+  /// Smoothed hull size (see [_updateSalvage]).
+  double _hullK = 1;
+
+  /// This frame's wall-clock step (Chrono scales the rest).
+  double _realDt = 0;
+
   /// Rock touches this flight that didn't crash, and the cooldown that keeps
   /// a slide along a wall from machine-gunning sound and haptics.
   int scrapesThisRun = 0;
@@ -562,6 +626,14 @@ class NarrowHaulGame extends Forge2DGame
     camera.viewport.add(_comms!);
     _combatHud = CombatStatusHud();
     camera.viewport.add(_combatHud!);
+    _salvageHud = SalvageHud(
+      state: salvage,
+      onTick: () => AudioService.playUi(UiSound.tap),
+    );
+    camera.viewport.add(_salvageHud!);
+    _salvageFx = SalvageScreenFx();
+    camera.viewport.add(_salvageFx!);
+    unawaited(_loadSporeShader());
     _applySafeInsets();
 
     applySettings();
@@ -575,6 +647,16 @@ class NarrowHaulGame extends Forge2DGame
     if (kPerfProbe) {
       camera.viewport.add(PerfHud());
       PerfMonitor.mark('game loaded');
+    }
+  }
+
+  /// Spore Trip's shader; without it the hallucination is the overlay only.
+  static Future<void> _loadSporeShader() async {
+    if (_sporeProgram != null) return;
+    try {
+      _sporeProgram = await FragmentProgram.fromAsset('shaders/spore.frag');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Spore shader unavailable: $e');
     }
   }
 
@@ -602,6 +684,7 @@ class NarrowHaulGame extends Forge2DGame
     _levelInfoHud?.position = topLeft.clone();
     _hudControls?.insets = _safeInsets;
     _combatHud?.insets = _safeInsets;
+    _salvageHud?.insets = _safeInsets;
     _markers?.insets = _safeInsets;
     _minimap?.refreshLayout();
   }
@@ -656,6 +739,7 @@ class NarrowHaulGame extends Forge2DGame
     activeChallengeConfig = DailyChallengeConfig.forToday(
       levels,
       shipOptions: (_) => shipIds,
+      chaosOk: (i) => LevelRegistry.defAt(i) is CaveLevelDef,
     );
     levelIndex = activeChallengeConfig!.levelIndex;
     _gravityMultiplier = activeChallengeConfig!.gravityMultiplier;
@@ -953,6 +1037,8 @@ class NarrowHaulGame extends Forge2DGame
     );
     await _maybeSpawnCrate(shipSpec, theme);
     _checkLoad(gen);
+    await _maybeSpawnSalvage(shipSpec);
+    _checkLoad(gen);
     final shipBody = ShipBody(
       initialPosition: Vector2.copy(data.shipSpawn),
       onWallHit: () => _onShipHitWall(),
@@ -990,6 +1076,12 @@ class NarrowHaulGame extends Forge2DGame
     _checkLoad(gen);
     final glow = _shieldGlow = ShieldGlow(ship: shipBody);
     await _addToLevel(glow, gen);
+    final aura = _salvageAura = SalvageAura(
+      ship: shipBody,
+      state: salvage,
+      pod: () => cargoBody.isMounted ? cargoBody.body.position : null,
+    );
+    await _addToLevel(aura, gen);
 
     ship = shipBody;
     cargo = cargoBody;
@@ -1363,6 +1455,13 @@ class NarrowHaulGame extends Forge2DGame
     _crate = null;
     _crateNotice = null;
     _crateNoticeLeft = 0;
+    _resetSalvage();
+    _salvageCaches.clear();
+    _salvageAura = null;
+    _salvageHud?.clear();
+    _cursesThisRun.clear();
+    _salvageOpenedThisRun = 0;
+    _luckyCoins = 0;
     scrapesThisRun = 0;
     _scrapeFxCooldown = 0;
     _scrapeSoundCooldown = 0;
@@ -1416,6 +1515,8 @@ class NarrowHaulGame extends Forge2DGame
     _boostCharge = 0;
     AudioService.stopEngine();
     AudioService.setAlarm(false);
+    AudioService.setBuzz(false);
+    AudioService.setSpores(false);
   }
 
   void _resetChallenge() {
@@ -1433,6 +1534,14 @@ class NarrowHaulGame extends Forge2DGame
   /// hint that slow touches are safe.
   void _onRockTouch(Vector2 point, Vector2 normal, HullContact kind) {
     if (runState != RunState.playing || demoMode) return;
+    if (kind == HullContact.touchdown &&
+        salvage.effect == SalvageEffect.fuelLeak) {
+      salvage.patchLeak();
+      _comms?.say(
+        const CommsLine(id: 'salvage_patch', callsign: 'TOWER', text: 'Leak patched. Nice.'),
+        urgent: true,
+      );
+    }
     scrapesThisRun++;
     if (_scrapeFxCooldown > 0) return;
     _scrapeFxCooldown = 0.2;
@@ -1511,6 +1620,8 @@ class NarrowHaulGame extends Forge2DGame
 
   void _onShipHitWall({String cause = 'wall'}) {
     if (runState != RunState.playing || demoMode) return;
+    if (cause != 'meltdown' && _salvageAbsorbs()) return;
+    _luckyCoins = 0; // Lucky Salvage pays only on delivery
     final wreck = ship?.body.position;
     Analytics.levelFail(
       levelId: currentLevelDef.saveId,
@@ -1758,6 +1869,8 @@ class NarrowHaulGame extends Forge2DGame
         newStars: earnedStars,
         personalBest: personalBest,
         turretsDestroyed: _turretsDestroyed,
+        salvageOpened: _salvageOpenedThisRun,
+        cursed: _cursesThisRun.isNotEmpty,
       ),
     );
 
@@ -1770,6 +1883,15 @@ class NarrowHaulGame extends Forge2DGame
         currency += (kReactorEscapeCurrency * currencyMul).round();
       }
     }
+
+    // Mystery salvage: flying a curse home pays a little grit bonus.
+    if (_cursesThisRun.isNotEmpty) {
+      final curse = _cursesThisRun.last;
+      combatLines.add(XpLine('Grit: ${_titleCase(curse.name)}', kSalvageGritXp));
+      currency += (kSalvageGritCoins * currencyMul).round();
+      unawaited(progress.incrementStat(ProgressService.statSalvageGrit));
+    }
+    if (_luckyCoins > 0) currency += (_luckyCoins * currencyMul).round();
 
     final unlocked = [
       ..._inFlightAchievements,
@@ -1966,6 +2088,11 @@ class NarrowHaulGame extends Forge2DGame
     if (allPerfect) candidates.add(AchievementIds.perfectPilot);
 
     if (allContractsDone) candidates.add(AchievementIds.fullManifest);
+    // Mystery salvage: delivered mid-curse.
+    if (salvage.effect == SalvageEffect.swarmSting && (ship?.sizeMul ?? 1) > 1.05) {
+      candidates.add(AchievementIds.beeLieveIt);
+    }
+    if (salvage.effect == SalvageEffect.sporeTrip) candidates.add(AchievementIds.badTrip);
     if (progress.getDailyStreak() >= 7) {
       candidates.add(AchievementIds.weekOnDuty);
     }
@@ -2290,6 +2417,7 @@ class NarrowHaulGame extends Forge2DGame
     _snapshotTimer = 0;
     _shake.clear();
     _crashTimer = 0;
+    _resetSalvage();
     _resetInputState();
     runState = RunState.playing;
     _pauseButton?.visible = true;
@@ -2780,6 +2908,12 @@ class NarrowHaulGame extends Forge2DGame
   bool get turretsDisabled => _turretsOfflineLeft > 0 || _reactorDestroyed;
 
   @override
+  bool get shipCloaked => salvage.cloaked;
+
+  @override
+  bool get shipFlared => salvage.flared;
+
+  @override
   void spawnShell(Shell shell) {
     world.add(shell);
     _levelEntities.add(shell);
@@ -3003,12 +3137,20 @@ class NarrowHaulGame extends Forge2DGame
   }
 
   void _onCrateCollected(SupplyCrate crate) {
+    if (_rack == null) return;
+    Analytics.crateCollected(crate.weapon.id);
+    _giveFoundAmmo(crate.weapon, crate.units, crate.pos);
+    AudioService.playPickup();
+    Haptics.medium();
+  }
+
+  /// Found ammo (a supply crate, a salvage Ammo Cache) for this flight: the
+  /// weapon's icon flies from [at] (world) into the FIRE pad.
+  void _giveFoundAmmo(WeaponSpec w, double units, Offset at) {
     final r = _rack;
     if (r == null) return;
-    r.addFound(crate.weapon.id, crate.units);
-    Analytics.crateCollected(crate.weapon.id);
+    r.addFound(w.id, units);
     _syncWeaponHud();
-    final w = crate.weapon;
     // The plate teaches a weapon once; later pickups just fly the icon in.
     final progress = ProgressService.instance;
     if (!progress.crateHintSeen(w.id)) {
@@ -3017,15 +3159,417 @@ class NarrowHaulGame extends Forge2DGame
         kind: w.kind,
         name: w.name,
         label: _weaponLabel(w),
-        amount: w.continuous ? '${crate.units.round()} s' : '×${crate.units.round()}',
+        amount: w.continuous ? '${units.round()} s' : '×${units.round()}',
       );
       _crateNoticeLeft = 2.5;
     }
-    final from = camera.localToGlobal(Vector2(crate.pos.dx, crate.pos.dy));
+    final from = camera.localToGlobal(Vector2(at.dx, at.dy));
     _coach?.flyIn(Offset(from.x, from.y), w.kind);
-    AudioService.playPickup();
-    Haptics.medium();
   }
+
+  // ── Mystery salvage ──────────────────────────────────────────────────────
+
+  /// Odds and contents for this flight's caches. A daily is seeded from the
+  /// date, so every pilot gets the same gamble.
+  math.Random _salvageRoll = math.Random();
+
+  /// Chaos daily: this many caches.
+  static const int _chaosCaches = 3;
+
+  bool get _chaosDay => isChallengeMode && (activeChallengeConfig?.chaos ?? false);
+
+  /// Maybe drops "?" caches: any cave level and ship (three on a chaos day),
+  /// never in demos or bot flights. Spots are clear of the anchors and of
+  /// every turret's view.
+  Future<void> _maybeSpawnSalvage(ShipSpec shipSpec) async {
+    final def = currentLevelDef;
+    if (def is! CaveLevelDef ||
+        demoMode ||
+        debugSkipHazards ||
+        debugNoSalvage ||
+        _salvageDefine == 'never') {
+      return;
+    }
+    final now = DateTime.now();
+    final rng = _salvageRoll = isChallengeMode
+        ? math.Random(now.year * 10000 + now.month * 100 + now.day)
+        : salvageRng;
+    final forced = _salvageDefine.isNotEmpty || _chaosDay;
+    if (!forced && rng.nextDouble() >= kSalvageChance) return;
+    final crate = _crate?.pos;
+    final spots = [
+      for (final p in salvageSpots(def.spec, ship: shipSpec))
+        if (crate == null || (Offset(p.x, p.y) - crate).distance > 3) Offset(p.x, p.y),
+    ];
+    final count = _chaosDay ? _chaosCaches : 1;
+    final placed = <Offset>[];
+    for (var tries = 0; placed.length < count && spots.isNotEmpty && tries < 40; tries++) {
+      final spot = spots.removeAt(rng.nextInt(spots.length));
+      if (placed.any((p) => (p - spot).distance < 4)) continue;
+      placed.add(spot);
+    }
+    for (final spot in placed) {
+      final cache = SalvageCache(pos: spot, host: this, onCollected: _onSalvageCollected);
+      _salvageCaches.add(cache);
+      _levelEntities.add(cache);
+      await world.add(cache);
+    }
+  }
+
+  void _onSalvageCollected(SalvageCache cache) {
+    final s = ship;
+    final goal = currentLevel?.goalCenter;
+    final nearPad = goal != null &&
+        (Vector2(cache.pos.dx, cache.pos.dy) - goal).length < kSalvageNoCurseNearPad;
+    final liveTurrets = world.children.whereType<Turret>().any((t) => !t.destroyed);
+    final spec = salvageById(_salvageDefine) ??
+        pickSalvage(
+          _salvageRoll,
+          SalvageContext(
+            liveTurrets: liveTurrets,
+            nearPad: nearPad,
+            lastWasCurse: !isChallengeMode && _lastSalvageCurse,
+            towing: cargoAttachment?.attached ?? false,
+            unarmed: !(s?.spec.armed ?? false),
+            lowFuel: s != null && s.fuel < 0.3 * s.maxFuel,
+            themeId: currentLevel?.theme.id,
+            chaos: _chaosDay,
+          ),
+        );
+    _lastSalvageCurse = !spec.good;
+    _salvageOpenedThisRun++;
+    // A cache opened mid-roulette replaces the one still spinning.
+    _salvagePending = spec;
+    _salvageRevealLeft = SalvageHud.rouletteSeconds;
+    _salvageHud?.spin(spec);
+    _salvageAura?.pop(cache.pos, Colors.white);
+    _bookSalvageFind(spec);
+    Analytics.salvageOpened(spec.id, good: spec.good);
+    AudioService.playPickup();
+    Haptics.light();
+  }
+
+  /// Stats, the Salvage Log and the salvage achievements for one find.
+  void _bookSalvageFind(SalvageSpec spec) {
+    final progress = ProgressService.instance;
+    unawaited(progress.incrementStat(ProgressService.statSalvageOpened));
+    if (!spec.good) unawaited(progress.incrementStat(ProgressService.statSalvageCurses));
+    final firstOfKind = progress.salvageFound(spec.id) == 0;
+    unawaited(progress.recordSalvageFound(spec.id));
+    final streak = spec.good ? progress.getStat(ProgressService.statSalvageBoonStreak) + 1 : 0;
+    unawaited(progress.setStat(ProgressService.statSalvageBoonStreak, streak));
+
+    AchievementService.unlock(AchievementIds.openedTheBox, announce: true);
+    if (progress.getStat(ProgressService.statSalvageOpened) + 1 >= 50) {
+      AchievementService.unlock(AchievementIds.gambler, announce: true);
+    }
+    if (streak >= 3) AchievementService.unlock(AchievementIds.clover, announce: true);
+    final all = kSalvage.every((s) => s.id == spec.id || progress.salvageFound(s.id) > 0);
+    if (firstOfKind && all) {
+      unawaited(() async {
+        if (await AchievementService.unlock(AchievementIds.salvageCollector, announce: true)) {
+          await progress.addCosmeticCurrency(kSalvageCollectorCoins);
+          Analytics.earnCoins(kSalvageCollectorCoins, 'salvage_collector');
+        }
+      }());
+    }
+  }
+
+  /// The roulette stopped: [spec] takes effect.
+  void _applySalvage(SalvageSpec spec) {
+    final s = ship;
+    if (s == null || runState != RunState.playing) return;
+    salvage.start(spec);
+    switch (spec.effect) {
+      case SalvageEffect.topOff:
+        s.fuel = math.min(s.maxFuel, s.fuel + kTopOffFraction * s.maxFuel);
+      case SalvageEffect.lucky:
+        _luckyCoins += kLuckyCoins;
+      case SalvageEffect.ammoCache:
+        _giveSalvageAmmo(s);
+      case SalvageEffect.hiccups:
+        _hiccupIn = 0.5;
+      default:
+        break;
+    }
+    if (!spec.good) _cursesThisRun.add(spec);
+    final p = s.body.position;
+    _salvageAura?.pop(Offset(p.x, p.y), salvageColor(spec));
+    if (spec.good) {
+      AudioService.playSalvageBoon();
+      Haptics.medium();
+    } else {
+      AudioService.playCurse();
+      Haptics.heavy();
+    }
+    if (spec.effect == SalvageEffect.swarmSting) AudioService.playSizeUp();
+    if (spec.effect == SalvageEffect.compactor) AudioService.playSizeDown();
+    _comms?.say(
+      CommsLine(id: 'salvage_${spec.id}_$_salvageOpenedThisRun', callsign: spec.callsign, text: spec.quip),
+      urgent: true,
+    );
+  }
+
+  /// Ammo Cache: a random weapon's ammo, as if a supply crate was flown
+  /// through (the icon flies into the FIRE pad).
+  void _giveSalvageAmmo(ShipBody s) {
+    final r = _rack;
+    final def = currentLevelDef;
+    if (r == null) return;
+    final hasTargets = def is CaveLevelDef && def.spec.obstacles.isNotEmpty;
+    final pool = [
+      for (final w in kWeapons)
+        if (hasTargets || w.carvesRock) w,
+    ];
+    final w = pool[_salvageRoll.nextInt(pool.length)];
+    final units = w.crateMin + _salvageRoll.nextInt(w.crateMax - w.crateMin + 1);
+    _giveFoundAmmo(w, units.toDouble(), Offset(s.body.position.x, s.body.position.y));
+  }
+
+  /// Ticks the running effect and feeds it to the ship: engine, drain and
+  /// steering, the cloak, extra forces, the screen effects and the hull
+  /// size, which grows only into free space (a curse never wedges the ship
+  /// into rock). [realDt] is wall time: Chrono slows the cave, not itself.
+  void _updateSalvage(double realDt, ShipBody s) {
+    final dt = realDt;
+    if (_hitImmunity > 0) _hitImmunity -= dt;
+    if (_salvageRevealLeft > 0) {
+      _salvageRevealLeft -= dt;
+      final spec = _salvagePending;
+      if (_salvageRevealLeft <= 0 && spec != null) {
+        _salvagePending = null;
+        _applySalvage(spec);
+      }
+    }
+    final angle = s.body.angle;
+    final last = _salvageLastAngle;
+    _salvageLastAngle = angle;
+    var spin = 0.0;
+    if (last != null) {
+      spin = (angle - last) % (2 * math.pi);
+      if (spin > math.pi) spin -= 2 * math.pi;
+    }
+    final before = salvage.effect;
+    salvage.tick(dt, spinRadians: spin);
+    if (before != null && salvage.effect == null) _onSalvageEnded(before);
+
+    s
+      ..salvageThrustMul = salvage.thrustMul
+      ..salvageDrainMul = salvage.drainMul;
+    final cloakTo = salvage.cloaked ? 1.0 : 0.0;
+    s.cloak += (cloakTo - s.cloak).clamp(-dt * 4, dt * 4);
+    if (salvage.cloaked) _checkGhostProtocol(s, dt);
+
+    _updateSalvageForces(s);
+    if (salvage.hiccups && s.launched) {
+      _hiccupIn -= dt;
+      if (_hiccupIn <= 0) {
+        _hiccupIn = 0.7 + _salvageRoll.nextDouble() * 0.7;
+        final kick = (_salvageRoll.nextBool() ? 1 : -1) * (0.18 + 0.12 * _salvageRoll.nextDouble());
+        s.body
+          ..setTransform(s.body.position, s.body.angle + kick)
+          ..setAwake(true);
+        _shake.add(0.18);
+        Haptics.light();
+      }
+    }
+
+    // The size eases smoothly; the hull is rebuilt in 0.02 steps.
+    final target = salvage.hullTarget;
+    var k = _hullK;
+    const growSpan = kSwellScale - 1;
+    if (k < target) {
+      final next = math.min(target, k + dt * growSpan / 1.5);
+      final step = next >= s.sizeMul + 0.02 || next == target;
+      k = step ? _swellStep(s, next) : next;
+    } else if (k > target) {
+      k = math.max(target, k - dt * growSpan / 0.6);
+    }
+    _hullK = k;
+    if ((k - s.sizeMul).abs() >= 0.02 || (k == target && k != s.sizeMul)) {
+      s.setSizeMul(k);
+    }
+    s.swell = ((s.sizeMul - 1) / growSpan).clamp(0.0, 1.0);
+    s.sputtering = salvage.sputterCut;
+    _salvageAura?.gravity.setFrom(s.localAccel);
+
+    final fx = _salvageFx;
+    if (fx != null) {
+      final screen = camera.localToGlobal(s.body.position);
+      fx
+        ..shipScreen = Offset(screen.x, screen.y)
+        ..pxPerMeter = camera.viewfinder.zoom
+        ..noseAngle = s.body.angle
+        ..darkness = salvage.darkness
+        ..hallucination = salvage.hallucination
+        ..chrono = salvage.effect == SalvageEffect.chrono ? salvage.ramp : 0;
+    }
+    _syncSporeShader();
+    AudioService.setBuzz(salvage.effect == SalvageEffect.swarmSting);
+    AudioService.setSpores(salvage.effect == SalvageEffect.sporeTrip);
+  }
+
+  /// Anti-grav lifts half the pull off ship and pod; Heavy Heart adds weight
+  /// to the towed pod. Forces apply on the next physics step.
+  void _updateSalvageForces(ShipBody s) {
+    final lift = 1 - salvage.gravityMul;
+    if (lift > 0 && s.launched) {
+      s.body.applyForce(s.localAccel * (-lift * s.body.mass));
+    }
+    final c = cargo;
+    if (c == null || !c.isMounted || c.body.bodyType != BodyType.dynamic) return;
+    final extra = -lift + (cargoAttachment?.attached ?? false ? salvage.podWeightAdd : 0);
+    if (extra == 0) return;
+    final p = c.body.position;
+    final g = _forces == null ? world.gravity : _accelAt(p);
+    c.body.applyForce(g * (extra * c.body.mass));
+  }
+
+  void _onSalvageEnded(SalvageEffect e) {
+    switch (e) {
+      case SalvageEffect.swarmSting when salvage.takeShakenOff():
+        _comms?.say(
+          const CommsLine(id: 'salvage_shaken', callsign: 'TOWER', text: 'Bee\'s gone. Good shake.'),
+          urgent: true,
+        );
+        AchievementService.unlock(AchievementIds.shakeItOff, announce: true);
+      case SalvageEffect.compactor:
+        _comms?.say(
+          const CommsLine(id: 'salvage_regrow', callsign: 'OPS', text: 'Compactor\'s wearing off. You\'ll grow back when there\'s room.'),
+          urgent: true,
+        );
+        AudioService.playSizeUp();
+      default:
+        break;
+    }
+  }
+
+  /// Ghost Protocol: a turret's sights crossed while cloaked.
+  void _checkGhostProtocol(ShipBody s, double dt) {
+    _ghostCheckIn -= dt;
+    if (_ghostCheckIn > 0) return;
+    _ghostCheckIn = 0.25;
+    final p = s.body.position;
+    if (world.children.whereType<Turret>().any((t) => t.covers(p))) {
+      AchievementService.unlock(AchievementIds.ghostProtocol, announce: true);
+    }
+  }
+
+  /// Spore Trip warps the world through a fragment shader while it runs
+  /// (the canvas overlay alone where shaders aren't available).
+  void _syncSporeShader() {
+    final program = _sporeProgram;
+    final want = program != null && salvage.hallucination > 0;
+    if (want == (_sporePost != null)) return;
+    if (want) {
+      _sporePost = SporePostProcess(program, () => salvage.hallucination);
+      camera.postProcess = _sporePost;
+    } else {
+      _sporePost = null;
+      camera.postProcess = null;
+    }
+  }
+
+  /// How far the hull may grow toward [want] this frame. Growing adds up to
+  /// `Δk × circumradius` of reach on every side: with rock closer than that
+  /// on one side (resting on a floor, hugging a wall), the ship eases away
+  /// from it if there's room opposite; wedged in, it waits.
+  double _swellStep(ShipBody s, double want) {
+    const margin = 0.06;
+    final k = s.sizeMul;
+    final need = (want - k) * s.spec.circumradius;
+    final near = probeRockNearby(world, s, range: need + 0.6);
+    if (near == null || near.gap >= need + margin) return want;
+    final push = need + margin - math.max(0.0, near.gap);
+    final away = probeAhead(world, s, near.normal, range: push + need + 0.6);
+    if (away != null && away < push + need + margin) return k;
+    s.body
+      ..setTransform(s.body.position + near.normal * push, s.body.angle)
+      ..setAwake(true);
+    return want;
+  }
+
+  /// A crash the salvage takes instead: the Overshield pops, or a curse
+  /// that just started is forgiven. A bounce straight after doesn't count.
+  bool _salvageAbsorbs() {
+    if (_hitImmunity > 0) return true;
+    if (!salvage.canAbsorb) return false;
+    final shield = salvage.effect == SalvageEffect.overshield;
+    salvage.absorb();
+    _hitImmunity = 0.6;
+    final s = ship;
+    if (s != null) {
+      final v = s.body.linearVelocity;
+      final normal = v.length2 > 1e-4 ? -(v.normalized()) : Vector2(0, -1);
+      world.add(ShieldFlash(ship: s, rockNormal: normal, strength: 1));
+      final p = s.body.position;
+      _salvageAura?.pop(Offset(p.x, p.y), shield ? kSalvageGood : Colors.white);
+    }
+    AudioService.playScrape();
+    Haptics.medium();
+    if (shield) {
+      _comms?.say(
+        const CommsLine(id: 'salvage_absorbed', callsign: 'OPS', text: 'Overshield took that one. It\'s gone now.'),
+        urgent: true,
+      );
+    }
+    return true;
+  }
+
+  /// Crossed Wires rests near the pad (never sabotage a landing).
+  bool get _wiresCrossed {
+    if (!salvage.crossed) return false;
+    final s = ship, goal = currentLevel?.goalCenter;
+    return s == null || goal == null || (s.body.position - goal).length >= kSalvageNoCurseNearPad;
+  }
+
+  void _resetSalvage() {
+    salvage.reset();
+    _salvagePending = null;
+    _salvageRevealLeft = 0;
+    _hitImmunity = 0;
+    _salvageLastAngle = null;
+    _hullK = 1;
+    _hiccupIn = 0;
+    final s = ship;
+    if (s != null) {
+      s
+        ..salvageThrustMul = 1
+        ..salvageDrainMul = 1
+        ..cloak = 0
+        ..swell = 0
+        ..sputtering = false
+        ..setSizeMul(1);
+    }
+    _salvageFx
+      ?..darkness = 0
+      ..hallucination = 0
+      ..chrono = 0;
+    if (_sporePost != null) {
+      _sporePost = null;
+      camera.postProcess = null;
+    }
+    AudioService.setBuzz(false);
+    AudioService.setSpores(false);
+  }
+
+  static String _titleCase(String s) => s
+      .toLowerCase()
+      .split(' ')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
+  /// Tests: as if [cache] had just been flown through.
+  @visibleForTesting
+  void debugCollectSalvage(SalvageCache cache) => _onSalvageCollected(cache);
+
+  /// Tests: applies [spec] at once (no roulette).
+  @visibleForTesting
+  void debugApplySalvage(SalvageSpec spec) => _applySalvage(spec);
+
+  /// Tests: coins Lucky Salvage will pay on delivery.
+  @visibleForTesting
+  int get debugLuckyCoins => _luckyCoins;
 
   /// Local acceleration at [p] (bombs fall along it): fields included.
   Vector2 _accelAt(Vector2 p) {
@@ -3382,10 +3926,14 @@ class NarrowHaulGame extends Forge2DGame
   @override
   void update(double dt) {
     final clock = PerfMonitor.sampling ? (Stopwatch()..start()) : null;
-    super.update(dt);
+    // Chrono (mystery salvage) slows the whole cave; its own clock and the
+    // camera shake run in real time.
+    _realDt = dt;
+    final scaled = dt * salvage.timeScale;
+    super.update(scaled);
     final logicStart = clock?.elapsedMicroseconds ?? 0;
     _removeShake();
-    _updateGame(dt);
+    _updateGame(scaled);
     _applyShake(dt);
     if (clock != null) {
       final now = clock.elapsedMicroseconds;
@@ -3441,7 +3989,11 @@ class NarrowHaulGame extends Forge2DGame
         if (_touchAxis != 0 || _stickX != 0 || _stickY != 0 || _keys.rotateAxis != 0) {
           _combineInputs();
         }
-        s.setInput(rotate: rotateAxis, thrust: thrustHeld, fire: fireHeld);
+        s.setInput(
+          rotate: _wiresCrossed ? -rotateAxis : rotateAxis,
+          thrust: thrustHeld,
+          fire: fireHeld,
+        );
         _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;
       }
@@ -3452,6 +4004,7 @@ class NarrowHaulGame extends Forge2DGame
       AudioService.setAlarm(_meltdownLeft != null);
       if (kPerfProbe) PerfMonitor.lap('audio');
       _updateCombat(dt);
+      _updateSalvage(_realDt, s);
       _updateWeapons(dt, s);
       if (kPerfProbe) PerfMonitor.lap('weapons');
       _interceptShells();
@@ -3467,7 +4020,7 @@ class NarrowHaulGame extends Forge2DGame
       s.localAccel.setFrom(_forces?.shipAccel ?? world.gravity);
       _gravityHud?.accelG
         ?..setFrom(s.localAccel)
-        ..scale(1 / baseGravityY());
+        ..scale(salvage.gravityMul / baseGravityY());
       _levelInfoHud
         ?..elapsed = elapsedSeconds
         ..fuelFraction = s.fuel / s.maxFuel;

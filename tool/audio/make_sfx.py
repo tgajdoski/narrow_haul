@@ -23,6 +23,11 @@ Python stdlib only. Deterministic: running it twice gives byte-identical files.
   ui_toggle_on.wav / ui_toggle_off.wav  switch clicks, up / down, 50 ms
   ui_denied.wav    locked / can't afford: low double buzz, 0.2 s
   shield_hit.wav   hull shield meets rock: soft thump + shimmer, one hit, 0.3 s
+  curse.wav        mystery salvage curse: descending muted "wah-wah", 0.9 s
+  bee_loop.wav     Swarm Sting: seamless 1 s buzz loop (wobbling saw, ~210 Hz)
+  size_up.wav      hull swelling: rubbery rising boing 180 -> 520 Hz, 0.5 s
+  size_down.wav    Compactor: the same boing falling 520 -> 160 Hz, 0.45 s
+  spore_loop.wav   Spore Trip: seamless 2 s woozy warble (detuned sines + slow tremolo)
 
 attach.mp3 and crash.mp3 are hand-made and not generated here. A real file of
 the same name can replace any of these.
@@ -452,6 +457,103 @@ def shield_hit():
     write_wav('shield_hit.wav', out)
 
 
+# ── mystery salvage ─────────────────────────────────────────────────────────
+
+def curse():
+    """Sad trombone in miniature: three muted-brass notes stepping down
+    (E4, D#4, D4) and a last one sagging with vibrato. The "wah" is a
+    low-pass opening and closing on each note."""
+    notes = ((330.0, 0.17), (311.0, 0.17), (294.0, 0.56))
+    out = []
+    for k, (f, dur) in enumerate(notes):
+        n = int(SR * dur)
+        ph, p1, p2 = 0.0, 0.0, 0.0
+        for i in range(n):
+            t = i / SR
+            last = k == len(notes) - 1
+            ff = f * (1 - 0.06 * (t / dur) if last else 1.0)
+            if last:
+                ff *= 1 + 0.025 * math.sin(2 * math.pi * 6 * t) * min(1.0, t / 0.15)
+            ph += 2 * math.pi * ff / SR
+            saw = sum(math.sin(h * ph) / h for h in range(1, 9))
+            # Wah: cutoff rises then falls across the note.
+            wah = math.sin(math.pi * min(1.0, t / (0.6 * dur))) if last else math.sin(math.pi * t / dur)
+            fc = 350 + 1500 * wah
+            a = 1 - math.exp(-2 * math.pi * fc / SR)
+            p1 += a * (saw - p1)
+            p2 += a * (p1 - p2)
+            env = min(1.0, t / 0.015) * (math.exp(-max(0.0, t - dur + 0.08) * 30))
+            out.append(p2 * env)
+        out += [0.0] * int(0.015 * SR)
+    _edges(out, 0.08)
+    write_wav('curse.wav', out)
+
+
+def bee_loop():
+    """1 s seamless buzz: a saw at 210 Hz whose pitch wobbles (FM at 7 Hz)
+    and whose loudness flutters (the bee circling the ship). Every cycle
+    is a whole number of periods, so it loops cleanly."""
+    n = SR
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        f = 210 + 18 * math.sin(2 * math.pi * 7 * t) + 6 * math.sin(2 * math.pi * 3 * t)
+        ph += 2 * math.pi * f / SR
+        saw = sum(math.sin(h * ph) / h for h in range(1, 12))
+        amp = 0.7 + 0.3 * math.sin(2 * math.pi * 2 * t)
+        out.append(saw * amp)
+    # Phase drift could click at the seam: fade the last 5 ms into the first.
+    x = int(0.005 * SR)
+    for i in range(x):
+        w = i / x
+        out[n - x + i] = out[n - x + i] * (1 - w) + out[i] * w
+    write_wav('bee_loop.wav', out)
+
+
+def _boing(name, dur, f0, f1):
+    """Rubbery boing sweeping f0 -> f1 with a 9 Hz wobble."""
+    n = int(SR * dur)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        f = f0 * (f1 / f0) ** (t / dur) * (1 + 0.05 * math.sin(2 * math.pi * 9 * t))
+        ph += 2 * math.pi * f / SR
+        s = math.sin(ph) + 0.35 * math.sin(2 * ph) + 0.12 * math.sin(3 * ph)
+        out.append(s * math.sin(math.pi * t / dur) ** 0.6)
+    _edges(out, 0.05)
+    write_wav(name, out)
+
+
+def size_up():
+    """Hull swelling: a boing rising 180 -> 520 Hz."""
+    _boing('size_up.wav', 0.5, 180, 520)
+
+
+def size_down():
+    """Compactor: a boing falling 520 -> 160 Hz."""
+    _boing('size_down.wav', 0.45, 520, 160)
+
+
+def spore_loop():
+    """2 s seamless woozy warble: three detuned sines (A3, E4, a slightly
+    flat A4) whose pitches drift on slow LFOs, under a 1 Hz tremolo. All
+    frequencies and LFO rates complete whole cycles in 2 s, so it loops."""
+    dur = 2.0
+    n = int(SR * dur)
+    out = []
+    voices = ((220.0, 0.5, 4.0), (330.0, 1.0, 5.0), (438.0, 1.5, 6.0))
+    phases = [0.0] * len(voices)
+    for i in range(n):
+        t = i / SR
+        s = 0.0
+        for k, (f, lfo, depth) in enumerate(voices):
+            phases[k] += 2 * math.pi * (f + depth * math.sin(2 * math.pi * lfo * t)) / SR
+            s += math.sin(phases[k]) / (k + 1)
+        trem = 0.6 + 0.4 * math.sin(2 * math.pi * 1.0 * t)
+        out.append(s * trem)
+    write_wav('spore_loop.wav', out)
+
+
 def _edges(out, fade_s):
     """0.5 ms attack ramp and a linear fade-out of [fade_s]."""
     att, fade = max(1, int(0.0005 * SR)), int(fade_s * SR)
@@ -483,3 +585,8 @@ if __name__ == '__main__':
     ui_toggles()
     ui_denied()
     shield_hit()
+    curse()
+    bee_loop()
+    size_up()
+    size_down()
+    spore_loop()

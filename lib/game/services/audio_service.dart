@@ -41,6 +41,11 @@ class AudioService {
     'start_level.m4a',
     'countdown.wav',
     'countdown_go.wav',
+    'curse.wav',
+    'bee_loop.wav',
+    'size_up.wav',
+    'size_down.wav',
+    'spore_loop.wav',
     for (final s in UiSound.values) s.file,
   ];
 
@@ -61,7 +66,9 @@ class AudioService {
   static bool _thrustStarting = false;
   static bool _engineRunning = false;
   static final ThrustEnvelope _envelope = ThrustEnvelope();
-  static AudioPlayer? _alarmPlayer;
+  static final _LoopPlayer _alarm = _LoopPlayer('alarm.wav', 0.45);
+  static final _LoopPlayer _buzz = _LoopPlayer('bee_loop.wav', 0.4);
+  static final _LoopPlayer _spores = _LoopPlayer('spore_loop.wav', 0.35);
 
   /// Files that loaded; a missing or broken one is skipped on its own.
   static final Set<String> _loaded = {};
@@ -82,6 +89,9 @@ class AudioService {
     'start_level.m4a': 1,
     'countdown.wav': 1,
     'countdown_go.wav': 1,
+    'curse.wav': 1,
+    'size_up.wav': 1,
+    'size_down.wav': 1,
     for (final s in UiSound.values) s.file: s.poolSize,
   };
   static final Map<String, AudioPool> _pools = {};
@@ -91,8 +101,6 @@ class AudioService {
 
   @visibleForTesting
   static Map<String, int> get poolSizes => _poolSizes;
-  static bool _alarmWanted = false;
-  static bool _alarmStarting = false;
 
   static bool get isReady => _ready;
 
@@ -104,6 +112,8 @@ class AudioService {
     if (!enabled) {
       stopEngine();
       setAlarm(false);
+      setBuzz(false);
+      setSpores(false);
     }
   }
 
@@ -267,13 +277,15 @@ class AudioService {
   /// Releases the players (app shutdown / test teardown).
   static Future<void> dispose() async {
     _gen++;
-    final players = [_thrustPlayer, _alarmPlayer];
+    final players = [_thrustPlayer, _alarm.player, _buzz.player, _spores.player];
     final pools = [..._pools.values];
     _pools.clear();
     _loaded.clear();
-    _thrustPlayer = _alarmPlayer = null;
+    _thrustPlayer = null;
+    _alarm.forget();
+    _buzz.forget();
+    _spores.forget();
     _engineRunning = false;
-    _alarmWanted = false;
     _ready = false;
     for (final p in players) {
       await p?.dispose();
@@ -287,32 +299,13 @@ class AudioService {
   // ── Meltdown alarm ────────────────────────────────────────────────────────
 
   /// Idempotent: call every frame with whether the alarm should sound.
-  static void setAlarm(bool on) {
-    if (on && (!_ready || !_enabled || !_loaded.contains('alarm.wav'))) {
-      on = false;
-    }
-    if (on == _alarmWanted) return;
-    _alarmWanted = on;
-    final player = _alarmPlayer;
-    if (on) {
-      if (player != null) {
-        _quietly(player.resume(), 'resume alarm');
-      } else if (!_alarmStarting) {
-        _alarmStarting = true;
-        FlameAudio.loop('alarm.wav', volume: 0.45, audioContext: _context)
-            .then((p) {
-          _alarmPlayer = p;
-          _alarmStarting = false;
-          if (!_alarmWanted) _quietly(p.pause(), 'pause alarm');
-        }).catchError((Object e) {
-          _alarmStarting = false;
-          _log('failed to start alarm', e);
-        });
-      }
-    } else if (player != null) {
-      _quietly(player.pause(), 'pause alarm');
-    }
-  }
+  static void setAlarm(bool on) => _alarm.set(on);
+
+  /// Swarm Sting's bee buzzing round the ship. Idempotent, like [setAlarm].
+  static void setBuzz(bool on) => _buzz.set(on);
+
+  /// Spore Trip's woozy warble. Idempotent, like [setAlarm].
+  static void setSpores(bool on) => _spores.set(on);
 
   // ── One-shots ─────────────────────────────────────────────────────────────
 
@@ -372,6 +365,17 @@ class AudioService {
 
   static void playStar() => _play('star.wav', 0.8);
 
+  /// Mystery salvage revealed a boon (the star jingle, a bit softer) or a
+  /// curse (a sad "wah-wah").
+  static void playSalvageBoon() => _play('star.wav', 0.55);
+  static void playCurse() => _play('curse.wav', 0.6);
+
+  /// Swarm Sting: the hull swells.
+  static void playSizeUp() => _play('size_up.wav', 0.5);
+
+  /// Compactor: the hull shrinks.
+  static void playSizeDown() => _play('size_down.wav', 0.5);
+
   /// Level-start sting (Goose Ninja, Space Music Pack).
   static void playStartLevel() => _play('start_level.m4a', 0.8);
 
@@ -410,4 +414,52 @@ enum UiSound {
   final String file;
   final double volume;
   final int poolSize;
+}
+
+/// A looping sound switched on and off (meltdown alarm, bee buzz): started
+/// on first use, then paused and resumed.
+class _LoopPlayer {
+  _LoopPlayer(this.file, this.volume);
+
+  final String file;
+  final double volume;
+  AudioPlayer? player;
+  bool _wanted = false;
+  bool _starting = false;
+
+  void set(bool on) {
+    if (on &&
+        (!AudioService._ready ||
+            !AudioService._enabled ||
+            !AudioService._loaded.contains(file))) {
+      on = false;
+    }
+    if (on == _wanted) return;
+    _wanted = on;
+    final p = player;
+    if (on) {
+      if (p != null) {
+        AudioService._quietly(p.resume(), 'resume $file');
+      } else if (!_starting) {
+        _starting = true;
+        FlameAudio.loop(file, volume: volume, audioContext: AudioService._context)
+            .then((p) {
+          player = p;
+          _starting = false;
+          if (!_wanted) AudioService._quietly(p.pause(), 'pause $file');
+        }).catchError((Object e) {
+          _starting = false;
+          AudioService._log('failed to start $file', e);
+        });
+      }
+    } else if (p != null) {
+      AudioService._quietly(p.pause(), 'pause $file');
+    }
+  }
+
+  /// Players were disposed (shutdown / test teardown).
+  void forget() {
+    player = null;
+    _wanted = false;
+  }
 }

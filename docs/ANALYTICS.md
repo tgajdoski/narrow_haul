@@ -29,6 +29,7 @@ All of them are off in debug builds (collection disabled) and in tests (no sink)
 | `earn_virtual_currency` / `spend_virtual_currency` | Coins paid / spent (cosmetics, Armory) | `value`, `source` / `item_name` |
 | `weapon_used` | First use of a weapon in a flight | `weapon`, `carried` |
 | `crate_collected` | Supply crate picked up | `weapon` |
+| `salvage_opened` | Mystery salvage cache opened | `effect`, `good` (1 = boon, 0 = curse) |
 | `rewarded_ad` | Rewarded ad closed | `placement`, `earned` |
 | `interstitial_shown` | Interstitial shown | – |
 | `purchase_attempt` / `purchase_result` | Buy tapped / store answered | `product_id`, `status` (purchased / restored / pending / canceled / error / unavailable / not_started) |

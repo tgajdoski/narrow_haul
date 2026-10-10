@@ -24,6 +24,14 @@ abstract interface class CombatHost {
   /// Reactor hits knocked every turret offline.
   bool get turretsDisabled;
 
+  /// The ship flies under a Stealth Field (mystery salvage): turrets can't
+  /// lock on, though they stay powered.
+  bool get shipCloaked;
+
+  /// A Flare Beacon (salvage curse) is lit on the hull: turrets reload
+  /// faster.
+  bool get shipFlared;
+
   void spawnShell(Shell shell);
 
   /// An enemy shell hit the ship.

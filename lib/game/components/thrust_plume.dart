@@ -15,13 +15,16 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 /// A Y-flip is applied so the core sits at the engine bell and the
 /// tips extend away from the ship.
 class ThrustPlume extends Component {
-  ThrustPlume({required this.thrustLevel, required this.flameStartY});
+  ThrustPlume({required this.thrustLevel, required this.flameStartY, this.sizeMul});
 
   /// Eased engine output 0…1: the flame grows in and fades out with it.
   final double Function() thrustLevel;
 
   /// Local Y of the engine bell on the parent ship (meters).
   final double flameStartY;
+
+  /// The hull's runtime size (a swollen ship has a bigger bell).
+  final double Function()? sizeMul;
   final math.Random _rng = math.Random();
   double _time = 0;
 
@@ -60,12 +63,18 @@ class ThrustPlume extends Component {
   void render(Canvas canvas) {
     final level = thrustLevel();
     if (level < 0.03) return;
-
+    final k = sizeMul?.call() ?? 1;
+    if (k != 1) {
+      canvas
+        ..save()
+        ..scale(k);
+    }
     if (_exhaustImage != null) {
       _renderSprite(canvas, level);
     } else {
       _renderProcedural(canvas, level);
     }
+    if (k != 1) canvas.restore();
   }
 
   void _renderSprite(Canvas canvas, double level) {

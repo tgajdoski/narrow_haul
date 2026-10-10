@@ -139,6 +139,35 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// Shells fired this flight (for the "pacifist" check).
   int shotsFired = 0;
 
+  /// Mystery salvage (`lib/game/salvage/`), set by the game each frame:
+  /// engine push and fuel drain multipliers, and the cloak (0 = solid,
+  /// 1 = fully shimmering).
+  double salvageThrustMul = 1;
+  double salvageDrainMul = 1;
+  double cloak = 0;
+
+  /// Sputter (a salvage curse): the engine is cutting out this instant.
+  bool sputtering = false;
+
+  /// How swollen the hull is right now (0 = normal, 1 = full sting): a
+  /// reddish tint over the art.
+  double swell = 0;
+
+  /// Runtime hull size (Swarm Sting swells it): the collision hull, the
+  /// sprite and the plume scale together. Flight mass is unchanged.
+  double get sizeMul => _sizeMul;
+  double _sizeMul = 1;
+
+  void setSizeMul(double k) {
+    if (k == _sizeMul || !isMounted) return;
+    _sizeMul = k;
+    for (final f in [...body.fixtures]) {
+      if (f.userData is ShipTag) body.destroyFixture(f);
+    }
+    _createHull(body, k);
+    _setFlightMass(body);
+  }
+
   void setInput({required double rotate, required bool thrust, bool fire = false}) {
     _rotateInput = rotate.clamp(-maxRotateInput, maxRotateInput);
     _thrustInput = thrust;
@@ -166,7 +195,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   }
   bool _launched = false;
 
-  bool get isThrusting => (_thrustInput || _scriptedThrust) && fuel > 0 && !_wrecked;
+  bool get isThrusting =>
+      (_thrustInput || _scriptedThrust) && fuel > 0 && !_wrecked && !sputtering;
 
   /// Demo flight: the ship is placed along a recorded route each frame
   /// (kinematic, so it can neither crash nor drift); [thrust] lights the plume.
@@ -220,6 +250,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     await add(ThrustPlume(
       thrustLevel: () => _wrecked ? 0 : _look.thrust,
       flameStartY: rearLocalY,
+      sizeMul: () => _sizeMul,
     ));
     // Bespoke art if present, else the Kestrel sprite + the spec's tint.
     for (final path in {spec.sprite, kKestrel.sprite}) {
@@ -271,10 +302,20 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     if (img != null) {
       // Bank: the hull narrows as it rolls into the turn; a burn's first
       // frames push it a touch bigger.
-      final grow = 1 + 0.025 * _look.kick;
+      final grow = (1 + 0.025 * _look.kick) * _sizeMul;
       canvas
         ..save()
         ..scale((1 - 0.12 * _look.bank.abs()) * grow, grow);
+      // Stealth Field: the hull fades to a flickering ghost.
+      final ghost = cloak > 0;
+      if (ghost) {
+        final flicker = 0.08 * math.sin(_lookTime * 23) + 0.05 * math.sin(_lookTime * 7);
+        final alpha = (1 - 0.7 * cloak + flicker * cloak).clamp(0.15, 1.0);
+        canvas.saveLayer(
+          _spriteRect.inflate(0.2),
+          Paint()..color = Color.fromRGBO(255, 255, 255, alpha),
+        );
+      }
       final skinId = CosmeticsService.getEquippedId(CosmeticsService.catShip);
       final paint = Paint();
       final skinTint = _skinTints[skinId];
@@ -285,6 +326,13 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         paint.colorFilter = ColorFilter.mode(Color(spec.tint!), BlendMode.srcATop);
       }
       
+      if (swell > 0) {
+        // Swollen: flushed and puffy.
+        paint.colorFilter = ColorFilter.mode(
+          const Color(0xFFFF6F91).withValues(alpha: 0.45 * swell),
+          BlendMode.srcATop,
+        );
+      }
       final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
       canvas.drawImageRect(img, src, _spriteRect, paint);
       final atlas = _lightAtlas;
@@ -294,6 +342,20 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       }
       _heat.render(canvas, rearLocalY, _look.heat, k);
       _navLights.render(canvas, _points, _lookTime, k);
+      if (ghost) {
+        // Scan lines sweeping the ghost.
+        final r = _spriteRect;
+        final y = r.top + (r.height * ((_lookTime * 0.8) % 1));
+        canvas.drawLine(
+          Offset(r.left, y),
+          Offset(r.right, y),
+          Paint()
+            ..color = const Color(0xFF7DF9FF).withValues(alpha: 0.8 * cloak)
+            ..strokeWidth = 0.03
+            ..blendMode = BlendMode.srcATop,
+        );
+        canvas.restore();
+      }
       canvas.restore();
     }
   }
@@ -349,18 +411,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       ..gravityScale = Vector2.zero();
 
     final b = world.createBody(def);
-    for (final poly in spec.hullPolygons) {
-      b.createFixture(
-        FixtureDef(
-          PolygonShape()..set([for (final (x, y) in poly) Vector2(x, y)]),
-          density: spec.density,
-          friction: 0.2,
-          restitution: 0.05,
-          filter: filterShip(),
-          userData: const ShipTag(),
-        ),
-      );
-    }
+    _createHull(b, _sizeMul);
 
     b.createFixture(
       FixtureDef(
@@ -373,6 +424,26 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         filter: filterHook(),
       ),
     );
+    _setFlightMass(b);
+    return b;
+  }
+
+  void _createHull(Body b, double k) {
+    for (final poly in spec.hullPolygons) {
+      b.createFixture(
+        FixtureDef(
+          PolygonShape()..set([for (final (x, y) in poly) Vector2(x * k, y * k)]),
+          density: spec.density,
+          friction: 0.2,
+          restitution: 0.05,
+          filter: filterShip(),
+          userData: const ShipTag(),
+        ),
+      );
+    }
+  }
+
+  void _setFlightMass(Body b) {
     // Flight mass, balance and inertia of the original triangle hull, so
     // the traced outline changes what touches, not how the ship flies.
     b.setMassData(
@@ -382,7 +453,6 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         // Box2D takes the inertia about the body origin.
         ..I = spec.massInertia + spec.mass * spec.massCenterY * spec.massCenterY,
     );
-    return b;
   }
 
   @override
@@ -423,10 +493,15 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     _updateCannon(dt);
     _updateLook(dt);
 
-    if (_thrustInput && fuel > 0) {
-      fuel -= spec.fuelDrainPerSecond * kit.fuelDrainMul * fuelDrainMultiplier * dt;
+    if (_thrustInput && fuel > 0 && !sputtering) {
+      fuel -= spec.fuelDrainPerSecond *
+          kit.fuelDrainMul *
+          fuelDrainMultiplier *
+          salvageDrainMul *
+          dt;
       if (fuel < 0) fuel = 0;
-      final dir = body.worldVector(Vector2(0, -1))..scale(spec.thrustForce);
+      final dir = body.worldVector(Vector2(0, -1))
+        ..scale(spec.thrustForce * salvageThrustMul);
       body.applyForce(dir);
       if (spec.hoverAssist) {
         // Fly-by-wire: cancel most of the local pull while the engine burns.

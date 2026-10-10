@@ -27,6 +27,14 @@ class AchievementIds {
   static const meltdownEscape = 'meltdown_escape';
   static const holdFire = 'hold_fire';
   static const hotRefuel = 'hot_refuel';
+  static const openedTheBox = 'opened_the_box';
+  static const gambler = 'gambler';
+  static const ghostProtocol = 'ghost_protocol';
+  static const beeLieveIt = 'bee_lieve_it';
+  static const badTrip = 'bad_trip';
+  static const shakeItOff = 'shake_it_off';
+  static const clover = 'clover';
+  static const salvageCollector = 'salvage_collector';
 }
 
 class AchievementMeta {
@@ -187,6 +195,54 @@ class AchievementService {
       title: 'Hot Refuel',
       description: 'Collect 10 fuel canisters in flight.',
       icon: '⛽',
+    ),
+    AchievementMeta(
+      id: AchievementIds.openedTheBox,
+      title: 'Opened the Box',
+      description: 'Open your first mystery salvage cache.',
+      icon: '🎁',
+    ),
+    AchievementMeta(
+      id: AchievementIds.gambler,
+      title: 'Gambler',
+      description: 'Open 50 mystery salvage caches.',
+      icon: '🎲',
+    ),
+    AchievementMeta(
+      id: AchievementIds.ghostProtocol,
+      title: 'Ghost Protocol',
+      description: 'Fly through a turret\'s sights under a Stealth Field.',
+      icon: '👻',
+    ),
+    AchievementMeta(
+      id: AchievementIds.beeLieveIt,
+      title: 'Bee-lieve It',
+      description: 'Deliver while still swollen from a Swarm Sting.',
+      icon: '🐝',
+    ),
+    AchievementMeta(
+      id: AchievementIds.badTrip,
+      title: 'Bad Trip, Good Landing',
+      description: 'Deliver during a Spore Trip.',
+      icon: '🍄',
+    ),
+    AchievementMeta(
+      id: AchievementIds.shakeItOff,
+      title: 'Shake It Off',
+      description: 'Spin a Swarm Sting\'s bee off before it wears off.',
+      icon: '🌀',
+    ),
+    AchievementMeta(
+      id: AchievementIds.clover,
+      title: 'Four-Leaf Clover',
+      description: 'Open three boons in a row.',
+      icon: '🍀',
+    ),
+    AchievementMeta(
+      id: AchievementIds.salvageCollector,
+      title: 'Salvage Collector',
+      description: 'Find every mystery salvage effect (see the Logbook).',
+      icon: '🗃️',
     ),
   ];
 

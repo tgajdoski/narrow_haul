@@ -324,6 +324,8 @@ class MonetizationService {
     if (showing) {
       AudioService.stopEngine();
       AudioService.setAlarm(false);
+      AudioService.setBuzz(false);
+      AudioService.setSpores(false);
     }
     MusicService.setAdShowing(showing);
   }

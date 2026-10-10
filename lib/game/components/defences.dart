@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/route_planner.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/salvage/salvage.dart' show kFlareTempo;
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 
@@ -113,7 +114,7 @@ class Turret extends BodyComponent implements Shootable {
       _windup = 0;
       return;
     }
-    _cooldown -= dt;
+    _cooldown -= dt * (host.shipFlared ? kFlareTempo : 1);
 
     final target = ship.body.position;
     final toShip = target - _base;
@@ -121,7 +122,8 @@ class Turret extends BodyComponent implements Shootable {
     final bearing = math.atan2(toShip.y, toShip.x);
     final inArc = angleDelta(spec.facing, bearing).abs() <= spec.aimArc;
     final muzzle = _muzzle(_aim);
-    final visible = dist <= spec.range &&
+    final visible = !host.shipCloaked &&
+        dist <= spec.range &&
         inArc &&
         hasLineOfSight(world, muzzle, target, ignore: body);
 
