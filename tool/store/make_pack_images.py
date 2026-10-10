@@ -1,11 +1,11 @@
 """Store images for the in-app purchases: the ammo packs (nh_demo_kit,
-nh_arsenal_crate), the Fleet Pass (nh_fleet_pass), Remove Ads
-(nh_remove_ads) and the Supporter Pack (nh_supporter_pack).
+nh_arsenal_crate), the Fleet Pass (nh_fleet_pass), the Full Game
+(nh_full_game) and the Supporter Pack (nh_supporter_pack).
 
     python tool/store/make_pack_images.py
 
 Ammo packs: the in-game supply crate (amber box, red chevron). Fleet Pass:
-the six ship sprites (assets/ship*.png) in formation. Remove Ads: the
+the six ship sprites (assets/ship*.png) in formation. Full Game: the
 Kestrel flying past a struck-out AD badge. Supporter Pack: the Kestrel in
 the Supporter Livery with a gem and coins. Each on the game's
 backdrop with its name, in 1024x1024 (App Store promotional image) and
@@ -171,7 +171,7 @@ def _title(im, title, line, line_color=AMBER):
     d.text(((size - lw) / 2, size * 0.86), line, font=lf, fill=line_color)
 
 
-def make_remove_ads(pid):
+def make_full_game(pid):
     size = S * 2
     im = _backdrop(size, CYAN)
     d = ImageDraw.Draw(im)
@@ -187,7 +187,7 @@ def make_remove_ads(pid):
     off = r * 0.707
     d.line((bx - off, by + off, bx + off, by - off), fill=RED, width=int(size * 0.03))
     ship(im, 'ship.png', size * 0.73, size * 0.30, size * 0.26)
-    _title(im, 'REMOVE ADS', 'NO ADS BETWEEN MISSIONS')
+    _title(im, 'FULL GAME', 'EVERY EXPEDITION · NO ADS')
     _save(pid, im)
 
 
@@ -218,7 +218,7 @@ def make_supporter(pid):
     gem(d, size * 0.16, size * 0.24, size * 0.14)
     gem(d, size * 0.84, size * 0.27, size * 0.11)
     ship(im, 'ship.png', size * 0.5, size * 0.30, size * 0.32, tint=(TEAL, 0x77 / 255))
-    _title(im, 'SUPPORTER PACK', 'NO ADS · SUPPORTER LIVERY · 500 COINS', line_color=TEAL)
+    _title(im, 'SUPPORTER PACK', 'FULL GAME · LIVERY · 500 COINS', line_color=TEAL)
     _save(pid, im)
 
 
@@ -267,5 +267,5 @@ if __name__ == '__main__':
     for pid, (title, line, crates) in PACKS.items():
         make(pid, title, line, crates)
     make_fleet('nh_fleet_pass', 'FLEET PASS', 'EVERY SHIP · NOW AND LATER')
-    make_remove_ads('nh_remove_ads')
+    make_full_game('nh_full_game')
     make_supporter('nh_supporter_pack')

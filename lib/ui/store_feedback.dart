@@ -36,10 +36,10 @@ String _deliveredMessage(String productId) {
     return 'Fleet Pass active: every ship is in your hangar. Thanks!';
   }
   if (productId == ProductIds.supporterPack) {
-    return 'Thanks for your support! Ads removed, Supporter Livery and '
-        '${ProductIds.supporterCoins} 💰 added.';
+    return 'Thanks for your support! Every Expedition is open, ads are gone, '
+        'and the Supporter Livery and ${ProductIds.supporterCoins} 💰 are yours.';
   }
-  return 'Ads removed. Thanks for supporting Narrow Haul!';
+  return 'Full Game unlocked: every Expedition is open and ads are gone. Thanks!';
 }
 
 /// Settings → Restore purchases, with a result message.

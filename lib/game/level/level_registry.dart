@@ -183,11 +183,30 @@ abstract final class LevelRegistry {
   static bool isWorldUnlocked(WorldDef world) =>
       totalStars() >= world.starsRequired;
 
+  /// Expeditions open without the Full Game (the taster).
+  static const int freeExpeditions = 1;
+
+  /// An Expedition past the free one, without the Full Game: its map
+  /// beacon opens the briefing with the Full Game offer.
+  static bool needsFullGame(int flatIndex) {
+    final (world, indexInWorld) = worldOf(flatIndex);
+    return world.expedition &&
+        indexInWorld >= freeExpeditions &&
+        !ProgressService.instance.hasFullGame;
+  }
+
+  /// [needsFullGame] in a world that's open: the map shows its beacon with
+  /// the Full Game lock, and its briefing offers the purchase.
+  static bool offersFullGame(int flatIndex) =>
+      needsFullGame(flatIndex) && isWorldUnlocked(worldOf(flatIndex).$1);
+
   /// A level is playable when its world's star gate is met and it's either
-  /// the world's first level or the previous level has been completed.
+  /// the world's first level or the previous level has been completed (and,
+  /// for an Expedition after the free one, the Full Game is owned).
   static bool isLevelUnlocked(int flatIndex) {
     final (world, indexInWorld) = worldOf(flatIndex);
     if (!isWorldUnlocked(world)) return false;
+    if (needsFullGame(flatIndex)) return false;
     if (indexInWorld == 0) return true;
     // Already flown → stays open even if a level was inserted before it
     // (e.g. a new type-rating mission at the start of a world).

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/services/ad_pacing.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
@@ -201,6 +202,66 @@ void main() {
       await p.addAmmo(kFlak.id, 4);
       await p.resetProgress();
       expect(p.getAmmo(kFlak.id), 4);
+    });
+  });
+
+  group('Full Game', () {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({
+        'save_v2': true,
+        'save_v3': true,
+        // Training done: the Expeditions world is open.
+        for (final d in LevelRegistry.worlds.first.levels) 'stars2_${d.saveId}': 3,
+      });
+      await ProgressService.init();
+    });
+
+    List<int> expeditions() => [
+          for (var i = 0; i < LevelRegistry.totalLevels; i++)
+            if (LevelRegistry.isExpedition(i)) i,
+        ];
+
+    test('the first Expedition is free, the rest need the Full Game', () {
+      final exp = expeditions();
+      expect(LevelRegistry.isLevelUnlocked(exp.first), isTrue);
+      expect(LevelRegistry.needsFullGame(exp.first), isFalse);
+      for (final i in exp.skip(LevelRegistry.freeExpeditions)) {
+        expect(LevelRegistry.needsFullGame(i), isTrue);
+        expect(LevelRegistry.offersFullGame(i), isTrue);
+        expect(LevelRegistry.isLevelUnlocked(i), isFalse);
+      }
+    });
+
+    test('buying it opens the Expeditions and removes ads, for good', () async {
+      final m = MonetizationService.instance;
+      final p = ProgressService.instance;
+      await m.grant(ProductIds.fullGame);
+      expect(p.hasFullGame, isTrue);
+      expect(p.adsRemoved, isTrue);
+      for (final i in expeditions()) {
+        expect(LevelRegistry.needsFullGame(i), isFalse);
+      }
+      // A reset keeps what was bought.
+      await p.resetProgress();
+      expect(p.hasFullGame, isTrue);
+    });
+
+    test('the Supporter Pack includes it; the Fleet Pass does not', () async {
+      final m = MonetizationService.instance;
+      final p = ProgressService.instance;
+      await m.grant(ProductIds.fleetPass);
+      expect(p.hasFullGame, isFalse);
+      expect(p.adsRemoved, isFalse);
+      await m.grant(ProductIds.supporterPack);
+      expect(p.hasFullGame, isTrue);
+      expect(p.adsRemoved, isTrue);
+    });
+
+    test('Expedition stars stay out of the career gates', () async {
+      final p = ProgressService.instance;
+      final before = LevelRegistry.totalStars();
+      await p.saveStarsById(LevelRegistry.defAt(expeditions().first).saveId, 3);
+      expect(LevelRegistry.totalStars(), before);
     });
   });
 }

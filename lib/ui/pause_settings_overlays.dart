@@ -327,15 +327,15 @@ class _PurchasesSection extends StatelessWidget {
       builder: (context, _, _) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!m.adsRemoved && m.canBuy(ProductIds.removeAds))
+          if (!ProgressService.instance.hasFullGame && m.canBuy(ProductIds.fullGame))
             _row(
-              icon: Icons.block_rounded,
-              title: 'Remove ads',
+              icon: Icons.all_inclusive_rounded,
+              title: 'Full Game',
               subtitle:
-                  'No more ads between missions. '
-                  'Rewarded ads stay optional.',
-              trailing: m.priceOf(ProductIds.removeAds),
-              onTap: () => buyWithFeedback(context, ProductIds.removeAds),
+                  'Every Expedition, and no ads between missions. '
+                  'Yours for good.',
+              trailing: m.priceOf(ProductIds.fullGame),
+              onTap: () => buyWithFeedback(context, ProductIds.fullGame),
             ),
           if (m.canBuy(ProductIds.supporterPack) &&
               !ProgressService.instance.isProductGranted(
@@ -345,7 +345,7 @@ class _PurchasesSection extends StatelessWidget {
               icon: Icons.diamond_outlined,
               title: 'Supporter Pack',
               subtitle:
-                  'Remove ads + Supporter Livery + '
+                  'Full Game + Supporter Livery + '
                   '${ProductIds.supporterCoins} 💰',
               trailing: m.priceOf(ProductIds.supporterPack),
               onTap: () => buyWithFeedback(context, ProductIds.supporterPack),
@@ -362,7 +362,7 @@ class _PurchasesSection extends StatelessWidget {
           if (m.adsRemoved)
             _row(
               icon: Icons.favorite_rounded,
-              title: 'Ads removed',
+              title: ProgressService.instance.hasFullGame ? 'Full Game' : 'Ads removed',
               subtitle: 'Thanks for supporting Narrow Haul!',
             ),
           if (m.storeAvailable)

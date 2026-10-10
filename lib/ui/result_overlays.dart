@@ -58,14 +58,14 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
 
   /// True while leaving (an interstitial may be showing) — blocks double taps.
   bool _leaving = false;
-  late final bool _showRemoveAdsOffer = _shouldOfferRemoveAds();
+  late final bool _showFullGameOffer = _shouldOfferFullGame();
 
-  /// Soft remove-ads offer: once the tutorial world is done (or after the
+  /// Soft Full Game offer: once the tutorial world is done (or after the
   /// first interstitial), at most every 3 days, never to payers.
-  bool _shouldOfferRemoveAds() {
+  bool _shouldOfferFullGame() {
     final p = ProgressService.instance;
     final m = MonetizationService.instance;
-    if (m.adsRemoved || p.hasPurchased || !m.canBuy(ProductIds.removeAds)) {
+    if (p.hasFullGame || p.hasPurchased || !m.canBuy(ProductIds.fullGame)) {
       return false;
     }
     final tutorialDone = LevelRegistry.trainingComplete;
@@ -240,18 +240,18 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
             },
           ),
         ],
-        if (_showRemoveAdsOffer) ...[
+        if (_showFullGameOffer) ...[
           const SizedBox(height: 8),
           HoloButton(
             label:
-                'Remove ads · '
-                '${MonetizationService.instance.priceOf(ProductIds.removeAds)}',
-            icon: Icons.block_rounded,
+                'Full Game · Expeditions, no ads · '
+                '${MonetizationService.instance.priceOf(ProductIds.fullGame)}',
+            icon: Icons.all_inclusive_rounded,
             variant: HoloVariant.ghost,
             height: 34,
             fontSize: 10.5,
             onPressed: () async {
-              await buyWithFeedback(context, ProductIds.removeAds);
+              await buyWithFeedback(context, ProductIds.fullGame);
               if (mounted) setState(() {});
             },
           ),

@@ -209,6 +209,9 @@ class _WorldMapState extends State<_WorldMap> {
                         def: flatDefs[i],
                         label: '${LevelRegistry.worldOf(i).$2 + 1}',
                         unlocked: LevelRegistry.isLevelUnlocked(i),
+                        // A paid Expedition opens its briefing, which offers
+                        // the Full Game.
+                        fullGame: LevelRegistry.offersFullGame(i),
                         stars: progress.getStarsById(flatDefs[i].saveId),
                         bestTime: progress.getBestTimeById(flatDefs[i].saveId),
                         isNext: i == next,
@@ -217,7 +220,7 @@ class _WorldMapState extends State<_WorldMap> {
                     ),
                   ),
                 for (int i = 0; i < flatDefs.length; i++)
-                  if (LevelRegistry.isLevelUnlocked(i))
+                  if (LevelRegistry.isLevelUnlocked(i) || LevelRegistry.offersFullGame(i))
                     Positioned(
                       left: nodePositions[i].dx - 70,
                       top: nodePositions[i].dy + 47,
@@ -496,9 +499,13 @@ class _MapNode extends StatefulWidget {
     required this.bestTime,
     required this.onTap,
     this.isNext = false,
+    this.fullGame = false,
   });
 
   final bool isNext;
+
+  /// Part of the Full Game, not owned: a gold lock that opens the briefing.
+  final bool fullGame;
   final LevelDef def;
   final String label;
   final bool unlocked;
@@ -553,7 +560,7 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
   }
 
   void _tap() {
-    if (widget.unlocked) {
+    if (widget.unlocked || widget.fullGame) {
       widget.onTap();
     } else {
       AudioService.playUi(UiSound.denied);
@@ -571,7 +578,11 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
     final content = Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (!unlocked)
+        if (!unlocked && widget.fullGame) ...[
+          const Icon(Icons.lock_outline, size: 20, color: SpaceColors.gold),
+          const SizedBox(height: 2),
+          Text('FULL GAME', style: hudLabel(8, color: SpaceColors.gold, spacing: 1)),
+        ] else if (!unlocked)
           const Icon(Icons.lock_outline, size: 22, color: Colors.white30)
         else ...[
           Text(widget.label, style: hudLabel(19, color: accent, spacing: 0)),

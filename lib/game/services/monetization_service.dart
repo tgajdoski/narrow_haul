@@ -15,13 +15,15 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 /// Store product ids (create the same ids in App Store Connect / Play Console:
-/// [removeAds] and [supporterPack] as non-consumables, the [ammoPacks] as
-/// consumables).
+/// [fullGame], [supporterPack] and [fleetPass] as non-consumables, the
+/// [ammoPacks] as consumables).
 class ProductIds {
-  /// Removes interstitials. Rewarded ads stay available (opt-in).
-  static const removeAds = 'nh_remove_ads';
+  /// The Full Game, bought once and kept for life: every Expedition (Act II,
+  /// docs/STORY.md) and no interstitials. Rewarded ads stay available
+  /// (opt-in). Replaces the earlier Remove Ads product.
+  static const fullGame = 'nh_full_game';
 
-  /// Remove-ads + exclusive [kSupporterSkinId] livery + [supporterCoins].
+  /// The Full Game + exclusive [kSupporterSkinId] livery + [supporterCoins].
   static const supporterPack = 'nh_supporter_pack';
 
   /// Weapon ammo, bought again and again (consumables).
@@ -33,7 +35,7 @@ class ProductIds {
   /// earned by play, so it never removes ads.
   static const fleetPass = 'nh_fleet_pass';
 
-  static const nonConsumables = {removeAds, supporterPack, fleetPass};
+  static const nonConsumables = {fullGame, supporterPack, fleetPass};
   static const consumables = {demolitionKit, arsenalCrate};
   static const all = {...nonConsumables, ...consumables};
   static const supporterCoins = 500;
@@ -60,6 +62,8 @@ class ProductIds {
     demolitionKit: 'Demolition Kit',
     arsenalCrate: 'Arsenal Crate',
     fleetPass: 'Fleet Pass',
+    fullGame: 'Full Game',
+    supporterPack: 'Supporter Pack',
   };
 }
 
@@ -174,7 +178,8 @@ class MonetizationService {
   String priceOf(String productId) =>
       _products[productId]?.price ??
       switch (productId) {
-        ProductIds.supporterPack || ProductIds.arsenalCrate => r'$4.99',
+        ProductIds.supporterPack => r'$7.99',
+        ProductIds.fullGame || ProductIds.arsenalCrate => r'$4.99',
         ProductIds.fleetPass => r'$3.99',
         ProductIds.demolitionKit => r'$1.99',
         _ => r'$2.99',
@@ -673,8 +678,11 @@ class MonetizationService {
       entitlements.value++;
       return;
     }
+    // The Full Game (also inside the Supporter Pack): the Expeditions and no
+    // interstitials.
     await _p.setHasPurchased(true);
     await _p.setAdsRemoved(true);
+    await _p.markProductGranted(ProductIds.fullGame);
     unawaited(_interstitial?.dispose());
     _interstitial = null;
     if (productId == ProductIds.supporterPack) {

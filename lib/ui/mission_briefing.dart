@@ -10,6 +10,7 @@ import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
+import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
@@ -19,6 +20,7 @@ import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/garage_overlay.dart' show GarageOverlay;
 import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/ui/story_card.dart';
 
 /// One line of a mission briefing: what the pilot will face (or get).
@@ -370,6 +372,15 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
           const SizedBox(height: 4),
           _StoryLine(story: story, accent: accent),
         ],
+        if (!daily && LevelRegistry.needsFullGame(index)) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Part of the Full Game: one purchase, every Expedition for good, and no ads.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: hudLabel(10.5, color: SpaceColors.gold, spacing: 0.6),
+          ),
+        ],
         if (note != null && note.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(
@@ -422,6 +433,46 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
       ],
     );
 
+    // A paid Expedition sells the Full Game here; once owned, one the
+    // previous Expedition hasn't opened yet says so.
+    final paywalled = !daily && LevelRegistry.needsFullGame(index);
+    final waiting = !daily &&
+        !paywalled &&
+        LevelRegistry.isExpedition(index) &&
+        !LevelRegistry.isLevelUnlocked(index);
+    final money = MonetizationService.instance;
+    final Widget launch = paywalled
+        ? HoloButton.primary(
+            key: const ValueKey('buy-full-game'),
+            label: 'Full Game · ${money.priceOf(ProductIds.fullGame)}',
+            subtitle: 'every Expedition · no ads',
+            icon: Icons.all_inclusive_rounded,
+            accent: SpaceColors.gold,
+            sound: UiSound.select,
+            height: 46,
+            onPressed: () async {
+              await buyWithFeedback(context, ProductIds.fullGame);
+              if (mounted) setState(() {});
+            },
+          )
+        : waiting
+        ? HoloButton(
+            label: 'Fly the one before first',
+            icon: Icons.lock_outline,
+            sound: UiSound.back,
+            onPressed: game.closeBriefing,
+          )
+        : HoloButton.primary(
+            label: 'Launch',
+            icon: Icons.rocket_launch_rounded,
+            accent: accent,
+            sound: UiSound.launch,
+            height: 46,
+            onPressed: daily
+                ? game.beginChallenge
+                : () => game.startLevel(index, withRoute: false),
+          );
+
     final footer = Row(
       children: [
         Expanded(
@@ -432,7 +483,7 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
             onPressed: game.closeBriefing,
           ),
         ),
-        if (routeOffered) ...[
+        if (routeOffered && !paywalled && !waiting) ...[
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
@@ -447,19 +498,7 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
           ),
         ],
         const SizedBox(width: 10),
-        Expanded(
-          flex: 2,
-          child: HoloButton.primary(
-            label: 'Launch',
-            icon: Icons.rocket_launch_rounded,
-            accent: accent,
-            sound: UiSound.launch,
-            height: 46,
-            onPressed: daily
-                ? game.beginChallenge
-                : () => game.startLevel(index, withRoute: false),
-          ),
-        ),
+        Expanded(flex: 2, child: launch),
       ],
     );
 

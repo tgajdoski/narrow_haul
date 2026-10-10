@@ -53,7 +53,7 @@ Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achieveme
 SOUND OF SPACE
 A spacey soundtrack that changes from flight to flight, a battle theme in The Redoubt, and crisp engine, rope and cannon sounds.
 
-Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. A one-time purchase removes the ads between missions. Optional ammo packs are never needed, and a flight that uses bought ammo earns at most two stars.
+Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. One purchase, the Full Game, unlocks every Expedition (Act II: long multi-leg hauls) and removes the ads between missions, for good. Optional ammo packs are never needed, and a flight that uses bought ammo earns at most two stars.
 
 ## Google Play
 
@@ -65,8 +65,8 @@ Use the App Store description above. Play allows the same plain text and bullets
 
 ## In-app purchases (review notes)
 
-- `nh_remove_ads`, "Remove Ads": turns off interstitial ads for good. Optional rewarded ads stay available.
-- `nh_supporter_pack`, "Supporter Pack": Remove Ads, plus the Supporter ship livery and 500 coins.
+- `nh_full_game`, "Full Game" (**non-consumable**, $4.99): unlocks every Expedition (the first one is free to try) and turns off interstitial ads for good. Optional rewarded ads stay available. Reviewers: Missions → The Long Night → any mission after the first → Full Game.
+- `nh_supporter_pack`, "Supporter Pack" (**non-consumable**, $7.99): the Full Game, plus the Supporter ship livery and 500 coins.
 - `nh_demo_kit`, "Demolition Kit" (**consumable**, $1.99): 10 Demolition Charges, 10 Gravity Bombs and 60 s of Mining Laser, added to the pilot's ammo. Can be bought again.
   - App Store display name [30]: `Demolition Kit`
   - App Store description [45]: `10 charges, 10 bombs and 60 s of laser.` (39)

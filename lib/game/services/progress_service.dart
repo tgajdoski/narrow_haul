@@ -307,6 +307,10 @@ class ProgressService {
 
   /// Non-consumable product ids already granted (supporter pack payout once).
   bool isProductGranted(String id) => _bool('iap_granted_$id') ?? false;
+
+  /// The Full Game is owned (on its own or in the Supporter Pack): every
+  /// Expedition opens.
+  bool get hasFullGame => isProductGranted('nh_full_game'); // ProductIds.fullGame
   Future<void> markProductGranted(String id) async =>
       _prefs.setBool('iap_granted_$id', true);
 

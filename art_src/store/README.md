@@ -18,7 +18,7 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
 | IAP review screenshot (both products) | — | ⏳ Settings on the iPhone with a sandbox account: the buy rows only show when the store returns products |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
-| IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`, `nh_remove_ads`, `nh_supporter_pack`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
+| IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`, `nh_full_game`, `nh_supporter_pack`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
 
 Worth adding to the set: a weapons shot (a charge carving rock), Garage → Armory, and the mission briefing.
 
@@ -36,7 +36,7 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
 3. **Build:** upload from Xcode/Transporter. The icon comes from the binary; you don't upload it separately.
 4. **App Information:** subtitle, category Games → Arcade (secondary Action), age rating questionnaire, copyright.
 5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
-6. **In-App Purchases:** for each of `nh_remove_ads` and `nh_supporter_pack` (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $3.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
+6. **In-App Purchases:** for each of `nh_full_game` (Full Game, $4.99: every Expedition + no ads) and `nh_supporter_pack` (Supporter Pack, $7.99: the Full Game + livery + 500 coins) (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $1.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $4.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $3.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
 ### Fleet Pass (`nh_fleet_pass`): copy-ready
 
