@@ -55,10 +55,7 @@ List<BriefingFact> briefingFacts(
       ),
   ];
 
-  final g = (m.gravityMul * (daily?.gravityMultiplier ?? 1)).clamp(
-    0.0,
-    kMaxGravityMul,
-  );
+  final g = combinedGravityMul(m.gravityMul, daily?.gravityMultiplier ?? 1);
   if (g == 0) {
     facts.add(const BriefingFact(Icons.blur_on_rounded, 'Zero-g'));
   } else if ((g - 1).abs() > 0.01) {

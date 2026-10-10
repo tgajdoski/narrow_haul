@@ -33,13 +33,14 @@ void main() {
   });
 
   test('prebuildCave builds off-thread and fills the cache', () async {
-    final def = LevelRegistry.flat.whereType<CaveLevelDef>().first;
-    clearCaveCache();
-    await prebuildCave(def.spec);
-    final cached = buildCave(def.spec);
-    clearCaveCache();
-    final fresh = buildCave(def.spec);
-    expect(cached.loops.length, fresh.loops.length);
-    expect(cached.loops.first.length, fresh.loops.first.length);
+    final spec = LevelRegistry.flat.whereType<CaveLevelDef>().first.spec;
+    forgetCave(spec.id);
+    expect(isCaveCached(spec.id), isFalse);
+    await prebuildCave(spec);
+    expect(isCaveCached(spec.id), isTrue);
+    final cached = buildCave(spec);
+    final fresh = buildCaveUncached(spec);
+    expect([for (final l in cached.loops) l.length], [for (final l in fresh.loops) l.length]);
+    expect(cached.loops.first.first.x, fresh.loops.first.first.x);
   });
 }

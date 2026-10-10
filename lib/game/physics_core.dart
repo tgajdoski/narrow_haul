@@ -9,6 +9,12 @@ const double kGravityY = 1.375;
 /// stacked modifiers can never make a level unflyable.
 const double kMaxGravityMul = 2.5;
 
+/// Gravity multiplier a level is flown at: its own [levelMul] × the daily
+/// challenge's [dailyMul], clamped to [kMaxGravityMul]. One rule for the
+/// game, the briefing and the validator.
+double combinedGravityMul(double levelMul, [double dailyMul = 1]) =>
+    (levelMul * dailyMul).clamp(0.0, kMaxGravityMul);
+
 /// Heaviest daily-challenge gravity preset ("Heavy Haul").
 const double kMaxChallengeGravityMul = 1.8;
 

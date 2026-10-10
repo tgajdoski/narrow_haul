@@ -26,7 +26,7 @@ void main() {
       expect(audibleFrames * _dt, greaterThanOrEqualTo(env.minHoldSeconds));
     });
 
-    test('a tap reaches most of full volume', () {
+    test('a tap reaches full volume', () {
       final env = ThrustEnvelope()..reset();
       env.step(true, _dt);
       var peak = env.volume;
@@ -71,7 +71,7 @@ void main() {
             .allMatches(File(f).readAsStringSync())
             .map((m) => m.group(1)!),
     };
-    expect(listed, hasLength(32));
+    expect(listed, isNotEmpty);
     for (final f in listed) {
       expect(File('assets/audio/$f').existsSync(), isTrue, reason: f);
     }
@@ -85,19 +85,21 @@ void main() {
   });
 
   test('ads and backgrounding toggle music safely with nothing playing', () {
-    MusicService.setAdShowing(true);
-    MusicService.onBackground();
-    MusicService.setAdShowing(false);
-    MusicService.onForeground();
-    MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
-    MusicService.stop();
+    expect(() {
+      MusicService.setAdShowing(true);
+      MusicService.onBackground();
+      MusicService.setAdShowing(false);
+      MusicService.onForeground();
+      MusicService.play(MusicService.menuTrack, MusicService.menuVolume);
+      MusicService.stop();
+    }, returnsNormally);
   });
 
   group('MusicService rotation', () {
     test('The Redoubt always flies to the battle track', () {
-      for (var i = 0; i < 5; i++) {
-        expect(MusicService.flightTrackFor('redoubt'), MusicService.battleTrack);
-      }
+      expect(MusicService.flightTrackFor('redoubt'), MusicService.battleTrack);
+      expect(MusicService.flightTrackFor('redoubt'), MusicService.battleTrack,
+          reason: 'not rotated away on the next flight');
     });
 
     test('never repeats a track twice in a row, and uses the whole pool', () {

@@ -12,7 +12,6 @@ import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/specs/world_redoubt.dart';
 import 'package:narrow_haul/game/level/theme_spec.dart';
-import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
@@ -46,29 +45,6 @@ class _FakeHost implements CombatHost {
   @override
   void onObstacleDestroyed(Offset at) => events.add('wrecked');
 }
-
-LevelSpec _withDefences(
-  LevelSpec s, {
-  List<ObstacleSpec>? obstacles,
-  List<PickupSpec>? pickups,
-}) =>
-    LevelSpec(
-      id: s.id,
-      seed: s.seed,
-      name: s.name,
-      themeId: s.themeId,
-      worldW: s.worldW,
-      worldH: s.worldH,
-      tunnels: s.tunnels,
-      chambers: s.chambers,
-      shipSpawn: s.shipSpawn,
-      cargoSpawn: s.cargoSpawn,
-      goal: s.goal,
-      obstacles: obstacles ?? s.obstacles,
-      pickups: pickups ?? s.pickups,
-      modifiers: s.modifiers,
-      noise: s.noise,
-    );
 
 void main() {
   group('lead aim', () {
@@ -181,7 +157,7 @@ void main() {
     test('a turret that can see the goal pad is rejected', () {
       final g = base.goal.center;
       // On the pad chamber floor, facing up at the pad.
-      final spec = _withDefences(base, obstacles: [
+      final spec = base.copyWith(obstacles: [
         TurretSpec(Pt(g.x - 1.5, g.y + 1.6), facing: kFaceUp, range: 9),
       ]);
       expect(validateCaveSpec(spec, ship: kTalon),
@@ -189,7 +165,7 @@ void main() {
     });
 
     test('a turret floating in open space is rejected', () {
-      final spec = _withDefences(base, obstacles: [
+      final spec = base.copyWith(obstacles: [
         const TurretSpec(Pt(17, 10.5), facing: kFaceUp),
       ]);
       expect(validateCaveSpec(spec, ship: kTalon),
@@ -197,7 +173,7 @@ void main() {
     });
 
     test('a reactor needs an armed ship', () {
-      final spec = _withDefences(base, obstacles: [
+      final spec = base.copyWith(obstacles: [
         const ReactorSpec(Pt(17, 10.5)),
       ]);
       expect(validateCaveSpec(spec, ship: kKestrel),
@@ -209,7 +185,7 @@ void main() {
     });
 
     test('a fuel canister buried in rock is rejected', () {
-      final spec = _withDefences(base, pickups: [const FuelCellSpec(Pt(17, 1))]);
+      final spec = base.copyWith(pickups: [const FuelCellSpec(Pt(17, 1))]);
       expect(validateCaveSpec(spec, ship: kTalon),
           contains(predicate<String>((s) => s.startsWith('PICKUP'))));
     });
@@ -221,34 +197,6 @@ void main() {
               reason: def.spec.id);
         }
       }
-    });
-  });
-
-  group('contracts', () {
-    test('turret contract counts kills and is gated on armed worlds', () {
-      const c = Contract(ContractKind.destroyTurrets, target: 4);
-      const e = DeliveryEvent(
-        worldIndex: 6,
-        challenge: false,
-        clean: true,
-        fuelFraction: 0.5,
-        seconds: 60,
-        newStars: 0,
-        personalBest: false,
-        turretsDestroyed: 3,
-      );
-      expect(contractProgress(c, e), 3);
-      for (int d = 1; d <= 60; d++) {
-        final list = generateContracts(DateTime(2026, 2, d),
-            unlockedWorlds: [0], starsRemaining: 10, dailyDone: false);
-        expect(list.map((c) => c.kind), isNot(contains(ContractKind.destroyTurrets)));
-      }
-      final offered = [
-        for (int d = 1; d <= 60; d++)
-          ...generateContracts(DateTime(2026, 2, d),
-              unlockedWorlds: [0], starsRemaining: 10, dailyDone: false, armedUnlocked: true),
-      ];
-      expect(offered.map((c) => c.kind), contains(ContractKind.destroyTurrets));
     });
   });
 }

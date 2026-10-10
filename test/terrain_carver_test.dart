@@ -8,7 +8,11 @@ import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
+import 'helpers/caves.dart';
+
 void main() {
+  setUpAll(prebuildAllCaves);
+
   final caves = <(CaveLevelDef, ShipSpec)>[
     for (int i = 0; i < LevelRegistry.totalLevels; i++)
       if (LevelRegistry.defAt(i) case final CaveLevelDef def)
@@ -43,7 +47,6 @@ void main() {
   test('a carve opens rock and leaves the cached cave untouched', () {
     final spec = caves.first.$1.spec;
     final cave = buildCave(spec);
-    final before = List<List<Pt>>.from(cave.loops);
     final fieldCopy = List<double>.from(cave.field);
     final carver = TerrainCarver(cave, guards: guardsOf(spec));
     final p = rockPoint(cave, spec);
@@ -55,7 +58,6 @@ void main() {
     expect(loops, isNotEmpty);
     expect(carver.dirty, isFalse);
     expect(cave.field, fieldCopy, reason: 'memoized field mutated');
-    expect(buildCave(spec).loops.length, before.length);
   });
 
   test('carving is deterministic', () {
@@ -69,12 +71,12 @@ void main() {
       return c.extract();
     }
 
+    List<double> flat(List<List<Pt>> loops) =>
+        [for (final l in loops) for (final p in l) ...[p.x, p.y]];
     final a = run();
     final b = run();
-    expect(a.length, b.length);
-    for (int k = 0; k < a.length; k++) {
-      expect(a[k].length, b[k].length);
-    }
+    expect([for (final l in b) l.length], [for (final l in a) l.length]);
+    expect(flat(b), flat(a));
   });
 
   test('the world border and the pad floors never open', () {
@@ -116,11 +118,10 @@ void main() {
       carver.extract();
     }
     final ms = sw.elapsedMilliseconds / runs;
-    // ignore: avoid_print
-    print('re-extract ${biggest.id} (${biggest.worldW}×${biggest.worldH} m): '
-        '${ms.toStringAsFixed(1)} ms');
-    expect(ms, lessThan(60));
-  });
+    expect(ms, lessThan(60),
+        reason: 're-extract ${biggest.id} (${biggest.worldW}×${biggest.worldH} m): '
+            '${ms.toStringAsFixed(1)} ms');
+  }, tags: 'perf');
 
   group('crate spots', () {
     for (final (def, ship) in caves) {

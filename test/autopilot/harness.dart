@@ -96,13 +96,15 @@ Future<void> _yield() => Future<void>.delayed(Duration.zero);
 class GameHarness {
   late final NarrowHaulGame game;
 
-  Future<void> boot() async {
+  /// Boots a fresh game on a migrated save; [prefs] adds to it.
+  Future<void> boot({Map<String, Object> prefs = const {}}) async {
     WidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({
       'save_v2': true,
       'save_v3': true,
       'sound_enabled': false,
       'haptics_enabled': false,
+      ...prefs,
     });
     await ProgressService.init();
     game = NarrowHaulGame();
@@ -121,6 +123,8 @@ class GameHarness {
     ]) {
       game.overlays.addEntry(name, (_, _) => const SizedBox());
     }
+    // Specs can't change under a test: reuse each built cave.
+    game.debugKeepCaveCache = true;
     game.onGameResize(Vector2(960, 540));
     await game.load();
     game.mount();
@@ -143,6 +147,15 @@ class GameHarness {
     await game.loadCurrentLevel();
     await game.ready();
     for (var i = 0; i < 3; i++) {
+      await _yield();
+    }
+  }
+
+  /// Steps [frames] frames of game time with the current inputs, letting
+  /// microtasks (rope attach, the win sequence) run after each.
+  Future<void> step(int frames) async {
+    for (var i = 0; i < frames; i++) {
+      game.update(kStepDt);
       await _yield();
     }
   }

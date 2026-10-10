@@ -3,11 +3,12 @@ import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/cave_decor.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
-import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 
-Future<CaveDecor> _decorFor(CaveLevelDef def) async {
-  final data = buildCaveLevelData(def);
+import 'helpers/caves.dart';
+
+Future<CaveDecor> _decorFor(LevelData data) async {
   final edges = [
     for (final loop in data.caveLoops)
       ui.Path()..addPolygon([for (final p in loop) ui.Offset(p.x, p.y)], true),
@@ -26,14 +27,14 @@ Future<CaveDecor> _decorFor(CaveLevelDef def) async {
 }
 
 void main() {
-  final caveDefs = LevelRegistry.flat.whereType<CaveLevelDef>().toList();
+  setUpAll(prebuildAllCaves);
 
   test('decor is deterministic, clear of anchors, and present in every world', () async {
     final perWorld = <String, int>{};
-    for (final def in caveDefs) {
+    for (final def in allCaveDefs) {
       final data = buildCaveLevelData(def);
-      final a = (await _decorFor(def)).propTips;
-      final b = (await _decorFor(def)).propTips;
+      final a = (await _decorFor(data)).propTips;
+      final b = (await _decorFor(data)).propTips;
       expect(a, b, reason: '${def.spec.id}: decor not deterministic');
       for (final tip in a) {
         for (final v in [data.shipSpawn, data.cargoSpawn, data.goalCenter]) {
@@ -46,7 +47,5 @@ void main() {
     for (final entry in perWorld.entries) {
       expect(entry.value, greaterThan(16), reason: '${entry.key} has too little decor');
     }
-    // ignore: avoid_print
-    print('decor props per world: $perWorld');
   });
 }

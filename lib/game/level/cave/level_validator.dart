@@ -606,7 +606,7 @@ FlightReport? analyzeFlight(LevelSpec spec, {ShipSpec ship = kKestrel}) {
   }
 
   // Lift at the heaviest daily gravity (clamped like the runtime does).
-  final worstMul = math.min(kMaxChallengeGravityMul * spec.modifiers.gravityMul, kMaxGravityMul) /
+  final worstMul = combinedGravityMul(spec.modifiers.gravityMul, kMaxChallengeGravityMul) /
       math.max(spec.modifiers.gravityMul, 1e-9);
   final worstPull = spec.modifiers.gravityMul == 0
       ? maxPull * kMaxChallengeGravityMul

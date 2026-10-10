@@ -4,13 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/ui/launch_intro.dart';
 
-/// Advances time in frame-sized steps so tickers and timers both run.
-Future<void> advance(WidgetTester tester, Duration d) async {
-  const step = Duration(milliseconds: 50);
-  for (var t = Duration.zero; t < d; t += step) {
-    await tester.pump(step);
-  }
-}
+import 'helpers/pump.dart';
 
 void main() {
   Future<int Function()> pump(

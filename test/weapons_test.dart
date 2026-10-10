@@ -1,24 +1,17 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/cave_terrain.dart';
 import 'package:narrow_haul/game/components/defences.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
-import 'package:narrow_haul/game/level/level_def.dart';
-import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 import 'autopilot/harness.dart';
-
-int _levelWhere(bool Function(CaveLevelDef def) test) {
-  for (int i = 0; i < LevelRegistry.totalLevels; i++) {
-    final def = LevelRegistry.defAt(i);
-    if (def is CaveLevelDef && test(def)) return i;
-  }
-  throw StateError('no such level');
-}
+import 'helpers/levels.dart';
 
 void main() {
   group('weapon specs', () {
@@ -78,6 +71,30 @@ void main() {
       expect(rack.canFire, isFalse);
     });
 
+    test('select picks a weapon on board, ignores the rest', () {
+      final rack = WeaponRack(hasCannon: true, carried: {kGravityBomb.id: 2});
+      expect(rack.selectedId, kCannon.id);
+      expect(rack.select(kGravityBomb.id), isTrue);
+      expect(rack.selectedId, kGravityBomb.id);
+      expect(rack.select(kFlak.id), isFalse, reason: 'no flak on board');
+      expect(rack.select('nonsense'), isFalse);
+      expect(rack.selectedId, kGravityBomb.id);
+    });
+
+    test('the −★ badge shows only while the next shot spends carried ammo', () {
+      final rack = WeaponRack(carried: {kGravityBomb.id: 2});
+      rack.addFound(kGravityBomb.id, 1);
+      expect(rack.costsStar(kGravityBomb.id), isFalse, reason: 'a found bomb goes first');
+      rack.spend(kGravityBomb.id, 1);
+      expect(rack.costsStar(kGravityBomb.id), isTrue);
+      rack.spend(kGravityBomb.id, 1);
+      expect(rack.usedCarried, isTrue);
+      expect(rack.costsStar(kGravityBomb.id), isFalse, reason: 'the star is already gone');
+      final gunOnly = WeaponRack(hasCannon: true);
+      expect(gunOnly.costsStar(kCannon.id), isFalse);
+      expect(gunOnly.costsStar(kFlak.id), isFalse);
+    });
+
     test('a pickup selects what was picked up', () {
       final rack = WeaponRack(carried: {kFlak.id: 3});
       expect(rack.selectedId, kFlak.id);
@@ -91,22 +108,24 @@ void main() {
     setUpAll(h.boot);
 
     test('a blast wrecks the obstacle in reach and opens the rock', () async {
-      final index = _levelWhere(
+      final index = caveLevelWhere(
         (d) => d.spec.obstacles.any((o) => o is PendulumSpec || o is RotatingBarSpec),
       );
       await h.loadLevel(index);
       final game = h.game..debugSyncCarve = true;
+      addTearDown(() => game.debugSyncCarve = false);
       final machinery = game.world.children.whereType<Wreckable>().toList();
       expect(machinery, isNotEmpty);
       final target = machinery.first;
+      final wrecked = ProgressService.instance.getStat(ProgressService.statObstaclesWrecked);
       game.detonate(target.body.position.clone(), kDemoCharge);
       expect(target.destroyed, isTrue);
       expect(target.isRemoving || target.isRemoved, isTrue);
-      expect(ProgressService.instance.getStat(ProgressService.statObstaclesWrecked), 1);
+      expect(ProgressService.instance.getStat(ProgressService.statObstaclesWrecked), wrecked + 1);
     });
 
     test('the cannon bounces off machinery', () async {
-      final index = _levelWhere((d) => d.spec.obstacles.any((o) => o is RotatingBarSpec));
+      final index = caveLevelWhere((d) => d.spec.obstacles.any((o) => o is RotatingBarSpec));
       await h.loadLevel(index);
       final bar = h.game.world.children.whereType<RotatingBar>().first;
       for (var i = 0; i < 20; i++) {
@@ -120,9 +139,10 @@ void main() {
     });
 
     test('a charge carves rock next to the ship', () async {
-      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      final index = caveLevelWhere((d) => d.spec.id == 'mine_01');
       await h.loadLevel(index);
       final game = h.game..debugSyncCarve = true;
+      addTearDown(() => game.debugSyncCarve = false);
       final terrain = game.world.children.whereType<CaveTerrain>().single;
       final before = terrain.loops;
       // Against the nearest wall below the spawn pad's guard: a point in the
@@ -133,7 +153,7 @@ void main() {
     });
 
     test('a charge carves rock on the background isolate too', () async {
-      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      final index = caveLevelWhere((d) => d.spec.id == 'mine_01');
       await h.loadLevel(index);
       final game = h.game..debugSyncCarve = false;
       final terrain = game.world.children.whereType<CaveTerrain>().single;
@@ -155,8 +175,10 @@ void main() {
     });
 
     test('carried ammo caps the run at 2★; found ammo does not', () async {
-      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      final index = caveLevelWhere((d) => d.spec.id == 'mine_01');
       await ProgressService.instance.addAmmo(kFlak.id, 2);
+      addTearDown(() => ProgressService.instance
+          .addAmmo(kFlak.id, -ProgressService.instance.getAmmo(kFlak.id)));
       await h.loadLevel(index);
       final game = h.game;
       final rack = game.weaponRack!;
@@ -173,7 +195,7 @@ void main() {
     });
 
     test('the ammo rail and number keys load a weapon', () async {
-      final index = _levelWhere((d) => d.spec.id == 'mine_01');
+      final index = caveLevelWhere((d) => d.spec.id == 'mine_01');
       await ProgressService.instance.addAmmo(kSeeker.id, 2);
       await ProgressService.instance.addAmmo(kGravityBomb.id, 3);
       addTearDown(() async {
@@ -196,34 +218,60 @@ void main() {
     });
 
     test('supply crates: only with an unarmed ship, never for the bot', () async {
-      final unarmed = _levelWhere((d) => d.spec.id == 'mine_01');
+      final game = h.game;
+      addTearDown(() => game
+        ..debugNoCrates = true
+        ..crateRng = math.Random());
+      final unarmed = caveLevelWhere((d) => d.spec.id == 'mine_01');
       await h.loadLevel(unarmed);
-      expect(h.game.supplyCrate, isNull, reason: 'harness turns crates off');
-      h.game.debugNoCrates = false;
-      // Force the dice: a fresh load with a crate.
-      for (var tries = 0; tries < 40 && h.game.supplyCrate == null; tries++) {
-        h.game.debugNoCrates = false;
-        await h.game.loadCurrentLevel(retry: true);
-        await h.game.ready();
-      }
-      final crate = h.game.supplyCrate;
-      expect(crate, isNotNull);
-      expect(crate, isA<SupplyCrate>());
+      expect(game.supplyCrate, isNull, reason: 'harness turns crates off');
+      // Loaded dice: every roll hits.
+      game
+        ..debugNoCrates = false
+        ..crateRng = _LoadedDice();
+      await game.loadCurrentLevel(retry: true);
+      await game.ready();
+      expect(game.supplyCrate, isA<SupplyCrate>(), reason: 'unarmed ship gets one');
+      final armed = caveLevelWhere((d) => d.spec.id.startsWith('redoubt_'));
+      game.levelIndex = armed;
+      await game.loadCurrentLevel();
+      await game.ready();
+      expect(game.supplyCrate, isNull, reason: 'the Talon has its gun');
     });
 
     test('a crate\'s FIRE plate shows the first time per weapon only', () async {
-      final crate = h.game.supplyCrate;
-      expect(crate, isNotNull, reason: 'needs the crate from the test above');
-      final id = crate!.weapon.id;
+      final game = h.game;
+      addTearDown(() => game
+        ..debugNoCrates = true
+        ..crateRng = math.Random());
+      final mine01 = caveLevelWhere((d) => d.spec.id == 'mine_01');
+      await h.loadLevel(mine01);
+      game
+        ..debugNoCrates = false
+        ..crateRng = _LoadedDice();
+      await game.loadCurrentLevel(retry: true);
+      await game.ready();
+      final crate = game.supplyCrate!;
+      final id = crate.weapon.id;
       expect(ProgressService.instance.crateHintSeen(id), isFalse);
-      h.game.debugCollectCrate(crate);
-      expect(h.game.debugCrateNotice?.kind, crate.weapon.kind);
+      game.debugCollectCrate(crate);
+      expect(game.debugCrateNotice?.kind, crate.weapon.kind);
       expect(ProgressService.instance.crateHintSeen(id), isTrue);
       // The same weapon again: the icon flies in, no plate.
-      await h.loadLevel(_levelWhere((d) => d.spec.id == 'mine_01'));
-      expect(h.game.debugCrateNotice, isNull);
-      h.game.debugCollectCrate(crate);
-      expect(h.game.debugCrateNotice, isNull);
+      await h.loadLevel(mine01);
+      expect(game.debugCrateNotice, isNull);
+      game.debugCollectCrate(crate);
+      expect(game.debugCrateNotice, isNull);
     });
   });
+}
+
+/// Crate dice that always roll a crate (and the first spot and weapon).
+class _LoadedDice implements math.Random {
+  @override
+  double nextDouble() => 0;
+  @override
+  int nextInt(int max) => 0;
+  @override
+  bool nextBool() => false;
 }

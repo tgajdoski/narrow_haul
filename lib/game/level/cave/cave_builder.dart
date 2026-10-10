@@ -53,7 +53,17 @@ final Map<String, BuiltCave> _cache = {};
 
 void clearCaveCache() => _cache.clear();
 
+/// Drops one level's cached build, so a hot-reloaded spec edit rebuilds it
+/// while every other level stays cached.
+void forgetCave(String id) => _cache.remove(id);
+
+/// Whether [id] is built and cached (tests).
+bool isCaveCached(String id) => _cache.containsKey(id);
+
 BuiltCave buildCave(LevelSpec spec) => _cache[spec.id] ??= _build(spec);
+
+/// A fresh build that bypasses the cache (determinism checks, timing).
+BuiltCave buildCaveUncached(LevelSpec spec) => _build(spec);
 
 /// Builds [spec] on a background isolate (unless cached) and caches it, so
 /// the following [buildCave] is instant and a level load doesn't freeze the

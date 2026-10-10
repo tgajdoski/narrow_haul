@@ -71,8 +71,7 @@ void main() {
       );
       counts[d.label] = (counts[d.label] ?? 0) + 1;
     }
-    // ignore: avoid_print
-    print({for (final e in counts.entries) e.key.text: e.value});
+    printOnFailure('${{for (final e in counts.entries) e.key.text: e.value}}');
     // Neither label should swallow the game.
     expect(counts[DifficultyLabel.comfortable] ?? 0, greaterThan(rows.length ~/ 4));
     expect(counts[DifficultyLabel.tight] ?? 0, lessThan(rows.length * 3 ~/ 4));

@@ -2,18 +2,9 @@
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/camera/camera_director.dart';
-import 'package:narrow_haul/game/level/level_def.dart';
-import 'package:narrow_haul/game/level/level_registry.dart';
 
 import 'autopilot/harness.dart';
-
-int _levelId(String id) {
-  for (int i = 0; i < LevelRegistry.totalLevels; i++) {
-    final def = LevelRegistry.defAt(i);
-    if ((def is CaveLevelDef && def.spec.id == id) || def.saveId == id) return i;
-  }
-  throw StateError('no level $id');
-}
+import 'helpers/levels.dart';
 
 void main() {
   final h = GameHarness();
@@ -41,7 +32,7 @@ void main() {
     for (final id in ['mine_01', 'tut_05']) {
       test('$id ($hand): ship near the floor corners stays clear of the controls',
           () async {
-        await h.loadLevel(_levelId(id));
+        await h.loadLevel(levelIndexOf(id));
         h.game.debugHudControls!.leftHanded = leftHanded;
         // Bottom-left and bottom-right corners, just inside the world.
         expect(shipClearAt(0.03, 0.97), isTrue, reason: 'bottom-left');

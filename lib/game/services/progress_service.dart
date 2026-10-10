@@ -7,6 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ProgressService {
   ProgressService._(this._prefs);
 
+  /// Today's date source for dailies, streaks and the replay-XP cap
+  /// (tests set a fixed day).
+  static DateTime Function() clock = DateTime.now;
+
   static ProgressService? _instance;
   static ProgressService get instance {
     assert(_instance != null, 'ProgressService.init() must be called first');
@@ -363,7 +367,7 @@ class ProgressService {
 
   // ── Daily challenge ──────────────────────────────────────────────────────
 
-  String _todayKey() => _dateKey(DateTime.now());
+  String _todayKey() => _dateKey(clock());
 
   String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -372,7 +376,7 @@ class ProgressService {
   /// full day is missed.
   int getDailyStreak() {
     final last = _string('daily_last_date');
-    final now = DateTime.now();
+    final now = clock();
     final yesterday = _dateKey(DateTime(now.year, now.month, now.day - 1));
     if (last == _todayKey() || last == yesterday) {
       return _int('daily_streak') ?? 0;

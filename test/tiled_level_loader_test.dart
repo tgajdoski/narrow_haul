@@ -4,7 +4,7 @@ import 'package:narrow_haul/game/level/tiled_level_loader.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('level_01.tmx parses walls, cargo_zone, and random cargo', () async {
+  test('level_01.tmx parses walls, the cargo zone and the rope length', () async {
     final data = await loadLevelFromTmx(
       'assets/tiles/level_01.tmx',
       levelIndex: 0,

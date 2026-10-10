@@ -55,6 +55,38 @@ class LevelSpec {
   /// Cargo lock: the pod is held in place until hooked. Required wherever
   /// the pull at the cargo isn't calm and downward (zero-g, near wells).
   final bool cargoClamped;
+
+  /// This level with some parts swapped (authoring tools and tests). Keeps
+  /// [id], so it shares the original's cave cache entry unless given a new one.
+  LevelSpec copyWith({
+    String? id,
+    List<ObstacleSpec>? obstacles,
+    List<FieldSpec>? fields,
+    List<PickupSpec>? pickups,
+    LevelModifiers? modifiers,
+    String? shipId,
+    bool? cargoClamped,
+  }) =>
+      LevelSpec(
+        id: id ?? this.id,
+        seed: seed,
+        name: name,
+        themeId: themeId,
+        worldW: worldW,
+        worldH: worldH,
+        tunnels: tunnels,
+        chambers: chambers,
+        shipSpawn: shipSpawn,
+        cargoSpawn: cargoSpawn,
+        goal: goal,
+        obstacles: obstacles ?? this.obstacles,
+        fields: fields ?? this.fields,
+        pickups: pickups ?? this.pickups,
+        modifiers: modifiers ?? this.modifiers,
+        noise: noise,
+        shipId: shipId ?? this.shipId,
+        cargoClamped: cargoClamped ?? this.cargoClamped,
+      );
 }
 
 /// Winding corridor: a Catmull-Rom spline through [points] carved as capsules.

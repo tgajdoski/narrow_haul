@@ -3,6 +3,7 @@ import 'package:narrow_haul/game/level/cave/field_sampler.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
+import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 void main() {
@@ -114,97 +115,67 @@ void main() {
     });
   });
 
+  group('gravity modifiers', () {
+    test('level × daily compose, clamped to the cap', () {
+      expect(combinedGravityMul(1.4, 1.5), closeTo(2.1, 1e-9));
+      expect(combinedGravityMul(1.7, kMaxChallengeGravityMul), kMaxGravityMul);
+      expect(combinedGravityMul(0, 1.8), 0, reason: 'zero-g stays zero-g');
+      expect(combinedGravityMul(0.5), 0.5);
+    });
+  });
+
   group('field guardrails', () {
-    LevelSpec course(List<FieldSpec> fields) => LevelSpec(
-          id: 'test_course',
-          seed: 1,
-          name: 'Test',
-          themeId: 'ice',
-          worldW: 34,
-          worldH: 20,
-          tunnels: const [
-            TunnelSpec([Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)], width: 2.0),
-            TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
-          ],
-          chambers: const [
-            ChamberSpec(Pt(5, 9), 2.4),
-            ChamberSpec(Pt(17, 13), 1.8),
-            ChamberSpec(Pt(29, 9), 2.4),
-          ],
-          fields: fields,
-          shipSpawn: const Pt(5, 9),
-          cargoSpawn: const Pt(17, 13),
-          goal: const GoalSpec(Pt(29, 10.2)),
-        );
+    const course = LevelSpec(
+      id: 'test_course',
+      seed: 1,
+      name: 'Test',
+      themeId: 'ice',
+      worldW: 34,
+      worldH: 20,
+      tunnels: [
+        TunnelSpec([Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)], width: 2.0),
+        TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
+      ],
+      chambers: [
+        ChamberSpec(Pt(5, 9), 2.4),
+        ChamberSpec(Pt(17, 13), 1.8),
+        ChamberSpec(Pt(29, 9), 2.4),
+      ],
+      shipSpawn: Pt(5, 9),
+      cargoSpawn: Pt(17, 13),
+      goal: GoalSpec(Pt(29, 10.2)),
+    );
 
-    test('baseline course is valid', () {
-      expect(validateCaveSpec(course(const [])), isEmpty);
-    });
-
-    test('wind gusting past the readable cap is rejected', () {
-      final issues = validateCaveSpec(course(const [
-        WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.8, ay: 0, gustAmp: 0.5),
-      ]));
-      expect(issues.any((i) => i.startsWith('WIND')), isTrue, reason: '$issues');
-    });
-
-    test('wind over the cargo pocket is rejected', () {
-      final issues = validateCaveSpec(course(const [
-        WindZoneSpec(Pt(17, 13), halfW: 3, halfH: 3, ax: 0.8, ay: 0, feather: 0.2),
-      ]));
-      expect(issues.any((i) => i.startsWith('FIELD: cargo')), isTrue, reason: '$issues');
-    });
-
-    test('sideways pull at the goal is rejected', () {
-      final issues = validateCaveSpec(course(const [
-        GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 1, gy: 0),
-      ]));
-      expect(issues.any((i) => i.startsWith('FIELD: goal')), isTrue, reason: '$issues');
-    });
-
-    test('zero-g at the goal is fine — you drift in', () {
-      expect(
-        validateCaveSpec(course(const [
-          GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 0, gy: 0),
-        ])),
-        isEmpty,
-      );
-    });
-
-    test('well core too close to the cargo is rejected', () {
-      final issues = validateCaveSpec(course(const [
-        GravityWellSpec(Pt(18.8, 13), strength: 1, coreRadius: 0.6),
-      ]));
-      expect(issues.any((i) => i.startsWith('WELL')), isTrue, reason: '$issues');
-    });
-
-    test('well pulling on free cargo needs the cargo lock', () {
-      LevelSpec withWell({required bool clamped}) => LevelSpec(
-            id: 'test_well',
-            seed: 1,
-            name: 'Test',
-            themeId: 'ice',
-            worldW: 34,
-            worldH: 20,
-            tunnels: const [
-              TunnelSpec([Pt(5, 9), Pt(11, 8), Pt(17, 9), Pt(23, 8), Pt(29, 9)], width: 2.0),
-              TunnelSpec([Pt(17, 9), Pt(17, 12.5)], width: 1.5),
-            ],
-            chambers: const [
-              ChamberSpec(Pt(5, 9), 2.4),
-              ChamberSpec(Pt(17, 13), 1.8),
-              ChamberSpec(Pt(29, 9), 2.4),
-            ],
-            fields: const [GravityWellSpec(Pt(21, 13), strength: 20, coreRadius: 0.8)],
-            cargoClamped: clamped,
-            shipSpawn: const Pt(5, 9),
-            cargoSpawn: const Pt(17, 13),
-            goal: const GoalSpec(Pt(29, 10.2)),
-          );
-      final free = validateCaveSpec(withWell(clamped: false));
-      expect(free.any((i) => i.startsWith('FIELD: cargo')), isTrue, reason: '$free');
-      final locked = validateCaveSpec(withWell(clamped: true));
-      expect(locked.where((i) => i.startsWith('FIELD: cargo')), isEmpty, reason: '$locked');
-    });
+    // (case, fields, cargo lock, the issue it must raise — null: valid,
+    // '!X': no X issue).
+    // Fields don't shape the rock, so every case shares one cave build.
+    for (final (name, fields, clamped, issue) in const <(String, List<FieldSpec>, bool, String?)>[
+      ('baseline course is valid', [], false, null),
+      ('wind gusting past the readable cap is rejected',
+          [WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.8, ay: 0, gustAmp: 0.5)], false, 'WIND'),
+      ('wind over the cargo pocket is rejected',
+          [WindZoneSpec(Pt(17, 13), halfW: 3, halfH: 3, ax: 0.8, ay: 0, feather: 0.2)], false, 'FIELD: cargo'),
+      ('sideways pull at the goal is rejected',
+          [GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 1, gy: 0)], false, 'FIELD: goal'),
+      ('zero-g at the goal is fine — you drift in',
+          [GravityZoneSpec(Pt(29, 9), halfW: 3, halfH: 3, gx: 0, gy: 0)], false, null),
+      ('well core too close to the cargo is rejected',
+          [GravityWellSpec(Pt(18.8, 13), strength: 1, coreRadius: 0.6)], false, 'WELL'),
+      ('a well pulling on free cargo needs the cargo lock',
+          [GravityWellSpec(Pt(21, 13), strength: 20, coreRadius: 0.8)], false, 'FIELD: cargo'),
+      ('a locked pod by a well is fine',
+          [GravityWellSpec(Pt(21, 13), strength: 20, coreRadius: 0.8)], true, '!FIELD: cargo'),
+    ]) {
+      test(name, () {
+        final issues = validateCaveSpec(course.copyWith(fields: fields, cargoClamped: clamped));
+        if (issue == null) {
+          expect(issues, isEmpty);
+        } else if (issue.startsWith('!')) {
+          expect(issues.where((i) => i.startsWith(issue.substring(1))), isEmpty, reason: '$issues');
+        } else {
+          expect(issues.any((i) => i.startsWith(issue)), isTrue, reason: '$issues');
+        }
+      });
+    }
   });
 }

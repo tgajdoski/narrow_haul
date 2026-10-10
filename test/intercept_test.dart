@@ -4,21 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/combat/intercept.dart';
 import 'package:narrow_haul/game/components/combat.dart';
-import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
-import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 import 'autopilot/harness.dart';
-
-int _levelId(String id) {
-  for (int i = 0; i < LevelRegistry.totalLevels; i++) {
-    final def = LevelRegistry.defAt(i);
-    if (def is CaveLevelDef && def.spec.id == id) return i;
-  }
-  throw StateError('no level $id');
-}
+import 'helpers/levels.dart';
 
 void main() {
   group('rules', () {
@@ -66,15 +57,8 @@ void main() {
           weapon: weapon,
         );
 
-    Future<void> step(int frames) async {
-      for (var i = 0; i < frames; i++) {
-        h.game.update(kStepDt);
-        await Future<void>.delayed(Duration.zero);
-      }
-    }
-
     test('a cannon round and a turret shell trade', () async {
-      await h.loadLevel(_levelId('mine_01'));
+      await h.loadLevel(levelIndexOf('mine_01'));
       final game = h.game;
       final before = ProgressService.instance.getStat(ProgressService.statShellsIntercepted);
       final c = game.ship!.body.position + Vector2(0, -1.3);
@@ -82,7 +66,7 @@ void main() {
       final round = shell(c + Vector2(1, 0), Vector2(-9, 0), mine: true);
       game.spawnShell(enemy);
       game.spawnShell(round);
-      await step(20);
+      await h.step(20);
       expect(enemy.spent, isTrue);
       expect(round.spent, isTrue);
       expect(game.runState, isNot(RunState.gameOver));
@@ -90,20 +74,20 @@ void main() {
     });
 
     test('a seeker pierces a turret shell and flies on', () async {
-      await h.loadLevel(_levelId('mine_01'));
+      await h.loadLevel(levelIndexOf('mine_01'));
       final game = h.game;
       final c = game.ship!.body.position + Vector2(0, -1.3);
       final enemy = shell(c + Vector2(-1, 0), Vector2(4.5, 0), mine: false);
       final missile = shell(c + Vector2(0.6, 0), Vector2(-5, 0), mine: true, weapon: kSeeker);
       game.spawnShell(enemy);
       game.spawnShell(missile);
-      await step(12);
+      await h.step(12);
       expect(enemy.spent, isTrue);
       expect(missile.spent, isFalse);
     });
 
     test('a blast clears turret shells within its radius', () async {
-      await h.loadLevel(_levelId('mine_01'));
+      await h.loadLevel(levelIndexOf('mine_01'));
       final game = h.game..debugSyncCarve = true;
       final c = game.ship!.body.position + Vector2(0, -1.3);
       final near = shell(c + Vector2(2, 0), Vector2.zero(), mine: false);
@@ -111,7 +95,7 @@ void main() {
           Vector2.zero(), mine: false);
       game.spawnShell(near);
       game.spawnShell(far);
-      await step(1);
+      await h.step(1);
       game.detonate(c, kDemoCharge);
       expect(near.spent, isTrue);
       expect(far.spent, isFalse);

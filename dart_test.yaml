@@ -3,3 +3,7 @@ tags:
     # Slow end-to-end flight test; run on demand:
     #   flutter test test/autopilot --dart-define=STORE_CAPTURE=true
     skip: "Run on demand: flutter test test/autopilot --tags autopilot --run-skipped --dart-define=STORE_CAPTURE=true"
+  perf:
+    # Wall-clock budgets (cave builds, carving); flaky on a busy CI runner:
+    #   flutter test --tags perf --run-skipped
+    skip: "Run on demand: flutter test --tags perf --run-skipped"

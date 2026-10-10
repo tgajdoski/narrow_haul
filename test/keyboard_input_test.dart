@@ -20,10 +20,14 @@ void main() {
     expect([k.rotateAxis, k.thrust, k.fire], [0, false, false]);
   });
 
-  test('non-flight keys are not swallowed', () {
+  test('flight keys (incl. Q and the 1–6 rail slots) are claimed; others pass', () {
     expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyW), isTrue);
     expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyQ), isTrue,
         reason: 'Q switches weapons');
+    expect(KeyboardFlightInput.slotKeys.first, LogicalKeyboardKey.digit1);
+    for (final k in KeyboardFlightInput.slotKeys) {
+      expect(KeyboardFlightInput.isFlightKey(k), isTrue, reason: '$k');
+    }
     expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyZ), isFalse);
   });
 }

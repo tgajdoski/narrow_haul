@@ -306,6 +306,11 @@ class NarrowHaulGame extends Forge2DGame
   @visibleForTesting
   bool debugSyncCarve = false;
 
+  /// Test-only: keep built caves across level loads (debug builds otherwise
+  /// rebuild the loaded level's cave for hot-reload authoring).
+  @visibleForTesting
+  bool debugKeepCaveCache = false;
+
   /// Source of crate odds/contents/spots (seedable in tests).
   @visibleForTesting
   math.Random crateRng = math.Random();
@@ -728,9 +733,12 @@ class NarrowHaulGame extends Forge2DGame
     final route = await _routeForCurrentLevel();
     _checkLoad(gen);
     currentRoute = route;
-    // In debug, rebuild caves every load so hot-reloaded spec edits show up.
-    if (kDebugMode) clearCaveCache();
     final def = currentLevelDef;
+    // In debug, rebuild the cave on every load so hot-reloaded spec edits
+    // show up (tests keep the cache: the spec can't change under them).
+    if (kDebugMode && !debugKeepCaveCache && def is CaveLevelDef) {
+      forgetCave(def.spec.id);
+    }
     if (def is CaveLevelDef) await prebuildCave(def.spec);
     _checkLoad(gen);
     final data = switch (currentLevelDef) {
@@ -795,6 +803,8 @@ class NarrowHaulGame extends Forge2DGame
     final mods = data.modifiers;
 
     // Gravity: base (debug-reduced) × daily challenge × level modifier.
+    // Same total as combinedGravityMul (level × daily, clamped); split so
+    // the field sampler gets the daily-scaled base and the level's part.
     final g0 = baseGravityY() * _gravityMultiplier;
     final gravityMul = mods.gravityMul.clamp(0.0, kMaxGravityMul / _gravityMultiplier);
     world.gravity = Vector2(0, g0 * gravityMul);

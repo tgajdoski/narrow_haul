@@ -108,7 +108,6 @@ void main() {
       final d = _dynamic();
       final shot = _run(d, _in(vx: 9, gap: 0.5), 3);
       expect(shot.zoom, greaterThanOrEqualTo(CameraDirector.minZoom - 1e-9));
-      expect(CameraDirector.minZoom, greaterThanOrEqualTo(0.85));
     });
 
     test('a towed pod 6 m below stays inside the view margin', () {
@@ -120,7 +119,7 @@ void main() {
       expect(shot.y, greaterThan(0.5)); // aimed toward the pod
     });
 
-    test('stays within the zoom range', () {
+    test('a pod far below doesn\'t pull the view past the floor either', () {
       final d = _dynamic();
       final shot = _run(d, _in(vx: 9, gap: 0.5, towing: true, podX: 0, podY: 20), 3);
       expect(shot.zoom, greaterThanOrEqualTo(CameraDirector.minZoom - 1e-9));

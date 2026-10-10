@@ -104,4 +104,32 @@ void main() {
       expect(allDone, isFalse);
     });
   });
+
+  group('turret contracts', () {
+    test('turret contract counts kills and is gated on armed worlds', () {
+      const c = Contract(ContractKind.destroyTurrets, target: 4);
+      const e = DeliveryEvent(
+        worldIndex: 6,
+        challenge: false,
+        clean: true,
+        fuelFraction: 0.5,
+        seconds: 60,
+        newStars: 0,
+        personalBest: false,
+        turretsDestroyed: 3,
+      );
+      expect(contractProgress(c, e), 3);
+      for (int d = 1; d <= 60; d++) {
+        final list = generateContracts(DateTime(2026, 2, d),
+            unlockedWorlds: [0], starsRemaining: 10, dailyDone: false);
+        expect(list.map((c) => c.kind), isNot(contains(ContractKind.destroyTurrets)));
+      }
+      final offered = [
+        for (int d = 1; d <= 60; d++)
+          ...generateContracts(DateTime(2026, 2, d),
+              unlockedWorlds: [0], starsRemaining: 10, dailyDone: false, armedUnlocked: true),
+      ];
+      expect(offered.map((c) => c.kind), contains(ContractKind.destroyTurrets));
+    });
+  });
 }

@@ -92,7 +92,7 @@ void main() {
       }
     });
 
-    test('every ship boosts, the heavy Mule least', () {
+    test('every ship boosts (the Mule less than the Kestrel); towing trims it', () {
       for (final spec in kShips.values) {
         expect(spec.turnBoost, greaterThan(1.4), reason: spec.id);
         expect(spec.turnBoost, lessThanOrEqualTo(kTalon.turnBoost));

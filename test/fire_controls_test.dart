@@ -1,59 +1,10 @@
 
 import 'package:flutter/painting.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
-import 'package:narrow_haul/game/keyboard_input.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 void main() {
-  group('WeaponRack.select', () {
-    test('picks a weapon on board, ignores the rest', () {
-      final rack = WeaponRack(hasCannon: true, carried: {kGravityBomb.id: 2});
-      expect(rack.selectedId, kCannon.id);
-      expect(rack.select(kGravityBomb.id), isTrue);
-      expect(rack.selectedId, kGravityBomb.id);
-      expect(rack.select(kFlak.id), isFalse, reason: 'no flak on board');
-      expect(rack.select('nonsense'), isFalse);
-      expect(rack.selectedId, kGravityBomb.id);
-    });
-
-    test('an emptied weapon drops off the rail', () {
-      final rack = WeaponRack(hasCannon: true, carried: {kDemoCharge.id: 1});
-      rack.select(kDemoCharge.id);
-      rack.spend(kDemoCharge.id, 1);
-      expect(rack.select(kDemoCharge.id), isFalse);
-      expect(rack.selectedId, kCannon.id);
-    });
-  });
-
-  group('WeaponRack.costsStar', () {
-    test('found ammo first; the star badge shows only on carried ammo', () {
-      final rack = WeaponRack(carried: {kGravityBomb.id: 2});
-      rack.addFound(kGravityBomb.id, 1);
-      expect(rack.costsStar(kGravityBomb.id), isFalse, reason: 'a found bomb goes first');
-      rack.spend(kGravityBomb.id, 1);
-      expect(rack.costsStar(kGravityBomb.id), isTrue);
-      rack.spend(kGravityBomb.id, 1);
-      expect(rack.usedCarried, isTrue);
-      expect(rack.costsStar(kGravityBomb.id), isFalse, reason: 'the star is already gone');
-    });
-
-    test('nothing on board costs nothing', () {
-      final rack = WeaponRack(hasCannon: true);
-      expect(rack.costsStar(kCannon.id), isFalse);
-      expect(rack.costsStar(kFlak.id), isFalse);
-    });
-  });
-
-  test('number keys pick rail slots and count as flight keys', () {
-    expect(KeyboardFlightInput.slotKeys, hasLength(6));
-    expect(KeyboardFlightInput.slotKeys.first, LogicalKeyboardKey.digit1);
-    for (final k in KeyboardFlightInput.slotKeys) {
-      expect(KeyboardFlightInput.isFlightKey(k), isTrue);
-    }
-  });
-
   group('WeaponHud', () {
     WeaponSlot slot(WeaponKind kind, {String? count}) =>
         WeaponSlot(id: kind.name, kind: kind, label: 'X', name: 'X', count: count);

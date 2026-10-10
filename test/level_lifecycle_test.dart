@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/cargo_body.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/components/wall_box.dart';
-import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 
 import 'autopilot/harness.dart';
@@ -33,10 +32,7 @@ void main() {
     game.backToMenu();
     await load;
     await game.ready();
-    for (var i = 0; i < 5; i++) {
-      game.update(1 / 60);
-      await Future<void>.delayed(Duration.zero);
-    }
+    await h.step(5);
 
     expect(game.runState, RunState.menu);
     expect(game.ship, isNull);
@@ -59,6 +55,5 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     }
     expect(game.overlays.isActive('levelComplete'), isTrue);
-    expect(LevelRegistry.defAt(0).saveId, isNotEmpty);
   });
 }

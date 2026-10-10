@@ -241,7 +241,7 @@ void main() {
     expect(find.textContaining('XP'), findsOneWidget);
   });
 
-  testWidgets('XP breakdown folds into five lines', (tester) async {
+  test('XP breakdown folds into five lines', () {
     final lines = XpSummary.foldXpLines([
       for (var i = 0; i < 9; i++) XpLine('Line $i', 10),
     ]);
@@ -279,18 +279,19 @@ void main() {
     expect(map.pixels, lessThan(50), reason: '${first.name} at the start');
   });
 
-  testWidgets('every Garage tab lays out (tow gear, handling, armory)', (
+  testWidgets('every Garage tab lays out (liveries, tow gear, handling, armory)', (
     tester,
   ) async {
-    for (final (tab, icon) in const [
-      ('tow gear', Icons.link_rounded),
-      ('handling', Icons.tune_rounded),
-      ('plumes', Icons.local_fire_department_outlined),
-      ('armory', Icons.gps_fixed_rounded),
-    ]) {
-      for (final size in _sizes) {
-        for (final scale in [1.0, 1.3]) {
-          await pump(tester, size, scale, GarageOverlay(game: NarrowHaulGame()));
+    for (final size in _sizes) {
+      for (final scale in [1.0, 1.3]) {
+        await pump(tester, size, scale, GarageOverlay(game: NarrowHaulGame()));
+        expect(tester.takeException(), isNull, reason: 'garage at $size ×$scale');
+        for (final (tab, icon) in const [
+          ('tow gear', Icons.link_rounded),
+          ('handling', Icons.tune_rounded),
+          ('plumes', Icons.local_fire_department_outlined),
+          ('armory', Icons.gps_fixed_rounded),
+        ]) {
           await tester.tap(find.byIcon(icon).first);
           await tester.pump(const Duration(milliseconds: 400));
           expect(
@@ -308,12 +309,6 @@ void main() {
       tester,
       'levelSelect',
       () => LevelSelectOverlay(game: NarrowHaulGame()),
-    );
-    await each(
-      tester,
-      'garage',
-      () => GarageOverlay(game: NarrowHaulGame()),
-      mustNotScroll: false,
     );
     await each(
       tester,

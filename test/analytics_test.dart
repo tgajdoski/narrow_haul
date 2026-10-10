@@ -25,6 +25,9 @@ void main() {
   group('flight events', () {
     final h = GameHarness();
     setUpAll(h.boot);
+    // The log is capped (oldest entries drop off), so marks into it only
+    // hold on a fresh one.
+    setUp(Analytics.debugLog.clear);
 
     List<(String, Map<String, Object>)> since(int mark) =>
         Analytics.debugLog.sublist(mark);
