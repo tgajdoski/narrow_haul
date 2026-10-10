@@ -238,6 +238,8 @@ void main() {
     for (var i = 0; i < LevelRegistry.totalLevels; i++) {
       final def = LevelRegistry.defAt(i);
       if (wanted != null && !wanted.contains(def.saveId)) continue;
+      // The bot flies one haul; Expeditions wait for multi-leg flying.
+      if (LevelRegistry.isExpedition(i)) continue;
       await h.loadLevel(i);
       final grid = h.navGrid(def);
       final (real, profileResults) =

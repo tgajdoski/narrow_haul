@@ -3,6 +3,7 @@
 // every level has one.
 
 import 'package:narrow_haul/game/story/story_act1.dart';
+import 'package:narrow_haul/game/story/story_act2.dart';
 
 /// Radio callsigns of the cast (docs/STORY.md, "Cast").
 abstract final class Callsign {
@@ -26,14 +27,20 @@ enum BeatCue {
 
   /// The moment the pod is hooked.
   hooked,
+
+  /// An Expedition leg landed on its staging pad (not the last).
+  landed,
 }
 
 /// One radio line of a mission's story.
 class StoryBeat {
-  const StoryBeat(this.callsign, this.text, {this.cue = BeatCue.start, this.delay = 0});
+  const StoryBeat(this.callsign, this.text, {this.cue = BeatCue.start, this.delay = 0, this.leg});
   final String callsign;
   final String text;
   final BeatCue cue;
+
+  /// An Expedition leg (0-based) this beat belongs to; null: any leg.
+  final int? leg;
 
   /// Extra seconds after the cue.
   final double delay;
@@ -82,10 +89,10 @@ class WorldStory {
 }
 
 /// The story of the level saved as [saveId], if it has one.
-LevelStory? storyFor(String saveId) => kLevelStories[saveId];
+LevelStory? storyFor(String saveId) => kLevelStories[saveId] ?? kExpeditionStories[saveId];
 
 /// The chapter of the world [worldId].
-WorldStory? worldStoryFor(String worldId) => kWorldStories[worldId];
+WorldStory? worldStoryFor(String worldId) => kWorldStories[worldId] ?? kExpeditionWorldStories[worldId];
 
 /// Longest radio line: it has to fit the comms band on a small phone.
 const int kMaxBeatChars = 110;

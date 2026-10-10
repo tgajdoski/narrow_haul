@@ -4,6 +4,7 @@
 // ignore_for_file: avoid_print
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/specs/expeditions.dart';
 import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
@@ -21,6 +22,7 @@ void main(List<String> args) {
       (lavaLevels, lavaShipId),
       (orbitLevels, orbitShipId),
       (redoubtLevels, redoubtShipId),
+      (expeditionLevels, expeditionShipId),
     ])
       for (final def in levels.whereType<CaveLevelDef>()) (def, def.shipId ?? shipId),
   ];
@@ -33,6 +35,8 @@ void main(List<String> args) {
     if (!requested) continue;
     final issues = validateCaveSpec(spec, ship: ship);
     final flight = analyzeFlight(spec, ship: ship);
+    // An Expedition refuels on each pad: one estimate per leg.
+    final legs = spec.isExpedition ? analyzeLegs(spec, ship: ship) : const [];
     // Heuristic star check (warning only): can a clean run keep enough fuel?
     final star3Budget = 1 - def.stars.star3Fuel;
     final starNote = flight != null && flight.fuelFraction > star3Budget
@@ -45,6 +49,9 @@ void main(List<String> args) {
     failures += issues.isEmpty ? 0 : 1;
     print('== ${spec.id} — ${spec.name} ==');
     print('   ${ship.name}: $flight$starNote');
+    for (final (k, leg) in legs.indexed) {
+      print('   leg ${k + 1}: $leg');
+    }
     for (final issue in issues) {
       print('   ! $issue');
     }

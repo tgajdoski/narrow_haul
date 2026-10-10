@@ -13,7 +13,25 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 /// Pure-Dart playability checks shared by `flutter test` and the authoring
 /// preview tool. Empty result = level is provably completable geometry for
 /// [ship] (the ship the level is actually flown with).
+///
+/// An Expedition is checked leg by leg ([LevelSpec.forLeg]): each haul must
+/// pass every check on its own, starting from the previous leg's pad with a
+/// full tank (a staging pad refuels). Issues name their leg.
 List<String> validateCaveSpec(LevelSpec spec, {ShipSpec ship = kKestrel}) {
+  if (!spec.isExpedition) return _validateHaul(spec, ship);
+  return [
+    for (var k = 0; k < spec.legs.length; k++)
+      for (final issue in _validateHaul(spec.forLeg(k), ship)) 'leg ${k + 1}: $issue',
+  ];
+}
+
+/// Per-leg flight estimates of an Expedition (one entry for a mission).
+List<FlightReport?> analyzeLegs(LevelSpec spec, {ShipSpec ship = kKestrel}) => [
+      for (var k = 0; k < spec.allLegs.length; k++)
+        analyzeFlight(spec.isExpedition ? spec.forLeg(k) : spec, ship: ship),
+    ];
+
+List<String> _validateHaul(LevelSpec spec, ShipSpec ship) {
   final issues = <String>[];
   final cave = buildCave(spec);
 
@@ -377,7 +395,8 @@ List<String> _fieldIssues(LevelSpec spec, ShipSpec ship) {
 /// Coarse ASCII picture of the carved cave for terminal authoring.
 /// `#` rock, `.` open, `S` ship, `c` cargo, `G` goal, `!` obstacle center,
 /// `~` wind, `z` gravity zone, `0` zero-g zone, `o` gravity well,
-/// `T` turret, `R` reactor, `F` fuel canister.
+/// `T` turret, `R` reactor, `F` fuel canister; an Expedition numbers its
+/// pods `1 2 3…` and pads `A B C…`.
 String asciiPreview(LevelSpec spec, {double res = 0.5}) {
   final cave = buildCave(spec);
   final cols = (spec.worldW / res).ceil();
@@ -437,8 +456,16 @@ String asciiPreview(LevelSpec spec, {double res = 0.5}) {
     mark(p.pos, 'F');
   }
   mark(spec.shipSpawn, 'S');
-  mark(spec.cargoSpawn, 'c');
-  mark(spec.goal.center, 'G');
+  if (spec.isExpedition) {
+    // Legs numbered: pod `1` goes to pad `A`, pod `2` to pad `B`, …
+    for (final (k, l) in spec.legs.indexed) {
+      mark(l.cargoSpawn, '${k + 1}');
+      mark(l.goal.center, String.fromCharCode(0x41 + k));
+    }
+  } else {
+    mark(spec.cargoSpawn, 'c');
+    mark(spec.goal.center, 'G');
+  }
   return grid.map((row) => row.join()).join('\n');
 }
 

@@ -153,7 +153,7 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
       ('Fuel burned', '${progress.getTotalFuelSpent().round()} u'),
       (
         'Stars',
-        '${LevelRegistry.totalStars()} / ${LevelRegistry.totalLevels * 3}',
+        '${LevelRegistry.totalStars()} / ${LevelRegistry.careerLevels * 3}',
       ),
       ('Total XP', '$xp'),
       ('Daily streak', '🔥 ${progress.getDailyStreak()}'),

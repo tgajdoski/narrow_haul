@@ -357,9 +357,13 @@ void main() {
     });
 
     test('every level the bot can fly has a route', () {
+      // Expeditions have no route guide yet: the autopilot and the
+      // recorder fly one haul (docs/STORY.md, increment X3).
       final missing = [
         for (final def in LevelRegistry.flat)
-          if (!files.contains(def.saveId)) def.saveId,
+          if (!files.contains(def.saveId) &&
+              !(def is CaveLevelDef && def.spec.isExpedition))
+            def.saveId,
       ];
       expect(missing, isEmpty, reason: 'export with --dart-define=EXPORT_ROUTES=true');
     }, skip: files.isEmpty ? 'no routes exported yet (see assets/routes/README.md)' : false);

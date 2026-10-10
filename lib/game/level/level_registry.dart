@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/level/cave/cave_builder.dart';
+import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
+import 'package:narrow_haul/game/level/specs/expeditions.dart';
 import 'package:narrow_haul/game/level/specs/world_alien.dart';
 import 'package:narrow_haul/game/level/specs/world_ice.dart';
 import 'package:narrow_haul/game/level/specs/world_lava.dart';
@@ -91,6 +95,16 @@ abstract final class LevelRegistry {
       levels: redoubtLevels,
       defaultShipId: redoubtShipId,
     ),
+    WorldDef(
+      id: 'expeditions',
+      name: 'The Long Night',
+      themeId: 'alien',
+      starsRequired: 8,
+      rewardPerStar: 30,
+      levels: expeditionLevels,
+      defaultShipId: expeditionShipId,
+      expedition: true,
+    ),
   ];
 
   static final List<LevelDef> flat = [
@@ -98,6 +112,17 @@ abstract final class LevelRegistry {
   ];
 
   static int get totalLevels => flat.length;
+
+  /// The career's missions: every level outside the Expeditions.
+  static final List<LevelDef> career = [
+    for (final w in worlds)
+      if (!w.expedition) ...w.levels,
+  ];
+
+  static int get careerLevels => career.length;
+
+  /// Whether flat level [flatIndex] is an Expedition.
+  static bool isExpedition(int flatIndex) => worldOf(flatIndex).$1.expedition;
 
   static LevelDef defAt(int flatIndex) => flat[flatIndex];
 
@@ -152,7 +177,8 @@ abstract final class LevelRegistry {
     return levels.fold(0, (sum, def) => sum + progress.getStarsById(def.saveId));
   }
 
-  static int totalStars() => starsIn(flat);
+  /// Career stars (what the world gates and career totals count).
+  static int totalStars() => starsIn(career);
 
   static bool isWorldUnlocked(WorldDef world) =>
       totalStars() >= world.starsRequired;
@@ -191,7 +217,22 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
 
   final shipSpawn = Vector2(spec.shipSpawn.x, spec.shipSpawn.y);
   final cargoSpawn = Vector2(spec.cargoSpawn.x, spec.cargoSpawn.y);
-  final dist = shipSpawn.distanceTo(cargoSpawn);
+  Vector2 v(Pt p) => Vector2(p.x, p.y);
+  final legs = [
+    for (final (k, l) in spec.allLegs.indexed)
+      LegData(
+        cargoSpawn: v(l.cargoSpawn),
+        goalCenter: v(l.goal.center),
+        goalHalfWidth: l.goal.halfW,
+        goalHalfHeight: l.goal.halfH,
+        // Later legs' pods wait locked until hooked.
+        cargoClamped: k > 0 || l.cargoClamped,
+        startSpawn: k == 0 ? shipSpawn : v(legShipSpawn(spec.allLegs[k - 1].goal)),
+        parkedPod: v(legParkedPod(l.goal)),
+      ),
+  ];
+  // The longest leg start → pod distance.
+  final dist = legs.fold(0.0, (d, l) => math.max(d, l.startSpawn.distanceTo(l.cargoSpawn)));
 
   return LevelData(
     walls: const [],
@@ -211,5 +252,6 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
     fields: spec.fields,
     pickups: spec.pickups,
     cargoClamped: spec.cargoClamped,
+    legs: legs,
   );
 }

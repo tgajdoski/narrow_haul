@@ -26,7 +26,33 @@ class LevelSpec {
     this.noise = const NoiseSpec(),
     this.shipId,
     this.cargoClamped = false,
+    this.legs = const <LegSpec>[],
   });
+
+  /// An Expedition: several hauls in one cave (docs/STORY.md §3). Leg 1's
+  /// pod and pad are also [cargoSpawn] / [goal], so every single-leg check
+  /// and tool sees the first haul; [allLegs] has them all.
+  LevelSpec.expedition({
+    required this.id,
+    required this.seed,
+    required this.name,
+    required this.themeId,
+    required this.worldW,
+    required this.worldH,
+    required this.tunnels,
+    this.chambers = const <ChamberSpec>[],
+    required this.shipSpawn,
+    required this.legs,
+    this.obstacles = const <ObstacleSpec>[],
+    this.fields = const <FieldSpec>[],
+    this.pickups = const <PickupSpec>[],
+    this.modifiers = const LevelModifiers(),
+    this.noise = const NoiseSpec(),
+    this.shipId,
+  })  : assert(legs.length >= 2, 'an expedition has at least two legs'),
+        cargoSpawn = legs.first.cargoSpawn,
+        goal = legs.first.goal,
+        cargoClamped = legs.first.cargoClamped;
 
   final String id;
   final int seed;
@@ -55,6 +81,55 @@ class LevelSpec {
   /// Cargo lock: the pod is held in place until hooked. Required wherever
   /// the pull at the cargo isn't calm and downward (zero-g, near wells).
   final bool cargoClamped;
+
+  /// An Expedition's hauls in order (empty for a one-haul mission).
+  final List<LegSpec> legs;
+
+  /// Every haul: [legs], or the one from [cargoSpawn] / [goal].
+  List<LegSpec> get allLegs =>
+      legs.isNotEmpty ? legs : [LegSpec(cargoSpawn, goal, cargoClamped: cargoClamped)];
+
+  bool get isExpedition => legs.length > 1;
+
+  /// Every pad and pod of every leg, plus the spawn: where the builder calms
+  /// the rock, lays pad shelves, and nothing else may be placed.
+  List<Pt> get anchorPoints => [
+        shipSpawn,
+        cargoSpawn,
+        goal.center,
+        for (final l in legs) ...[l.cargoSpawn, l.goal.center],
+      ];
+
+  /// Every pad, in leg order ([goal] is always one of them).
+  List<GoalSpec> get allGoals => [for (final l in allLegs) l.goal];
+
+  /// Leg [k] as a one-haul mission in the same cave (validation and flight
+  /// estimates): the ship starts on the previous leg's pad, [legs] are kept
+  /// so the cave builds the same (and shares the cache entry).
+  LevelSpec forLeg(int k) {
+    final l = allLegs[k];
+    return LevelSpec(
+      id: id,
+      seed: seed,
+      name: name,
+      themeId: themeId,
+      worldW: worldW,
+      worldH: worldH,
+      tunnels: tunnels,
+      chambers: chambers,
+      shipSpawn: k == 0 ? shipSpawn : legShipSpawn(allLegs[k - 1].goal),
+      cargoSpawn: l.cargoSpawn,
+      goal: l.goal,
+      obstacles: obstacles,
+      fields: fields,
+      pickups: pickups,
+      modifiers: modifiers,
+      noise: noise,
+      shipId: shipId,
+      cargoClamped: k > 0 || l.cargoClamped,
+      legs: legs,
+    );
+  }
 
   /// This level with some parts swapped (authoring tools and tests). Keeps
   /// [id], so it shares the original's cave cache entry unless given a new one.
@@ -86,8 +161,28 @@ class LevelSpec {
         noise: noise,
         shipId: shipId ?? this.shipId,
         cargoClamped: cargoClamped ?? this.cargoClamped,
+        legs: legs,
       );
 }
+
+/// One haul of an Expedition: a pod and the pad it goes to. Landing it on
+/// the pad refuels the ship and saves a checkpoint; the next leg's pod
+/// waits locked ([cargoClamped] is forced on for every leg after the first)
+/// until it is hooked.
+class LegSpec {
+  const LegSpec(this.cargoSpawn, this.goal, {this.cargoClamped = false});
+  final Pt cargoSpawn;
+  final GoalSpec goal;
+  final bool cargoClamped;
+}
+
+/// Where the ship starts a leg after landing the previous one on [pad]:
+/// right of the pad's centre, clear of the parked pod on its left.
+Pt legShipSpawn(GoalSpec pad) => Pt(pad.center.x + 0.4, pad.center.y);
+
+/// Where a delivered pod is parked on [pad] (a checkpoint resume).
+Pt legParkedPod(GoalSpec pad) =>
+    Pt(pad.center.x - pad.halfW + 0.45, padFloorY(pad) - kCargoRadius);
 
 /// Winding corridor: a Catmull-Rom spline through [points] carved as capsules.
 /// [widths] are per-point half-widths (meters) — vary them for wide chambers

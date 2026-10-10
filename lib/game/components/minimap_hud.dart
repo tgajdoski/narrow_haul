@@ -176,12 +176,14 @@ class MinimapHud extends PositionComponent
         ..strokeWidth = 1,
     );
 
-    // Landing pad — a minimum size so it stays visible on big levels.
+    // Landing pad (an Expedition's current leg's) — a minimum size so it
+    // stays visible on big levels.
+    final pad = game.currentLeg ?? level.legs.first;
     canvas.drawRect(
       Rect.fromCenter(
-        center: _toMap(level.goalCenter),
-        width: math.max(level.goalHalfWidth * 2 * _scale, 8),
-        height: math.max(level.goalHalfHeight * 2 * _scale, 3),
+        center: _toMap(pad.goalCenter),
+        width: math.max(pad.goalHalfWidth * 2 * _scale, 8),
+        height: math.max(pad.goalHalfHeight * 2 * _scale, 3),
       ),
       Paint()..color = _padColor,
     );

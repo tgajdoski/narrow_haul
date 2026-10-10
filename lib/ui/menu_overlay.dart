@@ -42,7 +42,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
   Widget build(BuildContext context) {
     final p = ProgressService.instance;
     final totalStars = LevelRegistry.totalStars();
-    final maxStars = LevelRegistry.totalLevels * 3;
+    final maxStars = LevelRegistry.careerLevels * 3;
     final coins = p.getCosmeticCurrency();
     final dailyDone = p.isDailyChallengeComplete();
     final streak = p.getDailyStreak();
@@ -169,8 +169,8 @@ class _MenuOverlayState extends State<MenuOverlay> {
             icon: Icons.public_rounded,
             label: 'Missions',
             subtitle:
-                '${LevelRegistry.worlds.length} worlds · '
-                '${LevelRegistry.totalLevels} missions',
+                '${LevelRegistry.worlds.where((w) => !w.expedition).length} worlds · '
+                '${LevelRegistry.careerLevels} missions',
             onTap: () => game.openScreen(OverlayIds.levelSelect),
           ),
         ),

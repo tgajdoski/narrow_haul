@@ -21,7 +21,7 @@ class LevelSelectOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = LevelRegistry.totalLevels;
+    final total = LevelRegistry.careerLevels;
     return SpaceScreen(
       title: 'Missions',
       onBack: () => game.closeScreen(OverlayIds.levelSelect),

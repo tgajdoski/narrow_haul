@@ -29,7 +29,8 @@ class ForceFieldSystem extends Component {
 
   final FieldSampler sampler;
   final ShipBody ship;
-  final CargoBody cargo;
+  /// The pod in play (an Expedition moves on to the next leg's).
+  CargoBody cargo;
 
   /// Theme accent for gravity-zone tint and wells.
   final Color accent;

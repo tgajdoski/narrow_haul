@@ -530,6 +530,40 @@ class NarrowHaulGame extends Forge2DGame
   /// The guide was showing during this flight: capped at 2★.
   bool guidedThisRun = false;
 
+  // ── Expedition legs (docs/STORY.md §3) ────────────────────────────────────
+
+  /// The leg in flight (0-based; always 0 on a one-haul mission).
+  int legIndex = 0;
+  int get legCount => currentLevel?.legs.length ?? 1;
+  bool get isExpeditionRun => legCount > 1;
+
+  /// The haul in flight: its pod, its pad.
+  LegData? get currentLeg {
+    final legs = currentLevel?.legs;
+    return legs == null || legIndex >= legs.length ? null : legs[legIndex];
+  }
+
+  /// Every leg's pod, in leg order (one on a mission).
+  final List<CargoBody> _pods = [];
+
+  /// The staging pad to fly on from after a crash: the number of legs
+  /// landed this attempt, with the clock and the fuel they landed with.
+  int _checkpointLeg = 0;
+  double _checkpointElapsed = 0;
+  List<double> _checkpointFuel = const [];
+
+  /// Set by [resumeFromPad] for the next load.
+  int _resumeLeg = 0;
+
+  /// A staging pad took its leg this step ([_advanceLeg] runs next frame).
+  bool _legLanded = false;
+
+  /// Fuel left (tank fraction) at each staging pad this flight.
+  final List<double> _legFuelLeft = [];
+
+  /// Flown on from a staging pad after a crash: max 2★.
+  bool checkpointUsedThisRun = false;
+
   /// Mission shown by the 'briefing' popup (a flat level index), and whether
   /// it is today's daily challenge rather than a mission from the map.
   int briefingLevel = 0;
@@ -807,6 +841,20 @@ class NarrowHaulGame extends Forge2DGame
     continuedThisRun = false;
     _weaponsLogged.clear();
     guidedThisRun = false;
+    // A resume flies on from the last staging pad; anything else starts the
+    // Expedition over.
+    legIndex = _resumeLeg;
+    _resumeLeg = 0;
+    _legLanded = false;
+    checkpointUsedThisRun = legIndex > 0;
+    if (legIndex == 0) {
+      _checkpointLeg = 0;
+      _checkpointElapsed = 0;
+      _checkpointFuel = const [];
+    }
+    _legFuelLeft
+      ..clear()
+      ..addAll(_checkpointFuel.take(legIndex));
     _crashedByMeltdown = false;
     _meltdownAtCrash = null;
     _playtimeBooked = 0;
@@ -958,12 +1006,15 @@ class NarrowHaulGame extends Forge2DGame
       if (def is CaveLevelDef) {
         _carver = TerrainCarver(
           buildCave(def.spec),
-          guards: padGuards(
-            shipSpawn: Pt(data.shipSpawn.x, data.shipSpawn.y),
-            goalCenter: Pt(data.goalCenter.x, data.goalCenter.y),
-            goalHalfW: data.goalHalfWidth,
-            goalHalfH: data.goalHalfHeight,
-          ),
+          guards: [
+            for (final leg in data.legs)
+              ...padGuards(
+                shipSpawn: Pt(data.shipSpawn.x, data.shipSpawn.y),
+                goalCenter: Pt(leg.goalCenter.x, leg.goalCenter.y),
+                goalHalfW: leg.goalHalfWidth,
+                goalHalfH: leg.goalHalfHeight,
+              ),
+          ],
         );
       }
 
@@ -973,7 +1024,10 @@ class NarrowHaulGame extends Forge2DGame
         theme: theme,
         assets: art,
         anchors: [
-          for (final v in [data.shipSpawn, data.cargoSpawn, data.goalCenter])
+          for (final v in [
+            data.shipSpawn,
+            for (final leg in data.legs) ...[leg.cargoSpawn, leg.goalCenter],
+          ])
             Offset(v.x, v.y),
         ],
       );
@@ -1016,15 +1070,17 @@ class NarrowHaulGame extends Forge2DGame
     );
     await _addToLevel(helipad, gen);
 
-    final landingStrip = LandingStripVisual(
-      center: data.goalCenter,
-      sizeMeters: Vector2(data.goalHalfWidth * 2, data.goalHalfHeight * 2),
-      // Cave pads land on the shelf the builder lays below the box.
-      floorDrop: data.caveLoops.isNotEmpty ? kPadFloorDrop : null,
-    );
-    await _addToLevel(landingStrip, gen);
+    for (final leg in data.legs) {
+      final landingStrip = LandingStripVisual(
+        center: leg.goalCenter,
+        sizeMeters: Vector2(leg.goalHalfWidth * 2, leg.goalHalfHeight * 2),
+        // Cave pads land on the shelf the builder lays below the box.
+        floorDrop: data.caveLoops.isNotEmpty ? kPadFloorDrop : null,
+      );
+      await _addToLevel(landingStrip, gen);
+    }
 
-    late final CargoAttachment cargoLink;
+    final startLeg = data.legs[legIndex];
     final challengeShip = isChallengeMode ? activeChallengeConfig?.shipId : null;
     // Dailies fly their own ship (par, or the Test Flight's). The route
     // guide and demos replay the par ship's recording, so they fly it too;
@@ -1050,10 +1106,10 @@ class NarrowHaulGame extends Forge2DGame
     await _maybeSpawnSalvage(shipSpec);
     _checkLoad(gen);
     final shipBody = ShipBody(
-      initialPosition: Vector2.copy(data.shipSpawn),
+      initialPosition: Vector2.copy(startLeg.startSpawn),
       onWallHit: () => _onShipHitWall(),
       onRockTouch: _onRockTouch,
-      onHookTouchesCargo: () => cargoLink.onHookCargoTouch(),
+      onHookTouchesCargo: () => cargoAttachment?.onHookCargoTouch(),
       onFire: _onShipFired,
       onWeapon: _onWeaponFired,
       rack: rack,
@@ -1063,34 +1119,35 @@ class NarrowHaulGame extends Forge2DGame
       // The hull's rim light picks up the cave's glow (neutral without one).
       rimColor: theme.edgeGlow?.withValues(alpha: 1) ?? HullLighting.defaultRim,
     );
-    final cargoBody = CargoBody(
-      initialPosition: Vector2.copy(data.cargoSpawn),
-      densityMul: mods.cargoDensityMul,
-      clamped: data.cargoClamped,
-      image: art.cargoFor(mods.cargoDensityMul),
-      strapped: mods.cargoDensityMul > 1.0 && art.cargoHeavy == null,
-    );
-    cargoLink = CargoAttachment(
-      ship: shipBody,
-      cargo: cargoBody,
-      ropeMaxLengthMeters: data.ropeMaxLength * shipSpec.ropeLengthMul,
-      rope: ropeById(CosmeticsService.getEquippedId(CosmeticsService.catRope)),
-      onAttached: () {
-        AudioService.playAttach();
-        Haptics.light();
-        _sayStory(BeatCue.hooked);
-      },
-    )..onBeamLost = Haptics.medium;
+    // Every leg's pod: delivered ones parked on their pads, the rest
+    // waiting (locked until hooked).
+    _pods
+      ..clear()
+      ..addAll([
+        for (final (k, leg) in data.legs.indexed)
+          CargoBody(
+            initialPosition: Vector2.copy(k < legIndex ? leg.parkedPod : leg.cargoSpawn),
+            densityMul: mods.cargoDensityMul,
+            clamped: k != legIndex || leg.cargoClamped,
+            image: art.cargoFor(mods.cargoDensityMul),
+            strapped: mods.cargoDensityMul > 1.0 && art.cargoHeavy == null,
+          ),
+      ]);
+    final cargoBody = _pods[legIndex];
+    final cargoLink = _towFor(shipBody, cargoBody, data);
 
-    _levelEntities.addAll([shipBody, cargoBody, cargoLink]);
-    await world.addAll([shipBody, cargoBody, cargoLink]);
+    _levelEntities.addAll([shipBody, ..._pods, cargoLink]);
+    await world.addAll([shipBody, ..._pods, cargoLink]);
     _checkLoad(gen);
     final glow = _shieldGlow = ShieldGlow(ship: shipBody);
     await _addToLevel(glow, gen);
     final aura = _salvageAura = SalvageAura(
       ship: shipBody,
       state: salvage,
-      pod: () => cargoBody.isMounted ? cargoBody.body.position : null,
+      pod: () {
+        final pod = cargo;
+        return pod != null && pod.isMounted ? pod.body.position : null;
+      },
     );
     await _addToLevel(aura, gen);
 
@@ -1118,12 +1175,7 @@ class NarrowHaulGame extends Forge2DGame
       ?..show = data.fields.isNotEmpty || (g0 * gravityMul - baseGravityY()).abs() > 1e-6
       ..accent = theme.uiAccent;
 
-    final landing = DualLandingZone(
-      padCenter: data.goalCenter,
-      halfWidth: data.goalHalfWidth,
-      halfHeight: data.goalHalfHeight,
-      onBothLanded: _onBothLanded,
-    );
+    final landing = _padFor(startLeg);
     await _addToLevel(landing, gen);
     _landingZone = landing;
 
@@ -1136,7 +1188,7 @@ class NarrowHaulGame extends Forge2DGame
     currentLevel = data;
     _minimap?.setLevel(data);
 
-    elapsedSeconds = 0;
+    elapsedSeconds = legIndex > 0 ? _checkpointElapsed : 0;
     _timing = true;
     _fuelBaseline = shipBody.maxFuel;
     _thrustUsed = 0;
@@ -1178,8 +1230,9 @@ class NarrowHaulGame extends Forge2DGame
         ? ' [${activeChallengeConfig?.modifierName ?? ''}]'
         : '';
     final (world, indexInWorld) = LevelRegistry.worldOf(levelIndex);
+    final leg = isExpeditionRun ? ' · Leg ${legIndex + 1}/$legCount' : '';
     info.levelLabel =
-        '${world.name} ${indexInWorld + 1}/${world.levels.length}$challengeTag';
+        '${world.name} ${indexInWorld + 1}/${world.levels.length}$leg$challengeTag';
     info.stars = ProgressService.instance.getStarsById(currentLevelDef.saveId);
     info.starSpec = currentLevelDef.stars;
   }
@@ -1692,8 +1745,105 @@ class NarrowHaulGame extends Forge2DGame
   /// onto the pad (or a demo) leaves the zone armed for a later landing.
   bool _onBothLanded() {
     if (runState != RunState.playing || demoMode) return false;
+    if (legIndex < legCount - 1) {
+      // Contacts fire inside the physics step, where bodies can't change
+      // type: the next frame moves on.
+      _legLanded = true;
+      return true;
+    }
     unawaited(_onGoalReached());
     return true;
+  }
+
+  /// The tow line of [pod] (one per leg).
+  CargoAttachment _towFor(ShipBody s, CargoBody pod, LevelData data) => CargoAttachment(
+        ship: s,
+        cargo: pod,
+        ropeMaxLengthMeters: data.ropeMaxLength * s.spec.ropeLengthMul,
+        rope: ropeById(CosmeticsService.getEquippedId(CosmeticsService.catRope)),
+        onAttached: () {
+          AudioService.playAttach();
+          Haptics.light();
+          _sayStory(BeatCue.hooked);
+        },
+      )..onBeamLost = Haptics.medium;
+
+  /// The win sensors of [leg]'s pad.
+  DualLandingZone _padFor(LegData leg) => DualLandingZone(
+        padCenter: leg.goalCenter,
+        halfWidth: leg.goalHalfWidth,
+        halfHeight: leg.goalHalfHeight,
+        onBothLanded: _onBothLanded,
+      );
+
+  /// An Expedition leg landed on its staging pad: the pod is parked, the
+  /// crew refuels the ship, the pad becomes the checkpoint, and the next
+  /// leg's pod and pad go live.
+  void _advanceLeg() {
+    final data = currentLevel, s = ship, delivered = cargo;
+    if (data == null || s == null || delivered == null) return;
+    final landed = data.legs[legIndex];
+    _legFuelLeft.add(s.fuel / _shipMaxFuel);
+
+    cargoAttachment?.removeFromParent();
+    delivered.lock();
+    _landingZone?.removeFromParent();
+
+    legIndex++;
+    _checkpointLeg = legIndex;
+    _checkpointElapsed = elapsedSeconds;
+    _checkpointFuel = List.of(_legFuelLeft);
+    s.fuel = s.maxFuel;
+    // A continue never rewinds across a pad.
+    _snapshots.clear();
+
+    final next = data.legs[legIndex];
+    final pod = _pods[legIndex];
+    final link = _towFor(s, pod, data);
+    final zone = _padFor(next);
+    for (final c in [link, zone]) {
+      _levelEntities.add(c);
+      world.add(c);
+    }
+    cargo = pod;
+    cargoAttachment = link;
+    _landingZone = zone;
+    _forces?.cargo = pod;
+
+    final burst = CelebrationBurst(
+      center: Offset(landed.goalCenter.x, landed.goalCenter.y),
+      accent: data.theme.uiAccent,
+      seed: levelIndex + legIndex,
+    );
+    world.add(burst);
+    _levelEntities.add(burst);
+    AudioService.playStar();
+    Haptics.medium();
+    _comms?.say(
+      CommsLine(
+        id: 'leg_$legIndex',
+        callsign: 'OPS',
+        text: 'Pod $legIndex delivered. Tanks full, this pad saves your place. '
+            'Leg ${legIndex + 1} of $legCount: pod marked.',
+      ),
+      urgent: true,
+    );
+    _sayStory(BeatCue.landed, leg: legIndex - 1);
+    _updateLevelInfoHud();
+  }
+
+  /// Game over on an Expedition after a staging pad: fly on from there.
+  bool get canResumeFromPad =>
+      !demoMode && !isChallengeMode && isExpeditionRun && _checkpointLeg > 0;
+
+  /// The staging pad [resumeFromPad] starts from (1 = the first pad).
+  int get checkpointPad => _checkpointLeg;
+
+  /// Reloads the Expedition at its last staging pad: earlier pods parked,
+  /// the clock and their fuel record kept, the run capped at 2★.
+  Future<void> resumeFromPad() {
+    _resumeLeg = _checkpointLeg;
+    return restartLevel();
   }
 
   /// Books a delivery. A failure while saving (prefs, contracts,
@@ -1728,7 +1878,7 @@ class NarrowHaulGame extends Forge2DGame
     Haptics.medium();
     ship?.setInput(rotate: 0, thrust: false);
     _resetInputState();
-    final goal = currentLevel?.goalCenter;
+    final goal = currentLeg?.goalCenter;
     if (goal != null) {
       final burst = CelebrationBurst(
         center: Offset(goal.x, goal.y),
@@ -1744,7 +1894,12 @@ class NarrowHaulGame extends Forge2DGame
     if (!FlightTuning.camera.profile.isStatic && !kStoreCapture) {
       _closeUp.pushIn(reducedMotion ? 1.2 : _closeUpDelivery, _winDelay);
     }
-    final fuelLeft = ship?.fuel ?? 0.0;
+    // An Expedition rates the fuel left on every pad, not just the last.
+    final fuelLeft = _legFuelLeft.isEmpty
+        ? ship?.fuel ?? 0.0
+        : ([..._legFuelLeft, (ship?.fuel ?? 0) / _shipMaxFuel].reduce((a, b) => a + b) /
+                (_legFuelLeft.length + 1)) *
+            _shipMaxFuel;
     lastLevelFuelFraction = fuelLeft / _shipMaxFuel;
 
     _recordSpentFuel();
@@ -2050,7 +2205,10 @@ class NarrowHaulGame extends Forge2DGame
           ? fuelLeft
           : normalisedFuelLeft(fuelLeft, flown, LevelRegistry.shipFor(levelIndex)),
       timeSeconds,
-      capped: continuedThisRun || guidedThisRun || carriedWeaponUsedThisRun,
+      capped: continuedThisRun ||
+          guidedThisRun ||
+          carriedWeaponUsedThisRun ||
+          checkpointUsedThisRun,
     );
   }
 
@@ -2081,13 +2239,13 @@ class NarrowHaulGame extends Forge2DGame
 
     int completed = 0;
     bool allPerfect = true;
-    for (final def in LevelRegistry.flat) {
+    for (final def in LevelRegistry.career) {
       final s = progress.getStarsById(def.saveId);
       if (s > 0) completed++;
       if (s < 3) allPerfect = false;
     }
     if (completed >= 10) candidates.add(AchievementIds.level10);
-    if (completed >= LevelRegistry.totalLevels) {
+    if (completed >= LevelRegistry.careerLevels) {
       candidates.add(AchievementIds.level20);
     }
 
@@ -2711,13 +2869,14 @@ class NarrowHaulGame extends Forge2DGame
 
   /// The mission's story beats for [cue] (docs/STORY.md), once per flight
   /// and not on a retry, a demo or a daily.
-  void _sayStory(BeatCue cue, {double after = 0}) {
+  void _sayStory(BeatCue cue, {double after = 0, int? leg}) {
     final comms = _comms;
     if (comms == null || demoMode || isChallengeMode || _currentLevelRetried) return;
     final story = storyFor(currentLevelDef.saveId);
     if (story == null) return;
+    final atLeg = leg ?? legIndex;
     for (final (i, b) in story.beats.indexed) {
-      if (b.cue != cue) continue;
+      if (b.cue != cue || (b.leg != null && b.leg != atLeg)) continue;
       comms.say(
         CommsLine(id: 'story_$i', callsign: b.callsign, text: b.text),
         delay: after + b.delay,
@@ -2878,10 +3037,11 @@ class NarrowHaulGame extends Forge2DGame
 
   void closeBriefing() => overlays.remove(OverlayIds.briefing);
 
-  /// Flat indices of every unlocked level (the daily's candidates).
+  /// Flat indices of every unlocked career level (the daily's candidates;
+  /// an Expedition is too long for one).
   static List<int> unlockedLevelIndices() => [
     for (var i = 0; i < LevelRegistry.totalLevels; i++)
-      if (LevelRegistry.isLevelUnlocked(i)) i,
+      if (!LevelRegistry.isExpedition(i) && LevelRegistry.isLevelUnlocked(i)) i,
   ];
 
   /// Android back / system back. Returns false only on the main menu, where
@@ -4022,6 +4182,10 @@ class NarrowHaulGame extends Forge2DGame
     super.update(scaled);
     final logicStart = clock?.elapsedMicroseconds ?? 0;
     _removeShake();
+    if (_legLanded) {
+      _legLanded = false;
+      if (runState == RunState.playing) _advanceLeg();
+    }
     _updateGame(scaled);
     _applyShake(dt);
     if (clock != null) {

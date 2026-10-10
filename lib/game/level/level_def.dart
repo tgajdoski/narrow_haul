@@ -64,6 +64,7 @@ class WorldDef {
     required this.rewardPerStar,
     required this.levels,
     this.defaultShipId = 'kestrel',
+    this.expedition = false,
   });
 
   final String id;
@@ -79,4 +80,9 @@ class WorldDef {
 
   /// Ship for levels that don't name one ([LevelDef.shipId]).
   final String defaultShipId;
+
+  /// Act II's long multi-leg hauls (docs/STORY.md §3). Outside the career:
+  /// their stars don't count toward the world gates, the career totals or
+  /// "every mission" awards, and dailies and contracts never pick them.
+  final bool expedition;
 }

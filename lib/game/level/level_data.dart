@@ -25,7 +25,8 @@ class LevelData {
     this.fields = const <FieldSpec>[],
     this.pickups = const <PickupSpec>[],
     this.cargoClamped = false,
-  });
+    List<LegData>? legs,
+  }) : _legs = legs;
 
   final List<WallRect> walls;
 
@@ -55,9 +56,50 @@ class LevelData {
   final List<PickupSpec> pickups;
   final bool cargoClamped;
 
+  final List<LegData>? _legs;
+
+  /// Every haul in order: an Expedition's legs, or the one from
+  /// [cargoSpawn] / [goalCenter].
+  List<LegData> get legs =>
+      _legs ??
+      [
+        LegData(
+          cargoSpawn: cargoSpawn,
+          goalCenter: goalCenter,
+          goalHalfWidth: goalHalfWidth,
+          goalHalfHeight: goalHalfHeight,
+          cargoClamped: cargoClamped,
+          startSpawn: shipSpawn,
+          parkedPod: Vector2(goalCenter.x - goalHalfWidth + 0.45, goalCenter.y + goalHalfHeight),
+        ),
+      ];
+
   /// Turrets or a reactor present — drives combat HUD and stats.
   bool get hasCombat =>
       obstacles.any((o) => o is TurretSpec || o is ReactorSpec);
+}
+
+/// One haul of a level (see `LegSpec`): its pod, its pad, where the ship
+/// starts it (the previous pad on a checkpoint resume) and where its pod is
+/// parked once delivered.
+class LegData {
+  const LegData({
+    required this.cargoSpawn,
+    required this.goalCenter,
+    required this.goalHalfWidth,
+    required this.goalHalfHeight,
+    required this.cargoClamped,
+    required this.startSpawn,
+    required this.parkedPod,
+  });
+
+  final Vector2 cargoSpawn;
+  final Vector2 goalCenter;
+  final double goalHalfWidth;
+  final double goalHalfHeight;
+  final bool cargoClamped;
+  final Vector2 startSpawn;
+  final Vector2 parkedPod;
 }
 
 class WallRect {

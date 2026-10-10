@@ -140,11 +140,11 @@ BuiltCave _build(LevelSpec spec) {
 
   // Anchors where boundary noise fades out to keep pads/spawns calm.
   final anchors = <Pt>[
-    spec.shipSpawn,
-    spec.cargoSpawn,
-    spec.goal.center,
-    Pt(spec.goal.center.x - spec.goal.halfW, spec.goal.center.y),
-    Pt(spec.goal.center.x + spec.goal.halfW, spec.goal.center.y),
+    ...spec.anchorPoints,
+    for (final g in spec.allGoals) ...[
+      Pt(g.center.x - g.halfW, g.center.y),
+      Pt(g.center.x + g.halfW, g.center.y),
+    ],
   ];
 
   // 3. Sample the field. Border samples are forced solid so every contour
@@ -194,7 +194,9 @@ BuiltCave _build(LevelSpec spec) {
     }
   }
 
-  _layPadShelf(field, nx, ny, cell, spec.goal);
+  for (final g in spec.allGoals) {
+    _layPadShelf(field, nx, ny, cell, g);
+  }
 
   // 4–5. Contours → smoothed, simplified loops.
   final cleaned = extractCaveLoops(field, nx, ny, cell);

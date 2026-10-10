@@ -243,7 +243,7 @@ void main() {
     final log = find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first;
     final row = find.text('Training Grounds');
     await tester.scrollUntilVisible(row, 100, scrollable: log);
-    expect(find.text('// MISSION LOG  1/14'), findsOneWidget);
+    expect(find.text('// MISSION LOG  1/${LevelRegistry.worlds.length * 2}'), findsOneWidget);
     await tester.tap(row);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('chapter-card')), findsOneWidget);

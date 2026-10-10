@@ -44,6 +44,8 @@ class Chapter {
       key: '${outro ? 'outro' : 'intro'}_${world.id}',
       kicker: first
           ? 'Operation Lifeline'
+          : world.expedition
+          ? (outro ? 'Act II complete' : 'Act II')
           : outro
           ? 'Chapter $n complete'
           : 'Chapter $n',

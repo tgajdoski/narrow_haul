@@ -550,17 +550,42 @@ class GameOverOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: HoloButton.primary(
-                  label: 'Retry',
-                  icon: Icons.replay_rounded,
-                  accent: SpaceColors.coral,
-                  sound: UiSound.launch,
-                  height: 46,
-                  onPressed: g.restartLevel,
+              if (g.canResumeFromPad) ...[
+                // An Expedition flies on from its last staging pad.
+                Expanded(
+                  child: HoloButton(
+                    label: 'Restart',
+                    icon: Icons.replay_rounded,
+                    sound: UiSound.launch,
+                    onPressed: g.restartLevel,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: HoloButton.primary(
+                    key: const ValueKey('resume-pad'),
+                    label: 'Resume · pad ${g.checkpointPad}',
+                    subtitle: 'max 2★',
+                    icon: Icons.flag_rounded,
+                    accent: SpaceColors.coral,
+                    sound: UiSound.launch,
+                    height: 46,
+                    onPressed: g.resumeFromPad,
+                  ),
+                ),
+              ] else
+                Expanded(
+                  flex: 2,
+                  child: HoloButton.primary(
+                    label: 'Retry',
+                    icon: Icons.replay_rounded,
+                    accent: SpaceColors.coral,
+                    sound: UiSound.launch,
+                    height: 46,
+                    onPressed: g.restartLevel,
+                  ),
+                ),
             ],
           ),
           child: hasHelp

@@ -13,7 +13,9 @@ void main() {
 
   test('cave worlds: 8 missions each, Redoubt 5 (+ type ratings), unique ids', () {
     final ratings = allCaveDefs.where((d) => d.spec.id.startsWith('rating_'));
-    expect(allCaveDefs.length - ratings.length, 45);
+    final expeditions = allCaveDefs.where((d) => d.spec.isExpedition);
+    expect(allCaveDefs.length - ratings.length - expeditions.length, 45);
+    expect(expeditions, isNotEmpty);
     final ids = allCaveDefs.map((d) => d.spec.id).toSet();
     expect(ids.length, allCaveDefs.length, reason: 'duplicate level ids');
   });

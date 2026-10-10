@@ -176,12 +176,14 @@ abstract final class ContractsService {
     if (raw == null) {
       final unlocked = [
         for (int i = 0; i < LevelRegistry.worlds.length; i++)
-          if (LevelRegistry.isWorldUnlocked(LevelRegistry.worlds[i])) i,
+          if (!LevelRegistry.worlds[i].expedition &&
+              LevelRegistry.isWorldUnlocked(LevelRegistry.worlds[i]))
+            i,
       ];
       raw = generateContracts(
         DateTime.now(),
         unlockedWorlds: unlocked,
-        starsRemaining: LevelRegistry.totalLevels * 3 - LevelRegistry.totalStars(),
+        starsRemaining: LevelRegistry.careerLevels * 3 - LevelRegistry.totalStars(),
         dailyDone: progress.isDailyChallengeComplete(),
         armedUnlocked: LevelRegistry.worlds.any((w) =>
             shipById(w.defaultShipId).armed && LevelRegistry.isWorldUnlocked(w)),

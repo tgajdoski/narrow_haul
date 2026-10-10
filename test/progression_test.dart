@@ -94,9 +94,11 @@ void main() {
     });
 
     test('star gates rise world by world', () {
-      for (var k = 1; k < worlds.length; k++) {
-        expect(worlds[k].starsRequired, greaterThan(worlds[k - 1].starsRequired),
-            reason: worlds[k].id);
+      // The Expeditions sit outside the career's ladder.
+      final career = worlds.where((w) => !w.expedition).toList();
+      for (var k = 1; k < career.length; k++) {
+        expect(career[k].starsRequired, greaterThan(career[k - 1].starsRequired),
+            reason: career[k].id);
       }
       expect(worlds.first.starsRequired, 0);
     });
