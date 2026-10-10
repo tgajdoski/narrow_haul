@@ -84,6 +84,7 @@ class FlightRoute {
     this.fuelLeft = 0,
     this.shots = const [],
     this.shotRays = const [],
+    this.legT = const [],
   });
 
   static const int version = 1;
@@ -111,6 +112,10 @@ class FlightRoute {
   /// Per shot (when recorded): muzzle x, y and shell velocity x, y — the
   /// demo fires exactly these. Empty in older recordings.
   final List<List<double>> shotRays;
+
+  /// An Expedition: when each staging pad took its leg (a demo moves on to
+  /// the next pod then). Empty on a one-haul mission.
+  final List<double> legT;
 
   double get endT => samples.isEmpty ? 0 : samples.last.t;
 
@@ -227,6 +232,7 @@ class FlightRoute {
         'fuelLeft': _r(fuelLeft, 1000),
         'shots': [for (final s in shots) _r(s)],
         if (shotRays.isNotEmpty) 'shotRays': [for (final r in shotRays) [for (final v in r) _r(v, 1000)]],
+        if (legT.isNotEmpty) 'legT': [for (final t in legT) _r(t)],
         'pts': [for (final s in samples) s.toJson()],
       };
 
@@ -247,6 +253,7 @@ class FlightRoute {
           [for (final v in r as List) (v as num).toDouble()],
       ],
       samples: [for (final p in j['pts'] as List) RouteSample.fromJson(p as List)],
+      legT: [for (final t in (j['legT'] as List? ?? const [])) (t as num).toDouble()],
     );
   }
 }
@@ -264,6 +271,7 @@ class FlightRecorder {
   final List<RouteSample> _samples = [];
   final List<double> _shots = [];
   final List<List<double>> _shotRays = [];
+  final List<double> _legT = [];
 
   /// Level time (s since load), advanced by [tick].
   double time = 0;
@@ -298,6 +306,9 @@ class FlightRecorder {
     _shots.add(time);
     if (ray != null && _shotRays.length == _shots.length - 1) _shotRays.add(ray);
   }
+
+  /// An Expedition leg landed on its staging pad.
+  void leg() => _legT.add(time);
 
   void _add(double x, double y, double angle, double cx, double cy, bool towing, bool thrust) {
     _samples.add(RouteSample(
@@ -336,6 +347,7 @@ class FlightRecorder {
       fuelLeft: fuelLeft,
       shots: List.unmodifiable(_shots),
       shotRays: _shotRays.length == _shots.length ? List.unmodifiable(_shotRays) : const [],
+      legT: List.unmodifiable(_legT),
     );
   }
 }

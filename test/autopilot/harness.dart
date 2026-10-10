@@ -188,7 +188,7 @@ class GameHarness {
           }(),
       };
 
-  /// Steps until delivery, crash or [maxSeconds] of game time. [pilot] is
+  /// Steps until delivery, crash or [maxSeconds] of game time (per leg). [pilot] is
   /// called before every frame with the frame index.
   Future<FlightResult> fly(
     BotInput Function(int frame) pilot, {
@@ -197,7 +197,8 @@ class GameHarness {
     bool Function()? abort,
     void Function()? afterStep,
   }) async {
-    final maxFrames = (maxSeconds / kStepDt).round();
+    // An Expedition gets the time limit per leg.
+    final maxFrames = (maxSeconds * game.legCount / kStepDt).round();
     for (var frame = 0; frame < maxFrames; frame++) {
       final input = pilot(frame);
       if (abort?.call() ?? false) break;

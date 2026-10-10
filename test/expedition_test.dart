@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_constants.dart';
+import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 import 'autopilot/harness.dart';
@@ -132,5 +133,27 @@ void main() {
     await h.step(30);
     expect(game.runState, RunState.won);
     expect(game.canResumeFromPad, isFalse);
+  });
+
+  test('the demo flight replays every leg, pod by pod', () async {
+    final def = expeditions.first;
+    await ProgressService.instance.setRouteUnlocked(def.saveId);
+    await h.loadLevel(levelIndexOf(def.saveId));
+    final g = h.game;
+    g.onShipShot(); // a crash: the game-over screen offers the demo
+    await g.startDemoFlight();
+    await g.ready();
+    expect(g.demoMode, isTrue);
+    final route = g.currentRoute!;
+    expect(route.legT, hasLength(def.spec.legs.length - 1));
+    final r = await h.fly((_) => BotInput.idle, maxSeconds: (route.endT + 1) / g.legCount);
+    expect(r.outcome, FlightOutcome.timedOut, reason: 'a demo never crashes or delivers');
+    expect(g.legIndex, def.spec.legs.length - 1, reason: 'every staging pad passed');
+    final last = g.currentLevel!.legs.last;
+    expect(g.cargo!.body.position.distanceTo(last.goalCenter), lessThan(3));
+    await g.takeControlsFromDemo();
+    await g.ready();
+    expect(g.demoMode, isFalse);
+    expect(g.legIndex, 0);
   });
 }

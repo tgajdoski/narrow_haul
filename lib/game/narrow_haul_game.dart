@@ -1789,6 +1789,7 @@ class NarrowHaulGame extends Forge2DGame
     delivered.lock();
     _landingZone?.removeFromParent();
 
+    _recorder?.leg();
     legIndex++;
     _checkpointLeg = legIndex;
     _checkpointElapsed = elapsedSeconds;
@@ -1830,6 +1831,22 @@ class NarrowHaulGame extends Forge2DGame
     );
     _sayStory(BeatCue.landed, leg: legIndex - 1);
     _updateLevelInfoHud();
+  }
+
+  /// Demo: the recorded flight landed a leg; park its pod, tow the next.
+  void _demoNextLeg() {
+    final data = currentLevel, s = ship;
+    if (data == null || s == null) return;
+    cargoAttachment?.removeFromParent();
+    cargo?.lock();
+    legIndex++;
+    final pod = _pods[legIndex];
+    final link = _towFor(s, pod, data)..scriptedTow = () => _demoTowing;
+    _levelEntities.add(link);
+    world.add(link);
+    cargo = pod;
+    cargoAttachment = link;
+    _forces?.cargo = pod;
   }
 
   /// Game over on an Expedition after a staging pad: fly on from there.
@@ -2465,6 +2482,12 @@ class NarrowHaulGame extends Forge2DGame
     final route = currentRoute;
     if (route == null) return;
     _demoT += dt;
+    // An Expedition's demo moves on to the next pod when the recording did.
+    while (legIndex < route.legT.length &&
+        legIndex < legCount - 1 &&
+        route.legT[legIndex] <= _demoT) {
+      _demoNextLeg();
+    }
     final pose = route.poseAt(_demoT);
     // The real velocity, so turrets lead their shots like they did live.
     final next = route.poseAt(_demoT + dt);

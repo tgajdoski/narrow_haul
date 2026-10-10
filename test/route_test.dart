@@ -330,12 +330,21 @@ void main() {
         expect(_d(at.x, at.y, at.cx, at.cy), lessThan(2.0),
             reason: '$id: rope attaches with the ship away from the pod');
         final end = route.samples.last;
-        // Delivery counts once any part of the hull reaches the pad box.
+        // Delivery counts once any part of the hull reaches the (last) pad.
         final reach = LevelRegistry.shipFor(i).circumradius + 0.4;
-        expect((end.x - data.goalCenter.x).abs(), lessThan(data.goalHalfWidth + reach),
+        final pad = data.legs.last;
+        expect((end.x - pad.goalCenter.x).abs(), lessThan(pad.goalHalfWidth + reach),
             reason: '$id: route ends off the pad');
-        expect((end.y - data.goalCenter.y).abs(), lessThan(data.goalHalfHeight + reach),
+        expect((end.y - pad.goalCenter.y).abs(), lessThan(pad.goalHalfHeight + reach),
             reason: '$id: route ends off the pad');
+        // An Expedition lands every staging pad once, in order.
+        expect(route.legT, hasLength(data.legs.length - 1), reason: '$id: legs landed');
+        for (final (k, t) in route.legT.indexed) {
+          final p = route.poseAt(t);
+          final leg = data.legs[k];
+          expect((p.x - leg.goalCenter.x).abs(), lessThan(leg.goalHalfWidth + reach),
+              reason: '$id: leg ${k + 1} lands off its pad');
+        }
         final grid = switch (def) {
           CaveLevelDef d => NavGrid.forCave(d.spec),
           TmxLevelDef() => NavGrid.forRects(
@@ -357,13 +366,9 @@ void main() {
     });
 
     test('every level the bot can fly has a route', () {
-      // Expeditions have no route guide yet: the autopilot and the
-      // recorder fly one haul (docs/STORY.md, increment X3).
       final missing = [
         for (final def in LevelRegistry.flat)
-          if (!files.contains(def.saveId) &&
-              !(def is CaveLevelDef && def.spec.isExpedition))
-            def.saveId,
+          if (!files.contains(def.saveId)) def.saveId,
       ];
       expect(missing, isEmpty, reason: 'export with --dart-define=EXPORT_ROUTES=true');
     }, skip: files.isEmpty ? 'no routes exported yet (see assets/routes/README.md)' : false);

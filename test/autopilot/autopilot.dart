@@ -12,6 +12,7 @@ import 'package:narrow_haul/game/components/defences.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/route_planner.dart';
+import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 
 import 'harness.dart';
@@ -162,6 +163,12 @@ class Autopilot {
   static const int _padFrames = 60;
 
   ShipBody get _ship => game.ship!;
+
+  /// The haul being flown (an Expedition moves on pad by pad).
+  LegData get _leg => game.currentLeg!;
+
+  /// The Expedition leg the plan is for.
+  int _legPlanned = 0;
   CargoBody get _cargo => game.cargo!;
   double get _r => _ship.spec.circumradius;
 
@@ -205,6 +212,18 @@ class Autopilot {
   BotInput step(int frame) {
     _frame = frame;
     _record(frame);
+    // A staging pad took the pod: fly to the next leg's pod from here.
+    if (game.legIndex != _legPlanned) {
+      _legPlanned = game.legIndex;
+      _ropeLength = 1.2;
+      if (!_planApproach()) {
+        lastEvent = 'no approach route (leg ${_legPlanned + 1})';
+        gaveUp = true;
+        return BotInput.idle;
+      }
+      _phase = _Phase.approach;
+      lastEvent = 'leg ${_legPlanned + 1}';
+    }
     if (traceEvery > 0 && frame % traceEvery == 0) print('    t=${(frame / 60).toStringAsFixed(1)} ${describe()}');
     switch (_phase) {
       case _Phase.wait:
@@ -239,7 +258,7 @@ class Autopilot {
           _phase = _Phase.tow;
         }
       case _Phase.tow:
-        final g = game.currentLevel!.goalCenter;
+        final g = _leg.goalCenter;
         if ((_ship.body.position - Vector2(g.x, g.y)).length < 3) {
           _phase = _Phase.land;
           _planLand();
@@ -341,7 +360,7 @@ class Autopilot {
     if (!_ship.spec.armed || !snipe) return const [];
     final turrets = liveTurrets(game);
     if (turrets.isEmpty) return const [];
-    final g = game.currentLevel!.goalCenter;
+    final g = _leg.goalCenter;
     final tow = _plan(hover, Pt(g.x, g.y - 1), tolerance: 0.4);
     if (tow == null) return const [];
     final out = <Pt>[];
@@ -385,7 +404,7 @@ class Autopilot {
   /// Ship height over the pad so both ship and the hanging pod sit inside
   /// the goal rectangle.
   Pt _goalShipTarget() {
-    final l = game.currentLevel!;
+    final l = _leg;
     final g = l.goalCenter;
     final want = g.y + l.goalHalfHeight - 0.2 - _ropeLength;
     final y = want.clamp(g.y - l.goalHalfHeight + 0.4, g.y + 0.2);

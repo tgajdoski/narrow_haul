@@ -177,7 +177,11 @@ class LevelReport {
     if (r.track.isEmpty) return (r.fuelUsed + allowance) * kHumanFuelFactor;
     final credit = _credit(r);
     final gross = r.track.last.burned * kHumanFuelFactor + allowance * kHumanFuelFactor * tank;
-    return (gross - credit) / tank;
+    // An Expedition refuels on every pad and its stars rate the mean fuel
+    // left per pad: the burn is per leg.
+    final d = def;
+    final legs = d is CaveLevelDef ? d.spec.allLegs.length : 1;
+    return (gross - credit) / tank / legs;
   }
   double? get humanTime => delivered
       ? real!.seconds * kHumanTimeFactor
@@ -238,8 +242,6 @@ void main() {
     for (var i = 0; i < LevelRegistry.totalLevels; i++) {
       final def = LevelRegistry.defAt(i);
       if (wanted != null && !wanted.contains(def.saveId)) continue;
-      // The bot flies one haul; Expeditions wait for multi-leg flying.
-      if (LevelRegistry.isExpedition(i)) continue;
       await h.loadLevel(i);
       final grid = h.navGrid(def);
       final (real, profileResults) =
