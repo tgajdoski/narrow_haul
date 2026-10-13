@@ -71,6 +71,7 @@ import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/services/system_ui.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
@@ -3178,6 +3179,7 @@ class NarrowHaulGame extends Forge2DGame
       _flushAmmo();
     }
     if (state == AppLifecycleState.resumed) {
+      unawaited(applyImmersiveMode());
       MusicService.onForeground();
       MonetizationService.instance.refreshIfNeeded();
     } else {

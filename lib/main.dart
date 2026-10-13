@@ -17,6 +17,7 @@ import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/system_ui.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/ui/career_overlays.dart';
@@ -75,6 +76,7 @@ void main() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]));
+  unawaited(applyImmersiveMode());
   final game = NarrowHaulGame();
   PerfMonitor.mark('runApp');
   runApp(_NarrowHaulApp(game: game));
