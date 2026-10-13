@@ -89,6 +89,7 @@ class ProgressService {
     'camera_mode',
     'tilt_steer',
     'tilt_sensitivity',
+    'tilt_mode',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -313,6 +314,8 @@ class ProgressService {
   String? get tiltSensitivity => _string('tilt_sensitivity');
   Future<void> setTiltSensitivity(String v) async =>
       _prefs.setString('tilt_sensitivity', v);
+  String? get tiltMode => _string('tilt_mode');
+  Future<void> setTiltMode(String v) async => _prefs.setString('tilt_mode', v);
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 

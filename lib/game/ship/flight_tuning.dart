@@ -107,6 +107,7 @@ abstract final class FlightTuning {
   /// Steer by tilting the phone like a wheel (see `TiltSteer`); the dial
   /// still works on top of it.
   static bool tilt = false;
+  static TiltMode tiltMode = TiltMode.heading;
   static TiltSensitivity tiltSensitivity = TiltSensitivity.normal;
 
   /// The joystick's own dead zone (`_FloatingJoystick._deadzone`).
@@ -150,10 +151,12 @@ abstract final class FlightTuning {
     String? cameraName,
     bool tiltOn = false,
     String? tiltSensitivityName,
+    String? tiltModeName,
   }) {
     steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
     camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
     tilt = tiltOn;
+    tiltMode = TiltMode.values.asNameMap()[tiltModeName] ?? TiltMode.heading;
     tiltSensitivity =
         TiltSensitivity.values.asNameMap()[tiltSensitivityName] ?? TiltSensitivity.normal;
   }
@@ -201,10 +204,27 @@ abstract final class FlightTuning {
     required double boost,
   }) {
     if (x * x + y * y < pointerMinStick * pointerMinStick) return 0;
-    final target = math.atan2(x, -y);
+    return headingAxis(
+      target: math.atan2(x, -y),
+      shipAngle: shipAngle,
+      baseRate: baseRate,
+      boost: boost,
+    );
+  }
+
+  /// Rotate input that turns the nose from [shipAngle] to [target] (rad,
+  /// 0 = up, clockwise) the short way, closing the error in
+  /// [pointerResponse] s, capped at ±[boost]. Below [tolerance] it rests.
+  static double headingAxis({
+    required double target,
+    required double shipAngle,
+    required double baseRate,
+    required double boost,
+    double tolerance = 0.01,
+  }) {
     var diff = (target - shipAngle) % (2 * math.pi);
     if (diff > math.pi) diff -= 2 * math.pi;
-    if (diff.abs() < 0.01) return 0;
+    if (diff.abs() < tolerance) return 0;
     return (diff / (pointerResponse * baseRate)).clamp(-boost, boost);
   }
 

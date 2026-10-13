@@ -68,6 +68,7 @@ void main() async {
     cameraName: ProgressService.instance.cameraMode,
     tiltOn: ProgressService.instance.tiltSteer ?? MotionInput.supported,
     tiltSensitivityName: ProgressService.instance.tiltSensitivity,
+    tiltModeName: ProgressService.instance.tiltMode,
   );
   // Tilt steering is the default where the phone has an accelerometer;
   // without one the joystick steers.

@@ -186,42 +186,59 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           value: _p.minimapEnabled,
           onChanged: (v) => _set(_p.setMinimapEnabled, v),
         ),
-        _PresetRow<SteerMode>(
-          icon: Icons.rotate_right_rounded,
-          title: 'Steering',
-          values: SteerMode.values,
-          value: FlightTuning.steer,
-          label: (m) => m.label,
-          blurb: (m) => m.blurb,
-          onChanged: (m) {
-            setState(() => FlightTuning.steer = m);
-            _p.setSteerMode(m.name);
-          },
-        ),
-        if (MotionInput.available) ...[
-          HoloToggle(
+        if (MotionInput.available)
+          _PresetRow<bool>(
             icon: Icons.screen_rotation_alt_rounded,
-            title: 'Tilt steering',
-            subtitle: 'Turn by tilting the phone like a wheel. Tap the dial to recentre',
+            title: 'Steer with',
+            values: const [true, false],
             value: FlightTuning.tilt,
+            label: (tilt) => tilt ? 'Tilt' : 'Joystick',
+            blurb: (tilt) => tilt
+                ? 'Tilt the phone like a wheel, no stick on screen'
+                : 'The on-screen stick',
             onChanged: (v) {
               setState(() => FlightTuning.tilt = v);
               _p.setTiltSteer(v);
             },
           ),
-          if (FlightTuning.tilt)
-            _PresetRow<TiltSensitivity>(
-              icon: Icons.tune_rounded,
-              title: 'Tilt sensitivity',
-              values: TiltSensitivity.values,
-              value: FlightTuning.tiltSensitivity,
-              label: (m) => m.label,
-              blurb: (m) => m.blurb,
-              onChanged: (m) {
-                setState(() => FlightTuning.tiltSensitivity = m);
-                _p.setTiltSensitivity(m.name);
-              },
-            ),
+        if (!FlightTuning.tilt || !MotionInput.available)
+          _PresetRow<SteerMode>(
+            icon: Icons.rotate_right_rounded,
+            title: 'Joystick',
+            values: SteerMode.values,
+            value: FlightTuning.steer,
+            label: (m) => m.label,
+            blurb: (m) => m.blurb,
+            onChanged: (m) {
+              setState(() => FlightTuning.steer = m);
+              _p.setSteerMode(m.name);
+            },
+          ),
+        if (FlightTuning.tilt && MotionInput.available) ...[
+          _PresetRow<TiltMode>(
+            icon: Icons.screen_rotation_rounded,
+            title: 'Tilt mode',
+            values: TiltMode.values,
+            value: FlightTuning.tiltMode,
+            label: (m) => m.label,
+            blurb: (m) => m.blurb,
+            onChanged: (m) {
+              setState(() => FlightTuning.tiltMode = m);
+              _p.setTiltMode(m.name);
+            },
+          ),
+          _PresetRow<TiltSensitivity>(
+            icon: Icons.tune_rounded,
+            title: 'Tilt sensitivity',
+            values: TiltSensitivity.values,
+            value: FlightTuning.tiltSensitivity,
+            label: (m) => m.label,
+            blurb: (m) => m.blurb,
+            onChanged: (m) {
+              setState(() => FlightTuning.tiltSensitivity = m);
+              _p.setTiltSensitivity(m.name);
+            },
+          ),
         ],
         _PresetRow<CameraMode>(
           icon: Icons.videocam_outlined,

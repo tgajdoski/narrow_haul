@@ -22,6 +22,7 @@ import 'package:narrow_haul/ui/garage_overlay.dart';
 import 'package:narrow_haul/ui/level_select_overlay.dart';
 import 'package:narrow_haul/ui/menu_overlay.dart';
 import 'package:narrow_haul/ui/mission_briefing.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/ui/pause_settings_overlays.dart';
 import 'package:narrow_haul/ui/result_overlays.dart';
 import 'package:narrow_haul/ui/story_card.dart';
@@ -145,6 +146,20 @@ void main() {
       () => SettingsOverlay(game: NarrowHaulGame()),
       mustNotScroll: false,
     );
+  });
+
+  testWidgets('settings with tilt steering lays out (no joystick row)', (tester) async {
+    FlightTuning.tilt = true;
+    addTearDown(() => FlightTuning.tilt = false);
+    await each(
+      tester,
+      'settings_tilt',
+      () => SettingsOverlay(game: NarrowHaulGame()),
+      mustNotScroll: false,
+    );
+    expect(find.text('Tilt mode'), findsOneWidget);
+    expect(find.text('Steer with'), findsOneWidget);
+    expect(find.text('Joystick'), findsNothing, reason: 'no stick settings under tilt');
   });
 
   testWidgets('crash screen with every help option fits', (tester) async {

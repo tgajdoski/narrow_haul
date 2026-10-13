@@ -1,17 +1,35 @@
 import 'dart:math' as math;
 
-/// How far the phone must lean for the precise turn rate and the boost.
-enum TiltSensitivity {
-  low('Low', 'Lean further to turn', 1.3),
-  normal('Normal', 'A wheel-sized lean', 1.0),
-  high('High', 'Small leans turn fast', 0.75);
+/// What a lean does.
+enum TiltMode {
+  /// The nose follows the phone: lean 30° and the ship points 90° (× the
+  /// sensitivity's gain). Level phone = upright ship. Nothing to stop.
+  heading('Angle', "The nose follows the phone's lean"),
 
-  const TiltSensitivity(this.label, this.blurb, this.angleScale);
+  /// The lean sets the turn rate, like the stick (no spring back, so the
+  /// pilot has to level the phone to stop turning).
+  rate('Speed', 'Lean to turn, like the stick');
+
+  const TiltMode(this.label, this.blurb);
+  final String label;
+  final String blurb;
+}
+
+/// How far the phone must lean.
+enum TiltSensitivity {
+  low('Low', 'Lean further to turn', 1.3, 2.4),
+  normal('Normal', 'A wheel-sized lean', 1.0, 3.0),
+  high('High', 'Small leans turn fast', 0.75, 4.0);
+
+  const TiltSensitivity(this.label, this.blurb, this.angleScale, this.headingGain);
   final String label;
   final String blurb;
 
-  /// Multiplies every lean angle in [TiltSteer].
+  /// Multiplies every lean angle of [TiltMode.rate].
   final double angleScale;
+
+  /// Nose angle per degree of lean in [TiltMode.heading].
+  final double headingGain;
 }
 
 /// Tilt steering: the phone held in landscape is a steering wheel. Leaning
@@ -24,15 +42,23 @@ enum TiltSensitivity {
 /// z out of it; the accelerometer reads +1 g *up*) and call [step] once per
 /// game frame.
 class TiltSteer {
-  TiltSteer({this.sensitivity = TiltSensitivity.normal});
+  TiltSteer({this.sensitivity = TiltSensitivity.normal, this.mode = TiltMode.heading});
 
   TiltSensitivity sensitivity;
+  TiltMode mode;
 
-  /// Lean (degrees, × [TiltSensitivity.angleScale]) below which the ship
-  /// doesn't turn, where the precise rate is full, and where the boost is.
-  static const double deadZoneDeg = 3;
-  static const double boostStartDeg = 22;
-  static const double boostFullDeg = 32;
+  /// [TiltMode.rate]: lean (degrees, × [TiltSensitivity.angleScale]) below
+  /// which the ship doesn't turn, where the precise rate is full, and where
+  /// the boost is. Kept small: a wrist can't lean far and still see the
+  /// screen.
+  static const double deadZoneDeg = 4;
+  static const double boostStartDeg = 15;
+  static const double boostFullDeg = 24;
+
+  /// [TiltMode.heading]: lean ignored around level (hand tremor), and the
+  /// furthest the nose is held from upright.
+  static const double headingDeadZoneDeg = 1.5;
+  static const double maxHeadingDeg = 175;
 
   /// Seconds the accelerometer takes to pull the gyro estimate back
   /// (complementary filter). Without a gyro the accelerometer is the only
@@ -65,7 +91,10 @@ class TiltSteer {
   double _angle = 0;
   bool _angleSet = false;
   double _neutral = 0;
-  bool _recentre = true;
+
+  /// Ship angle (rad) the current hold should mean on the next [step]
+  /// (0 = level = straight ahead / upright); null = keep the centre.
+  double? _align = 0;
 
   /// 0 (lying flat) … 1 (upright enough to read a lean).
   double upright = 0;
@@ -91,8 +120,13 @@ class TiltSteer {
     _hasGyro = true;
   }
 
-  /// The current hold becomes straight ahead on the next [step].
-  void recentre() => _recentre = true;
+  /// The current hold becomes straight ahead (upright) on the next [step].
+  void recentre() => _align = 0;
+
+  /// [TiltMode.heading]: the current hold becomes [shipAngle] (rad, 0 =
+  /// upright, clockwise), so taking over from the stick doesn't jerk the
+  /// nose. In [TiltMode.rate] it's a plain [recentre].
+  void alignTo(double shipAngle) => _align = mode == TiltMode.heading ? shipAngle : 0;
 
   /// Forgets everything (new flight, sensors restarted).
   void reset() {
@@ -100,7 +134,7 @@ class TiltSteer {
     _hasGyro = false;
     _gyroZ = 0;
     _angleSet = false;
-    _recentre = true;
+    _align = 0;
     upright = 0;
   }
 
@@ -130,15 +164,37 @@ class TiltSteer {
       _angle += _wrap(measured - _angle) * k;
       _angle = _wrap(_angle);
     }
-    if (_recentre) {
-      _neutral = _angle;
-      _recentre = false;
-    } else if (leanDeg.abs() < deadZoneDeg * sensitivity.angleScale) {
+    final align = _align;
+    if (align != null) {
+      // Invert [targetHeading]: the lean that maps to this ship angle.
+      final maxRad = maxHeadingDeg * math.pi / 180;
+      final a = _wrap(align).clamp(-maxRad, maxRad);
+      final lean = a == 0
+          ? 0.0
+          : a / sensitivity.headingGain + a.sign * headingDeadZoneDeg * math.pi / 180;
+      _neutral = _angle - lean;
+      _align = null;
+    } else if (leanDeg.abs() <
+        (mode == TiltMode.heading
+            ? headingDeadZoneDeg
+            : deadZoneDeg * sensitivity.angleScale)) {
       _neutral += _wrap(_angle - _neutral) * (1 - math.exp(-dt / neutralCreepTau));
     }
   }
 
-  /// Rotate input (±1 = the ship's turn rate, up to ±[boost]).
+  /// [TiltMode.heading]: where the nose should point (rad, 0 = up,
+  /// clockwise); null while the phone lies flat or before a sample.
+  double? targetHeading() {
+    if (!_hasAccel || upright < 0.5) return null;
+    final lean = leanDeg;
+    final past = lean.abs() - headingDeadZoneDeg;
+    if (past <= 0) return 0;
+    final deg = math.min(maxHeadingDeg, past * sensitivity.headingGain);
+    return lean.sign * deg * math.pi / 180;
+  }
+
+  /// [TiltMode.rate]: rotate input (±1 = the ship's turn rate, up to
+  /// ±[boost]).
   double axis(double boost) {
     if (!_hasAccel) return 0;
     final s = sensitivity.angleScale;

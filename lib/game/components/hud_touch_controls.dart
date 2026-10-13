@@ -28,10 +28,6 @@ class HudTouchControls extends PositionComponent {
     this.onTiltTap,
   }) : super(priority: 5000);
 
-  /// Tilt steering: the lean as a stick deflection (−1…1), shown on the
-  /// resting dial; 0 when tilt is off.
-  double tiltX = 0;
-
   /// A tap on the steering side while tilting: recentre.
   final void Function()? onTiltTap;
 
@@ -118,7 +114,8 @@ class HudTouchControls extends PositionComponent {
     ScreenZone around(Offset c, double r) =>
         (l: c.dx - r - pad, t: c.dy - r - pad, r: c.dx + r + pad, b: c.dy + r + pad);
     const dialR = HudButtonLayout.dialRadius;
-    final zones = <ScreenZone>[around(l.dialRest, dialR)];
+    // Tilt steering hides the stick: nothing to keep the ship clear of.
+    final zones = <ScreenZone>[if (!FlightTuning.tilt) around(l.dialRest, dialR)];
     final held = _joystick?.heldCenter;
     if (held != null) {
       zones.add(around(Offset(held.x + _joystick!.position.x, held.y), dialR));
@@ -181,7 +178,6 @@ class HudTouchControls extends PositionComponent {
       onAxisChanged: onRotateAxis,
       onStick: onStick,
       restCenter: layout.dialRest - Offset(joyLeft, 0),
-      tilt: () => tiltX,
       onTap: onTiltTap,
     );
     _thrustBtn = _ThrustButton(
@@ -363,7 +359,6 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
     required this.onAxisChanged,
     this.onStick,
     required this.restCenter,
-    required this.tilt,
     this.onTap,
   }) : super(
           position: position,
@@ -374,8 +369,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
   final void Function(double axis) onAxisChanged;
   final void Function(double x, double y)? onStick;
 
-  /// Tilt steering's lean as a stick deflection, shown on the resting dial.
-  final double Function() tilt;
+  /// A tap while tilt steering (the stick is hidden): recentre the tilt.
   final void Function()? onTap;
 
   @override
@@ -414,7 +408,8 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
-    if (_trackingPointerId != null) return;
+    // Tilt steering: no stick on screen (a tap still recentres the tilt).
+    if (_trackingPointerId != null || FlightTuning.tilt) return;
     _trackingPointerId = event.pointerId;
     _baseCenter = event.localPosition.clone();
     _knobCenter = _baseCenter!.clone();
@@ -457,7 +452,15 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
   }
 
   @override
+  void update(double dt) {
+    super.update(dt);
+    // Switched to tilt mid-drag (pause → Settings): let go of the stick.
+    if (FlightTuning.tilt && _trackingPointerId != null) _reset();
+  }
+
+  @override
   void render(Canvas canvas) {
+    if (FlightTuning.tilt) return;
     if (_active) {
       _drawJoystick(canvas);
     } else {
@@ -470,7 +473,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
   void _drawHint(Canvas canvas) {
     final c = restCenter;
     _drawBase(canvas, c, active: false);
-    _drawKnob(canvas, c + Offset(tilt() * _maxKnobRadius, 0), active: false);
+    _drawKnob(canvas, c, active: false);
   }
 
   void _drawJoystick(Canvas canvas) {
@@ -485,7 +488,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
   void _drawBase(Canvas canvas, Offset c, {required bool active}) {
     const r = _baseOuterRadius;
     final a = active ? 1.0 : 0.6;
-    final axis = active ? _axis : tilt();
+    final axis = active ? _axis : 0.0;
     canvas.drawCircle(
       c,
       r,
@@ -519,19 +522,17 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbac
       ..color = HudColors.gold.withValues(alpha: 0.55 * a)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    if (FlightTuning.steer.hasZones || FlightTuning.tilt) {
+    if (FlightTuning.steer.hasZones) {
       for (final side in const [-1.0, 1.0]) {
         final x = c.dx + side * boostX;
         canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
       }
     }
-    if (FlightTuning.steer.isPointer && (active || !FlightTuning.tilt)) {
+    if (FlightTuning.steer.isPointer) {
       _drawPointer(canvas, c, active: active, alpha: a);
       return;
     }
-    final boosting = active
-        ? FlightTuning.stickBoosting(axis)
-        : axis.abs() > FlightTuning.boostStart;
+    final boosting = FlightTuning.stickBoosting(axis);
     if (axis != 0) {
       final lit = Paint()
         ..color = HudColors.cyanBright.withValues(alpha: 0.85)

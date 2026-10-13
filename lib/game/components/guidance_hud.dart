@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
 import 'package:narrow_haul/game/guidance/flight_drills.dart';
@@ -188,8 +189,28 @@ class CoachMarkHud extends PositionComponent {
       _ring(canvas, a, ringR + 26 * p, a.color.withValues(alpha: (1 - p) * 0.55 * e), 1.6);
     }
 
-    // The dial teaches the drag: a ghost thumb sweeping across it.
-    if (m.target == CoachTarget.dial && m.keys.isEmpty) {
+    // Tilt steering: a phone rocking side to side where the stick would be.
+    if (m.target == CoachTarget.dial && m.keys.isEmpty && FlightTuning.tilt) {
+      canvas
+        ..save()
+        ..translate(a.c.dx, a.c.dy)
+        ..rotate(math.sin(_t * 2.4) * 0.35);
+      final phone = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: a.r * 1.3, height: a.r * 0.7),
+        const Radius.circular(6),
+      );
+      canvas
+        ..drawRRect(phone, Paint()..color = Colors.white.withValues(alpha: 0.14 * e))
+        ..drawRRect(
+          phone,
+          Paint()
+            ..color = a.color.withValues(alpha: 0.85 * e)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.6,
+        )
+        ..restore();
+    } else if (m.target == CoachTarget.dial && m.keys.isEmpty) {
+      // The dial teaches the drag: a ghost thumb sweeping across it.
       final sweep = math.sin(_t * 2.4);
       final knob = a.c + Offset(sweep * a.r * 0.6, 0);
       canvas.drawCircle(

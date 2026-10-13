@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/tilt_steer.dart';
 
 const g = 9.81;
@@ -36,7 +37,7 @@ void main() {
   });
 
   test('a held lean is straight ahead after a recentre', () {
-    final t = TiltSteer();
+    final t = TiltSteer(mode: TiltMode.rate);
     feed(t, 12, frames: 5);
     expect(t.axis(2), 0);
     feed(t, 12, frames: 120);
@@ -44,26 +45,26 @@ void main() {
   });
 
   test('dead zone, precise range and boost ramp', () {
-    final t = TiltSteer();
+    final t = TiltSteer(mode: TiltMode.rate);
     feed(t, 0);
     feed(t, 2, frames: 300);
     expect(t.axis(2), 0, reason: 'inside the dead zone');
     feed(t, 0, frames: 300);
     t.recentre();
     feed(t, 0);
-    feed(t, 12.5, frames: 300);
+    feed(t, 9.5, frames: 300);
     expect(t.axis(2), closeTo(0.5, 0.02));
-    feed(t, -22, frames: 300);
+    feed(t, -15, frames: 300);
     expect(t.axis(2), closeTo(-1, 0.02));
-    feed(t, 27, frames: 300);
-    expect(t.axis(2), closeTo(1.5, 0.02));
+    feed(t, 19.5, frames: 300);
+    expect(t.axis(2), closeTo(1.5, 0.03));
     feed(t, 50, frames: 300);
     expect(t.axis(2), closeTo(2, 1e-6));
   });
 
   test('high sensitivity turns sooner', () {
-    final normal = TiltSteer();
-    final high = TiltSteer(sensitivity: TiltSensitivity.high);
+    final normal = TiltSteer(mode: TiltMode.rate);
+    final high = TiltSteer(sensitivity: TiltSensitivity.high, mode: TiltMode.rate);
     for (final t in [normal, high]) {
       feed(t, 0);
       feed(t, 10, frames: 300);
@@ -89,22 +90,70 @@ void main() {
   });
 
   test('a phone lying flat stops steering', () {
-    final t = TiltSteer();
+    final t = TiltSteer(mode: TiltMode.rate);
     feed(t, 0);
     feed(t, 25, frames: 300);
     expect(t.axis(2), greaterThan(1));
     feed(t, 25, upright: 0.2, frames: 10);
     expect(t.flat, isTrue);
     expect(t.axis(2), 0);
+    expect((TiltSteer()..onAccel(0, 0, g)..step(dt)).targetHeading(), isNull);
   });
 
   test('the dial readout lines up with the stick zones', () {
-    final t = TiltSteer();
+    final t = TiltSteer(mode: TiltMode.rate);
     feed(t, 0);
-    feed(t, 22, frames: 600);
+    feed(t, 15, frames: 600);
     expect(
       t.dialX(stickDeadzone: 0.06, boostStart: 0.55, boostFull: 0.75),
       closeTo(0.55, 0.02),
     );
+  });
+
+  group('angle mode', () {
+    double deg(double? rad) => rad! * 180 / math.pi;
+
+    test('level is upright, a lean points the nose (× gain)', () {
+      final t = TiltSteer();
+      feed(t, 0);
+      expect(t.targetHeading(), 0);
+      feed(t, 1, frames: 300);
+      expect(t.targetHeading(), 0, reason: 'tremor around level');
+      // (the centre crept toward that 1° hold; start again from level)
+      feed(t, 0, frames: 300);
+      t.recentre();
+      feed(t, 0);
+      feed(t, 31.5, frames: 300);
+      expect(deg(t.targetHeading()), closeTo(90, 1));
+      feed(t, -16.5, frames: 300);
+      expect(deg(t.targetHeading()), closeTo(-45, 1));
+      feed(t, 80, frames: 300);
+      expect(deg(t.targetHeading()), closeTo(TiltSteer.maxHeadingDeg, 1e-9));
+    });
+
+    test('aligning to the ship keeps the nose where it is', () {
+      final t = TiltSteer();
+      feed(t, 0);
+      feed(t, 10, frames: 300);
+      t.alignTo(-60 * math.pi / 180);
+      feed(t, 10);
+      expect(deg(t.targetHeading()), closeTo(-60, 0.5));
+      // Leaning 10° further clockwise from there turns the nose 30°.
+      feed(t, 20, frames: 300);
+      expect(deg(t.targetHeading()), closeTo(-30, 1));
+    });
+
+    test('the heading controller turns the short way and rests on target', () {
+      double axis(double target, double ship) => FlightTuning.headingAxis(
+        target: target,
+        shipAngle: ship,
+        baseRate: math.pi / 2,
+        boost: 2,
+      );
+      expect(axis(0.5, 0), 2);
+      expect(axis(-3, 3), greaterThan(0), reason: 'across ±π the short way');
+      expect(axis(1, 1), 0);
+      expect(axis(0.01, 0), closeTo(0.01 / (FlightTuning.pointerResponse * math.pi / 2), 1e-9));
+    });
   });
 }
