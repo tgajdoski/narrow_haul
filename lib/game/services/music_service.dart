@@ -11,7 +11,7 @@ import 'audio_service.dart';
 /// Sources (both free for commercial use, no credit required, not to be
 /// redistributed as assets): the Space Music Pack by Goose Ninja
 /// (gooseninja.itch.io/space-music-pack: menu, results, battle, travel,
-/// wreckage, start-level sting) and Pixabay (ethereal, drift, nebula, orbit;
+/// start-level sting) and Pixabay (ethereal, drift, nebula, orbit;
 /// originals in art_src/audio/). Calling [play] with the track that's
 /// already playing only changes its volume, so retrying a level never
 /// restarts its music.
@@ -20,10 +20,10 @@ class MusicService {
   static const resultsTrack = 'music_results.m4a';
   static const battleTrack = 'music_battle.m4a';
 
-  /// Flown in random order everywhere but The Redoubt.
+  /// Flown in random order everywhere but The Redoubt. (The pack's
+  /// "In the Wreckage" was dropped: young players found it scary.)
   static const flightPool = [
     'music_travel.m4a',
-    'music_wreckage.m4a',
     'music_ethereal.m4a',
     'music_drift.m4a',
     'music_nebula.m4a',

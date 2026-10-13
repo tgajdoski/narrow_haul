@@ -6,7 +6,7 @@ Per-track loudness correction lives in `MusicService._gain`.
 
 | Asset | Source | Licence |
 |---|---|---|
-| music_menu / music_results / music_battle / music_travel / music_wreckage, start_level | "Space Music Pack" by Goose Ninja: menu, loading, battle, slow-travel, in-the-wreckage, fx/start-level (https://gooseninja.itch.io/space-music-pack) | Commercial use OK, no credit required, no redistribution as assets |
+| music_menu / music_results / music_battle / music_travel, start_level | "Space Music Pack" by Goose Ninja: menu, loading, battle, slow-travel, fx/start-level (in-the-wreckage was dropped: too scary for kids) (https://gooseninja.itch.io/space-music-pack) | Commercial use OK, no credit required, no redistribution as assets |
 | music_ethereal | Pixabay: maksymmalko, "Ethereal Landscape Space Music" (id 301238) | Pixabay Content License |
 | music_drift | Pixabay: paulyudin, "Space" (id 607605) | Pixabay Content License |
 | music_nebula | Pixabay: starostin, "Ethereal Space Landscape Music" (id 261887) | Pixabay Content License |
