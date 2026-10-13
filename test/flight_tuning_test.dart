@@ -176,7 +176,7 @@ void main() {
       expect(FlightTuning.camera, CameraMode.wide);
       FlightTuning.load(steerName: 'bogus');
       expect(FlightTuning.steer, SteerMode.twoSpeed);
-      expect(FlightTuning.camera, CameraMode.dynamicZoom);
+      expect(FlightTuning.camera, CameraMode.lookAhead);
     });
   });
 }

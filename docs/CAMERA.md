@@ -35,8 +35,8 @@ To port it, copy `camera_director.dart`, build `CameraInputs` from your physics 
 
 | Mode | Lead | Down | Speed out | Impact out | Rest in | Tow out | Pod framing | Base |
 |---|---|---|---|---|---|---|---|---|
-| Dynamic (default) | 0.4 s | 0.5 m | 10% | 8% | 12% (also hands-off) | 8% | yes | 1.0 |
-| Look-ahead | 0.4 s | – | – | – | – | 12% | yes | 1.0 |
+| Dynamic | 0.4 s | 0.5 m | 10% | 8% | 12% (also hands-off) | 8% | yes | 1.0 |
+| Look-ahead (default) | 0.4 s | – | – | – | – | 12% | yes | 1.0 |
 | Centred | – | – | – | – | – | – | – | 1.0 |
 | Wide | 0.3 s | – | 6% | – | – | 8% | yes | 0.85 |
 

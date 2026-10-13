@@ -101,7 +101,7 @@ enum CameraMode {
 
 abstract final class FlightTuning {
   static SteerMode steer = SteerMode.twoSpeed;
-  static CameraMode camera = CameraMode.dynamicZoom;
+  static CameraMode camera = CameraMode.lookAhead;
 
   /// The joystick's own dead zone (`_FloatingJoystick._deadzone`).
   static const double stickDeadzone = 0.06;
@@ -141,7 +141,7 @@ abstract final class FlightTuning {
   /// Restores saved preset names; unknown or missing ones keep the default.
   static void load({String? steerName, String? cameraName}) {
     steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
-    camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.dynamicZoom;
+    camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
   }
 
   /// Maps a raw stick axis (−1…1, after the joystick's dead zone) to rotate

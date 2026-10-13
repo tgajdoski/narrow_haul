@@ -9,7 +9,7 @@ import 'helpers/levels.dart';
 void main() {
   final h = GameHarness();
   setUpAll(h.boot);
-  tearDown(() => FlightTuning.camera = CameraMode.dynamicZoom);
+  tearDown(() => FlightTuning.camera = CameraMode.lookAhead);
 
   void camera(double seconds) {
     for (var t = 0.0; t < seconds - 1e-9; t += kStepDt) {

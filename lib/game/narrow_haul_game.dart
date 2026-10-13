@@ -2904,6 +2904,9 @@ class NarrowHaulGame extends Forge2DGame
   /// Missions whose story beats played this app session.
   final _storyToldThisSession = <String>{};
 
+  /// The camera tip aired this app session (`_scheduleComms`).
+  bool _cameraTipToldThisSession = false;
+
   /// Whether this flight tells the mission's story (set by `_scheduleComms`).
   bool _storyThisFlight = false;
 
@@ -2943,6 +2946,21 @@ class NarrowHaulGame extends Forge2DGame
           id: 'canister',
           callsign: 'OPS',
           text: 'Fuel canister marked. Fly through it to top up the tank.',
+        ),
+        delay: afterIntro,
+        expiresIn: _commsHelpExpiry,
+      );
+    }
+    // The first flight of an app session names the camera, so players learn
+    // there are others. Last in the queue: it drops if it would air late.
+    if (!retry && !isChallengeMode && !_tutorialHints && !_cameraTipToldThisSession) {
+      _cameraTipToldThisSession = true;
+      comms.say(
+        CommsLine(
+          id: 'camera',
+          callsign: 'TOWER',
+          text: 'Camera: ${FlightTuning.camera.label}. '
+              'Change it any time in Pause → Settings → Camera.',
         ),
         delay: afterIntro,
         expiresIn: _commsHelpExpiry,
