@@ -183,9 +183,9 @@ class MonetizationService {
       _products[productId]?.price ??
       switch (productId) {
         ProductIds.supporterPack => r'$7.99',
-        ProductIds.fullGame || ProductIds.arsenalCrate => r'$4.99',
-        ProductIds.fleetPass => r'$3.99',
-        ProductIds.demolitionKit => r'$1.99',
+        ProductIds.fullGame => r'$4.99',
+        ProductIds.fleetPass || ProductIds.arsenalCrate => r'$2.99',
+        ProductIds.demolitionKit => r'$0.99',
         _ => r'$2.99',
       };
 

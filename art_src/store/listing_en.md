@@ -67,11 +67,11 @@ Use the App Store description above. Play allows the same plain text and bullets
 
 - `nh_full_game`, "Full Game" (**non-consumable**, $4.99): unlocks every Expedition (the first one is free to try) and turns off interstitial ads for good. Optional rewarded ads stay available. Reviewers: Missions → The Long Night → any mission after the first → Full Game.
 - `nh_supporter_pack`, "Supporter Pack" (**non-consumable**, $7.99): the Full Game, plus the Supporter ship livery and 500 coins.
-- `nh_demo_kit`, "Demolition Kit" (**consumable**, $1.99): 10 Demolition Charges, 10 Gravity Bombs and 60 s of Mining Laser, added to the pilot's ammo. Can be bought again.
+- `nh_demo_kit`, "Demolition Kit" (**consumable**, $0.99): 10 Demolition Charges, 10 Gravity Bombs and 60 s of Mining Laser, added to the pilot's ammo. Can be bought again.
   - App Store display name [30]: `Demolition Kit`
   - App Store description [45]: `10 charges, 10 bombs and 60 s of laser.` (39)
   - Play description [200]: `Ammo for your ship: 10 Demolition Charges, 10 Gravity Bombs and 60 seconds of Mining Laser. Blast obstacles and carve through rock. Can be bought again.`
-- `nh_arsenal_crate`, "Arsenal Crate" (**consumable**, $4.99): 30 of every weapon (Demolition Charges, Gravity Bombs, Seeker Missiles, Flak Bursts) and 180 s of Mining Laser. Can be bought again.
+- `nh_arsenal_crate`, "Arsenal Crate" (**consumable**, $2.99): 30 of every weapon (Demolition Charges, Gravity Bombs, Seeker Missiles, Flak Bursts) and 180 s of Mining Laser. Can be bought again.
   - App Store display name [30]: `Arsenal Crate`
   - App Store description [45]: `30 of every weapon and 3 min of laser.` (38)
   - Play description [200]: `The full arsenal: 30 Demolition Charges, 30 Gravity Bombs, 30 Seeker Missiles, 30 Flak Bursts and 3 minutes of Mining Laser. Can be bought again.`
