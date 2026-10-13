@@ -9,7 +9,7 @@ Character limits are in brackets. Counts are checked with
 - **Support URL:** https://zafrk.com/narrow-haul/support
 - **Privacy policy URL:** https://zafrk.com/narrow-haul/privacy
 - **Marketing URL / website:** https://zafrk.com/narrow-haul/
-- **Category:** Games → Arcade (secondary: Games → Action / Play: Arcade)
+- **Category:** App Store: Games → Action (secondary: Games → Simulation; there is no Arcade subcategory). Play: Game → Arcade
 - **Copyright:** © 2026 zafrk
 
 ## App Store
@@ -18,18 +18,20 @@ Character limits are in brackets. Counts are checked with
 Tow cargo through tight caves
 
 **Promotional text** [170]
-Thrust, rotate and haul a swinging cargo pod through 60 hand-built caves. Seven worlds, six ships, gravity wells, wind, ice and a fortress that shoots back.
+The gate is dark and seven settlements need supplies. Thrust, tow and land a swinging pod through 68 tight caves, in six ships, past a fortress that shoots back.
 
 **Keywords** [100, comma-separated, no spaces]
-thrust,lander,cave,flyer,gravity,physics,rope,tow,cargo,spaceship,retro,arcade,skill,pilot,fuel
+thrust,lander,cave,flyer,gravity,physics,rope,tow,cargo,spaceship,retro,arcade,pilot,fuel,rescue
 
 **Description** [4000]
-Fly a tiny cargo ship through narrow caves, hook a heavy pod on a rope and bring both home. Every pod swings, every hard knock is your last, and every drop of fuel counts.
+Somebody has to fly it in.
+
+The jump gate has gone dark and seven settlements are cut off, deep underground where no freighter can reach. You're the newest pilot of Operation Lifeline. Fly a tiny cargo tug through narrow caves, hook a heavy pod on a line and bring both home. Every pod swings, every hard knock is your last, and every drop of fuel counts.
 
 THRUST, ROTATE, HAUL
-Two controls, real physics. Feather the thrust and fight gravity. The pod swings on its rope behind you. Your deflector shield shrugs off a gentle scrape and glows when rock gets close, but a hard hit ends the run. Land the ship and the pod on the pad to deliver. Pick the steering that suits your thumb in Settings.
+Two controls, real physics. Feather the thrust and fight gravity while the pod swings behind you. Your deflector shield shrugs off a gentle scrape and glows when rock gets close, but a hard hit ends the run. Land the ship and the pod on the pad to deliver. Pick the steering that suits your thumb in Settings.
 
-60 HAND-BUILT LEVELS IN 7 WORLDS
+60 HAND-BUILT MISSIONS IN 7 WORLDS
 • Training Grounds: learn to fly and tow
 • Xenar Caverns: low gravity and crystal tunnels
 • Rustshaft Mines: heavy gravity and moving machinery
@@ -38,14 +40,23 @@ Two controls, real physics. Feather the thrust and fight gravity. The pod swings
 • Outer Ring: gravity wells and zero-g
 • The Redoubt: turrets, a reactor and a gunship that fires back
 
-SIX SHIPS
-Kestrel, Hopper, Mule, Skate, Vector and the armed Talon each fly differently. Earn a type rating to fly each one.
+THE LONG NIGHT: 8 EXPEDITIONS
+Act II. Long convoy hauls through giant caves: deliver a pod to a staging pad, refuel, then fly on for the next one. Crash and you can resume from the last pad. The first Expedition is free.
+
+A STORY BY RADIO
+Every mission has a cargo and a reason: rations, vaccine, coolant, survivors. Your dispatcher, the settlers and a cold machine voice talk you through it, and the trail leads to why the gate went dark.
+
+PICK YOUR SHIP
+Kestrel, Hopper, Mule, Skate, Vector and the armed Talon each fly differently. Earn each one with its type rating or buy it with coins, then fly any mission it fits in the ship you like. Stars stay fair whichever ship you choose.
+
+MYSTERY SALVAGE
+Fly through a glowing "?" cache to open an alien relic. It might be an overshield, an afterburner or slow time... or a bee in the engine, a fuel leak or crossed wires. 19 relics to collect.
 
 BLAST A WAY THROUGH
 Find supply crates with demolition charges, gravity bombs, a mining laser, seeker missiles and flak. Wreck moving machinery, shoot down incoming fire and carve new tunnels through the rock.
 
 MASTER EVERY RUN
-Earn up to 3 stars per level for fuel and time. Chase your best times, take on a new Daily Challenge every day, and finish daily contracts.
+Earn up to 3 stars per mission for fuel and time. Chase your best times, take on a new Daily Challenge every day and finish daily contracts. Stuck? Watch a demo flight or follow the route guide.
 
 BUILD A PILOT CAREER
 Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achievements and fit out your ship in the Garage: liveries, engine plumes, tow gear with real trade-offs (from a heavy chain to a tractor beam), handling kits and an Armory of weapons.
@@ -53,12 +64,12 @@ Climb 10 real aviation ranks from Student Pilot to Chief Pilot. Unlock achieveme
 SOUND OF SPACE
 A spacey soundtrack that changes from flight to flight, a battle theme in The Redoubt, and crisp engine, rope and cannon sounds.
 
-Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. One purchase, the Full Game, unlocks every Expedition (Act II: long multi-leg hauls) and removes the ads between missions, for good. Optional ammo packs are never needed, and a flight that uses bought ammo earns at most two stars.
+Free to play with light ads: an occasional ad between missions, plus optional rewarded ads for a second chance or bonus coins. One purchase, the Full Game, unlocks every Expedition and removes the ads between missions, for good. The Fleet Pass unlocks every ship at once. Optional ammo packs are never needed, and a flight that uses bought ammo earns at most two stars.
 
 ## Google Play
 
 **Short description** [80]
-Thrust, tow and land a swinging cargo pod through 60 tight caves.
+Tow a swinging pod through tight caves. 68 missions, 6 ships, real physics.
 
 **Full description** [4000]
 Use the App Store description above. Play allows the same plain text and bullets.

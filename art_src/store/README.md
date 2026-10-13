@@ -10,12 +10,13 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App icon (iOS / Android / macOS, in the build) | `art_src/icon/icon_1024.png` → generated into the platform folders | ✅ built from the game sprites (AI version optional: prompts A/B) |
 | Play listing icon 512×512 | `art_src/icon/play_icon_512.png` | ✅ |
 | Launch screen (dark, ship mark) | in the build | ✅ |
-| iPhone 6.9" screenshots 2868×1320 | `screenshots/ios_69/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) |
-| iPad 13" screenshots 2752×2064 | `screenshots/ios_ipad13/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) (iPad simulator) |
-| Play phone + tablet screenshots 1920×1080 | `screenshots/play_1080/` | ⚠ **recapture**: taken 2026-10-07, before the holo hangar UI, drawn flight controls and the bigger ship/pod (2026-10-08/09) |
-| Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ⚠ **regenerate** after the screenshots (old ship/pod size); AI key art optional: prompt C |
+| iPhone screenshots 2868×1320 (App Store's iPhone slot now takes 6.3": upload the 2622×1206 copies) | `screenshots/ios_69/` → `upload/appstore_iphone_63/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
+| iPad 13" screenshots 2752×2064 | `screenshots/ios_ipad13/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
+| Play phone + tablet screenshots 1920×1080 | `screenshots/play_1080/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
+| Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ✅ regenerated 2026-10-13 from the new `05_orbit_02`; uploaded to Play. AI key art optional: prompt C |
 | Store texts | `listing_en.md` | ✅ checked against the character limits |
-| App Preview videos + YouTube promo | `video/` | ⏳ record on the iPhone, then run `tool/store/make_videos.sh` (needs `brew install ffmpeg`) |
+| App Preview videos + YouTube promo | `video/` (gitignored, rebuilt by the script) | ✅ 2026-10-13 from the game itself: `tool/store/make_store_video.sh` captures `integration_test/store_video_test.dart` on macOS (slow motion, every frame timed) and `tool/store/assemble_store_video.py` cuts `preview_iphone.mp4` 1920×886 and `preview_ipad.mp4` 1600×1200 (28.8 s) and `youtube_1080.mp4` (74 s). Keep the test window visible while it runs. Uploads under 10 MB: two-pass H.264 at 2.5 Mbps in `video/upload/`. Both previews are in App Store Connect |
+| YouTube channel banner 2560×1440 | `youtube_banner_2560x1440.jpg` | ✅ `python3 tool/store/make_banner.py`; live on @NarrowHaul |
 | IAP review screenshots (per product) | `iap_review/` | ✅ 4 shots, 2868×1320; which goes where in *IAP review screenshots and notes* below |
 | Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
 | IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`, `nh_full_game`, `nh_supporter_pack`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
