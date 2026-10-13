@@ -344,9 +344,11 @@ class _PurchasesSection extends StatelessWidget {
             _row(
               icon: Icons.diamond_outlined,
               title: 'Supporter Pack',
-              subtitle:
-                  'Full Game + Supporter Livery + '
-                  '${ProductIds.supporterCoins} 💰',
+              subtitle: ProgressService.instance.hasFullGame
+                  ? 'Supporter Livery + ${ProductIds.supporterCoins} 💰 '
+                      '(you already own the Full Game)'
+                  : 'Full Game + Supporter Livery + '
+                      '${ProductIds.supporterCoins} 💰',
               trailing: m.priceOf(ProductIds.supporterPack),
               onTap: () => buyWithFeedback(context, ProductIds.supporterPack),
             ),
@@ -364,6 +366,13 @@ class _PurchasesSection extends StatelessWidget {
               icon: Icons.favorite_rounded,
               title: ProgressService.instance.hasFullGame ? 'Full Game' : 'Ads removed',
               subtitle: 'Thanks for supporting Narrow Haul!',
+            ),
+          if (m.adFreeUntil case final until?)
+            _row(
+              icon: Icons.favorite_rounded,
+              title: 'Ad-free until '
+                  '${MaterialLocalizations.of(context).formatShortMonthDay(until)}',
+              subtitle: 'Thanks for your support!',
             ),
           if (m.storeAvailable)
             _row(

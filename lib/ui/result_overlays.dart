@@ -61,11 +61,11 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   late final bool _showFullGameOffer = _shouldOfferFullGame();
 
   /// Soft Full Game offer: once the tutorial world is done (or after the
-  /// first interstitial), at most every 3 days, never to payers.
+  /// first interstitial), at most every 3 days, never to Full Game owners.
   bool _shouldOfferFullGame() {
     final p = ProgressService.instance;
     final m = MonetizationService.instance;
-    if (p.hasFullGame || p.hasPurchased || !m.canBuy(ProductIds.fullGame)) {
+    if (p.hasFullGame || !m.canBuy(ProductIds.fullGame)) {
       return false;
     }
     final tutorialDone = LevelRegistry.trainingComplete;

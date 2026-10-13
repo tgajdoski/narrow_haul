@@ -296,11 +296,18 @@ class ProgressService {
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 
-  /// Remove-ads entitlement (from `nh_remove_ads` or the supporter pack).
+  /// No interstitials for good: the Full Game (on its own or in the
+  /// Supporter Pack).
   bool get adsRemoved => _bool('ads_removed') ?? false;
   Future<void> setAdsRemoved(bool v) async => _prefs.setBool('ads_removed', v);
 
-  /// Any IAP ever made — payers never see interstitials.
+  /// Epoch ms until which interstitials stay off after any other purchase
+  /// (ammo pack, Fleet Pass; `kAdPurchaseGrace`). 0 = none.
+  int get adFreeUntilMs => _int('ads_free_until') ?? 0;
+  Future<void> setAdFreeUntilMs(int v) async =>
+      _prefs.setInt('ads_free_until', v);
+
+  /// Any IAP ever made (ad pacing reads [adsRemoved] / [adFreeUntilMs]).
   bool get hasPurchased => _bool('iap_any_purchase') ?? false;
   Future<void> setHasPurchased(bool v) async =>
       _prefs.setBool('iap_any_purchase', v);
@@ -318,7 +325,9 @@ class ProgressService {
   /// ads show again. A store restore grants them back.
   Future<void> debugClearPurchases() async {
     for (final key in _prefs.getKeys().toList()) {
-      if (key == 'ads_removed' || key.startsWith('iap_')) {
+      if (key == 'ads_removed' ||
+          key == 'ads_free_until' ||
+          key.startsWith('iap_')) {
         await _prefs.remove(key);
       }
     }

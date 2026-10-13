@@ -13,6 +13,7 @@ const _s = 1000; // ms per second
 /// A seasoned player well past every lifetime gate, due for an ad.
 AdPacingInputs _due({
   bool adsRemoved = false,
+  int adFreeUntil = 0,
   int deliveries = 20,
   int playSeconds = 3600,
   int clears = kAdClearsBetween,
@@ -20,6 +21,7 @@ AdPacingInputs _due({
   int lastRewarded = 0,
 }) => AdPacingInputs(
   adsRemoved: adsRemoved,
+  adFreeUntilMs: adFreeUntil,
   lifetimeDeliveries: deliveries,
   lifetimePlaySeconds: playSeconds,
   clearsSinceInterstitial: clears,
@@ -113,12 +115,25 @@ void main() {
       expect(pacing.interstitialAllowed(_due(), afterGrace), isFalse);
     });
 
-    test('remove-ads (or any purchase) turns interstitials off', () {
+    test('the Full Game turns interstitials off for good', () {
       expect(
         AdPacing(
           sessionStartMs: _start,
         ).interstitialAllowed(_due(adsRemoved: true), afterGrace),
         isFalse,
+      );
+    });
+
+    test('a purchase\'s ad-free week blocks them until it ends', () {
+      final pacing = AdPacing(sessionStartMs: _start);
+      final until = afterGrace + 10 * _s;
+      expect(
+        pacing.interstitialAllowed(_due(adFreeUntil: until), until - 1),
+        isFalse,
+      );
+      expect(
+        pacing.interstitialAllowed(_due(adFreeUntil: until), until),
+        isTrue,
       );
     });
   });
@@ -166,13 +181,20 @@ void main() {
     });
   });
 
+  final week = kAdPurchaseGrace.inMilliseconds;
+  var now = DateTime(2026, 10, 13);
+  void advance(Duration d) => now = now.add(d);
+
   group('Ammo packs', () {
     setUp(() async {
       SharedPreferences.setMockInitialValues({'save_v2': true, 'save_v3': true});
       await ProgressService.init();
+      now = DateTime(2026, 10, 13);
+      ProgressService.clock = () => now;
     });
+    tearDown(() => ProgressService.clock = DateTime.now);
 
-    test('a pack adds ammo, never removes ads, and pays once per transaction',
+    test('a pack adds ammo and an ad-free week, paid once per transaction',
         () async {
       final m = MonetizationService.instance;
       final p = ProgressService.instance;
@@ -180,12 +202,31 @@ void main() {
       expect(p.getAmmo(kDemoCharge.id), 10);
       expect(p.getAmmo(kMiningLaser.id), 60);
       expect(p.adsRemoved, isFalse);
-      // The store re-delivers the same transaction: nothing more.
+      expect(p.adFreeUntilMs, now.millisecondsSinceEpoch + week);
+      expect(m.interstitialsOff, isTrue);
+      expect(m.adFreeUntil, isNotNull);
+      // The store re-delivers the same transaction: nothing more, and the
+      // week doesn't restart.
+      advance(const Duration(days: 3));
       await m.grant(ProductIds.demolitionKit, purchaseId: 'tx-1');
       expect(p.getAmmo(kDemoCharge.id), 10);
+      expect(p.adFreeUntilMs, now.millisecondsSinceEpoch - 3 * 86400000 + week);
+      // The week runs out: interstitials are back.
+      advance(const Duration(days: 5));
+      expect(m.interstitialsOff, isFalse);
+      expect(m.adFreeUntil, isNull);
       // A second purchase is a new transaction.
       await m.grant(ProductIds.demolitionKit, purchaseId: 'tx-2');
       expect(p.getAmmo(kDemoCharge.id), 20);
+      expect(p.adFreeUntilMs, now.millisecondsSinceEpoch + week);
+    });
+
+    test('the ad-free week survives a progress reset', () async {
+      final p = ProgressService.instance;
+      await MonetizationService.instance.grant(ProductIds.arsenalCrate, purchaseId: 'tx-9');
+      final until = p.adFreeUntilMs;
+      await p.resetProgress();
+      expect(p.adFreeUntilMs, until);
     });
 
     test('every pack holds only real weapons', () {
@@ -206,6 +247,7 @@ void main() {
   });
 
   group('Full Game', () {
+    tearDown(() => ProgressService.clock = DateTime.now);
     setUp(() async {
       SharedPreferences.setMockInitialValues({
         'save_v2': true,
@@ -249,12 +291,24 @@ void main() {
     test('the Supporter Pack includes it; the Fleet Pass does not', () async {
       final m = MonetizationService.instance;
       final p = ProgressService.instance;
+      now = DateTime(2026, 10, 13);
+      ProgressService.clock = () => now;
       await m.grant(ProductIds.fleetPass);
       expect(p.hasFullGame, isFalse);
       expect(p.adsRemoved, isFalse);
+      // The Fleet Pass gives an ad-free week, once: a restore doesn't
+      // start it again.
+      final until = now.millisecondsSinceEpoch + week;
+      expect(p.adFreeUntilMs, until);
+      advance(const Duration(days: 2));
+      await m.grant(ProductIds.fleetPass);
+      expect(p.adFreeUntilMs, until);
       await m.grant(ProductIds.supporterPack);
       expect(p.hasFullGame, isTrue);
       expect(p.adsRemoved, isTrue);
+      // Owned for good: no "ad-free until" date to show.
+      expect(m.adFreeUntil, isNull);
+      expect(m.interstitialsOff, isTrue);
     });
 
     test('Expedition stars stay out of the career gates', () async {

@@ -27,10 +27,15 @@ const int kAdAfterRewardedSeconds = 240;
 /// Interstitials per app session.
 const int kAdMaxPerSession = 4;
 
+/// Interstitial-free time after a purchase that doesn't remove ads for good
+/// (ammo pack, Fleet Pass). The Full Game removes them for good.
+const Duration kAdPurchaseGrace = Duration(days: 7);
+
 /// Persisted inputs the rules read (see `ProgressService` ad keys).
 class AdPacingInputs {
   const AdPacingInputs({
     required this.adsRemoved,
+    this.adFreeUntilMs = 0,
     required this.lifetimeDeliveries,
     required this.lifetimePlaySeconds,
     required this.clearsSinceInterstitial,
@@ -38,7 +43,11 @@ class AdPacingInputs {
     required this.lastRewardedMs,
   });
 
+  /// The Full Game: no interstitials for good.
   final bool adsRemoved;
+
+  /// Epoch ms until which a purchase's [kAdPurchaseGrace] runs (0 = none).
+  final int adFreeUntilMs;
   final int lifetimeDeliveries;
   final int lifetimePlaySeconds;
   final int clearsSinceInterstitial;
@@ -57,6 +66,7 @@ class AdPacing {
 
   bool interstitialAllowed(AdPacingInputs s, int nowMs) {
     if (s.adsRemoved) return false;
+    if (nowMs < s.adFreeUntilMs) return false;
     if (s.lifetimeDeliveries < kAdMinLifetimeDeliveries) return false;
     if (s.lifetimePlaySeconds < kAdMinLifetimePlaySeconds) return false;
     if (nowMs - sessionStartMs < kAdSessionGraceSeconds * 1000) return false;

@@ -33,7 +33,8 @@ class ProductIds {
 
   /// Every ship, now and later (non-consumable). The one store route to
   /// ships: single ships are bought with coins, and every ship is also
-  /// earned by play, so it never removes ads.
+  /// earned by play, so it only turns interstitials off for
+  /// [kAdPurchaseGrace].
   static const fleetPass = 'nh_fleet_pass';
 
   static const nonConsumables = {fullGame, supporterPack, fleetPass};
@@ -170,6 +171,18 @@ class MonetizationService {
   ProgressService get _p => ProgressService.instance;
 
   bool get adsRemoved => _p.adsRemoved;
+
+  /// No interstitials right now: the Full Game, or a purchase's
+  /// [kAdPurchaseGrace] still running.
+  bool get interstitialsOff => _p.adsRemoved || _nowMs < _p.adFreeUntilMs;
+
+  /// When a purchase's ad-free week ends, while it runs (else null). The
+  /// Full Game shows as [adsRemoved] instead.
+  DateTime? get adFreeUntil => !_p.adsRemoved && _nowMs < _p.adFreeUntilMs
+      ? DateTime.fromMillisecondsSinceEpoch(_p.adFreeUntilMs)
+      : null;
+
+  int get _nowMs => ProgressService.clock().millisecondsSinceEpoch;
   bool get storeAvailable => _storeAvailable;
 
   /// The store returned this product, so it can actually be bought.
@@ -288,14 +301,15 @@ class MonetizationService {
 
   bool get _interstitialAllowed => _pacing.interstitialAllowed(
     AdPacingInputs(
-      adsRemoved: _p.adsRemoved || _p.hasPurchased,
+      adsRemoved: _p.adsRemoved,
+      adFreeUntilMs: _p.adFreeUntilMs,
       lifetimeDeliveries: _p.getStat(ProgressService.statDeliveries),
       lifetimePlaySeconds: _p.getStat(ProgressService.statPlaytimeSeconds),
       clearsSinceInterstitial: _p.adClearsSinceInterstitial,
       lastInterstitialMs: _p.lastInterstitialMs,
       lastRewardedMs: _p.lastRewardedMs,
     ),
-    DateTime.now().millisecondsSinceEpoch,
+    _nowMs,
   );
 
   /// Shows an interstitial if pacing allows and one is loaded; completes when
@@ -359,12 +373,13 @@ class MonetizationService {
       'clears=${_p.adClearsSinceInterstitial}/$kAdClearsBetween '
       'lastInter=${ago(_p.lastInterstitialMs)} lastRewarded=${ago(_p.lastRewardedMs)} '
       'shown=${_pacing.interstitialsThisSession}/$kAdMaxPerSession '
-      'adsRemoved=${_p.adsRemoved}',
+      'adsRemoved=${_p.adsRemoved} '
+      'adFreeUntil=${adFreeUntil?.toIso8601String() ?? 'none'}',
     );
   }
 
   void _loadInterstitial() {
-    if (!_adsReady || adsRemoved || AdIds.interstitial.isEmpty) return;
+    if (!_adsReady || interstitialsOff || AdIds.interstitial.isEmpty) return;
     if (_interstitialLoading) return;
     _interstitialRetry?.cancel();
     _interstitialLoading = true;
@@ -659,7 +674,8 @@ class MonetizationService {
 
   /// Applies a purchase. Idempotent: restores never pay coins twice, and an
   /// ammo pack is paid once per store transaction ([purchaseId]) even if the
-  /// store re-delivers it. Ammo packs never remove ads.
+  /// store re-delivers it. The Full Game removes interstitials for good; an
+  /// ammo pack or the Fleet Pass turns them off for [kAdPurchaseGrace].
   @visibleForTesting
   Future<void> grant(String productId, {String? purchaseId}) async {
     if (!ProductIds.all.contains(productId)) return;
@@ -671,12 +687,17 @@ class MonetizationService {
       }
       if (purchaseId != null) await _p.markTransactionGranted(purchaseId);
       await _p.setHasPurchased(true);
+      await _startAdGrace();
       entitlements.value++;
       return;
     }
     if (productId == ProductIds.fleetPass) {
-      // Owned through `iap_granted_<id>` (FleetService.owns). No ads change.
-      if (!_p.isProductGranted(productId)) Analytics.shipUnlock(productId, 'iap');
+      // Owned through `iap_granted_<id>` (FleetService.owns). A restore
+      // doesn't start the ad-free week again.
+      if (!_p.isProductGranted(productId)) {
+        Analytics.shipUnlock(productId, 'iap');
+        await _startAdGrace();
+      }
       await _p.setHasPurchased(true);
       await _p.markProductGranted(productId);
       entitlements.value++;
@@ -687,8 +708,7 @@ class MonetizationService {
     await _p.setHasPurchased(true);
     await _p.setAdsRemoved(true);
     await _p.markProductGranted(ProductIds.fullGame);
-    unawaited(_interstitial?.dispose());
-    _interstitial = null;
+    _dropInterstitial();
     if (productId == ProductIds.supporterPack) {
       await _p.unlockCosmetic(kSupporterSkinId);
       if (!_p.isProductGranted(productId)) {
@@ -697,6 +717,19 @@ class MonetizationService {
     }
     await _p.markProductGranted(productId);
     entitlements.value++;
+  }
+
+  /// [kAdPurchaseGrace] without interstitials from now (extends, never
+  /// shortens a running one).
+  Future<void> _startAdGrace() async {
+    final until = _nowMs + kAdPurchaseGrace.inMilliseconds;
+    if (until > _p.adFreeUntilMs) await _p.setAdFreeUntilMs(until);
+    _dropInterstitial();
+  }
+
+  void _dropInterstitial() {
+    unawaited(_interstitial?.dispose());
+    _interstitial = null;
   }
 
   void dispose() => _purchaseSub?.cancel();
