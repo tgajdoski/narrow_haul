@@ -60,7 +60,7 @@ final List<LevelDef> mineLevels = [
       ],
       fields: [
         // Ventilation fan blowing up the lower shaft — brakes the descent.
-        WindZoneSpec(Pt(15, 22.5), halfW: 2.2, halfH: 2.2, ax: 0, ay: -0.5),
+        WindZoneSpec(Pt(15, 22.5), halfW: 2.2, halfH: 2.2, ax: 0, ay: -0.6, gustAmp: 0.3, gustPeriod: 4),
       ],
       shipSpawn: Pt(15, 5),
       cargoSpawn: Pt(21, 20.4),

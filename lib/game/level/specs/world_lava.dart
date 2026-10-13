@@ -61,7 +61,7 @@ final List<LevelDef> lavaLevels = [
       ],
       fields: [
         // Thermals rising up the climb.
-        WindZoneSpec(Pt(8, 15), halfW: 2.5, halfH: 5, ax: 0, ay: -0.6, gustAmp: 0.3, gustPeriod: 5),
+        WindZoneSpec(Pt(8, 15), halfW: 2.5, halfH: 5, ax: 0, ay: -0.65, gustAmp: 0.3, gustPeriod: 5),
       ],
       shipSpawn: Pt(6, 23),
       cargoSpawn: Pt(19, 12.5),

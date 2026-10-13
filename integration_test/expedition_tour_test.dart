@@ -17,7 +17,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Comma-separated saveIds to play (default: every Expedition).
+/// Comma-separated saveIds to play, any mission (default: every Expedition).
 const _only = String.fromEnvironment('EXP');
 
 /// Fly the Expeditions yourself instead of watching their demos.
@@ -56,11 +56,16 @@ void main() {
         .widget<GameWidget<NarrowHaulGame>>(find.byType(GameWidget<NarrowHaulGame>))
         .game!;
 
-    final tour = [
-      for (var i = 0; i < flat.length; i++)
-        if (flat[i] case CaveLevelDef(:final spec) when spec.isExpedition)
-          if (_only.isEmpty || _only.split(',').contains(spec.id)) i,
-    ];
+    // EXP picks any missions by id, in the order given; default: every
+    // Expedition.
+    final tour = _only.isEmpty
+        ? [
+            for (var i = 0; i < flat.length; i++)
+              if (flat[i] case CaveLevelDef(:final spec) when spec.isExpedition) i,
+          ]
+        : [for (final id in _only.split(',')) flat.indexWhere((d) => d.saveId == id)]
+            .where((i) => i >= 0)
+            .toList();
     for (final i in tour) {
       final id = flat[i].saveId;
       // ignore: avoid_print

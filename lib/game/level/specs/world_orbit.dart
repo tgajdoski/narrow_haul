@@ -85,7 +85,7 @@ final List<LevelDef> orbitLevels = [
         ChamberSpec(Pt(33, 13), 2.4),
       ],
       fields: [
-        GravityWellSpec(Pt(19, 13), strength: 2.5, coreRadius: 1.2, maxG: 1.5),
+        GravityWellSpec(Pt(19, 13), strength: 11, coreRadius: 1.2, maxG: 1.8),
       ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(19, 22.5),
@@ -177,8 +177,8 @@ final List<LevelDef> orbitLevels = [
         ChamberSpec(Pt(35, 22), 2.4),
       ],
       fields: [
-        GravityWellSpec(Pt(25, 11), strength: 3, coreRadius: 1.0, maxG: 1.5),
-        WindZoneSpec(Pt(31.5, 16.5), halfW: 2.5, halfH: 3, ax: -0.3, ay: 0, gustAmp: 0.5, gustPeriod: 3.5),
+        GravityWellSpec(Pt(25, 11), strength: 4, coreRadius: 1.0, maxG: 1.6),
+        WindZoneSpec(Pt(31.5, 16.5), halfW: 2.5, halfH: 3, ax: -0.55, ay: 0, gustAmp: 0.5, gustPeriod: 3.5),
       ],
       obstacles: [
         SlidingBlockSpec(Pt(32, 14), Pt(32, 20.3), halfW: 0.5, halfH: 0.7, periodSec: 4.2, phase: 0.5),
@@ -211,8 +211,8 @@ final List<LevelDef> orbitLevels = [
         ChamberSpec(Pt(40, 13), 2.4),
       ],
       fields: [
-        GravityWellSpec(Pt(15, 13.5), strength: 3.5, coreRadius: 1.1, maxG: 1.5),
-        GravityWellSpec(Pt(29, 13), strength: 3.5, coreRadius: 1.1, maxG: 1.5),
+        GravityWellSpec(Pt(15, 13.5), strength: 12, coreRadius: 1.1, maxG: 1.8),
+        GravityWellSpec(Pt(29, 13), strength: 12, coreRadius: 1.1, maxG: 1.8),
       ],
       obstacles: [
         SlidingBlockSpec(Pt(16, 16.3), Pt(16, 21.8), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
@@ -277,9 +277,9 @@ final List<LevelDef> orbitLevels = [
         ChamberSpec(Pt(46, 15), 2.4),
       ],
       fields: [
-        GravityWellSpec(Pt(21, 15), strength: 6, coreRadius: 1.6, maxG: 2.0),
-        GravityWellSpec(Pt(36, 18), strength: 2, coreRadius: 0.9, maxG: 1.2),
-        WindZoneSpec(Pt(37, 12.5), halfW: 3, halfH: 2.5, ax: 0, ay: 0.3, gustAmp: 0.5, gustPeriod: 3),
+        GravityWellSpec(Pt(21, 15), strength: 14, coreRadius: 1.6, maxG: 2.0),
+        GravityWellSpec(Pt(36, 18), strength: 8, coreRadius: 0.9, maxG: 1.4),
+        WindZoneSpec(Pt(37, 12.5), halfW: 3, halfH: 2.5, ax: 0, ay: 0.5, gustAmp: 0.5, gustPeriod: 3),
       ],
       obstacles: [
         SlidingBlockSpec(Pt(10, 10.5), Pt(10, 16.5), halfW: 0.5, halfH: 0.7, periodSec: 3.6),

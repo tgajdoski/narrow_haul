@@ -33,8 +33,8 @@ final List<LevelDef> iceLevels = [
         ChamberSpec(Pt(29, 9), 2.4),
       ],
       fields: [
-        WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.2, ay: 0),
-        WindZoneSpec(Pt(23, 8.5), halfW: 3, halfH: 3, ax: -0.2, ay: 0, gustAmp: 0.5, gustPeriod: 4),
+        WindZoneSpec(Pt(11, 8.5), halfW: 3, halfH: 3, ax: 0.4, ay: 0),
+        WindZoneSpec(Pt(23, 8.5), halfW: 3, halfH: 3, ax: -0.4, ay: 0, gustAmp: 0.5, gustPeriod: 4),
       ],
       shipSpawn: Pt(5, 9),
       cargoSpawn: Pt(17, 13),
@@ -154,7 +154,7 @@ final List<LevelDef> iceLevels = [
       ],
       fields: [
         // Cold air pours down the flue in slow surges.
-        WindZoneSpec(Pt(7.5, 18), halfW: 2.5, halfH: 4.5, ax: 0, ay: 0.3, gustAmp: 0.4, gustPeriod: 5),
+        WindZoneSpec(Pt(7.5, 18), halfW: 2.5, halfH: 4.5, ax: 0, ay: 0.5, gustAmp: 0.4, gustPeriod: 5),
       ],
       pickups: [
         FuelCellSpec(Pt(6.4, 16.5), amount: 15),
@@ -226,8 +226,8 @@ final List<LevelDef> iceLevels = [
       ],
       fields: [
         // Tailwind out to the cargo, headwind on the haul back.
-        WindZoneSpec(Pt(12, 12.5), halfW: 3.5, halfH: 2.5, ax: 0.25, ay: 0),
-        WindZoneSpec(Pt(27.5, 12.5), halfW: 3.5, halfH: 2.5, ax: -0.25, ay: 0),
+        WindZoneSpec(Pt(12, 12.5), halfW: 3.5, halfH: 2.5, ax: 0.5, ay: 0, gustAmp: 0.3, gustPeriod: 4),
+        WindZoneSpec(Pt(27.5, 12.5), halfW: 3.5, halfH: 2.5, ax: -0.5, ay: 0, gustAmp: 0.3, gustPeriod: 4.5),
       ],
       shipSpawn: Pt(5, 13),
       cargoSpawn: Pt(20, 18),
@@ -262,7 +262,7 @@ final List<LevelDef> iceLevels = [
       ],
       fields: [
         // Blizzard: a gusting headwind across the whole zigzag.
-        WindZoneSpec(Pt(22.5, 13.5), halfW: 13.5, halfH: 6.5, ax: -0.3, ay: 0, gustAmp: 0.6, gustPeriod: 3.5),
+        WindZoneSpec(Pt(22.5, 13.5), halfW: 13.5, halfH: 6.5, ax: -0.5, ay: 0, gustAmp: 0.6, gustPeriod: 3.5),
       ],
       pickups: [
         FuelCellSpec(Pt(24.6, 18.8), amount: 30),
@@ -310,7 +310,7 @@ final List<LevelDef> iceLevels = [
       ],
       fields: [
         // Gusty updraft through the narrow neck before the crusher.
-        WindZoneSpec(Pt(31, 14.5), halfW: 4, halfH: 3.5, ax: 0, ay: -0.3, gustAmp: 0.5, gustPeriod: 3),
+        WindZoneSpec(Pt(31, 14.5), halfW: 4, halfH: 3.5, ax: 0, ay: -0.55, gustAmp: 0.5, gustPeriod: 3),
       ],
       pickups: [
         FuelCellSpec(Pt(17.3, 21.5), amount: 30),
