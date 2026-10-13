@@ -52,3 +52,10 @@ art_src/audio/*.mp3
 
 # Full-size "Delivered by" photos (contain GPS tags). Crops in assets/credits/.
 art_src/deliveredBy/
+
+# Store video capture frames (tool/store/make_store_video.sh)
+art_src/store/video/frames/
+# Rendered store videos and upload copies (rebuilt by tool/store/make_store_video.sh)
+art_src/store/video/*.mp4
+art_src/store/video/upload/
+art_src/store/upload/
