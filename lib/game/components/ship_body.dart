@@ -195,6 +195,16 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   }
   bool _launched = false;
 
+  /// Back to the start-pad hover (no gravity, at rest) until the next input
+  /// or [launch]: a continue after a crash counts down before flying on.
+  void hold() {
+    _launched = false;
+    body
+      ..gravityScale = Vector2.zero()
+      ..linearVelocity.setZero()
+      ..angularVelocity = 0;
+  }
+
   bool get isThrusting =>
       (_thrustInput || _scriptedThrust) && fuel > 0 && !_wrecked && !sputtering;
 

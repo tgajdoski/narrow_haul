@@ -507,6 +507,11 @@ class NarrowHaulGame extends Forge2DGame
   static const double _continueRewind = 1.5;
   static const double _continueFuelBonus = 0.25;
   static const double _continueTurretGrace = 3;
+  /// A continue hovers on 3 · 2 · 1 · GO first (no intro card, so "3" shows
+  /// and beeps on the first frame).
+  static const double _resumeCountdownSeconds = 3.05;
+  /// The towed pod parked (kinematic) while a continue counts down.
+  CargoBody? _podHeldForResume;
   static const double _safeClearance = 0.9;
   bool _continueUsed = false;
 
@@ -850,6 +855,7 @@ class NarrowHaulGame extends Forge2DGame
     _snapshots.clear();
     _snapshotTimer = 0;
     _continueUsed = false;
+    _podHeldForResume = null;
     continuedThisRun = false;
     _weaponsLogged.clear();
     guidedThisRun = false;
@@ -2635,7 +2641,11 @@ class NarrowHaulGame extends Forge2DGame
     elapsedSeconds = _crashElapsed;
     _timing = true;
     _meltdownLeft = _meltdownAtCrash;
-    _turretsOfflineLeft = math.max(_turretsOfflineLeft, _continueTurretGrace);
+    // The quiet spell starts at GO, not when the countdown does.
+    _turretsOfflineLeft = math.max(
+      _turretsOfflineLeft,
+      _resumeCountdownSeconds + _continueTurretGrace,
+    );
     _syncCombatHud();
     _snapshots.clear();
     _snapshotTimer = 0;
@@ -2650,7 +2660,22 @@ class NarrowHaulGame extends Forge2DGame
     _landingZone
       ?..reset()
       ..recheck();
+    // Don't surprise the pilot: hover (pod held too) on 3 · 2 · 1 · GO;
+    // any input flies on at once.
+    s.hold();
+    if ((cargoAttachment?.attached ?? false) &&
+        c.body.bodyType == BodyType.dynamic) {
+      c.lock();
+      _podHeldForResume = c;
+    }
+    _countdown = _resumeCountdownSeconds;
     resumeEngine();
+  }
+
+  /// Frees the pod parked for a continue's countdown.
+  void _endResumeHold() {
+    _podHeldForResume?.release();
+    _podHeldForResume = null;
   }
 
   /// Newest snapshot well before the crash with the same tow state (so the
@@ -4176,6 +4201,7 @@ class NarrowHaulGame extends Forge2DGame
     if (s.launched) {
       _countdown = null;
       _countdownHud?.text = null;
+      _endResumeHold();
       return;
     }
     final now = left - dt;
@@ -4183,6 +4209,7 @@ class NarrowHaulGame extends Forge2DGame
     if (now <= 0) {
       _countdown = null;
       s.launch();
+      _endResumeHold();
       _countdownHud?.go();
       AudioService.playCountdown(go: true);
       return;
@@ -4202,7 +4229,8 @@ class NarrowHaulGame extends Forge2DGame
     }
     final melt = _meltdownLeft;
     _shake.floor = 0;
-    if (melt != null) {
+    // A continue's countdown holds the meltdown clock too.
+    if (melt != null && (ship?.launched ?? true)) {
       final left = melt - dt;
       _meltdownLeft = left;
       // The cave rumbles harder as the clock runs down.

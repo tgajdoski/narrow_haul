@@ -111,6 +111,34 @@ void main() {
       expect(g.debugStars(1, 1), 3);
     });
 
+    test('a continue hovers on 3 · 2 · 1 before flying on', () async {
+      final g = h.game;
+      await h.loadLevel(0);
+      await hover(3);
+      g.onShipShot();
+      g.continueAfterCrash();
+      final s = g.ship!;
+      expect(s.launched, isFalse, reason: 'held until the countdown ends');
+      final pos = s.body.position.clone();
+      final clock = g.elapsedSeconds;
+      await h.step(120); // 2 s, no input
+      expect(s.launched, isFalse);
+      expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'hovers');
+      expect(g.elapsedSeconds, clock, reason: 'the clock waits');
+      await h.step(70); // past GO
+      expect(s.launched, isTrue, reason: 'GO launches by itself');
+      expect(g.runState, RunState.playing);
+
+      // Input during the hold flies on at once.
+      await h.loadLevel(0);
+      await hover(3);
+      g.onShipShot();
+      g.continueAfterCrash();
+      expect(g.ship!.launched, isFalse);
+      await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
+      expect(g.ship!.launched, isTrue);
+    });
+
     test('no continue for a crash on the pad before launch', () async {
       await h.loadLevel(0);
       h.game.onShipShot();
