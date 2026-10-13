@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 /// What a lean does.
 enum TiltMode {
-  /// The nose follows the phone: lean 30° and the ship points 90° (× the
-  /// sensitivity's gain). Level phone = upright ship. Nothing to stop.
+  /// The nose follows the phone: lean 7° and the ship points 30°, 19° and
+  /// it points 90° (Normal). Small leans, so the screen stays readable;
+  /// level phone = upright ship. Nothing to stop.
   heading('Angle', "The nose follows the phone's lean"),
 
   /// The lean sets the turn rate, like the stick (no spring back, so the
@@ -17,9 +18,9 @@ enum TiltMode {
 
 /// How far the phone must lean.
 enum TiltSensitivity {
-  low('Low', 'Lean further to turn', 1.3, 2.4),
-  normal('Normal', 'A wheel-sized lean', 1.0, 3.0),
-  high('High', 'Small leans turn fast', 0.75, 4.0);
+  low('Low', 'Lean further to turn', 1.3, 3.75),
+  normal('Normal', 'A small lean turns the nose', 1.0, 5.0),
+  high('High', 'The slightest lean turns it', 0.75, 6.5);
 
   const TiltSensitivity(this.label, this.blurb, this.angleScale, this.headingGain);
   final String label;
@@ -57,7 +58,7 @@ class TiltSteer {
 
   /// [TiltMode.heading]: lean ignored around level (hand tremor), and the
   /// furthest the nose is held from upright.
-  static const double headingDeadZoneDeg = 1.5;
+  static const double headingDeadZoneDeg = 1.0;
   static const double maxHeadingDeg = 175;
 
   /// Seconds the accelerometer takes to pull the gyro estimate back

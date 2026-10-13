@@ -117,17 +117,17 @@ void main() {
       final t = TiltSteer();
       feed(t, 0);
       expect(t.targetHeading(), 0);
-      feed(t, 1, frames: 300);
+      feed(t, 0.8, frames: 300);
       expect(t.targetHeading(), 0, reason: 'tremor around level');
       // (the centre crept toward that 1° hold; start again from level)
       feed(t, 0, frames: 300);
       t.recentre();
       feed(t, 0);
-      feed(t, 31.5, frames: 300);
+      feed(t, 19, frames: 300);
       expect(deg(t.targetHeading()), closeTo(90, 1));
-      feed(t, -16.5, frames: 300);
+      feed(t, -10, frames: 300);
       expect(deg(t.targetHeading()), closeTo(-45, 1));
-      feed(t, 80, frames: 300);
+      feed(t, 45, frames: 300);
       expect(deg(t.targetHeading()), closeTo(TiltSteer.maxHeadingDeg, 1e-9));
     });
 
@@ -138,9 +138,9 @@ void main() {
       t.alignTo(-60 * math.pi / 180);
       feed(t, 10);
       expect(deg(t.targetHeading()), closeTo(-60, 0.5));
-      // Leaning 10° further clockwise from there turns the nose 30°.
-      feed(t, 20, frames: 300);
-      expect(deg(t.targetHeading()), closeTo(-30, 1));
+      // Leaning 6° further clockwise from there turns the nose 30°.
+      feed(t, 16, frames: 300);
+      expect(deg(t.targetHeading()), closeTo(-30, 1.5));
     });
 
     test('the heading controller turns the short way and rests on target', () {

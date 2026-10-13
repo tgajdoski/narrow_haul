@@ -28,8 +28,8 @@ Somebody has to fly it in.
 
 The jump gate has gone dark and seven settlements are cut off, deep underground where no freighter can reach. You're the newest pilot of Operation Lifeline. Fly a tiny cargo tug through narrow caves, hook a heavy pod on a line and bring both home. Every pod swings, every hard knock is your last, and every drop of fuel counts.
 
-THRUST, ROTATE, HAUL
-Two controls, real physics. Feather the thrust and fight gravity while the pod swings behind you. Your deflector shield shrugs off a gentle scrape and glows when rock gets close, but a hard hit ends the run. Land the ship and the pod on the pad to deliver. Pick the steering that suits your thumb in Settings.
+THRUST, TILT, HAUL
+Real physics, simple controls. Tilt your phone like a steering wheel and the ship's nose follows, or switch to an on-screen stick in Settings. Feather the thrust and fight gravity while the pod swings behind you. Your deflector shield shrugs off a gentle scrape and glows when rock gets close, but a hard hit ends the run. Land the ship and the pod on the pad to deliver.
 
 60 HAND-BUILT MISSIONS IN 7 WORLDS
 • Training Grounds: learn to fly and tow
@@ -73,6 +73,12 @@ Tow a swinging pod through tight caves. 68 missions, 6 ships, real physics.
 
 **Full description** [4000]
 Use the App Store description above. Play allows the same plain text and bullets.
+
+## Release notes (next update)
+
+App Store "What's New" [4000], Play "Release notes" [500]:
+
+Tilt steering: hold your phone like a steering wheel and the ship's nose follows it. Prefer a stick? Settings → Steer with → Joystick.
 
 ## In-app purchases (review notes)
 
