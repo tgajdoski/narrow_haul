@@ -165,7 +165,7 @@ void main() {
       q.say(b);
       expect(q.update(0.01), isTrue);
       expect(q.current?.id, 'a');
-      // Holds for its reading time, then the next one goes on air.
+      // Holds for its reading time, a quiet gap, then the next one.
       final hold = CommsQueue.holdSeconds(a) + CommsQueue.fadeOut;
       var t = 0.0;
       while (q.current?.id == 'a' && t < 30) {
@@ -173,6 +173,12 @@ void main() {
         t += 0.05;
       }
       expect(t, closeTo(hold, 0.1));
+      expect(q.current, isNull, reason: 'the radio is quiet for a moment');
+      while (q.current == null && t < 30) {
+        q.update(0.05);
+        t += 0.05;
+      }
+      expect(t, closeTo(hold + CommsQueue.gap, 0.15));
       expect(q.current?.id, 'b');
 
       q.clear();
@@ -192,6 +198,21 @@ void main() {
       q.update(1);
       expect(q.visibleChars, b.text.length);
       expect(q.alpha, 1);
+    });
+
+    test('help that would come too late is dropped', () {
+      const c = CommsLine(id: 'c', callsign: 'OPS', text: 'Canister marked.');
+      final q = CommsQueue();
+      q.say(a);
+      q.say(c, expiresIn: 1);
+      q.say(b);
+      q.update(0.01);
+      expect(q.current?.id, 'a');
+      final seen = <String>[];
+      for (var t = 0.0; t < 30; t += 0.05) {
+        if (q.update(0.05)) seen.add(q.current!.id);
+      }
+      expect(seen, ['b'], reason: 'c expired while a was on air; b never expires');
     });
   });
 

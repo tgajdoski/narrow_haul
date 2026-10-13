@@ -93,7 +93,7 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
    - tut_01–03 coach marks.
 2. **Guidance HUD:**
    - Does the comms plate ever cover the pod at the bottom of a cave?
-   - Are the callouts too chatty?
+   - Are the callouts too chatty? Fly a bought ship on two missions in a row: OPS introduces it (and the briefing shows *new*) on the first only. Replaying a cleared mission tells no story; lines are separated by a short pause.
    - The LAND BOTH beacon on a real landing.
    - The crate weapon icon flying into FIRE.
    - All of it in left-handed mode.

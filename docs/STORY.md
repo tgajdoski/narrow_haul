@@ -54,7 +54,7 @@ In-game text lives in `lib/game/story/` (cargo, brief, radio beats and debrief p
 
 ## 2. Act I: per world and per level
 
-Each level gets a **cargo**, a **one-line brief** (in the briefing) and 1–3 **radio beats** (launch, hooked, delivered). Level names stay as they are. Below are the cargo and the brief; the radio beats are written during implementation in the same voice.
+Each level gets a **cargo**, a **one-line brief** (in the briefing) and 1–3 **radio beats** (launch, hooked, delivered). Level names stay as they are. Below are the cargo and the brief; the radio beats are written during implementation in the same voice. Beats play until the mission's first clear, once per app session: never on a retry, a demo, a daily or a replay of a cleared mission.
 
 ### Training Grounds: Haven Field (Kestrel; TOWER + OPS)
 NRAS flight school on the asteroid Anvil. Tutorial rules stay; the story frames them. Mid-world, the gate dies.

@@ -313,6 +313,10 @@ class NarrowHaulGame extends Forge2DGame
   @visibleForTesting
   bool debugSyncCarve = false;
 
+  /// Test-only: the radio queue of the current flight.
+  @visibleForTesting
+  CommsQueue? get debugComms => _comms?.queue;
+
   /// Test-only: keep built caves across level loads (debug builds otherwise
   /// rebuild the loaded level's cave for hot-reload authoring).
   @visibleForTesting
@@ -658,7 +662,14 @@ class NarrowHaulGame extends Forge2DGame
     _comms = CommsHud(
       controls: _hudControls!,
       avoid: () => _coach?.plateRect,
-      onLine: (_) => AudioService.playUi(UiSound.open),
+      onLine: (line) {
+        AudioService.playUi(UiSound.open);
+        // Heard once it's on air, so quitting during the level card keeps it.
+        final s = ship;
+        if (line.id == 'ship' && s != null) {
+          unawaited(ProgressService.instance.markShipIntroSeen(s.spec.id));
+        }
+      },
     );
     camera.viewport.add(_comms!);
     _combatHud = CombatStatusHud();
@@ -1283,9 +1294,8 @@ class NarrowHaulGame extends Forge2DGame
     if (demoMode || kStoreCapture || FlightTuning.camera.profile.isStatic) return;
     final s = ship;
     if (s == null) return;
-    // Kestrel is the training ship, so it's never new (as in the briefing).
-    final newShip =
-        !retry && s.spec.id != kKestrel.id && !LevelRegistry.hasTypeRating(s.spec.id);
+    // As in the briefing: a ship's first flight.
+    final newShip = !retry && LevelRegistry.isShipNew(s.spec.id);
     var peak = retry ? _closeUpRetry : (newShip ? _closeUpNewShip : _closeUpFirst);
     if (reducedMotion) peak = 1 + (peak - 1) * 0.4;
     final countdown = _countdown;
@@ -2822,12 +2832,16 @@ class NarrowHaulGame extends Forge2DGame
         s.spec.armed &&
         !demoMode &&
         (currentRoute?.shots.isNotEmpty ?? false)) {
-      _comms?.say(const CommsLine(
-        id: 'route',
-        callsign: 'OPS',
-        text: 'Route is on your screen. Hold at each red ⊕ and fire along its '
-            'dashes. Red dots are under fire.',
-      ));
+      _comms?.say(
+        const CommsLine(
+          id: 'route',
+          callsign: 'OPS',
+          text: 'Route is on your screen. Hold at each red ⊕ and fire along its '
+              'dashes. Red dots are under fire.',
+        ),
+        delay: _commsAfterIntro,
+        expiresIn: _commsHelpExpiry,
+      );
     }
   }
 
@@ -2854,14 +2868,33 @@ class NarrowHaulGame extends Forge2DGame
     return best;
   }
 
+  /// Opening comms wait for the level card to clear.
+  static const double _commsAfterIntro = 2.6;
+
+  /// Situational help that hasn't aired this long after it was due is no
+  /// longer worth saying.
+  static const double _commsHelpExpiry = 8;
+
+  /// Missions whose story beats played this app session.
+  final _storyToldThisSession = <String>{};
+
+  /// Whether this flight tells the mission's story (set by `_scheduleComms`).
+  bool _storyThisFlight = false;
+
   /// tut_02 before its first clear: the star rules are explained on the pad.
   bool get _starRulesStep => _tutorialHints && levelIndex == 1;
 
   /// The comms lines a flight opens with, after the intro card.
   void _scheduleComms({required bool retry}) {
+    _storyThisFlight = false;
     final comms = _comms;
     if (comms == null || demoMode) return;
-    const afterIntro = 2.6;
+    const afterIntro = _commsAfterIntro;
+    final saveId = currentLevelDef.saveId;
+    _storyThisFlight = !isChallengeMode &&
+        !retry &&
+        ProgressService.instance.getStarsById(saveId) == 0 &&
+        _storyToldThisSession.add(saveId);
     if (_starRulesStep) {
       comms.say(
         const CommsLine(
@@ -2878,7 +2911,7 @@ class NarrowHaulGame extends Forge2DGame
       comms.say(CommsLine(id: 'ship', callsign: 'OPS', text: shipHint), delay: afterIntro);
     }
     _sayStory(BeatCue.start, after: afterIntro);
-    if (_pickupHint() != null) {
+    if (_pickupHint() != null && !retry) {
       comms.say(
         const CommsLine(
           id: 'canister',
@@ -2886,15 +2919,17 @@ class NarrowHaulGame extends Forge2DGame
           text: 'Fuel canister marked. Fly through it to top up the tank.',
         ),
         delay: afterIntro,
+        expiresIn: _commsHelpExpiry,
       );
     }
   }
 
-  /// The mission's story beats for [cue] (docs/STORY.md), once per flight
-  /// and not on a retry, a demo or a daily.
+  /// The mission's story beats for [cue] (docs/STORY.md): until the
+  /// mission's first clear, once per app session, and not on a retry, a
+  /// demo or a daily.
   void _sayStory(BeatCue cue, {double after = 0, int? leg}) {
     final comms = _comms;
-    if (comms == null || demoMode || isChallengeMode || _currentLevelRetried) return;
+    if (comms == null || !_storyThisFlight) return;
     final story = storyFor(currentLevelDef.saveId);
     if (story == null) return;
     final atLeg = leg ?? legIndex;
@@ -2920,12 +2955,12 @@ class NarrowHaulGame extends Forge2DGame
           defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.linux);
 
-  /// Flying a ship before its type rating is earned (its rating level, or a
-  /// Test Flight daily): one line on how it handles.
+  /// A ship's first flight (`LevelRegistry.isShipNew`: its rating level, a
+  /// bought ship, a Test Flight daily): one line on how it handles. It counts
+  /// as heard once it airs (`CommsHud.onLine`).
   String? _shipHint() {
     final spec = ship?.spec;
-    if (spec == null || demoMode || spec.id == kKestrel.id) return null;
-    if (LevelRegistry.hasTypeRating(spec.id)) return null;
+    if (spec == null || demoMode || !LevelRegistry.isShipNew(spec.id)) return null;
     return "You're flying the ${spec.name}. ${spec.blurb}";
   }
 

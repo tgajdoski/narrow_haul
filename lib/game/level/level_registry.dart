@@ -135,6 +135,13 @@ abstract final class LevelRegistry {
     return progress.getStarsById('rating_$shipId') > 0;
   }
 
+  /// A ship the pilot hasn't flown yet: no type rating and OPS hasn't
+  /// introduced it on a flight. The Kestrel is the training ship, never new.
+  static bool isShipNew(String shipId) =>
+      shipId != kKestrel.id &&
+      !hasTypeRating(shipId) &&
+      !ProgressService.instance.shipIntroSeen(shipId);
+
   /// Ships the daily "Test Flight" may fly on a level instead of its own.
   /// Cave levels: every candidate must pass the full validator (clearance,
   /// lift, fuel, fields) — at most a few runs, once per challenge start.

@@ -267,7 +267,8 @@ class CommsLine {
 }
 
 /// The comms queue: one line on air at a time, each id once per flight. It
-/// types on, holds for its reading time and clears.
+/// types on, holds for its reading time, clears, and the radio stays quiet
+/// for [gap] before the next line.
 class CommsQueue {
   /// Typing speed (characters per second).
   static const double charsPerSecond = 60;
@@ -276,12 +277,17 @@ class CommsQueue {
   static const double fadeIn = 0.2;
   static const double fadeOut = 0.3;
 
-  final _pending = <(CommsLine, double)>[];
+  /// Quiet between two lines, so back-to-back lines read as separate calls.
+  static const double gap = 0.6;
+
+  /// (line, due time, drop time).
+  final _pending = <(CommsLine, double, double)>[];
   final _said = <String>{};
   double _clock = 0;
 
   CommsLine? _current;
   double _onAir = 0;
+  double _quiet = 0;
 
   /// The line on air (also while it slides out).
   CommsLine? get current => _current;
@@ -294,9 +300,17 @@ class CommsQueue {
 
   /// Queue [line] unless its id was said this flight. [delay] counts from
   /// now; [urgent] jumps the queue (it still waits for the line on air).
-  bool say(CommsLine line, {double delay = 0, bool urgent = false}) {
+  /// A line still waiting [expiresIn] seconds after it was due is dropped
+  /// (situational help that would come too late).
+  bool say(
+    CommsLine line, {
+    double delay = 0,
+    bool urgent = false,
+    double? expiresIn,
+  }) {
     if (!_said.add(line.id)) return false;
-    final entry = (line, _clock + delay);
+    final due = _clock + delay;
+    final entry = (line, due, expiresIn == null ? double.infinity : due + expiresIn);
     urgent ? _pending.insert(0, entry) : _pending.add(entry);
     return true;
   }
@@ -307,6 +321,7 @@ class CommsQueue {
     _said.clear();
     _current = null;
     _onAir = 0;
+    _quiet = 0;
     _clock = 0;
   }
 
@@ -326,9 +341,15 @@ class CommsQueue {
       if (_onAir >= holdSeconds(cur) + fadeOut) {
         _current = null;
         _onAir = 0;
+        _quiet = gap;
       } else {
         return false;
       }
+    }
+    _pending.removeWhere((e) => e.$3 < _clock);
+    if (_quiet > 0) {
+      _quiet -= dt;
+      return false;
     }
     final i = _pending.indexWhere((e) => e.$2 <= _clock);
     if (i < 0) return false;

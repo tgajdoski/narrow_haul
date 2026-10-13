@@ -739,8 +739,13 @@ class CommsHud extends PositionComponent {
   final _typed = HudText();
   double _t = 0;
 
-  void say(CommsLine line, {double delay = 0, bool urgent = false}) =>
-      queue.say(line, delay: delay, urgent: urgent);
+  void say(
+    CommsLine line, {
+    double delay = 0,
+    bool urgent = false,
+    double? expiresIn,
+  }) =>
+      queue.say(line, delay: delay, urgent: urgent, expiresIn: expiresIn);
 
   void clear() => queue.clear();
 

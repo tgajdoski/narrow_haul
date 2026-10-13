@@ -195,10 +195,9 @@ List<BriefingFact> briefingFacts(
   return facts;
 }
 
-/// A ship flown before its type rating, like the in-flight ship hint. The
-/// Kestrel is the training ship, so it's never new.
-bool isNewShip(ShipSpec ship) =>
-    ship.id != kKestrel.id && !LevelRegistry.hasTypeRating(ship.id);
+/// A ship not flown yet (`LevelRegistry.isShipNew`), like the in-flight
+/// ship hint.
+bool isNewShip(ShipSpec ship) => LevelRegistry.isShipNew(ship.id);
 
 /// `1.5`, `2`.
 String _mul(double v) =>

@@ -260,6 +260,10 @@ class ProgressService {
   bool crateHintSeen(String weaponId) => _bool('crate_hint_$weaponId') ?? false;
   Future<void> markCrateHintSeen(String weaponId) async =>
       _prefs.setBool('crate_hint_$weaponId', true);
+  /// OPS's "You're flying the X" line plays on a ship's first flight only.
+  bool shipIntroSeen(String shipId) => _bool('ship_intro_$shipId') ?? false;
+  Future<void> markShipIntroSeen(String shipId) async =>
+      _prefs.setBool('ship_intro_$shipId', true);
   Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
 
   /// Story chapter cards seen (`intro_<world>` / `outro_<world>`); a reset

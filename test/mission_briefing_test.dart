@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/mission_briefing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -89,6 +90,13 @@ void main() {
 
     await ProgressService.instance.saveStarsById(LevelRegistry.defAt(i).saveId, 1);
     expect(_labels(i).first, ship.name);
+  });
+
+  test('a bought ship stops being new after its first flight', () async {
+    expect(isNewShip(kMule), isTrue);
+    await ProgressService.instance.markShipIntroSeen(kMule.id);
+    expect(isNewShip(kMule), isFalse);
+    expect(LevelRegistry.hasTypeRating(kMule.id), isFalse);
   });
 
   test('star targets match the level StarSpec', () {
