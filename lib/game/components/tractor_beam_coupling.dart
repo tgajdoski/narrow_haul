@@ -8,10 +8,12 @@ import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/physics_core.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 
-/// Tractor beam tow: no joint. Each step a capped spring pulls the pod
-/// toward a hold point under the winch (down the local gravity, or the
-/// ship's own down axis in zero-g), with the reaction on the ship, so the
-/// pod's weight still loads it. Rock between ship and pod, running out of
+/// Tractor beam tow: no joint. Each step a capped force holds the pod
+/// [holdLength] from the winch (a firm spring along the beam) and eases it
+/// back under the ship (a weak sideways spring toward local down, leaning
+/// to the ship's belly; the belly alone in zero-g), so the pod still hangs,
+/// lags and swings. The reaction goes on the ship, so the pod's weight
+/// still loads it. Rock between ship and pod, running out of
 /// range or out of fuel breaks the beam ([broken]).
 class TractorBeamCoupling extends Component with HasGameReference<Forge2DGame> {
   TractorBeamCoupling({
@@ -51,11 +53,14 @@ class TractorBeamCoupling extends Component with HasGameReference<Forge2DGame> {
     holdLength = (cargo.body.worldCenter - winch).length.clamp(0.4, rope.beamRange);
   }
 
-  /// Unit vector the pod hangs along.
-  Vector2 _down() {
+  /// Unit vector the beam rests along: local down, leaning toward the
+  /// ship's belly by [RopeSpec.beamAxisBias]; the belly alone in zero-g.
+  Vector2 _restDir() {
+    final belly = ship.body.worldVector(Vector2(0, 1));
     final g = game.world.gravity;
-    if (g.length2 > 1e-4) return g.normalized();
-    return ship.body.worldVector(Vector2(0, 1));
+    if (g.length2 <= 1e-4) return belly;
+    final dir = g.normalized() * (1 - rope.beamAxisBias) + belly * rope.beamAxisBias;
+    return dir.length2 > 1e-6 ? dir.normalized() : g.normalized();
   }
 
   @override
@@ -84,10 +89,29 @@ class TractorBeamCoupling extends Component with HasGameReference<Forge2DGame> {
     // Reel a far pod in at a steady rate.
     holdLength = math.max(rope.beamHoldLength, holdLength - 1.6 * dt);
 
-    final hold = a + _down() * holdLength;
-    final vHold = ship.body.linearVelocityFromWorldPoint(a);
+    final d = c - a;
+    if (span < 1e-4) return;
+    final n = d / span;
+    final vRel = cargo.body.linearVelocity - ship.body.linearVelocityFromWorldPoint(a);
+
+    // Along the beam: a spring to the hold length carries the pod's weight
+    // and gives a little on hard stops.
     final w = 2 * math.pi * rope.stiffnessHz;
-    final accel = (hold - c) * (w * w) + (vHold - cargo.body.linearVelocity) * (2 * rope.dampingRatio * w);
+    final radial = -(span - holdLength) * w * w - vRel.dot(n) * 2 * rope.dampingRatio * w;
+    final accel = n * radial;
+
+    // Sideways: a weak spring back toward the rest direction (mostly local
+    // down, leaning toward the ship's belly) with light damping, so the pod
+    // lags on a turn and swings on a stop instead of hanging like a rod.
+    final ws = 2 * math.pi * rope.beamSwingHz;
+    final target = _restDir();
+    final toTarget = target * span - d;
+    final sideErr = toTarget - n * toTarget.dot(n);
+    final sideVel = vRel - n * vRel.dot(n);
+    accel
+      ..add(sideErr * (ws * ws))
+      ..add(sideVel * (-2 * rope.beamSwingDamping * ws));
+
     final mC = cargo.body.mass;
     final maxForce = rope.beamMaxAccel * _baseCargoMass;
     final force = accel * mC;

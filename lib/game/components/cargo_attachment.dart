@@ -154,7 +154,9 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
     final catchRadius = ship.hookRadius + CargoBody.radius + rope.hookReach;
 
     final hookOk = hookToCargo <= catchRadius;
-    final centerOk = centerDist <= rope.attachCenterDistance;
+    // The wide side catch must not hook a pod through a wall.
+    final centerOk = centerDist <= rope.attachCenterDistance &&
+        hasLineOfSight(game.world, ship.body.worldPoint(Vector2(0, ship.rearLocalY)), cargoCenter, ignore: cargo.body);
     if (hookOk || centerOk) {
       _attach();
     }

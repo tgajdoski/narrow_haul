@@ -23,6 +23,9 @@ class RopeSpec {
     this.beamHoldLength = 0,
     this.beamMaxAccel = 0,
     this.beamFuelFracPerSec = 0,
+    this.beamSwingHz = 0,
+    this.beamSwingDamping = 0,
+    this.beamAxisBias = 0,
   });
 
   final String id;
@@ -77,6 +80,18 @@ class RopeSpec {
   /// the tank (so it costs every ship the same share).
   final double beamFuelFracPerSec;
 
+  /// Sideways spring that eases the pod back under the ship (Hz). Weak, so
+  /// gravity and inertia show: the pod lags on a hard turn and swings on a
+  /// stop. The along-beam spring is [stiffnessHz] / [dampingRatio].
+  final double beamSwingHz;
+
+  /// Damping ratio of the sideways swing (low: a few swings, then settles).
+  final double beamSwingDamping;
+
+  /// How far the rest direction leans from local down toward the ship's own
+  /// belly (0 = straight down, 1 = along the hull's down axis).
+  final double beamAxisBias;
+
   bool get isBeam => kind == TowKind.beam;
   bool get isElastic => stiffnessHz > 0;
 
@@ -86,11 +101,12 @@ class RopeSpec {
 }
 
 /// Stock hook reach (m): with the hook radius and the pod's, a Kestrel
-/// hovering over the pod catches it with ~0.8 m of air under the tail.
-const double kStockHookReach = 0.6;
+/// hovering over the pod catches it with ~1.2 m of air under the tail. A
+/// far catch winches in to [RopeSpec.minTowLength].
+const double kStockHookReach = 1.0;
 
 /// Stock centre-to-centre catch (m), for approaches from the side.
-const double kAttachCenterBase = 1.7;
+const double kAttachCenterBase = 2.1;
 
 const kStockRope = RopeSpec(
   id: 'rope_cable',
@@ -111,7 +127,7 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_braided',
     name: 'Long Line',
     blurb: 'Grabs a little further and gives on hard stops; swings wider.',
-    hookReach: 0.75,
+    hookReach: 1.15,
     stiffnessHz: 4.5,
     dampingRatio: 0.35,
     maxStretch: 0.25,
@@ -120,8 +136,8 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_energy',
     name: 'Magnetic Grapple',
     blurb: 'Grabs the pod from a hover. Springy: it bounces on stops.',
-    hookReach: 1.15,
-    approachDistance: 3.4,
+    hookReach: 1.55,
+    approachDistance: 3.6,
     stiffnessHz: 2.5,
     dampingRatio: 0.25,
     maxStretch: 0.45,
@@ -130,7 +146,7 @@ const kRopes = <String, RopeSpec>{
     id: 'rope_neon',
     name: 'Shock Cord',
     blurb: 'Very elastic: soaks up bumps, slingshots the pod. Imprecise.',
-    hookReach: 0.65,
+    hookReach: 1.05,
     stiffnessHz: 1.1,
     dampingRatio: 0.2,
     maxStretch: 0.8,
@@ -143,10 +159,13 @@ const kRopes = <String, RopeSpec>{
     approachDistance: 3.4,
     beamRange: 2.8,
     beamHoldLength: 1.0,
-    beamMaxAccel: 22,
+    beamMaxAccel: 10,
     beamFuelFracPerSec: 0.004,
     stiffnessHz: 1.6,
-    dampingRatio: 0.9,
+    dampingRatio: 0.6,
+    beamSwingHz: 0.35,
+    beamSwingDamping: 0.25,
+    beamAxisBias: 0.35,
   ),
 };
 
@@ -167,12 +186,12 @@ class RopeStats {
 
   static RopeStats of(RopeSpec r) {
     double c(double v) => v.clamp(0.05, 1.0);
-    final reach = r.isBeam ? r.beamRange - 1.2 : r.hookReach - 0.25;
+    final reach = r.isBeam ? r.beamRange - 1.2 : r.hookReach - (kStockHookReach - 0.35);
     return RopeStats(
       reach: c(reach / 1.6),
-      give: r.isBeam ? 0.6 : c(r.maxStretch / 0.8),
+      give: r.isBeam ? c(1.0 - r.dampingRatio * 0.6) : c(r.maxStretch / 0.8),
       steadiness: r.isBeam
-          ? 0.75
+          ? c(0.3 + r.beamSwingHz + r.beamSwingDamping)
           : c(0.5 + r.swingDamping * 0.22 - r.maxStretch * 0.45),
       economy: r.isBeam ? 0.25 : c(1.0 - r.podMassAdd * 1.4),
     );

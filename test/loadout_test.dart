@@ -23,7 +23,7 @@ void main() {
       // the tail is still well clear of the pod's top.
       final catchRadius = ship.hookRadius + kCargoRadius + kStockRope.hookReach;
       final air = catchRadius - kCargoRadius;
-      expect(air, greaterThanOrEqualTo(0.6), reason: ship.id);
+      expect(air, greaterThanOrEqualTo(1.0), reason: ship.id);
       // ...and the hook really is under the tail, where the rope hangs.
       expect(ship.hookLocalY, ship.rearLocalY, reason: ship.id);
     }
@@ -39,7 +39,7 @@ void main() {
 
   test('tow gear stays inside sane bounds', () {
     for (final r in kRopes.values) {
-      expect(r.hookReach, inInclusiveRange(kStockHookReach, 1.25), reason: r.id); // never below stock: pods on slopes roll away
+      expect(r.hookReach, inInclusiveRange(kStockHookReach, 1.65), reason: r.id); // never below stock: pods on slopes roll away
       expect(r.approachDistance, greaterThanOrEqualTo(r.attachCenterDistance + 0.5), reason: r.id);
       expect(r.minTowLength, inInclusiveRange(0.8, 2.0), reason: r.id);
       if (r.isElastic && !r.isBeam) {
@@ -50,6 +50,12 @@ void main() {
         expect(r.beamRange, greaterThan(r.beamHoldLength), reason: r.id);
         expect(r.approachDistance, greaterThan(r.beamRange), reason: r.id);
         expect(r.beamFuelFracPerSec, inInclusiveRange(0.001, 0.01), reason: r.id);
+        // A swinging tether, not a rod: a weak sideways spring, light
+        // damping, a force cap that a hard turn can reach.
+        expect(r.beamSwingHz, inInclusiveRange(0.15, 0.8), reason: r.id);
+        expect(r.beamSwingDamping, inInclusiveRange(0.05, 0.5), reason: r.id);
+        expect(r.beamAxisBias, inInclusiveRange(0.0, 0.6), reason: r.id);
+        expect(r.beamMaxAccel, inInclusiveRange(2.5 * 1.375 * 2, 14), reason: r.id);
       }
       final s = RopeStats.of(r);
       for (final v in [s.reach, s.give, s.steadiness, s.economy]) {

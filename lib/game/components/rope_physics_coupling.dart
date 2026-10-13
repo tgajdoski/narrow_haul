@@ -7,6 +7,7 @@ import 'package:narrow_haul/game/components/ship_body.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 
 /// Winch ↔ cargo using [RopeJoint] (max length), or [DistanceJoint] if span is very short.
+/// A catch further out than [RopeSpec.minTowLength] winches in to it.
 /// An elastic [RopeSpec] adds a one-sided spring inside a looser hard cap;
 /// [RopeSpec.swingDamping] damps the pod's swing relative to the ship.
 class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
@@ -65,6 +66,7 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
 
     final maxLength = dist.clamp(_minRopeMaxLength, ropeMaxLengthMeters);
     _restLength = maxLength;
+    _settleLength = math.min(maxLength, rope.minTowLength);
     final def = RopeJointDef<Body, Body>()..collideConnected = false;
     def.bodyA = ship.body;
     def.bodyB = cargo.body;
@@ -92,8 +94,38 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   /// Elastic rope: unstretched length (the spring pulls beyond this).
   double? _restLength;
 
+  /// A far catch winches in to this (the shortest tow), so the tow is the
+  /// same length however far away the hook caught.
+  double? _settleLength;
+
+  /// Winch-in speed after a far catch (m/s).
+  static const double winchInSpeed = 0.5;
+
+  /// The winch reels in only while the pod is within ~72° of local down (below the winch).
+  static const double _winchInCos = 0.3;
+
   /// How far the elastic line is stretched right now, 0..1 of its give.
   double stretch = 0;
+
+  void _winchIn(double dt) {
+    final joint = _ropeJoint;
+    final rest = _restLength;
+    final settle = _settleLength;
+    if (joint is! RopeJoint || rest == null || settle == null || rest <= settle) return;
+    // Only while the pod hangs under the ship: reeling in a pod caught from
+    // the side would drag a light ship into the rock beside it.
+    final d = cargo.body.worldCenter - _winch;
+    final g = game.world.gravity;
+    final down = g.length2 > 1e-4 ? g.normalized() : ship.body.worldVector(Vector2(0, 1));
+    if (d.dot(down) < _winchInCos * d.length) return;
+    final next = math.max(settle, rest - winchInSpeed * dt);
+    _restLength = next;
+    _tetherLengthMeters = next;
+    joint.maxLength = rope.isElastic
+        ? math.min(next * (1 + rope.maxStretch), ropeMaxLengthMeters)
+        : next;
+    cargo.body.setAwake(true);
+  }
 
   Vector2 get _winch => ship.body.worldPoint(Vector2(0, ship.rearLocalY));
 
@@ -101,6 +133,7 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
   void update(double dt) {
     super.update(dt);
     if (_ropeJoint == null) return;
+    _winchIn(dt);
     final rest = _restLength;
     if (rest == null) return;
     if (!rope.isElastic && rope.swingDamping <= 0) return;
