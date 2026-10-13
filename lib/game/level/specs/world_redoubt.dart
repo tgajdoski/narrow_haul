@@ -52,8 +52,8 @@ final List<LevelDef> redoubtLevels = [
       worldW: 42,
       worldH: 24,
       tunnels: [
-        TunnelSpec([Pt(5, 9), Pt(11, 10), Pt(17, 12), Pt(24, 12), Pt(30, 10)], width: 1.9),
-        TunnelSpec([Pt(30, 10), Pt(36, 9)], width: 1.8),
+        TunnelSpec([Pt(5, 9), Pt(8.5, 11.5), Pt(12.5, 9.5), Pt(17, 12), Pt(24, 12), Pt(30, 10)], width: 1.65),
+        TunnelSpec([Pt(30, 10), Pt(33, 12), Pt(36, 9)], width: 1.65),
         TunnelSpec([Pt(21, 12), Pt(21, 17)], width: 1.3),
       ],
       chambers: [
@@ -103,6 +103,8 @@ final List<LevelDef> redoubtLevels = [
       obstacles: [
         TurretSpec(Pt(29.5, 8.9), facing: kFaceDown, range: 8),
         TurretSpec(Pt(37, 9.3), facing: kFaceDown, range: 6, aimArc: 1.0, phase: 0.8),
+        SlidingBlockSpec(Pt(11.5, 7.8), Pt(11.5, 14), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
+        SlidingBlockSpec(Pt(15.5, 7.4), Pt(15.5, 13.6), halfW: 0.5, halfH: 0.7, periodSec: 3.8, phase: 0.5),
       ],
       pickups: [
         FuelCellSpec(Pt(19, 5.5)),
@@ -129,8 +131,8 @@ final List<LevelDef> redoubtLevels = [
       worldW: 46,
       worldH: 28,
       tunnels: [
-        TunnelSpec([Pt(5, 9), Pt(11, 10), Pt(17, 13)], width: 1.8),
-        TunnelSpec([Pt(28, 13), Pt(34, 10), Pt(40, 9)], width: 1.8),
+        TunnelSpec([Pt(5, 9), Pt(11, 10), Pt(17, 13)], width: 1.65),
+        TunnelSpec([Pt(28, 13), Pt(34, 10), Pt(40, 9)], width: 1.65),
         TunnelSpec([Pt(22.5, 17), Pt(22.5, 21)], width: 1.3),
       ],
       chambers: [
@@ -144,6 +146,8 @@ final List<LevelDef> redoubtLevels = [
         TurretSpec(Pt(19, 10.6), facing: kFaceDown, range: 8),
         TurretSpec(Pt(26, 10.5), facing: kFaceDown, range: 8, phase: 0.9),
         TurretSpec(Pt(19.5, 16.8), facing: kFaceUp, range: 7, phase: 0.4),
+        SlidingBlockSpec(Pt(8.5, 6.5), Pt(8.5, 12.8), halfW: 0.5, halfH: 0.7, periodSec: 3.6),
+        SlidingBlockSpec(Pt(36.5, 6.5), Pt(36.5, 12.8), halfW: 0.5, halfH: 0.7, periodSec: 3.6, phase: 0.5),
       ],
       pickups: [
         FuelCellSpec(Pt(18, 13.5)),
@@ -169,7 +173,7 @@ final List<LevelDef> redoubtLevels = [
       worldW: 44,
       worldH: 32,
       tunnels: [
-        TunnelSpec([Pt(5, 8), Pt(12, 9), Pt(18, 8)], width: 1.8),
+        TunnelSpec([Pt(5, 8), Pt(9, 10.5), Pt(13, 8), Pt(18, 8)], width: 1.6),
         TunnelSpec([Pt(18, 8), Pt(21, 14), Pt(21, 21)], width: 2.0),
         TunnelSpec([Pt(21, 21), Pt(28, 23), Pt(34, 21)], width: 1.8),
         TunnelSpec([Pt(34, 21), Pt(38, 16), Pt(38, 11)], width: 1.8),
@@ -186,6 +190,8 @@ final List<LevelDef> redoubtLevels = [
         TurretSpec(Pt(25.5, 19.9), facing: kFaceDown, range: 6, aimArc: 1.0),
         TurretSpec(Pt(40.9, 15.2), facing: kFaceLeft, range: 7, aimArc: 0.5, phase: 0.5),
         PendulumSpec(Pt(28, 20), length: 1.6, amplitudeRad: 0.9, periodSec: 3.4),
+        SlidingBlockSpec(Pt(15.5, 5), Pt(15.5, 11.2), halfW: 0.5, halfH: 0.7, periodSec: 3.6),
+        SlidingBlockSpec(Pt(18, 16.5), Pt(24, 16.5), halfW: 0.7, halfH: 0.5, periodSec: 4.0, phase: 0.5),
       ],
       pickups: [
         FuelCellSpec(Pt(21, 12)),
@@ -212,8 +218,8 @@ final List<LevelDef> redoubtLevels = [
       worldW: 54,
       worldH: 30,
       tunnels: [
-        TunnelSpec([Pt(5, 9), Pt(12, 10), Pt(19, 13), Pt(26, 13)], width: 1.8),
-        TunnelSpec([Pt(26, 13), Pt(33, 15), Pt(40, 14), Pt(45, 16)], width: 1.8),
+        TunnelSpec([Pt(5, 9), Pt(12, 10), Pt(19, 13), Pt(26, 13)], width: 1.65),
+        TunnelSpec([Pt(26, 13), Pt(33, 15), Pt(40, 14), Pt(45, 16)], width: 1.65),
         TunnelSpec([Pt(26, 13), Pt(26, 19)], width: 1.3),
         TunnelSpec([Pt(12, 10), Pt(12, 6)], width: 1.4),
       ],
@@ -224,11 +230,16 @@ final List<LevelDef> redoubtLevels = [
         ChamberSpec(Pt(47, 16), 4.0, 3.2),
       ],
       obstacles: [
-        ReactorSpec(Pt(48.5, 15.5), hp: 10, escapeSeconds: 40),
+        ReactorSpec(Pt(48.5, 15.5), hp: 10, escapeSeconds: 36),
         TurretSpec(Pt(19, 10.4), facing: kFaceDown, range: 8),
         TurretSpec(Pt(33, 17.4), facing: kFaceUp, range: 8, phase: 0.7),
         TurretSpec(Pt(40, 11.5), facing: kFaceDown, range: 8, phase: 1.3),
         TurretSpec(Pt(47, 19.2), facing: kFaceUp, range: 7, phase: 0.3),
+        // Flown both ways: in to the pod, and back out on the meltdown clock.
+        SlidingBlockSpec(Pt(22.5, 10.2), Pt(22.5, 16), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
+        SlidingBlockSpec(Pt(36.5, 11.8), Pt(36.5, 17.8), halfW: 0.5, halfH: 0.7, periodSec: 3.6, phase: 0.5),
+        // A shutter across the last climb home.
+        SlidingBlockSpec(Pt(9.6, 8), Pt(14.4, 8), halfW: 0.7, halfH: 0.5, periodSec: 3.8, phase: 0.25),
       ],
       pickups: [
         FuelCellSpec(Pt(36.5, 14.5)),

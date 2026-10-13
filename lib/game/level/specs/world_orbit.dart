@@ -7,7 +7,8 @@ import 'package:narrow_haul/game/level/level_def.dart';
 const orbitShipId = 'vector';
 
 /// World 5 — Outer Ring. Asteroid caverns in near-weightlessness: inertia,
-/// planetoid wells, sideways and inverted pulls. Pods near wells are locked
+/// planetoid wells, sideways and inverted pulls, and from orbit_03 on the
+/// derelict station's airlock doors still cycling. Pods near wells are locked
 /// in place (cargoClamped) until hooked.
 final List<LevelDef> orbitLevels = [
   // Type rating: first flight in the Vector — hold thrust, it goes where it points.
@@ -73,9 +74,9 @@ final List<LevelDef> orbitLevels = [
       worldH: 28,
       modifiers: LevelModifiers(gravityMul: 0),
       tunnels: [
-        TunnelSpec([Pt(5, 13), Pt(12, 13)], width: 1.8),
-        TunnelSpec([Pt(19, 18), Pt(19, 22)], width: 1.4),
-        TunnelSpec([Pt(26, 13), Pt(33, 13)], width: 1.8),
+        TunnelSpec([Pt(5, 13), Pt(9, 10.5), Pt(13, 13)], width: 1.6),
+        TunnelSpec([Pt(19, 18.5), Pt(17.3, 20.5), Pt(19, 22.5)], width: 1.35),
+        TunnelSpec([Pt(25, 13), Pt(29, 15.5), Pt(33, 13)], width: 1.6),
       ],
       chambers: [
         ChamberSpec(Pt(5, 13), 2.4),
@@ -103,8 +104,8 @@ final List<LevelDef> orbitLevels = [
       modifiers: LevelModifiers(gravityMul: 0.35),
       cargoClamped: true,
       tunnels: [
-        TunnelSpec([Pt(5, 8), Pt(12, 9), Pt(17, 12)], width: 1.7),
-        TunnelSpec([Pt(25, 17), Pt(30, 19), Pt(35, 18)], width: 1.7),
+        TunnelSpec([Pt(5, 8), Pt(9, 5.5), Pt(13, 9), Pt(17, 12)], width: 1.55),
+        TunnelSpec([Pt(25, 17), Pt(28, 21), Pt(32, 17.5), Pt(35, 18)], width: 1.55),
       ],
       chambers: [
         ChamberSpec(Pt(5, 8), 2.4),
@@ -113,6 +114,10 @@ final List<LevelDef> orbitLevels = [
       ],
       fields: [
         GravityWellSpec(Pt(21, 14.5), strength: 4, coreRadius: 1.0, maxG: 1.8),
+      ],
+      obstacles: [
+        // A derelict airlock door still cycling across the exit.
+        SlidingBlockSpec(Pt(30.3, 16.5), Pt(30.3, 22.5), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
       ],
       shipSpawn: Pt(5, 8),
       cargoSpawn: Pt(21, 11),
@@ -130,8 +135,8 @@ final List<LevelDef> orbitLevels = [
       worldH: 22,
       modifiers: LevelModifiers(gravityMul: 0.5),
       tunnels: [
-        TunnelSpec([Pt(5, 11), Pt(12, 9), Pt(20, 11), Pt(28, 9), Pt(35, 11)], width: 1.8),
-        TunnelSpec([Pt(28, 9), Pt(28, 14.5)], width: 1.4),
+        TunnelSpec([Pt(5, 11), Pt(11, 7.5), Pt(17, 12.5), Pt(23, 7.5), Pt(28, 10), Pt(35, 11)], width: 1.6),
+        TunnelSpec([Pt(28, 10), Pt(28, 14.5)], width: 1.4),
       ],
       chambers: [
         ChamberSpec(Pt(5, 11), 2.4),
@@ -140,40 +145,15 @@ final List<LevelDef> orbitLevels = [
       ],
       fields: [
         // A sideways undertow drags you back toward the start.
-        GravityZoneSpec(Pt(16, 10), halfW: 4, halfH: 4, gx: -0.6, gy: 0.3, feather: 1.2),
+        GravityZoneSpec(Pt(17, 10), halfW: 6, halfH: 4.5, gx: -0.7, gy: 0.3, feather: 1.2),
+      ],
+      obstacles: [
+        SlidingBlockSpec(Pt(20, 7), Pt(20, 13.5), halfW: 0.5, halfH: 0.7, periodSec: 3.6),
+        SlidingBlockSpec(Pt(32.5, 7.8), Pt(32.5, 14), halfW: 0.5, halfH: 0.7, periodSec: 4.2, phase: 0.5),
       ],
       shipSpawn: Pt(5, 11),
       cargoSpawn: Pt(28, 15),
       goal: GoalSpec(Pt(35, 12.2)),
-    ),
-  ),
-  CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 75),
-    spec: const LevelSpec(
-      id: 'orbit_05',
-      seed: 505,
-      name: 'Binary',
-      themeId: 'orbit',
-      worldW: 44,
-      worldH: 26,
-      modifiers: LevelModifiers(gravityMul: 0),
-      cargoClamped: true,
-      tunnels: [
-        TunnelSpec([Pt(4, 13), Pt(10, 13)], width: 2.1),
-        TunnelSpec([Pt(34, 13), Pt(40, 13)], width: 2.1),
-      ],
-      chambers: [
-        ChamberSpec(Pt(4, 13), 2.4),
-        ChamberSpec(Pt(22, 13), 12, 7),
-        ChamberSpec(Pt(40, 13), 2.4),
-      ],
-      fields: [
-        GravityWellSpec(Pt(16, 10), strength: 3, coreRadius: 1.1, maxG: 1.5),
-        GravityWellSpec(Pt(28, 16), strength: 3, coreRadius: 1.1, maxG: 1.5),
-      ],
-      shipSpawn: Pt(4, 13),
-      cargoSpawn: Pt(22, 13),
-      goal: GoalSpec(Pt(40, 14.2)),
     ),
   ),
   CaveLevelDef(
@@ -188,8 +168,8 @@ final List<LevelDef> orbitLevels = [
       modifiers: LevelModifiers(gravityMul: 0.4),
       cargoClamped: true,
       tunnels: [
-        TunnelSpec([Pt(5, 22), Pt(10, 18), Pt(14, 13), Pt(20, 10)], width: 1.7),
-        TunnelSpec([Pt(28, 12), Pt(32, 18), Pt(35, 22)], width: 1.7),
+        TunnelSpec([Pt(5, 22), Pt(9, 17), Pt(13, 17), Pt(15, 12.5), Pt(20, 10)], width: 1.5),
+        TunnelSpec([Pt(28, 12), Pt(30.5, 16), Pt(33.5, 18), Pt(35, 22)], width: 1.65),
       ],
       chambers: [
         ChamberSpec(Pt(5, 22), 2.4),
@@ -200,6 +180,9 @@ final List<LevelDef> orbitLevels = [
         GravityWellSpec(Pt(25, 11), strength: 3, coreRadius: 1.0, maxG: 1.5),
         WindZoneSpec(Pt(31.5, 16.5), halfW: 2.5, halfH: 3, ax: -0.3, ay: 0, gustAmp: 0.5, gustPeriod: 3.5),
       ],
+      obstacles: [
+        SlidingBlockSpec(Pt(32, 14), Pt(32, 20.3), halfW: 0.5, halfH: 0.7, periodSec: 4.2, phase: 0.5),
+      ],
       shipSpawn: Pt(5, 22),
       // Low enough under the chamber roof to hover over with the full-size hull.
       cargoSpawn: Pt(25, 7.9),
@@ -207,7 +190,41 @@ final List<LevelDef> orbitLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.28, star3Time: 80),
+    stars: const StarSpec(star3Fuel: 0.6, star2Fuel: 0.3, star3Time: 75),
+    spec: const LevelSpec(
+      id: 'orbit_05',
+      seed: 505,
+      name: 'Binary',
+      themeId: 'orbit',
+      worldW: 44,
+      worldH: 26,
+      modifiers: LevelModifiers(gravityMul: 0),
+      cargoClamped: true,
+      // Under the first moon, a pocket between the two, over the second.
+      tunnels: [
+        TunnelSpec([Pt(4, 13), Pt(9, 13.5), Pt(12, 17.5), Pt(16, 19), Pt(20, 17.5), Pt(22, 14)], width: 1.5),
+        TunnelSpec([Pt(22, 14), Pt(24, 10), Pt(28, 7.5), Pt(32, 8.5), Pt(36, 11.5), Pt(40, 13)], width: 1.5),
+      ],
+      chambers: [
+        ChamberSpec(Pt(4, 13), 2.4),
+        ChamberSpec(Pt(22, 13.5), 2.2),
+        ChamberSpec(Pt(40, 13), 2.4),
+      ],
+      fields: [
+        GravityWellSpec(Pt(15, 13.5), strength: 3.5, coreRadius: 1.1, maxG: 1.5),
+        GravityWellSpec(Pt(29, 13), strength: 3.5, coreRadius: 1.1, maxG: 1.5),
+      ],
+      obstacles: [
+        SlidingBlockSpec(Pt(16, 16.3), Pt(16, 21.8), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
+        SlidingBlockSpec(Pt(30, 5), Pt(30, 11.3), halfW: 0.5, halfH: 0.7, periodSec: 3.8, phase: 0.5),
+      ],
+      shipSpawn: Pt(4, 13),
+      cargoSpawn: Pt(22, 13.5),
+      goal: GoalSpec(Pt(40, 14.2)),
+    ),
+  ),
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.28, star3Time: 80),
     spec: const LevelSpec(
       id: 'orbit_07',
       seed: 507,
@@ -217,7 +234,7 @@ final List<LevelDef> orbitLevels = [
       worldH: 24,
       modifiers: LevelModifiers(gravityMul: 0.6),
       tunnels: [
-        TunnelSpec([Pt(5, 12), Pt(12, 10), Pt(20, 12), Pt(28, 10), Pt(36, 12)], width: 1.8),
+        TunnelSpec([Pt(5, 12), Pt(12, 8.5), Pt(20, 12), Pt(28, 8.5), Pt(36, 12)], width: 1.55),
         TunnelSpec([Pt(20, 12), Pt(20, 17.5)], width: 1.4),
       ],
       chambers: [
@@ -227,8 +244,12 @@ final List<LevelDef> orbitLevels = [
       ],
       fields: [
         // Two pockets where "down" is up.
-        GravityZoneSpec(Pt(12, 11), halfW: 3.5, halfH: 4, gx: 0, gy: -0.6, feather: 1.2),
-        GravityZoneSpec(Pt(28, 11), halfW: 3.5, halfH: 4, gx: 0, gy: -0.6, feather: 1.2),
+        GravityZoneSpec(Pt(12, 10), halfW: 4, halfH: 4, gx: 0, gy: -0.75, feather: 1.2),
+        GravityZoneSpec(Pt(28, 10), halfW: 4, halfH: 4, gx: 0, gy: -0.75, feather: 1.2),
+      ],
+      obstacles: [
+        SlidingBlockSpec(Pt(16, 7.3), Pt(16, 13.5), halfW: 0.5, halfH: 0.7, periodSec: 3.8),
+        SlidingBlockSpec(Pt(24, 13.5), Pt(24, 7.3), halfW: 0.5, halfH: 0.7, periodSec: 3.8, phase: 0.5),
       ],
       shipSpawn: Pt(5, 12),
       cargoSpawn: Pt(20, 18),
@@ -242,27 +263,32 @@ final List<LevelDef> orbitLevels = [
       seed: 508,
       name: 'Event Horizon',
       themeId: 'orbit',
-      worldW: 46,
+      worldW: 50,
       worldH: 30,
       modifiers: LevelModifiers(gravityMul: 0),
       cargoClamped: true,
       tunnels: [
-        TunnelSpec([Pt(4, 15), Pt(12, 15)], width: 1.8),
-        TunnelSpec([Pt(29, 15), Pt(36, 12), Pt(42, 15)], width: 1.7),
+        TunnelSpec([Pt(4, 15), Pt(8, 11.5), Pt(12, 15)], width: 1.6),
+        TunnelSpec([Pt(29, 15), Pt(33, 11), Pt(37, 13.5), Pt(41, 11), Pt(46, 15)], width: 1.5),
       ],
       chambers: [
         ChamberSpec(Pt(4, 15), 2.4),
         ChamberSpec(Pt(21, 15), 9, 8),
-        ChamberSpec(Pt(42, 15), 2.4),
+        ChamberSpec(Pt(46, 15), 2.4),
       ],
       fields: [
         GravityWellSpec(Pt(21, 15), strength: 6, coreRadius: 1.6, maxG: 2.0),
         GravityWellSpec(Pt(36, 18), strength: 2, coreRadius: 0.9, maxG: 1.2),
-        WindZoneSpec(Pt(33, 13.5), halfW: 2.5, halfH: 2.5, ax: 0, ay: 0.3, gustAmp: 0.5, gustPeriod: 3),
+        WindZoneSpec(Pt(37, 12.5), halfW: 3, halfH: 2.5, ax: 0, ay: 0.3, gustAmp: 0.5, gustPeriod: 3),
+      ],
+      obstacles: [
+        SlidingBlockSpec(Pt(10, 10.5), Pt(10, 16.5), halfW: 0.5, halfH: 0.7, periodSec: 3.6),
+        SlidingBlockSpec(Pt(35, 9.3), Pt(35, 15.5), halfW: 0.5, halfH: 0.7, periodSec: 3.2, phase: 0.3),
+        SlidingBlockSpec(Pt(43.5, 9.8), Pt(43.5, 16), halfW: 0.5, halfH: 0.7, periodSec: 3.2, phase: 0.7),
       ],
       shipSpawn: Pt(4, 15),
       cargoSpawn: Pt(21, 9),
-      goal: GoalSpec(Pt(42, 16.2)),
+      goal: GoalSpec(Pt(46, 16.2)),
     ),
   ),
 ];

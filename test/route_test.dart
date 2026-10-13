@@ -17,6 +17,7 @@ import 'package:narrow_haul/game/route/crash_streak.dart';
 import 'package:narrow_haul/game/route/flight_route.dart';
 import 'package:narrow_haul/game/route/route_repository.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 
 import 'autopilot/harness.dart';
@@ -326,7 +327,8 @@ void main() {
         // Pods drop, roll or get blown about before pickup, so check the
         // hook itself: the ship is right at the pod when the rope attaches.
         final at = route.poseAt(attachT!);
-        expect(_d(at.x, at.y, at.cx, at.cy), lessThan(2.0),
+        // The side catch reaches kAttachCenterBase; samples are 0.1 s apart.
+        expect(_d(at.x, at.y, at.cx, at.cy), lessThan(kAttachCenterBase + 0.1),
             reason: '$id: rope attaches with the ship away from the pod');
         final end = route.samples.last;
         // Delivery counts once any part of the hull reaches the (last) pad.

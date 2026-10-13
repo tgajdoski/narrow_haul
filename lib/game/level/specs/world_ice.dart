@@ -44,33 +44,6 @@ final List<LevelDef> iceLevels = [
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.3, star3Time: 70),
     spec: const LevelSpec(
-      id: 'ice_01',
-      seed: 301,
-      name: 'Cold Open',
-      themeId: 'ice',
-      worldW: 36,
-      worldH: 24,
-      modifiers: _ice,
-      tunnels: [
-        TunnelSpec(
-          [Pt(5, 12), Pt(11, 9), Pt(17, 14), Pt(23, 9), Pt(30, 12)],
-          width: 1.8,
-        ),
-        TunnelSpec([Pt(17, 14), Pt(17, 18)], width: 1.3),
-      ],
-      chambers: [
-        ChamberSpec(Pt(5, 12), 2.4),
-        ChamberSpec(Pt(17, 18.5), 1.7),
-        ChamberSpec(Pt(30, 12), 2.4),
-      ],
-      shipSpawn: Pt(5, 12),
-      cargoSpawn: Pt(17, 18.5),
-      goal: GoalSpec(Pt(30, 13.2)),
-    ),
-  ),
-  CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.3, star3Time: 70),
-    spec: const LevelSpec(
       id: 'ice_02',
       seed: 302,
       name: 'Glass Floor',
@@ -97,39 +70,61 @@ final List<LevelDef> iceLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.3, star3Time: 75),
+    stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.3, star3Time: 70),
     spec: const LevelSpec(
-      id: 'ice_03',
-      seed: 303,
-      name: 'Icicle Alley',
+      id: 'ice_01',
+      seed: 301,
+      name: 'Cold Open',
       themeId: 'ice',
-      worldW: 40,
-      worldH: 26,
+      worldW: 36,
+      worldH: 24,
       modifiers: _ice,
       tunnels: [
         TunnelSpec(
-          [Pt(5, 13), Pt(12, 12), Pt(20, 13), Pt(28, 12), Pt(34, 13)],
-          width: 1.7,
+          [Pt(5, 12), Pt(11, 9), Pt(17, 14), Pt(23, 9), Pt(30, 12)],
+          width: 1.8,
         ),
-        TunnelSpec([Pt(20, 13), Pt(20, 17.5)], width: 1.3),
+        TunnelSpec([Pt(17, 14), Pt(17, 18)], width: 1.3),
       ],
       chambers: [
-        ChamberSpec(Pt(5, 13), 2.4),
-        ChamberSpec(Pt(20, 18), 1.7),
-        ChamberSpec(Pt(34, 13), 2.4),
+        ChamberSpec(Pt(5, 12), 2.4),
+        ChamberSpec(Pt(17, 18.5), 1.7),
+        ChamberSpec(Pt(30, 12), 2.4),
       ],
-      obstacles: [
-        PendulumSpec(Pt(16, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8),
-        PendulumSpec(Pt(28, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8, phase: 1.4),
+      shipSpawn: Pt(5, 12),
+      cargoSpawn: Pt(17, 18.5),
+      goal: GoalSpec(Pt(30, 13.2)),
+    ),
+  ),
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.28, star3Time: 80),
+    spec: const LevelSpec(
+      id: 'ice_06',
+      seed: 306,
+      name: 'Crevasse',
+      themeId: 'ice',
+      worldW: 34,
+      worldH: 34,
+      modifiers: LevelModifiers(wallFriction: 0.03, cargoDensityMul: 1.5),
+      tunnels: [
+        TunnelSpec(
+          [Pt(5, 8), Pt(9, 14), Pt(13, 21), Pt(17, 27)],
+          widths: [1.8, 1.4, 1.3, 1.8],
+        ),
+        TunnelSpec(
+          // Enters the pad chamber from the side, above the pad shelf.
+          [Pt(17, 27), Pt(22, 21), Pt(24, 14), Pt(24.6, 9.4), Pt(28, 8)],
+          widths: [1.8, 1.3, 1.4, 1.5, 1.8],
+        ),
       ],
-      fields: [
-        // Tailwind out to the cargo, headwind on the haul back.
-        WindZoneSpec(Pt(12, 12.5), halfW: 3.5, halfH: 2.5, ax: 0.25, ay: 0),
-        WindZoneSpec(Pt(27.5, 12.5), halfW: 3.5, halfH: 2.5, ax: -0.25, ay: 0),
+      chambers: [
+        ChamberSpec(Pt(5, 8), 2.4),
+        ChamberSpec(Pt(17, 27), 2.6),
+        ChamberSpec(Pt(28, 8), 2.4),
       ],
-      shipSpawn: Pt(5, 13),
-      cargoSpawn: Pt(20, 18),
-      goal: GoalSpec(Pt(34, 14.2)),
+      shipSpawn: Pt(5, 8),
+      cargoSpawn: Pt(17, 27.6),
+      goal: GoalSpec(Pt(28, 9.2)),
     ),
   ),
   CaveLevelDef(
@@ -204,34 +199,39 @@ final List<LevelDef> iceLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.28, star3Time: 80),
+    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.3, star3Time: 75),
     spec: const LevelSpec(
-      id: 'ice_06',
-      seed: 306,
-      name: 'Crevasse',
+      id: 'ice_03',
+      seed: 303,
+      name: 'Icicle Alley',
       themeId: 'ice',
-      worldW: 34,
-      worldH: 34,
-      modifiers: LevelModifiers(wallFriction: 0.03, cargoDensityMul: 1.5),
+      worldW: 40,
+      worldH: 26,
+      modifiers: _ice,
       tunnels: [
         TunnelSpec(
-          [Pt(5, 8), Pt(9, 14), Pt(13, 21), Pt(17, 27)],
-          widths: [1.8, 1.4, 1.3, 1.8],
+          [Pt(5, 13), Pt(12, 12), Pt(20, 13), Pt(28, 12), Pt(34, 13)],
+          width: 1.7,
         ),
-        TunnelSpec(
-          // Enters the pad chamber from the side, above the pad shelf.
-          [Pt(17, 27), Pt(22, 21), Pt(24, 14), Pt(24.6, 9.4), Pt(28, 8)],
-          widths: [1.8, 1.3, 1.4, 1.5, 1.8],
-        ),
+        TunnelSpec([Pt(20, 13), Pt(20, 17.5)], width: 1.3),
       ],
       chambers: [
-        ChamberSpec(Pt(5, 8), 2.4),
-        ChamberSpec(Pt(17, 27), 2.6),
-        ChamberSpec(Pt(28, 8), 2.4),
+        ChamberSpec(Pt(5, 13), 2.4),
+        ChamberSpec(Pt(20, 18), 1.7),
+        ChamberSpec(Pt(34, 13), 2.4),
       ],
-      shipSpawn: Pt(5, 8),
-      cargoSpawn: Pt(17, 27.6),
-      goal: GoalSpec(Pt(28, 9.2)),
+      obstacles: [
+        PendulumSpec(Pt(16, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8),
+        PendulumSpec(Pt(28, 9.5), length: 2.6, amplitudeRad: 0.7, periodSec: 2.8, phase: 1.4),
+      ],
+      fields: [
+        // Tailwind out to the cargo, headwind on the haul back.
+        WindZoneSpec(Pt(12, 12.5), halfW: 3.5, halfH: 2.5, ax: 0.25, ay: 0),
+        WindZoneSpec(Pt(27.5, 12.5), halfW: 3.5, halfH: 2.5, ax: -0.25, ay: 0),
+      ],
+      shipSpawn: Pt(5, 13),
+      cargoSpawn: Pt(20, 18),
+      goal: GoalSpec(Pt(34, 14.2)),
     ),
   ),
   CaveLevelDef(
@@ -273,7 +273,7 @@ final List<LevelDef> iceLevels = [
     ),
   ),
   CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.25, star3Time: 90),
+    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.25, star3Time: 90),
     spec: const LevelSpec(
       id: 'ice_08',
       seed: 308,
@@ -305,6 +305,8 @@ final List<LevelDef> iceLevels = [
       obstacles: [
         PendulumSpec(Pt(23, 8.8), length: 2.6, amplitudeRad: 0.85, periodSec: 2.5),
         SlidingBlockSpec(Pt(39, 12), Pt(39, 19), halfW: 0.55, halfH: 0.7, periodSec: 3.2),
+        SlidingBlockSpec(Pt(14, 12), Pt(14, 18.4), halfW: 0.55, halfH: 0.7, periodSec: 3.6),
+        SlidingBlockSpec(Pt(20, 12.4), Pt(20, 18.8), halfW: 0.55, halfH: 0.7, periodSec: 3.8, phase: 0.5),
       ],
       fields: [
         // Gusty updraft through the narrow neck before the crusher.

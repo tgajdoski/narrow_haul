@@ -69,6 +69,74 @@ final List<LevelDef> lavaLevels = [
     ),
   ),
   CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.25, star3Time: 85),
+    spec: const LevelSpec(
+      id: 'lava_04',
+      seed: 404,
+      name: 'Dead Weight',
+      themeId: 'lava',
+      worldW: 40,
+      worldH: 26,
+      noise: NoiseSpec(amplitude: 0.24),
+      modifiers: LevelModifiers(gravityMul: 1.55, cargoDensityMul: 2.5),
+      tunnels: [
+        TunnelSpec(
+          [Pt(5, 13), Pt(12, 15), Pt(19, 11), Pt(24, 15)],
+          width: 1.9,
+        ),
+        TunnelSpec(
+          [Pt(24, 15), Pt(28, 13), Pt(31, 14)],
+          widths: [1.9, 1.05, 1.05],
+        ),
+        TunnelSpec([Pt(31, 14), Pt(35, 14)], width: 1.5),
+        TunnelSpec([Pt(12, 15), Pt(12, 19.5)], width: 1.4),
+      ],
+      chambers: [
+        ChamberSpec(Pt(5, 13), 2.4),
+        ChamberSpec(Pt(12, 20), 1.8),
+        ChamberSpec(Pt(35, 14), 2.4),
+      ],
+      shipSpawn: Pt(5, 13),
+      cargoSpawn: Pt(12, 20.4),
+      goal: GoalSpec(Pt(35, 15.2)),
+    ),
+  ),
+  CaveLevelDef(
+    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.22, star3Time: 90),
+    spec: const LevelSpec(
+      id: 'lava_06',
+      seed: 406,
+      name: 'The Vent',
+      themeId: 'lava',
+      worldW: 32,
+      worldH: 36,
+      modifiers: LevelModifiers(gravityMul: 1.65, fuelDrainMul: 1.4),
+      tunnels: [
+        TunnelSpec(
+          [Pt(16, 31), Pt(15, 26), Pt(16, 19), Pt(15, 12), Pt(16, 8)],
+          widths: [1.8, 1.3, 1.6, 1.2, 1.6],
+        ),
+        TunnelSpec([Pt(15, 26), Pt(19, 25), Pt(22, 24)], width: 1.2),
+      ],
+      chambers: [
+        ChamberSpec(Pt(16, 31), 2.4),
+        ChamberSpec(Pt(16, 19), 2.4),
+        ChamberSpec(Pt(22, 24), 1.7),
+        ChamberSpec(Pt(19, 7), 4.4, 2.6),
+      ],
+      obstacles: [
+        PendulumSpec(Pt(16, 15.8), length: 2.4, amplitudeRad: 0.8, periodSec: 2.6),
+      ],
+      fields: [
+        // The vent: gusting updraft in the central chamber.
+        WindZoneSpec(Pt(16, 21), halfW: 2, halfH: 2, ax: 0, ay: -0.7, gustAmp: 0.4, gustPeriod: 3),
+      ],
+      shipSpawn: Pt(16, 31),
+      cargoSpawn: Pt(22, 24.4),
+      goal: GoalSpec(Pt(20.5, 8.2)),
+    ),
+  ),
+  CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.25, star3Time: 80),
     spec: const LevelSpec(
       id: 'lava_03',
@@ -105,39 +173,6 @@ final List<LevelDef> lavaLevels = [
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.25, star3Time: 85),
     spec: const LevelSpec(
-      id: 'lava_04',
-      seed: 404,
-      name: 'Dead Weight',
-      themeId: 'lava',
-      worldW: 40,
-      worldH: 26,
-      noise: NoiseSpec(amplitude: 0.24),
-      modifiers: LevelModifiers(gravityMul: 1.55, cargoDensityMul: 2.5),
-      tunnels: [
-        TunnelSpec(
-          [Pt(5, 13), Pt(12, 15), Pt(19, 11), Pt(24, 15)],
-          width: 1.9,
-        ),
-        TunnelSpec(
-          [Pt(24, 15), Pt(28, 13), Pt(31, 14)],
-          widths: [1.9, 1.05, 1.05],
-        ),
-        TunnelSpec([Pt(31, 14), Pt(35, 14)], width: 1.5),
-        TunnelSpec([Pt(12, 15), Pt(12, 19.5)], width: 1.4),
-      ],
-      chambers: [
-        ChamberSpec(Pt(5, 13), 2.4),
-        ChamberSpec(Pt(12, 20), 1.8),
-        ChamberSpec(Pt(35, 14), 2.4),
-      ],
-      shipSpawn: Pt(5, 13),
-      cargoSpawn: Pt(12, 20.4),
-      goal: GoalSpec(Pt(35, 15.2)),
-    ),
-  ),
-  CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.25, star3Time: 85),
-    spec: const LevelSpec(
       id: 'lava_05',
       seed: 405,
       name: 'Pressure',
@@ -164,41 +199,6 @@ final List<LevelDef> lavaLevels = [
       shipSpawn: Pt(5, 14),
       cargoSpawn: Pt(22, 8.5),
       goal: GoalSpec(Pt(38, 15.2)),
-    ),
-  ),
-  CaveLevelDef(
-    stars: const StarSpec(star3Fuel: 0.45, star2Fuel: 0.22, star3Time: 90),
-    spec: const LevelSpec(
-      id: 'lava_06',
-      seed: 406,
-      name: 'The Vent',
-      themeId: 'lava',
-      worldW: 32,
-      worldH: 36,
-      modifiers: LevelModifiers(gravityMul: 1.65, fuelDrainMul: 1.4),
-      tunnels: [
-        TunnelSpec(
-          [Pt(16, 31), Pt(15, 26), Pt(16, 19), Pt(15, 12), Pt(16, 8)],
-          widths: [1.8, 1.3, 1.6, 1.2, 1.6],
-        ),
-        TunnelSpec([Pt(15, 26), Pt(19, 25), Pt(22, 24)], width: 1.2),
-      ],
-      chambers: [
-        ChamberSpec(Pt(16, 31), 2.4),
-        ChamberSpec(Pt(16, 19), 2.4),
-        ChamberSpec(Pt(22, 24), 1.7),
-        ChamberSpec(Pt(19, 7), 4.4, 2.6),
-      ],
-      obstacles: [
-        PendulumSpec(Pt(16, 15.8), length: 2.4, amplitudeRad: 0.8, periodSec: 2.6),
-      ],
-      fields: [
-        // The vent: gusting updraft in the central chamber.
-        WindZoneSpec(Pt(16, 21), halfW: 2, halfH: 2, ax: 0, ay: -0.7, gustAmp: 0.4, gustPeriod: 3),
-      ],
-      shipSpawn: Pt(16, 31),
-      cargoSpawn: Pt(22, 24.4),
-      goal: GoalSpec(Pt(20.5, 8.2)),
     ),
   ),
   CaveLevelDef(
