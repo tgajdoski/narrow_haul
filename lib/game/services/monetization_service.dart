@@ -182,7 +182,7 @@ class MonetizationService {
   String priceOf(String productId) =>
       _products[productId]?.price ??
       switch (productId) {
-        ProductIds.supporterPack => r'$7.99',
+        ProductIds.supporterPack => r'$6.99',
         ProductIds.fullGame => r'$4.99',
         ProductIds.fleetPass || ProductIds.arsenalCrate => r'$2.99',
         ProductIds.demolitionKit => r'$0.99',

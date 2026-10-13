@@ -32,7 +32,7 @@
 ## Open — your actions
 
 ### Before the first test build
-- [ ] **Create the `nh_full_game` IAP** ($4.99, non-consumable) in both stores, and re-price the Supporter Pack to $7.99 with its new text: copy-ready in `art_src/store/README.md` → *Full Game*. Don't create `nh_remove_ads`; it's gone.
+- [ ] **Create the `nh_full_game` IAP** ($4.99, non-consumable) in both stores, and re-price the Supporter Pack to $6.99 with its new text: copy-ready in `art_src/store/README.md` → *Full Game*. Don't create `nh_remove_ads`; it's gone.
 - [ ] **Playtest the story and the Expeditions** (added 2026-10-10):
   - the prologue and chapter cards, and the radio lines (tut_09 Severance, alien_08, redoubt_05 outro)
   - `exp_00` Lifeline Convoy: refuel and checkpoint pads, *Resume · pad N*
@@ -74,7 +74,7 @@
     - Device or other IDs (AdMob).
     - All collected, not shared, encrypted in transit.
 - [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
-- [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 5 IAPs with 1.0: the ammo packs as **consumables** (`nh_demo_kit` $0.99, `nh_arsenal_crate` $2.99); `nh_full_game` ($4.99), `nh_supporter_pack` ($7.99) and `nh_fleet_pass` ($2.99) as **non-consumables**, in both stores.
+- [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 5 IAPs with 1.0: the ammo packs as **consumables** (`nh_demo_kit` $0.99, `nh_arsenal_crate` $2.99); `nh_full_game` ($4.99), `nh_supporter_pack` ($6.99) and `nh_fleet_pass` ($2.99) as **non-consumables**, in both stores.
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
