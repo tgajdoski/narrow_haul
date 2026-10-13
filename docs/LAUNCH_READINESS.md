@@ -38,11 +38,12 @@
   - `exp_00` Lifeline Convoy: refuel and checkpoint pads, *Resume · pad N*
   - one long generated Expedition (e.g. `exp_01` Cave-in), for length and fun
   - a sandbox Full Game buy: gold beacons open, interstitials stop
+  - a sandbox ammo pack or Fleet Pass buy (after *Reset purchases (dev)*): Settings shows *Ad-free until <date>* (7 days), the log shows `adFreeUntil=…`, and the soft Full Game offer still appears
 - [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro, the mystery salvage caches and the fleet (pick another ship in a briefing and in the Garage Ships tab, buy one with coins, check its stars feel fair and that *With route* hides off par).
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
   - Consider adding a weapons shot, the Armory and the briefing. See `art_src/store/README.md`.
-- [ ] **Deploy the website** (`website/deploy.sh`). The privacy policy now covers the ammo packs, every analytics event (including `salvage_opened`), and that Analytics doesn't collect the ad ID.
+- [x] **Deploy the website** (`website/deploy.sh`, done 2026-10-13: the live page describes the Full Game and Fleet Pass). The privacy policy now covers the ammo packs, every analytics event (including `salvage_opened`), and that Analytics doesn't collect the ad ID.
 - [ ] **Back up** `~/narrowhaul-upload.jks` and `android/key.properties` off this machine. If they're lost, you can't ship updates on Play.
 - [ ] **AdMob:** confirm the IDFA explainer message is published. The ATT prompt comes from it.
 - [ ] Bump the build number in `pubspec.yaml`. It's `1.0.0+3`; use +4 unless 3 was never uploaded.
