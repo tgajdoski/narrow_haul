@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:narrow_haul/game/camera/camera_director.dart';
+import 'package:narrow_haul/game/ship/tilt_steer.dart';
 
 /// Steering and camera presets the player picks in Settings → Cockpit
 /// ([steer] / [camera], loaded in `main.dart`). Pure Dart, no Flame imports.
@@ -103,6 +104,11 @@ abstract final class FlightTuning {
   static SteerMode steer = SteerMode.twoSpeed;
   static CameraMode camera = CameraMode.lookAhead;
 
+  /// Steer by tilting the phone like a wheel (see `TiltSteer`); the dial
+  /// still works on top of it.
+  static bool tilt = false;
+  static TiltSensitivity tiltSensitivity = TiltSensitivity.normal;
+
   /// The joystick's own dead zone (`_FloatingJoystick._deadzone`).
   static const double stickDeadzone = 0.06;
 
@@ -139,9 +145,17 @@ abstract final class FlightTuning {
   static const double keyBoostRamp = 0.2;
 
   /// Restores saved preset names; unknown or missing ones keep the default.
-  static void load({String? steerName, String? cameraName}) {
+  static void load({
+    String? steerName,
+    String? cameraName,
+    bool tiltOn = false,
+    String? tiltSensitivityName,
+  }) {
     steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
     camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
+    tilt = tiltOn;
+    tiltSensitivity =
+        TiltSensitivity.values.asNameMap()[tiltSensitivityName] ?? TiltSensitivity.normal;
   }
 
   /// Maps a raw stick axis (−1…1, after the joystick's dead zone) to rotate

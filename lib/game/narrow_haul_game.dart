@@ -69,6 +69,7 @@ import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
+import 'package:narrow_haul/game/services/motion_input.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/services/system_ui.dart';
@@ -188,6 +189,13 @@ class NarrowHaulGame extends Forge2DGame
   bool _touchFire = false;
   final KeyboardFlightInput _keys = KeyboardFlightInput();
 
+  /// Tilt steering (Settings → Tilt steering): the phone's lean, added to
+  /// the stick and keys. Sensors run only while a tilt flight is live.
+  final MotionInput _motion = MotionInput();
+
+  /// Seconds the phone has been lying too flat to read a lean.
+  double _tiltFlatFor = 0;
+
   /// How long the current turn key has been held (keyboard boost).
   double _keyHeld = 0;
   double _keyDir = 0;
@@ -217,7 +225,9 @@ class NarrowHaulGame extends Forge2DGame
             _boostCharge,
           );
     final key = FlightTuning.keyAxis(_keys.rotateAxis, _keyHeld, boost);
-    rotateAxis = (touch + key).clamp(-boost, boost);
+    // A lean never launches the ship: on the pad it only sets the centre.
+    final tilt = _motion.active && (s?.launched ?? false) ? _motion.steer.axis(boost) : 0.0;
+    rotateAxis = (touch + key + tilt).clamp(-boost, boost);
     final boosting = rotateAxis.abs() > 1.001;
     if (boosting && !_wasBoosting && FlightTuning.steer.hasZones) {
       Haptics.light();
@@ -674,6 +684,7 @@ class NarrowHaulGame extends Forge2DGame
         _combineInputs();
       },
       onSelectWeapon: selectWeapon,
+      onTiltTap: recentreTilt,
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -1614,6 +1625,8 @@ class NarrowHaulGame extends Forge2DGame
 
   void _resetInputState() {
     rotateAxis = 0;
+    _tiltFlatFor = 0;
+    _hudControls?.tiltX = 0;
     thrustHeld = false;
     fireHeld = false;
     _touchAxis = 0;
@@ -2031,6 +2044,7 @@ class NarrowHaulGame extends Forge2DGame
       mode: _analyticsMode,
       ship: ship?.spec.id ?? '',
       noseDownWarnings: _noseDown.warnings,
+      steer: FlightTuning.tilt ? 'tilt' : FlightTuning.steer.name,
     );
     if (_noseDown.warnings == 0) {
       final clean = ProgressService.instance.noseDownCleanFlights;
@@ -2905,6 +2919,7 @@ class NarrowHaulGame extends Forge2DGame
       demo: demoMode,
       desktop: _desktop,
       pointSteer: FlightTuning.steer.isPointer,
+      tiltSteer: FlightTuning.tilt,
       tutorial: _tutorialHints,
       starRulesStep: _starRulesStep && !s.launched,
       thrustUsed: _thrustUsed,
@@ -3393,6 +3408,7 @@ class NarrowHaulGame extends Forge2DGame
   void pauseGame() {
     if (runState != RunState.playing || isPaused || ship == null) return;
     isPaused = true;
+    _motion.setActive(false);
     _resetInputState();
     ship?.setInput(rotate: 0, thrust: false);
     pauseEngine();
@@ -4503,7 +4519,42 @@ class NarrowHaulGame extends Forge2DGame
     }
   }
 
+  /// Advances the tilt filter: on the pad (or the hover before a
+  /// continue) the way the phone is held becomes straight ahead.
+  void _updateTilt(ShipBody s) {
+    final t = _motion.steer..sensitivity = FlightTuning.tiltSensitivity;
+    if (!s.launched) t.recentre();
+    t.step(_realDt);
+    _hudControls?.tiltX = t.dialX(
+      stickDeadzone: FlightTuning.stickDeadzone,
+      boostStart: FlightTuning.boostStart,
+      boostFull: FlightTuning.boostFull,
+    );
+    _tiltFlatFor = t.flat && s.launched ? _tiltFlatFor + _realDt : 0;
+    if (_tiltFlatFor > 1) {
+      _tiltFlatFor = double.negativeInfinity; // once per flight
+      _comms?.say(
+        const CommsLine(
+          id: 'tilt_flat',
+          callsign: 'TOWER',
+          text: 'Hold the phone up like a wheel to steer by tilt.',
+        ),
+        expiresIn: _commsHelpExpiry,
+      );
+    }
+  }
+
+  /// Tapping the dial in tilt mode: the current hold is straight ahead.
+  void recentreTilt() {
+    if (!_motion.active) return;
+    _motion.steer.recentre();
+    Haptics.light();
+  }
+
   void _updateGame(double dt) {
+    _motion.setActive(
+      FlightTuning.tilt && runState == RunState.playing && !isPaused && !demoMode && ship != null,
+    );
 
     if (_crashTimer > 0) {
       _crashTimer -= dt;
@@ -4551,7 +4602,12 @@ class NarrowHaulGame extends Forge2DGame
         _boostCharge = FlightTuning.nextBoostCharge(_boostCharge, _touchAxis, dt);
         // Re-shape held input every frame: the key boost ramps with time
         // and the boost shrinks once the pod is hooked.
-        if (_touchAxis != 0 || _stickX != 0 || _stickY != 0 || _keys.rotateAxis != 0) {
+        if (_motion.active) _updateTilt(s);
+        if (_motion.active ||
+            _touchAxis != 0 ||
+            _stickX != 0 ||
+            _stickY != 0 ||
+            _keys.rotateAxis != 0) {
           _combineInputs();
         }
         s.setInput(

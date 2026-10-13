@@ -78,6 +78,13 @@ void main() {
       ));
       expect(g.coach?.detail, contains('nose'));
 
+      g = resolveGuidance(const GuidanceInputs(
+        tutorial: true,
+        thrustUsed: 1,
+        tiltSteer: true,
+      ));
+      expect(g.coach?.detail, contains('Tilt'));
+
       g = resolveGuidance(const GuidanceInputs(tutorial: true, thrustUsed: 1, rotateUsed: 1));
       expect(g.coach, isNull);
       expect(g.pod, PodTag.hook);

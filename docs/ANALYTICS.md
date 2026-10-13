@@ -19,7 +19,7 @@ All of them are off in debug builds (collection disabled) and in tests (no sink)
 |---|---|---|
 | `level_start` | Every flight load (not demos) | `level_name` (saveId), `world`, `ship`, `rope`, `mode` (normal / daily / test_flight), `attempt`, `guided` |
 | `level_fail` | Ship lost | `level_name`, `cause` (wall / shot / meltdown), `crash_kind` (noseDown / hardLanding / wallHit / machinery / shot / meltdown), `tilt` (nose from local up, degrees), `attempt`, `seconds`, `fuel_left_pct`, `towing`, `x`, `y` (whole metres), `mode` |
-| `level_end` | Delivered | `level_name`, `success`=1, `stars`, `first_clear`, `new_stars`, `attempt`, `seconds`, `fuel_left_pct`, `guided`, `continued`, `carried_ammo`, `mode`, `nose_down_warnings` |
+| `level_end` | Delivered | `level_name`, `success`=1, `stars`, `first_clear`, `new_stars`, `attempt`, `seconds`, `fuel_left_pct`, `guided`, `continued`, `carried_ammo`, `mode`, `nose_down_warnings`, `steer` (`tilt` or the steer mode) |
 | `level_quit` | Restart or menu mid-flight | `level_name`, `reason`, `seconds`, `launched` |
 | `route_shown`, `demo_watched` | Route guide / demo from the game-over screen | `level_name` |
 | `tutorial_step` | tut_01 drills and the first hook-up | `step` (drill_1 / drill_2 / drill_3, drills_done, drills_skipped, hooked), `level_name` |

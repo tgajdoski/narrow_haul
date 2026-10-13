@@ -25,7 +25,15 @@ class HudTouchControls extends PositionComponent {
     required this.onThrust,
     this.onFire,
     this.onSelectWeapon,
+    this.onTiltTap,
   }) : super(priority: 5000);
+
+  /// Tilt steering: the lean as a stick deflection (−1…1), shown on the
+  /// resting dial; 0 when tilt is off.
+  double tiltX = 0;
+
+  /// A tap on the steering side while tilting: recentre.
+  final void Function()? onTiltTap;
 
   final void Function(double axis) onRotateAxis;
 
@@ -173,6 +181,8 @@ class HudTouchControls extends PositionComponent {
       onAxisChanged: onRotateAxis,
       onStick: onStick,
       restCenter: layout.dialRest - Offset(joyLeft, 0),
+      tilt: () => tiltX,
+      onTap: onTiltTap,
     );
     _thrustBtn = _ThrustButton(
       center: Vector2(layout.thrust.dx, layout.thrust.dy),
@@ -346,13 +356,15 @@ class HudButtonLayout {
 // Floating Joystick
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _FloatingJoystick extends PositionComponent with DragCallbacks {
+class _FloatingJoystick extends PositionComponent with DragCallbacks, TapCallbacks {
   _FloatingJoystick({
     required Vector2 areaSize,
     required Vector2 position,
     required this.onAxisChanged,
     this.onStick,
     required this.restCenter,
+    required this.tilt,
+    this.onTap,
   }) : super(
           position: position,
           size: areaSize,
@@ -361,6 +373,16 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
 
   final void Function(double axis) onAxisChanged;
   final void Function(double x, double y)? onStick;
+
+  /// Tilt steering's lean as a stick deflection, shown on the resting dial.
+  final double Function() tilt;
+  final void Function()? onTap;
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    super.onTapUp(event);
+    if (FlightTuning.tilt) onTap?.call();
+  }
 
   /// Where the idle dial rests, in this area's coordinates
   /// ([HudButtonLayout.dialRest]).
@@ -448,7 +470,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   void _drawHint(Canvas canvas) {
     final c = restCenter;
     _drawBase(canvas, c, active: false);
-    _drawKnob(canvas, c, active: false);
+    _drawKnob(canvas, c + Offset(tilt() * _maxKnobRadius, 0), active: false);
   }
 
   void _drawJoystick(Canvas canvas) {
@@ -463,7 +485,7 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
   void _drawBase(Canvas canvas, Offset c, {required bool active}) {
     const r = _baseOuterRadius;
     final a = active ? 1.0 : 0.6;
-    final axis = active ? _axis : 0.0;
+    final axis = active ? _axis : tilt();
     canvas.drawCircle(
       c,
       r,
@@ -497,17 +519,19 @@ class _FloatingJoystick extends PositionComponent with DragCallbacks {
       ..color = HudColors.gold.withValues(alpha: 0.55 * a)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    if (FlightTuning.steer.hasZones) {
+    if (FlightTuning.steer.hasZones || FlightTuning.tilt) {
       for (final side in const [-1.0, 1.0]) {
         final x = c.dx + side * boostX;
         canvas.drawLine(Offset(x, c.dy - 7), Offset(x, c.dy + 7), notch);
       }
     }
-    if (FlightTuning.steer.isPointer) {
+    if (FlightTuning.steer.isPointer && (active || !FlightTuning.tilt)) {
       _drawPointer(canvas, c, active: active, alpha: a);
       return;
     }
-    final boosting = FlightTuning.stickBoosting(axis);
+    final boosting = active
+        ? FlightTuning.stickBoosting(axis)
+        : axis.abs() > FlightTuning.boostStart;
     if (axis != 0) {
       final lit = Paint()
         ..color = HudColors.cyanBright.withValues(alpha: 0.85)

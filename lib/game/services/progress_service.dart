@@ -87,6 +87,8 @@ class ProgressService {
     'minimap_enabled',
     'steer_mode',
     'camera_mode',
+    'tilt_steer',
+    'tilt_sensitivity',
     'credits_seen',
     'save_v2',
     'save_v3',
@@ -303,6 +305,14 @@ class ProgressService {
   String? get cameraMode => _string('camera_mode');
   Future<void> setCameraMode(String v) async =>
       _prefs.setString('camera_mode', v);
+
+  /// Tilt steering on/off (null = never chosen: on wherever the phone has
+  /// the sensor) and its `TiltSensitivity` name.
+  bool? get tiltSteer => _bool('tilt_steer');
+  Future<void> setTiltSteer(bool v) async => _prefs.setBool('tilt_steer', v);
+  String? get tiltSensitivity => _string('tilt_sensitivity');
+  Future<void> setTiltSensitivity(String v) async =>
+      _prefs.setString('tilt_sensitivity', v);
 
   // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
 

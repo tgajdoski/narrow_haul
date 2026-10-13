@@ -125,6 +125,7 @@ class Analytics {
     required String mode,
     String ship = '',
     int noseDownWarnings = 0,
+    String steer = '',
   }) => log('level_end', {
     'level_name': levelId,
     'ship': ship,
@@ -140,6 +141,7 @@ class Analytics {
     'carried_ammo': carriedAmmo,
     'mode': mode,
     'nose_down_warnings': noseDownWarnings,
+    'steer': steer,
   });
 
   /// The player left a flight in progress ([reason]: `menu` or `restart`).

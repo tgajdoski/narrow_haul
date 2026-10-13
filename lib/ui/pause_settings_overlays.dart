@@ -4,8 +4,10 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
+import 'package:narrow_haul/game/services/motion_input.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/ship/tilt_steer.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
@@ -196,6 +198,31 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             _p.setSteerMode(m.name);
           },
         ),
+        if (MotionInput.available) ...[
+          HoloToggle(
+            icon: Icons.screen_rotation_alt_rounded,
+            title: 'Tilt steering',
+            subtitle: 'Turn by tilting the phone like a wheel. Tap the dial to recentre',
+            value: FlightTuning.tilt,
+            onChanged: (v) {
+              setState(() => FlightTuning.tilt = v);
+              _p.setTiltSteer(v);
+            },
+          ),
+          if (FlightTuning.tilt)
+            _PresetRow<TiltSensitivity>(
+              icon: Icons.tune_rounded,
+              title: 'Tilt sensitivity',
+              values: TiltSensitivity.values,
+              value: FlightTuning.tiltSensitivity,
+              label: (m) => m.label,
+              blurb: (m) => m.blurb,
+              onChanged: (m) {
+                setState(() => FlightTuning.tiltSensitivity = m);
+                _p.setTiltSensitivity(m.name);
+              },
+            ),
+        ],
         _PresetRow<CameraMode>(
           icon: Icons.videocam_outlined,
           title: 'Camera',

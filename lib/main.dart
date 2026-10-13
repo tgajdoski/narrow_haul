@@ -34,6 +34,7 @@ import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/story_card.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
+import 'package:narrow_haul/game/services/motion_input.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +66,14 @@ void main() async {
   FlightTuning.load(
     steerName: ProgressService.instance.steerMode,
     cameraName: ProgressService.instance.cameraMode,
+    tiltOn: ProgressService.instance.tiltSteer ?? MotionInput.supported,
+    tiltSensitivityName: ProgressService.instance.tiltSensitivity,
   );
+  // Tilt steering is the default where the phone has an accelerometer;
+  // without one the joystick steers.
+  unawaited(MotionInput.probe().then((ok) {
+    if (!ok) FlightTuning.tilt = false;
+  }));
   try {
     await CareerService.migrateIfNeeded();
   } catch (e, st) {

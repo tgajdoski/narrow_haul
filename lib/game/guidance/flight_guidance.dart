@@ -93,6 +93,7 @@ class GuidanceInputs {
     this.demo = false,
     this.desktop = false,
     this.pointSteer = false,
+    this.tiltSteer = false,
     this.tutorial = false,
     this.starRulesStep = false,
     this.thrustUsed = 0,
@@ -116,6 +117,9 @@ class GuidanceInputs {
 
   /// Point steering: the dial is dragged toward the nose's heading.
   final bool pointSteer;
+
+  /// Steering by tilting the phone (Settings → Tilt steering).
+  final bool tiltSteer;
 
   /// tut_01–03 before their first clear: the controls are taught.
   final bool tutorial;
@@ -233,7 +237,9 @@ Guidance resolveGuidance(GuidanceInputs i) {
         title: 'STEER',
         detail: i.desktop
             ? 'Rotate the ship'
-            : i.pointSteer
+            : i.tiltSteer
+                ? 'Tilt the phone like a wheel to rotate'
+                : i.pointSteer
                 ? 'Drag toward where the nose should point'
                 : 'Drag left or right to rotate',
         keys: i.desktop ? const ['←', '→', 'A', 'D'] : const [],
