@@ -95,9 +95,13 @@ class Analytics {
     required int x,
     required int y,
     required String mode,
+    String crashKind = '',
+    int tilt = 0,
   }) => log('level_fail', {
     'level_name': levelId,
     'cause': cause,
+    'crash_kind': crashKind,
+    'tilt': tilt,
     'attempt': attempt,
     'seconds': seconds,
     'fuel_left_pct': (fuelLeft * 100).round(),
@@ -120,6 +124,7 @@ class Analytics {
     required bool carriedAmmo,
     required String mode,
     String ship = '',
+    int noseDownWarnings = 0,
   }) => log('level_end', {
     'level_name': levelId,
     'ship': ship,
@@ -134,6 +139,7 @@ class Analytics {
     'continued': continued,
     'carried_ammo': carriedAmmo,
     'mode': mode,
+    'nose_down_warnings': noseDownWarnings,
   });
 
   /// The player left a flight in progress ([reason]: `menu` or `restart`).
@@ -156,6 +162,11 @@ class Analytics {
       log('demo_watched', {'level_name': levelId});
 
   static void tutorialComplete() => log('tutorial_complete');
+
+  /// A step of the first flights ([step]: `drill_1`…, `drills_done`,
+  /// `drills_skipped`, `hooked`), for the onboarding funnel.
+  static void tutorialStep(String step, {required String levelId}) =>
+      log('tutorial_step', {'step': step, 'level_name': levelId});
 
   static void worldUnlocked(String worldId) =>
       log('world_unlocked', {'world': worldId});

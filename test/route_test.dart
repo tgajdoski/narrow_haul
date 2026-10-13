@@ -194,8 +194,7 @@ void main() {
       expect(h.game.runState, RunState.gameOver);
     }
 
-    test('route help appears on the third crash in a row', () async {
-      await crash();
+    test('route help appears on the second crash in a row in Training', () async {
       await crash();
       expect(h.game.currentRoute, isNotNull);
       expect(h.game.canShowRoute, isFalse);

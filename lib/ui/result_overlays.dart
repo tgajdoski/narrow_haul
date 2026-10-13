@@ -470,6 +470,7 @@ class GameOverOverlay extends StatelessWidget {
       builder: (context, adReady, _) {
         final rewarded = adReady && (g.canContinue || g.canOfferAmmo);
         final hasHelp = rewarded || g.canShowRoute;
+        final advice = g.crashAdvice;
 
         final crash = Column(
           mainAxisSize: MainAxisSize.min,
@@ -495,15 +496,13 @@ class GameOverOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'The ship touched the terrain.',
-              textAlign: hasHelp ? TextAlign.start : TextAlign.center,
-              style: const TextStyle(color: Colors.white60, fontSize: 13),
-            ),
-            const SizedBox(height: 4),
-            Text(
               g.currentLevelDef.name,
               style: hudLabel(11, color: Colors.white38, spacing: 2),
             ),
+            if (advice != null) ...[
+              const SizedBox(height: 8),
+              _CrashAdvice(text: advice, center: !hasHelp),
+            ],
           ],
         );
 
@@ -550,7 +549,31 @@ class GameOverOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              if (g.canResumeFromPad) ...[
+              if (g.canFreeContinue) ...[
+                // Training: rewind for free, as often as needed.
+                Expanded(
+                  child: HoloButton(
+                    label: 'Restart',
+                    icon: Icons.replay_rounded,
+                    sound: UiSound.launch,
+                    onPressed: g.restartLevel,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: HoloButton.primary(
+                    key: const ValueKey('free-continue'),
+                    label: 'Try again',
+                    subtitle: 'from just before the crash',
+                    icon: Icons.fast_rewind_rounded,
+                    accent: SpaceColors.coral,
+                    sound: UiSound.launch,
+                    height: 46,
+                    onPressed: g.freeContinue,
+                  ),
+                ),
+              ] else if (g.canResumeFromPad) ...[
                 // An Expedition flies on from its last staging pad.
                 Expanded(
                   child: HoloButton(
@@ -600,6 +623,44 @@ class GameOverOverlay extends StatelessWidget {
               : crash,
         );
       },
+    );
+  }
+}
+
+/// The crash screen's advice: what went wrong, in one line.
+class _CrashAdvice extends StatelessWidget {
+  const _CrashAdvice({required this.text, required this.center});
+  final String text;
+  final bool center;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: SpaceColors.gold.withValues(alpha: 0.08),
+        border: Border(
+          left: BorderSide(color: SpaceColors.gold.withValues(alpha: 0.8), width: 3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.lightbulb_outline_rounded, size: 15, color: SpaceColors.gold),
+          ),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              text,
+              textAlign: center ? TextAlign.center : TextAlign.start,
+              style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

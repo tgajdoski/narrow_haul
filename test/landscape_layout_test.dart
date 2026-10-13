@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/guidance/crash_tip.dart';
 import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
@@ -156,6 +157,8 @@ void main() {
       final g = NarrowHaulGame()
         ..levelIndex = caveIndex
         ..runState = RunState.gameOver
+        // The longest advice line.
+        ..lastCrashKind = CrashKind.noseDown
         ..currentRoute = FlightRoute.fromJson(json);
       for (var i = 0; i < 3; i++) {
         g.crashStreak.onCrash(def.saveId);

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:narrow_haul/game/guidance/flight_drills.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 /// In-flight guidance, pure Dart. Every frame the game describes the flight
@@ -106,6 +107,8 @@ class GuidanceInputs {
     this.fuelPerShotFrac = 0,
     this.crate,
     this.canisterUnseen = false,
+    this.drill,
+    this.noseDown = false,
   });
 
   final bool demo;
@@ -141,6 +144,13 @@ class GuidanceInputs {
 
   /// The level has canisters and the pilot has never collected one.
   final bool canisterUnseen;
+
+  /// The flight drill ring in progress (tut_01, before the first tow).
+  final DrillView? drill;
+
+  /// [NoseDownWatch] is warning: the nose points down and thrust or gravity
+  /// is taking the ship toward the rock.
+  final bool noseDown;
 }
 
 /// What the HUD shows this frame.
@@ -152,6 +162,8 @@ class Guidance {
     this.pad,
     this.markCanister = false,
     this.frameStarTarget = false,
+    this.drill,
+    this.noseUp = false,
   });
 
   final CoachMark? coach;
@@ -160,6 +172,12 @@ class Guidance {
   final PadTag? pad;
   final bool markCanister;
   final bool frameStarTarget;
+
+  /// The drill ring to fly to.
+  final DrillView? drill;
+
+  /// Show which way is up and the short turn back to it, on the ship.
+  final bool noseUp;
 
   static const none = Guidance();
 }
@@ -229,7 +247,7 @@ Guidance resolveGuidance(GuidanceInputs i) {
   if (i.shipOnPad != i.podOnPad) {
     pad = PadTag(shipIn: i.shipOnPad, podIn: i.podOnPad);
     if (i.shipOnPad) pod = PodTag.lower;
-  } else if (i.tutorial && controlsTaught) {
+  } else if (i.tutorial && controlsTaught && i.drill == null) {
     if (!i.attached) {
       pod = PodTag.hook;
     } else if (!i.shipOnPad) {
@@ -242,10 +260,68 @@ Guidance resolveGuidance(GuidanceInputs i) {
     markTurrets: coach?.id == 'fire_turrets',
     pod: pod,
     pad: pad,
-    markCanister: i.canisterUnseen,
+    markCanister: i.canisterUnseen && i.drill == null,
     frameStarTarget: i.starRulesStep,
+    drill: i.attached ? null : i.drill,
+    noseUp: i.noseDown,
   );
 }
+
+// ── Nose-down watch ──────────────────────────────────────────────────────────
+
+/// Spots the classic beginner crash: the ship rolled past sideways, so the
+/// engine (or gravity) drives it into the rock. Warns after the nose has
+/// been more than [warnTilt] from local up for [warnAfter] seconds while
+/// thrusting or falling, and stops once it's back within [clearTilt].
+class NoseDownWatch {
+  static const double warnTilt = 100;
+  static const double clearTilt = 75;
+  static const double warnAfter = 0.4;
+
+  /// Falling faster than this (m/s along local down) counts as heading in.
+  static const double fallSpeed = 0.5;
+
+  double _over = 0;
+  bool _warning = false;
+  int _warnings = 0;
+
+  bool get warning => _warning;
+
+  /// Warnings this flight.
+  int get warnings => _warnings;
+
+  void reset() {
+    _over = 0;
+    _warning = false;
+    _warnings = 0;
+  }
+
+  /// [tiltDeg]: nose to local up, 0–180. [downSpeed]: velocity along local
+  /// down. Returns true when a new warning starts.
+  bool update(
+    double dt, {
+    required double tiltDeg,
+    required bool thrusting,
+    required double downSpeed,
+  }) {
+    if (_warning) {
+      if (tiltDeg <= clearTilt) {
+        _warning = false;
+        _over = 0;
+      }
+      return false;
+    }
+    final heading = thrusting || downSpeed > fallSpeed;
+    _over = tiltDeg > warnTilt && heading ? _over + dt : 0;
+    if (_over < warnAfter) return false;
+    _warning = true;
+    _warnings++;
+    return true;
+  }
+}
+
+/// Flights in a row without a nose-down warning before the lesson stops.
+const int kNoseDownCleanFlights = 3;
 
 /// '0.5%' under one percent, else whole percent.
 String formatFuelPercent(double frac) {

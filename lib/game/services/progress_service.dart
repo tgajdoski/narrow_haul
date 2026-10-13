@@ -255,6 +255,12 @@ class ProgressService {
   bool get scrapeHintSeen => _bool('scrape_hint_seen') ?? false;
   Future<void> markScrapeHintSeen() async =>
       _prefs.setBool('scrape_hint_seen', true);
+
+  /// Deliveries in a row without a nose-down warning; the in-flight lesson
+  /// runs until it reaches `kNoseDownCleanFlights`.
+  int get noseDownCleanFlights => _int('nose_down_clean') ?? 0;
+  Future<void> setNoseDownCleanFlights(int n) async =>
+      _prefs.setInt('nose_down_clean', n);
   /// A crate's "loaded, tap FIRE" plate shows the first time each weapon
   /// is picked up; after that the icon flying into FIRE says it.
   bool crateHintSeen(String weaponId) => _bool('crate_hint_$weaponId') ?? false;

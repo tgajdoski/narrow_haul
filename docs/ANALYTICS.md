@@ -18,10 +18,11 @@ All of them are off in debug builds (collection disabled) and in tests (no sink)
 | Event | When | Params |
 |---|---|---|
 | `level_start` | Every flight load (not demos) | `level_name` (saveId), `world`, `ship`, `rope`, `mode` (normal / daily / test_flight), `attempt`, `guided` |
-| `level_fail` | Ship lost | `level_name`, `cause` (wall / shot / meltdown), `attempt`, `seconds`, `fuel_left_pct`, `towing`, `x`, `y` (whole metres), `mode` |
-| `level_end` | Delivered | `level_name`, `success`=1, `stars`, `first_clear`, `new_stars`, `attempt`, `seconds`, `fuel_left_pct`, `guided`, `continued`, `carried_ammo`, `mode` |
+| `level_fail` | Ship lost | `level_name`, `cause` (wall / shot / meltdown), `crash_kind` (noseDown / hardLanding / wallHit / machinery / shot / meltdown), `tilt` (nose from local up, degrees), `attempt`, `seconds`, `fuel_left_pct`, `towing`, `x`, `y` (whole metres), `mode` |
+| `level_end` | Delivered | `level_name`, `success`=1, `stars`, `first_clear`, `new_stars`, `attempt`, `seconds`, `fuel_left_pct`, `guided`, `continued`, `carried_ammo`, `mode`, `nose_down_warnings` |
 | `level_quit` | Restart or menu mid-flight | `level_name`, `reason`, `seconds`, `launched` |
 | `route_shown`, `demo_watched` | Route guide / demo from the game-over screen | `level_name` |
+| `tutorial_step` | tut_01 drills and the first hook-up | `step` (drill_1 / drill_2 / drill_3, drills_done, drills_skipped, hooked), `level_name` |
 | `tutorial_complete` | First clear of tut_10 | – |
 | `world_unlocked` | A delivery opened a world | `world` |
 | `level_up` | Rank up | `level` (rank index), `character` (rank title) |
@@ -121,6 +122,26 @@ SELECT last_level, COUNT(*) AS players_lost
 FROM last
 WHERE TIMESTAMP_MICROS(last_seen) < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 GROUP BY last_level ORDER BY players_lost DESC;
+```
+
+**First flight funnel** (how far new pilots get on tut_01, and why they crash):
+
+```sql
+WITH s AS (
+  SELECT user_pseudo_id, event_name,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='step') AS step,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='crash_kind') AS crash_kind,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='level_name') AS level
+  FROM `PROJECT.analytics_XXXX.events_*`
+  WHERE event_name IN ('level_start','tutorial_step','level_fail','level_end')
+)
+SELECT stage, COUNT(DISTINCT user_pseudo_id) AS players FROM (
+  SELECT user_pseudo_id, 'a_started' AS stage FROM s WHERE event_name='level_start' AND level='tut_01'
+  UNION ALL SELECT user_pseudo_id, CONCAT('b_', step) FROM s WHERE event_name='tutorial_step'
+  UNION ALL SELECT user_pseudo_id, 'c_delivered' FROM s WHERE event_name='level_end' AND level='tut_01'
+  UNION ALL SELECT user_pseudo_id, CONCAT('crash_', crash_kind) FROM s
+    WHERE event_name='level_fail' AND level IN ('tut_01','tut_02','tut_03')
+) GROUP BY stage ORDER BY stage;
 ```
 
 **Purchase funnel** (taps → outcomes per product):

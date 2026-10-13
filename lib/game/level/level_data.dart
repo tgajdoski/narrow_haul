@@ -25,6 +25,7 @@ class LevelData {
     this.fields = const <FieldSpec>[],
     this.pickups = const <PickupSpec>[],
     this.cargoClamped = false,
+    this.drills = const <Pt>[],
     List<LegData>? legs,
   }) : _legs = legs;
 
@@ -55,6 +56,10 @@ class LevelData {
   final List<FieldSpec> fields;
   final List<PickupSpec> pickups;
   final bool cargoClamped;
+
+  /// Flight drill rings in order (metres; tut_01's `drill` markers): a
+  /// hover, fly-throughs, then a landing. See `DrillCourse`.
+  final List<Pt> drills;
 
   final List<LegData>? _legs;
 

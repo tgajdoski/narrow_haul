@@ -75,6 +75,8 @@ import 'package:narrow_haul/game/services/system_ui.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
+import 'package:narrow_haul/game/guidance/crash_tip.dart';
+import 'package:narrow_haul/game/guidance/flight_drills.dart';
 import 'package:narrow_haul/game/guidance/flight_guidance.dart';
 import 'package:narrow_haul/game/ship/hull_contact.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
@@ -468,6 +470,27 @@ class NarrowHaulGame extends Forge2DGame
   double _thrustUsed = 0;
   double _rotateUsed = 0;
 
+  /// tut_01's flight drills (hover, drift, set down) before the first tow.
+  /// Progress survives retries within the app session.
+  DrillCourse? _drills;
+  String? _drillLevel;
+  int _drillStart = 0;
+  bool _drillsOver = false;
+  bool _hookLogged = false;
+
+  /// Nose pointing down while heading into the rock: the HUD shows the way
+  /// back up and TOWER calls it, until a few clean deliveries in a row.
+  final NoseDownWatch _noseDown = NoseDownWatch();
+  bool _noseDownLesson = false;
+
+  /// Why the last crash happened (the crash screen's advice).
+  CrashKind? lastCrashKind;
+
+  @visibleForTesting
+  DrillView? get debugDrill => _drills?.view;
+  @visibleForTesting
+  bool get debugNoseDownWarning => _noseDown.warning;
+
   // Win sequence: confetti plays while rewards are computed, then the dialog.
   static const double _winDelay = 1.1;
   double _winTimer = 0;
@@ -852,6 +875,8 @@ class NarrowHaulGame extends Forge2DGame
     _clearLevel();
     if (_ammoOfferedLevel != currentLevelDef.saveId) _ammoOffered = false;
     _currentLevelRetried = retry;
+    lastCrashKind = null;
+    _hookLogged = false;
     _snapshots.clear();
     _snapshotTimer = 0;
     _continueUsed = false;
@@ -1220,6 +1245,10 @@ class NarrowHaulGame extends Forge2DGame
     _pauseButton?.visible = !demoMode;
     _syncRouteGuide();
     _clearGuidance();
+    _setUpDrills(data);
+    _noseDown.reset();
+    _noseDownLesson = !demoMode &&
+        ProgressService.instance.noseDownCleanFlights < kNoseDownCleanFlights;
     _scheduleComms(retry: _currentLevelRetried);
     _fuelGauge?.starMarks = [
       currentLevelDef.stars.star3Fuel,
@@ -1707,6 +1736,14 @@ class NarrowHaulGame extends Forge2DGame
     if (cause != 'meltdown' && _salvageAbsorbs()) return;
     _luckyCoins = 0; // Lucky Salvage pays only on delivery
     final wreck = ship?.body.position;
+    final tilt = ship?.tiltFromUpDeg ?? 0;
+    final kind = classifyCrash(
+      cause: cause,
+      rock: ship?.lastHitRock ?? true,
+      tiltDeg: tilt,
+      groundCos: ship?.lastHitGroundCos ?? 0,
+    );
+    lastCrashKind = kind;
     Analytics.levelFail(
       levelId: currentLevelDef.saveId,
       cause: cause,
@@ -1717,6 +1754,8 @@ class NarrowHaulGame extends Forge2DGame
       x: wreck?.x.floor() ?? 0,
       y: wreck?.y.floor() ?? 0,
       mode: _analyticsMode,
+      crashKind: kind.name,
+      tilt: tilt.round(),
     );
     crashStreak.onCrash(currentLevelDef.saveId);
     _currentLevelRetried = true;
@@ -1782,6 +1821,10 @@ class NarrowHaulGame extends Forge2DGame
           AudioService.playAttach();
           Haptics.light();
           _sayStory(BeatCue.hooked);
+          if (_tutorialHints && !_hookLogged) {
+            _hookLogged = true;
+            Analytics.tutorialStep('hooked', levelId: currentLevelDef.saveId);
+          }
         },
       )..onBeamLost = Haptics.medium;
 
@@ -1986,7 +2029,14 @@ class NarrowHaulGame extends Forge2DGame
       carriedAmmo: carriedWeaponUsedThisRun,
       mode: _analyticsMode,
       ship: ship?.spec.id ?? '',
+      noseDownWarnings: _noseDown.warnings,
     );
+    if (_noseDown.warnings == 0) {
+      final clean = ProgressService.instance.noseDownCleanFlights;
+      if (clean < kNoseDownCleanFlights) {
+        unawaited(ProgressService.instance.setNoseDownCleanFlights(clean + 1));
+      }
+    }
     final saveId = currentLevelDef.saveId;
     if (prevStars == 0 && saveId.startsWith('rating_')) {
       Analytics.shipUnlock(saveId.substring('rating_'.length), 'rating');
@@ -2415,7 +2465,10 @@ class NarrowHaulGame extends Forge2DGame
   bool get canShowRoute =>
       currentRoute != null &&
       !isChallengeMode &&
-      (crashStreak.shouldOfferFor(currentLevelDef.saveId) ||
+      (crashStreak.shouldOfferFor(
+            currentLevelDef.saveId,
+            training: currentLevelDef is TmxLevelDef,
+          ) ||
           ProgressService.instance.isRouteUnlocked(currentLevelDef.saveId));
 
   /// "Show route": unlock it for this level and retry with the guide on.
@@ -2606,6 +2659,7 @@ class NarrowHaulGame extends Forge2DGame
 
   bool get canContinue =>
       runState == RunState.gameOver &&
+      !_trainingRetryFree &&
       !_continueUsed &&
       !_crashedByMeltdown &&
       (ship?.launched ?? false) &&
@@ -2615,13 +2669,48 @@ class NarrowHaulGame extends Forge2DGame
   /// (destroyed turrets, collected fuel cells and a running meltdown stay as
   /// they were), ship at rest with a fuel top-up and turrets briefly quiet.
   /// The clock keeps running and the run is capped at 2★.
-  void continueAfterCrash() {
+  void continueAfterCrash() => _resumeAfterCrash(free: false);
+
+  /// The first Training Grounds missions: a crash rewinds for free, as often
+  /// as needed, with no star cap, so learning to fly never costs a restart.
+  static const int _freeRetryLevels = 5;
+  bool get _trainingRetryFree =>
+      !isChallengeMode &&
+      !demoMode &&
+      currentLevelDef is TmxLevelDef &&
+      levelIndex < _freeRetryLevels;
+
+  bool get canFreeContinue =>
+      runState == RunState.gameOver &&
+      _trainingRetryFree &&
+      !_crashedByMeltdown &&
+      (ship?.launched ?? false) &&
+      _pickSnapshot() != null;
+
+  /// "Try again from here" (Training): the continue rewind, free and
+  /// upright.
+  void freeContinue() => _resumeAfterCrash(free: true);
+
+  /// The crash screen's one line of advice.
+  String? get crashAdvice {
+    final k = lastCrashKind;
+    return k == null ? null : crashTip(k);
+  }
+
+  void _resumeAfterCrash({required bool free}) {
     final snap = _pickSnapshot();
     final s = ship;
     final c = cargo;
-    if (!canContinue || snap == null || s == null || c == null) return;
-    _continueUsed = true;
-    continuedThisRun = true;
+    if (!(free ? canFreeContinue : canContinue) ||
+        snap == null ||
+        s == null ||
+        c == null) {
+      return;
+    }
+    if (!free) {
+      _continueUsed = true;
+      continuedThisRun = true;
+    }
     overlays.remove(OverlayIds.gameOver);
 
     // Shells in flight would make the respawn a trap.
@@ -2630,7 +2719,9 @@ class NarrowHaulGame extends Forge2DGame
     }
     s.revive(
       position: snap.shipPos,
-      angle: snap.shipAngle,
+      // A free (Training) retry starts upright: the pilot may have rolled
+      // over just before the crash.
+      angle: free ? math.atan2(-s.localAccel.x, s.localAccel.y) : snap.shipAngle,
       fuel: math.min(s.maxFuel, snap.fuel + _continueFuelBonus * s.maxFuel),
     );
     c.body
@@ -2648,6 +2739,8 @@ class NarrowHaulGame extends Forge2DGame
     );
     _syncCombatHud();
     _snapshots.clear();
+    // A free retry can rewind to the same spot again straight away.
+    if (free) _snapshots.add(snap);
     _snapshotTimer = 0;
     _shake.clear();
     _crashTimer = 0;
@@ -2826,6 +2919,8 @@ class NarrowHaulGame extends Forge2DGame
       fuelPerShotFrac: s.spec.fuelPerShot * s.fuelDrainMultiplier / s.maxFuel,
       crate: crate,
       canisterUnseen: _pickupHint() != null,
+      drill: _drills?.view,
+      noseDown: _noseDownLesson && _noseDown.warning,
     ));
     _coach?.mark = g.coach;
     _levelInfoHud?.frameTarget = g.frameStarTarget;
@@ -2851,7 +2946,16 @@ class NarrowHaulGame extends Forge2DGame
         ..padCenter = zone == null ? null : Offset(zone.padCenter.x, zone.padCenter.y)
         ..pad = g.pad
         ..canister = g.markCanister ? _nearestCanister(s) : null
-        ..podRadius = CargoBody.radius;
+        ..podRadius = CargoBody.radius
+        ..drill = g.drill
+        ..shipAt = Offset(s.body.position.x, s.body.position.y)
+        ..noseUp = g.noseUp && s.localAccel.length2 > 1e-4
+            ? NoseUpCue(
+                nose: Offset(s.noseDir.x, s.noseDir.y),
+                up: Offset(-s.localAccel.x, -s.localAccel.y) /
+                    s.localAccel.length,
+              )
+            : null;
     }
 
     if (routeGuideOn &&
@@ -2924,6 +3028,13 @@ class NarrowHaulGame extends Forge2DGame
         !retry &&
         ProgressService.instance.getStarsById(saveId) == 0 &&
         _storyToldThisSession.add(saveId);
+    final drill = _drills?.current;
+    if (drill != null) {
+      comms.say(
+        CommsLine(id: 'drill_${_drills!.index}', callsign: 'TOWER', text: drill.tower),
+        delay: afterIntro,
+      );
+    }
     if (_starRulesStep) {
       comms.say(
         const CommsLine(
@@ -2984,6 +3095,96 @@ class NarrowHaulGame extends Forge2DGame
         delay: after + b.delay,
       );
     }
+  }
+
+  void _setUpDrills(LevelData data) {
+    final id = currentLevelDef.saveId;
+    if (_drillLevel != id) {
+      _drillLevel = id;
+      _drillStart = 0;
+      _drillsOver = false;
+    }
+    _drills = _tutorialHints && !_drillsOver && data.drills.isNotEmpty
+        ? DrillCourse(data.drills, start: _drillStart)
+        : null;
+  }
+
+  /// Advances the drill rings; hooking the pod ends them.
+  void _updateDrills(double dt, ShipBody s) {
+    final d = _drills;
+    if (d == null || d.done) return;
+    final id = currentLevelDef.saveId;
+    if (cargoAttachment?.attached ?? false) {
+      d.skip();
+      _drillsOver = true;
+      Analytics.tutorialStep('drills_skipped', levelId: id);
+      return;
+    }
+    final p = s.body.position;
+    final event = d.update(
+      dt,
+      DrillShip(
+        pos: Pt(p.x, p.y),
+        speed: s.body.linearVelocity.length,
+        tiltDeg: s.tiltFromUpDeg,
+        launched: s.launched,
+      ),
+    );
+    if (event == null) return;
+    if (event != DrillEvent.skipped) {
+      _drillStart = d.index;
+      Analytics.tutorialStep('drill_${d.index}', levelId: id);
+      AudioService.playPickup();
+      Haptics.light();
+    }
+    final next = d.current;
+    if (next != null) {
+      _comms?.say(
+        CommsLine(id: 'drill_${d.index}', callsign: 'TOWER', text: next.tower),
+        urgent: true,
+      );
+      return;
+    }
+    _drillsOver = true;
+    final skipped = event == DrillEvent.skipped;
+    Analytics.tutorialStep(skipped ? 'drills_skipped' : 'drills_done', levelId: id);
+    _comms?.say(
+      CommsLine(
+        id: 'drills_end',
+        callsign: 'TOWER',
+        text: skipped
+            ? 'Good enough for now. Go and hook the pod: hover low over it.'
+            : 'Nicely flown. Now the pod: hover low over it and the hook '
+                'catches it.',
+      ),
+      urgent: true,
+    );
+  }
+
+  /// Nose pointing down while thrusting or falling: TOWER calls it once a
+  /// flight while the lesson runs; any warning restarts the lesson.
+  void _updateNoseDown(double dt, ShipBody s) {
+    if (!s.launched) return;
+    final started = _noseDown.update(
+      dt,
+      tiltDeg: s.tiltFromUpDeg,
+      thrusting: thrustHeld,
+      downSpeed: s.downSpeed,
+    );
+    if (!started) return;
+    unawaited(ProgressService.instance.setNoseDownCleanFlights(0));
+    if (!_noseDownLesson) return;
+    Haptics.light();
+    _comms?.say(
+      const CommsLine(
+        id: 'nose_down',
+        callsign: 'TOWER',
+        text: 'Nose down! The engine pushes where the nose points. '
+            'Turn back toward up before you burn.',
+      ),
+      urgent: true,
+      expiresIn: 2,
+    );
   }
 
   void _clearGuidance() {
@@ -4329,6 +4530,10 @@ class NarrowHaulGame extends Forge2DGame
       if (_timing && s.launched) elapsedSeconds += dt;
       if (thrustHeld) _thrustUsed += dt;
       if (rotateAxis.abs() > 0.3) _rotateUsed += dt;
+      if (!demoMode) {
+        _updateDrills(dt, s);
+        _updateNoseDown(dt, s);
+      }
       if (kPerfProbe) PerfMonitor.lapStart();
       _updateGuidance(s);
       if (kPerfProbe) PerfMonitor.lap('guidance');

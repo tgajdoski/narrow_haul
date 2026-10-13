@@ -74,6 +74,9 @@ void main() {
   });
 
   group('continue after a crash', () {
+    /// tut_06: past the Training levels whose crashes rewind for free.
+    const paid = 5;
+
     /// Launches and hovers in open air for [seconds] (thrust only while
     /// sinking) so the game banks safe points.
     Future<void> hover(double seconds) => h.fly(
@@ -83,7 +86,7 @@ void main() {
 
     test('rewinds once per attempt, tops up fuel and caps the run at 2★', () async {
       final g = h.game;
-      await h.loadLevel(0);
+      await h.loadLevel(paid);
       expect(g.canContinue, isFalse, reason: 'nothing to continue yet');
       await hover(3);
       expect(g.runState, RunState.playing, reason: 'the hover must not crash');
@@ -106,14 +109,14 @@ void main() {
       expect(g.canContinue, isFalse, reason: 'once per attempt');
 
       // A new attempt can continue again and is uncapped.
-      await h.loadLevel(0);
+      await h.loadLevel(paid);
       expect(g.continuedThisRun, isFalse);
       expect(g.debugStars(1, 1), 3);
     });
 
     test('a continue hovers on 3 · 2 · 1 before flying on', () async {
       final g = h.game;
-      await h.loadLevel(0);
+      await h.loadLevel(paid);
       await hover(3);
       g.onShipShot();
       g.continueAfterCrash();
@@ -130,7 +133,7 @@ void main() {
       expect(g.runState, RunState.playing);
 
       // Input during the hold flies on at once.
-      await h.loadLevel(0);
+      await h.loadLevel(paid);
       await hover(3);
       g.onShipShot();
       g.continueAfterCrash();
@@ -140,9 +143,32 @@ void main() {
     });
 
     test('no continue for a crash on the pad before launch', () async {
-      await h.loadLevel(0);
+      await h.loadLevel(paid);
       h.game.onShipShot();
       expect(h.game.canContinue, isFalse);
+    });
+
+    test('early Training rewinds for free, upright, as often as needed', () async {
+      final g = h.game;
+      await h.loadLevel(0);
+      await hover(3);
+      g.onShipShot();
+      expect(g.canContinue, isFalse, reason: 'no ad in Training');
+      expect(g.canFreeContinue, isTrue);
+      expect(g.crashAdvice, isNotNull);
+      g.ship!.body.setTransform(g.ship!.body.position, 2.5);
+      g.freeContinue();
+      expect(g.runState, RunState.playing);
+      expect(g.continuedThisRun, isFalse, reason: 'no star cap');
+      expect(g.ship!.body.angle, closeTo(0, 1e-6), reason: 'starts upright');
+
+      // Straight into another crash: it can still rewind.
+      await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
+      g.onShipShot();
+      expect(g.canFreeContinue, isTrue);
+      g.freeContinue();
+      expect(g.runState, RunState.playing);
+      expect(g.debugStars(1, 1), 3);
     });
   });
 }

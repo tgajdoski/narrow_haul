@@ -90,6 +90,19 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// Unit vector along the nose (world).
   Vector2 get noseDir => body.worldVector(Vector2(0, -1));
 
+  /// Degrees between the nose and local up (0 upright, 180 upside down);
+  /// 0 in zero-g, where nothing is down.
+  double get tiltFromUpDeg {
+    if (localAccel.length2 <= 1e-4) return 0;
+    final up = -(localAccel.normalized());
+    return math.acos(noseDir.dot(up).clamp(-1.0, 1.0)) * 180 / math.pi;
+  }
+
+  /// Speed along local down (m/s; negative while climbing).
+  double get downSpeed => localAccel.length2 <= 1e-4
+      ? 0
+      : body.linearVelocity.dot(localAccel.normalized());
+
   /// Where shells leave the nose (world).
   Vector2 get muzzleWorld => body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
 
@@ -522,6 +535,12 @@ class ShipBody extends BodyComponent with ContactCallbacks {
 
   final WorldManifold _manifold = WorldManifold();
 
+  /// The fatal hit, read by the crash screen's advice: forgiving rock (or
+  /// machinery), and how level the rock was (cosine of its normal to local
+  /// up: 1 floor, −1 ceiling).
+  bool lastHitRock = true;
+  double lastHitGroundCos = 0;
+
   /// Rock is forgiving: slow touches scrape or land ([classifyHullContact]),
   /// fast ones crash. Runs before the solver, so the velocity is the one
   /// the ship hit with.
@@ -551,6 +570,8 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       groundCos: normal.dot(up),
     );
     if (kind == HullContact.crash) {
+      lastHitRock = true;
+      lastHitGroundCos = normal.dot(up);
       onWallHit();
     } else {
       onRockTouch?.call(point, normal, kind);
@@ -602,6 +623,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     if (other is RockTag) {
       _onRockContact(contact);
     } else if (other is WallTag) {
+      lastHitRock = false;
       onWallHit();
     }
     if (other is CargoTag) {

@@ -9,8 +9,9 @@ import 'package:narrow_haul/game/physics_constants.dart';
 import 'package:tiled/tiled.dart';
 
 /// Loads [LevelData] from a Tiled `.tmx` with `walls`, `markers` (ship, goal,
-/// cargo_zone, and optional `fuel` canisters — float property `amount`,
-/// default 25 units).
+/// cargo_zone, optional `fuel` canisters — float property `amount`,
+/// default 25 units — and optional `drill` points, ordered by int property
+/// `order`).
 /// Cargo position is randomized inside `cargo_zone` each load.
 Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) async {
   final xml = await rootBundle.loadString(assetPath);
@@ -19,6 +20,7 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
   const ppm = pixelsPerMeter;
   final walls = <WallRect>[];
   final pickups = <PickupSpec>[];
+  final drills = <(int, Pt)>[];
   Vector2? ship;
   double? goalX;
   double? goalY;
@@ -60,6 +62,9 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
         } else if (name == 'fuel') {
           final amount = obj.properties.getValue<double>('amount') ?? 25;
           pickups.add(FuelCellSpec(Pt(cx, cy), amount: amount));
+        } else if (name == 'drill') {
+          final order = obj.properties.getValue<int>('order') ?? drills.length;
+          drills.add((order, Pt(cx, cy)));
         } else if (name == 'cargo_zone' && obj.width > 0 && obj.height > 0) {
           czLeft = obj.x / ppm;
           czTop = obj.y / ppm;
@@ -117,5 +122,6 @@ Future<LevelData> loadLevelFromTmx(String assetPath, {required int levelIndex}) 
     cargoZoneCenter: cargoZoneCenter,
     cargoZoneSize: cargoZoneSize,
     pickups: pickups,
+    drills: [for (final d in drills..sort((a, b) => a.$1.compareTo(b.$1))) d.$2],
   );
 }

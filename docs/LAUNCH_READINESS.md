@@ -93,6 +93,8 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
    - Mission briefing on LAUNCH: does the extra tap feel slow? Does the mission's ship on its small stand (wide phones only, never on a Test Flight day) look right?
    - Countdown 3·2·1·GO.
    - tut_01–03 coach marks.
+   - Hand a fresh install to someone who has never seen the game (profile build). Watch silently: do the tut_01 drill rings (hold, fly here, set down) teach the hover? Does anyone get stuck on a ring until it times out (25 s)?
+   - Roll the ship nose-down on purpose: does the NOSE UP arrow and TOWER's call come in time? Crash on tut_01–05: is *Try again* (free rewind) the obvious button, and does the advice line match what happened?
 2. **Guidance HUD:**
    - Does the comms plate ever cover the pod at the bottom of a cave?
    - Are the callouts too chatty? Fly a bought ship on two missions in a row: OPS introduces it (and the briefing shows *new*) on the first only. Replaying a cleared mission tells no story; lines are separated by a short pause.

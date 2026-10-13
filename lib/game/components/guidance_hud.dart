@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 import 'package:narrow_haul/game/components/hud_text.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
+import 'package:narrow_haul/game/guidance/flight_drills.dart';
 import 'package:narrow_haul/game/guidance/flight_guidance.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
@@ -15,8 +16,9 @@ import 'package:narrow_haul/game/ship/weapons.dart';
 ///   dial, FIRE) with a callout plate beside it. It collapses into the
 ///   control with a tick once the pilot has used it.
 /// * [WorldMarkerHud]: target brackets on turrets, the pod's HOOK / LOWER
-///   tag, the pad beacon with its ship + pod slots, a canister ring, and
-///   edge chevrons for whatever is off-screen.
+///   tag, the pad beacon with its ship + pod slots, a canister ring, the
+///   flight drill ring, the nose-up cue on the ship, and edge chevrons for
+///   whatever is off-screen.
 /// * [CommsHud]: the radio line (TOWER / OPS) in the free band between the
 ///   thumbs, typed on and gone after its reading time.
 
@@ -448,6 +450,14 @@ class _FlyIn {
 // World markers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The nose-down warning on the ship: unit vectors (world = screen axes)
+/// along the nose and along local up.
+class NoseUpCue {
+  const NoseUpCue({required this.nose, required this.up});
+  final Offset nose;
+  final Offset up;
+}
+
 /// Markers on things in the world, drawn in screen space over the world and
 /// under the controls. The game sets the world positions and the projection
 /// every frame.
@@ -471,8 +481,16 @@ class WorldMarkerHud extends PositionComponent {
 
   Offset? canister;
 
+  /// The flight drill ring to fly to.
+  DrillView? drill;
+
+  /// The ship (world m), for [noseUp].
+  Offset? shipAt;
+  NoseUpCue? noseUp;
+
   double _t = 0;
   double _turretIn = 0;
+  double _noseUpIn = 0;
 
   final _tags = <String, HudText>{};
 
@@ -489,7 +507,10 @@ class WorldMarkerHud extends PositionComponent {
     padCenter = null;
     pad = null;
     canister = null;
+    drill = null;
+    noseUp = null;
     _turretIn = 0;
+    _noseUpIn = 0;
   }
 
   @override
@@ -497,6 +518,7 @@ class WorldMarkerHud extends PositionComponent {
     super.update(dt);
     _t += dt;
     _turretIn = (_turretIn + (turrets.isEmpty ? -dt : dt) * 3).clamp(0.0, 1.0);
+    _noseUpIn = (_noseUpIn + (noseUp == null ? -dt : dt) * 6).clamp(0.0, 1.0);
   }
 
   TextPainter _tag(String key, String text, Color color, {double size = 9}) =>
@@ -558,6 +580,24 @@ class WorldMarkerHud extends PositionComponent {
       }
     }
 
+    // Flight drill ring.
+    final d = drill;
+    if (d != null) {
+      final p = proj(Offset(d.center.x, d.center.y));
+      if (safe.inflate(d.radius * zoom).contains(p)) {
+        _drillRing(canvas, p, d);
+      } else {
+        _chevron(canvas, p, HudColors.gold, d.label.split(' ').first);
+      }
+    }
+
+    // Nose-down: an arrow round the ship turning the nose back to up.
+    final cue = noseUp;
+    final at = shipAt;
+    if (cue != null && at != null && _noseUpIn > 0) {
+      _noseUpArrow(canvas, proj(at), cue);
+    }
+
     // Pod.
     final podAt = pod;
     final tag = podTag;
@@ -586,6 +626,86 @@ class WorldMarkerHud extends PositionComponent {
         _chevron(canvas, p, _green, 'PAD');
       }
     }
+  }
+
+  void _drillRing(Canvas canvas, Offset c, DrillView d) {
+    final r = d.radius * zoom;
+    final color = d.inside ? _green : HudColors.gold;
+    final breathe = d.inside ? 0.0 : 0.04 * math.sin(_t * 3);
+    final rect = Rect.fromCircle(center: c, radius: r * (1 + breathe));
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()..color = color.withValues(alpha: d.inside ? 0.14 : 0.07),
+    );
+    _dashedRing(canvas, c, r * (1 + breathe), color.withValues(alpha: 0.85));
+    if (d.progress > 0) {
+      canvas.drawArc(
+        rect.inflate(4),
+        -math.pi / 2,
+        2 * math.pi * d.progress,
+        false,
+        Paint()
+          ..color = _green
+          ..strokeWidth = 4
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    if (d.kind == DrillKind.land) {
+      // Down arrows: settle here.
+      final arrow = Paint()..color = color.withValues(alpha: 0.8);
+      for (var k = 0; k < 2; k++) {
+        final y = c.dy - r * 0.35 + k * 9 + 3 * math.sin(_t * 4);
+        canvas.drawPath(
+          Path()
+            ..moveTo(c.dx - 7, y)
+            ..lineTo(c.dx + 7, y)
+            ..lineTo(c.dx, y + 7)
+            ..close(),
+          arrow,
+        );
+      }
+    }
+    final tp = _tag('drill_${d.label}', '${d.number}/${d.count}  ${d.label}', color);
+    tp.paint(canvas, c + Offset(-tp.width / 2, -r - tp.height - 8));
+  }
+
+  void _noseUpArrow(Canvas canvas, Offset c, NoseUpCue cue) {
+    final a = Curves.easeOutCubic.transform(_noseUpIn);
+    final pulse = 0.5 + 0.5 * math.sin(_t * 10);
+    final color = Color.lerp(_amber, HudColors.fire, pulse)!.withValues(alpha: a);
+    final r = math.max(34.0, 1.7 * zoom);
+    final from = math.atan2(cue.nose.dy, cue.nose.dx);
+    final to = math.atan2(cue.up.dy, cue.up.dx);
+    var sweep = to - from;
+    while (sweep > math.pi) {
+      sweep -= 2 * math.pi;
+    }
+    while (sweep < -math.pi) {
+      sweep += 2 * math.pi;
+    }
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: c, radius: r), from, sweep, false, paint);
+    // Arrowhead at "up", pointing along the turn.
+    final tip = c + Offset(math.cos(to), math.sin(to)) * r;
+    final along = Offset(-math.sin(to), math.cos(to)) * sweep.sign;
+    final out = Offset(math.cos(to), math.sin(to));
+    canvas.drawPath(
+      Path()
+        ..moveTo(tip.dx + along.dx * 9, tip.dy + along.dy * 9)
+        ..lineTo(tip.dx - along.dx * 3 + out.dx * 7, tip.dy - along.dy * 3 + out.dy * 7)
+        ..lineTo(tip.dx - along.dx * 3 - out.dx * 7, tip.dy - along.dy * 3 - out.dy * 7)
+        ..close(),
+      Paint()..color = color,
+    );
+    final tp = _tag('nose_up', 'NOSE UP', color, size: 10);
+    final labelAt = c + out * (r + 16);
+    tp.paint(canvas, labelAt - Offset(tp.width / 2, tp.height / 2));
   }
 
   void _brackets(Canvas canvas, Offset c, double half, Color color) {
