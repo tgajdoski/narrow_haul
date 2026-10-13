@@ -469,6 +469,10 @@ class NarrowHaulGame extends Forge2DGame
   /// Seconds until the ship launches by itself (null: waits for input, as on
   /// the onboarding levels and in demos). Any input launches it sooner.
   double? _countdown;
+
+  /// The countdown reached GO: the clock runs, but the ship keeps hovering
+  /// until the first input (a player still reading never drops into rock).
+  bool _countdownDone = false;
   static const double _countdownSeconds = 4.0;
   CoachMarkHud? _coach;
   WorldMarkerHud? _markers;
@@ -947,6 +951,7 @@ class NarrowHaulGame extends Forge2DGame
     if (!retry && !demoMode) AudioService.playStartLevel();
     if (!demoMode) _logLevelStart();
     _countdown = (demoMode || _tutorialHints) ? null : _countdownSeconds;
+    _countdownDone = false;
     _startCloseUp(retry: retry);
     _countdownHud
       ?..text = null
@@ -1858,7 +1863,9 @@ class NarrowHaulGame extends Forge2DGame
     _legFuelLeft.add(s.fuel / _shipMaxFuel);
 
     cargoAttachment?.removeFromParent();
-    delivered.lock();
+    // A pad counts on touch, so the pod may still be swinging over its edge:
+    // the crew sets it down on the deck (where a resume parks it too).
+    delivered.lock(at: landed.parkedPod);
     _landingZone?.removeFromParent();
 
     _recorder?.leg();
@@ -1910,7 +1917,7 @@ class NarrowHaulGame extends Forge2DGame
     final data = currentLevel, s = ship;
     if (data == null || s == null) return;
     cargoAttachment?.removeFromParent();
-    cargo?.lock();
+    cargo?.lock(at: data.legs[legIndex].parkedPod);
     legIndex++;
     final pod = _pods[legIndex];
     final link = _towFor(s, pod, data)..scriptedTow = () => _demoTowing;
@@ -2578,7 +2585,11 @@ class NarrowHaulGame extends Forge2DGame
     s.drivePose(Vector2(pose.x, pose.y), pose.angle,
         thrust: pose.thrust,
         velocity: dt > 0 ? Vector2((next.x - pose.x) / dt, (next.y - pose.y) / dt) : null);
-    cargo?.drivePosition(Vector2(pose.cx, pose.cy));
+    // The sample after a pad handover already holds the next pod, so stop
+    // the delivered pod one sample short: it stays on its pad.
+    final handover = legIndex < route.legT.length ? route.legT[legIndex] - FlightRecorder.sampleEvery : null;
+    final podPose = handover != null && _demoT > handover ? route.poseAt(handover) : pose;
+    cargo?.drivePosition(Vector2(podPose.cx, podPose.cy));
     _demoTowing = pose.towing;
     while (_demoShot < route.shots.length && route.shots[_demoShot] <= _demoT) {
       final k = _demoShot++;
@@ -2776,6 +2787,7 @@ class NarrowHaulGame extends Forge2DGame
       _podHeldForResume = c;
     }
     _countdown = _resumeCountdownSeconds;
+    _countdownDone = false;
     resumeEngine();
   }
 
@@ -4428,11 +4440,16 @@ class NarrowHaulGame extends Forge2DGame
     combatCargo?.setAwake(true);
   }
 
-  /// 3 · 2 · 1 · GO, then the ship launches by itself. Input during the
-  /// countdown launches it at once and clears the numbers.
+  /// 3 · 2 · 1 · GO, then the clock runs while the ship hovers on until the
+  /// first input. Input during the countdown launches it at once and clears
+  /// the numbers.
   void _updateCountdown(double dt, ShipBody s) {
     final left = _countdown;
-    if (left == null) return;
+    if (left == null) {
+      // After GO: the first input releases a pod held for a resume.
+      if (s.launched) _endResumeHold();
+      return;
+    }
     if (s.launched) {
       _countdown = null;
       _countdownHud?.text = null;
@@ -4443,8 +4460,7 @@ class NarrowHaulGame extends Forge2DGame
     _countdown = now;
     if (now <= 0) {
       _countdown = null;
-      s.launch();
-      _endResumeHold();
+      _countdownDone = true;
       _countdownHud?.go();
       AudioService.playCountdown(go: true);
       return;
@@ -4606,8 +4622,9 @@ class NarrowHaulGame extends Forge2DGame
       _followCamera(s, wonWorld, dt);
     }
     if (s != null && runState == RunState.playing) {
-      // The clock starts with the first input (the ship waits on its pad).
-      if (_timing && s.launched) elapsedSeconds += dt;
+      // The clock starts with the first input or at GO, whichever is first
+      // (the ship waits on its pad either way).
+      if (_timing && (s.launched || _countdownDone)) elapsedSeconds += dt;
       if (thrustHeld) _thrustUsed += dt;
       if (rotateAxis.abs() > 0.3) _rotateUsed += dt;
       if (!demoMode) {
@@ -4667,6 +4684,7 @@ class NarrowHaulGame extends Forge2DGame
       _fuelGauge?.fuelFraction = s.fuel / s.maxFuel;
       _fuelGauge?.towing = tow;
       s.localAccel.setFrom(_forces?.shipAccel ?? world.gravity);
+      s.localGravity.setFrom(_forces?.shipGravity ?? world.gravity);
       _gravityHud?.accelG
         ?..setFrom(s.localAccel)
         ..scale(salvage.gravityMul / baseGravityY());

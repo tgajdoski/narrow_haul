@@ -132,6 +132,10 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// "down" that passive assists level against.
   final Vector2 localAccel = Vector2(0, 1);
 
+  /// Gravity alone at the ship (no wind or wells): what the hover assist
+  /// cancels, so the Vector still feels every push.
+  final Vector2 localGravity = Vector2(0, 1);
+
   /// Auto-level gain (1/s) and max correction as a fraction of turn rate.
   static const double _levelGain = 2.5;
   static const double _levelMaxRate = 0.7;
@@ -527,8 +531,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         ..scale(spec.thrustForce * salvageThrustMul);
       body.applyForce(dir);
       if (spec.hoverAssist) {
-        // Fly-by-wire: cancel most of the local pull while the engine burns.
-        body.applyForce(localAccel * (-hoverAssistFraction * body.mass));
+        // Fly-by-wire: cancel most of the gravity while the engine burns.
+        // Wind and wells still push at full strength.
+        body.applyForce(localGravity * (-hoverAssistFraction * body.mass));
       }
     }
   }

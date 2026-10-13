@@ -65,6 +65,28 @@ void main() {
       }
     });
 
+    test('gravity alone (the hover assist) leaves out wind and wells', () {
+      const s = FieldSampler(
+        fields: [
+          GravityZoneSpec(Pt(0, 0), halfW: 2, halfH: 2, gx: 0, gy: 0, feather: 0.5),
+          WindZoneSpec(Pt(10, 0), halfW: 3, halfH: 3, ax: 0.55, ay: 0),
+          GravityWellSpec(Pt(10, -2.5), strength: 8, coreRadius: 0.9, maxG: 1.8),
+        ],
+        g0: g0,
+        gravityMul: 0.8,
+      );
+      // In the wind and under the well: the pushes are there in full...
+      final all = s.accelAt(10, 0);
+      expect(all.x, closeTo(0.55 * g0, 1e-9));
+      expect(all.y, lessThan(0.8 * g0 - 0.5 * g0)); // the well pulls up hard
+      // ...but gravity alone is just the level's 0.8 g.
+      final g = s.gravityAt(10, 0);
+      expect(g.x, 0);
+      expect(g.y, closeTo(0.8 * g0, 1e-9));
+      // A zero-g pocket is gravity: nothing to cancel inside it.
+      expect(s.gravityAt(0, 0).y, closeTo(0, 1e-9));
+    });
+
     test('gravity zone replaces gravity inside and blends continuously', () {
       const s = FieldSampler(
         fields: [

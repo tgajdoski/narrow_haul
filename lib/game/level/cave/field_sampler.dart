@@ -29,7 +29,14 @@ class FieldSampler {
 
   /// Acceleration at ([x], [y]) at time [t] seconds. [cargo] applies each
   /// wind zone's `cargoFactor`.
-  Pt accelAt(double x, double y, {double t = 0, bool cargo = false}) {
+  Pt accelAt(double x, double y, {double t = 0, bool cargo = false}) =>
+      _accel(x, y, t: t, cargo: cargo, pushes: true);
+
+  /// Gravity alone at ([x], [y]): the level's base and any gravity zone,
+  /// without wind or wells (the Vector's hover assist cancels only this).
+  Pt gravityAt(double x, double y) => _accel(x, y, pushes: false);
+
+  Pt _accel(double x, double y, {double t = 0, bool cargo = false, required bool pushes}) {
     var ax = 0.0;
     var ay = g0 * gravityMul;
     for (final f in fields) {
@@ -40,7 +47,7 @@ class FieldSampler {
             ax += (f.gx * g0 - ax) * w;
             ay += (f.gy * g0 - ay) * w;
           }
-        case WindZoneSpec():
+        case WindZoneSpec() when pushes:
           var w = _weight(f.shape, f.center, f.halfW, f.halfH, f.feather, x, y);
           if (w > 0) {
             if (f.gustAmp != 0 && f.gustPeriod > 0) {
@@ -50,7 +57,7 @@ class FieldSampler {
             ax += f.ax * g0 * w;
             ay += f.ay * g0 * w;
           }
-        case GravityWellSpec():
+        case GravityWellSpec() when pushes:
           final dx = f.center.x - x;
           final dy = f.center.y - y;
           final r = math.sqrt(dx * dx + dy * dy);
@@ -60,6 +67,8 @@ class FieldSampler {
             ax += dx / r * g;
             ay += dy / r * g;
           }
+        case WindZoneSpec() || GravityWellSpec():
+          break; // gravity only
       }
     }
     return Pt(ax, ay);

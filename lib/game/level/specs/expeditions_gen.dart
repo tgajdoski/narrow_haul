@@ -115,7 +115,7 @@ final List<LevelDef> generatedExpeditions = [
     ),
   ),
   // exp_02 · generated from seed 1201 (attempt 0): crosswind pendulum | updraft squeeze | block crosswind
-  // route ~128 m, burn per leg 28% / 28% / 28%
+  // route ~128 m, burn per leg 28% / 27% / 28%
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.25, star3Time: 130.0),
     spec: LevelSpec.expedition(
@@ -203,9 +203,9 @@ final List<LevelDef> generatedExpeditions = [
           Pt(19.0, 9.4),
           halfW: 3.0,
           halfH: 2.2,
-          ax: 0.22,
+          ax: 0.55,
           ay: 0.0,
-          gustAmp: 0.5,
+          gustAmp: 0.45,
           gustPeriod: 3.5,
         ),
         WindZoneSpec(
@@ -213,7 +213,7 @@ final List<LevelDef> generatedExpeditions = [
           halfW: 2.5,
           halfH: 2.5,
           ax: 0.0,
-          ay: -0.25,
+          ay: -0.55,
           gustAmp: 0.4,
           gustPeriod: 4.0,
         ),
@@ -221,9 +221,9 @@ final List<LevelDef> generatedExpeditions = [
           Pt(117.2, 8.6),
           halfW: 3.0,
           halfH: 2.2,
-          ax: 0.22,
+          ax: 0.55,
           ay: 0.0,
-          gustAmp: 0.5,
+          gustAmp: 0.45,
           gustPeriod: 3.5,
         ),
       ],
@@ -236,7 +236,7 @@ final List<LevelDef> generatedExpeditions = [
     ),
   ),
   // exp_03 · generated from seed 1301 (attempt 0): updraft bar | block climb | pendulum updraft | bar canister block
-  // route ~176 m, burn per leg 21% / 24% / 21% / 8%
+  // route ~176 m, burn per leg 21% / 24% / 20% / 8%
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.65, star2Fuel: 0.35, star3Time: 180.0),
     spec: LevelSpec.expedition(
@@ -346,7 +346,7 @@ final List<LevelDef> generatedExpeditions = [
           halfW: 2.5,
           halfH: 2.5,
           ax: 0.0,
-          ay: -0.25,
+          ay: -0.55,
           gustAmp: 0.4,
           gustPeriod: 4.0,
         ),
@@ -355,7 +355,7 @@ final List<LevelDef> generatedExpeditions = [
           halfW: 2.5,
           halfH: 2.5,
           ax: 0.0,
-          ay: -0.25,
+          ay: -0.55,
           gustAmp: 0.4,
           gustPeriod: 4.0,
         ),
@@ -371,7 +371,7 @@ final List<LevelDef> generatedExpeditions = [
     ),
   ),
   // exp_04 · generated from seed 1401 (attempt 0): zeroG well | crosswind zeroG | well squeeze | zeroG well
-  // route ~168 m, burn per leg 23% / 21% / 24% / 22%
+  // route ~168 m, burn per leg 22% / 21% / 24% / 21%
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.65, star2Fuel: 0.35, star3Time: 170.0),
     spec: LevelSpec.expedition(
@@ -440,36 +440,36 @@ final List<LevelDef> generatedExpeditions = [
         ChamberSpec(Pt(6.0, 13.7), 2.6, 2.6),
         ChamberSpec(Pt(19.0, 14.2), 3.6, 2.6),
         ChamberSpec(Pt(24.1, 19.9), 1.8, 1.8),
-        ChamberSpec(Pt(35.5, 14.2), 3.6, 2.6),
+        ChamberSpec(Pt(35.5, 14.2), 4.0, 3.4),
         ChamberSpec(Pt(45.0, 15.1), 3.0, 2.4),
         ChamberSpec(Pt(58.6, 15.4), 3.6, 2.6),
         ChamberSpec(Pt(64.4, 21.1), 1.8, 1.8),
         ChamberSpec(Pt(74.5, 15.4), 3.6, 2.6),
         ChamberSpec(Pt(82.1, 14.4), 3.0, 2.4),
-        ChamberSpec(Pt(94.7, 15.0), 3.6, 2.6),
+        ChamberSpec(Pt(94.7, 15.0), 4.0, 3.4),
         ChamberSpec(Pt(101.1, 19.8), 1.8, 1.8),
         ChamberSpec(Pt(125.1, 15.3), 3.0, 2.4),
         ChamberSpec(Pt(138.3, 16.1), 3.6, 2.6),
         ChamberSpec(Pt(143.8, 21.2), 1.8, 1.8),
-        ChamberSpec(Pt(154.8, 16.1), 3.6, 2.6),
+        ChamberSpec(Pt(154.8, 16.1), 4.0, 3.4),
         ChamberSpec(Pt(163.7, 15.7), 3.0, 2.4),
       ],
       fields: const [
         GravityZoneSpec(Pt(19.0, 14.2), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
-        GravityWellSpec(Pt(35.5, 10.4), strength: 2.5, coreRadius: 1.0, maxG: 1.4),
+        GravityWellSpec(Pt(35.5, 11.7), strength: 8.0, coreRadius: 0.9, maxG: 1.8),
         WindZoneSpec(
           Pt(58.6, 15.4),
           halfW: 3.0,
           halfH: 2.2,
-          ax: -0.22,
+          ax: -0.55,
           ay: 0.0,
-          gustAmp: 0.5,
+          gustAmp: 0.45,
           gustPeriod: 3.5,
         ),
         GravityZoneSpec(Pt(74.5, 15.4), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
-        GravityWellSpec(Pt(94.7, 11.2), strength: 2.5, coreRadius: 1.0, maxG: 1.4),
+        GravityWellSpec(Pt(94.7, 12.5), strength: 8.0, coreRadius: 0.9, maxG: 1.8),
         GravityZoneSpec(Pt(138.3, 16.1), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
-        GravityWellSpec(Pt(154.8, 12.3), strength: 2.5, coreRadius: 1.0, maxG: 1.4),
+        GravityWellSpec(Pt(154.8, 13.6), strength: 8.0, coreRadius: 0.9, maxG: 1.8),
       ],
       shipSpawn: const Pt(6.0, 13.7),
       legs: const [
@@ -563,7 +563,7 @@ final List<LevelDef> generatedExpeditions = [
     ),
   ),
   // exp_06 · generated from seed 1601 (attempt 0): zeroG squeeze | updraft drop | crosswind climb | squeeze zeroG
-  // route ~179 m, burn per leg 32% / 31% / 32% / 31%
+  // route ~179 m, burn per leg 32% / 30% / 33% / 31%
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.5, star2Fuel: 0.2, star3Time: 180.0),
     spec: LevelSpec.expedition(
@@ -654,7 +654,7 @@ final List<LevelDef> generatedExpeditions = [
           halfW: 2.5,
           halfH: 2.5,
           ax: 0.0,
-          ay: -0.25,
+          ay: -0.55,
           gustAmp: 0.4,
           gustPeriod: 4.0,
         ),
@@ -662,9 +662,9 @@ final List<LevelDef> generatedExpeditions = [
           Pt(100.5, 15.9),
           halfW: 3.0,
           halfH: 2.2,
-          ax: 0.22,
+          ax: 0.55,
           ay: 0.0,
-          gustAmp: 0.5,
+          gustAmp: 0.45,
           gustPeriod: 3.5,
         ),
         GravityZoneSpec(Pt(162.7, 12.3), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
@@ -679,7 +679,7 @@ final List<LevelDef> generatedExpeditions = [
     ),
   ),
   // exp_07 · generated from seed 1701 (attempt 0): well zeroG | crosswind block | zeroG squeeze | well pendulum | updraft plain bar
-  // route ~218 m, burn per leg 26% / 28% / 27% / 27% / 30%
+  // route ~218 m, burn per leg 25% / 28% / 27% / 26% / 29%
   CaveLevelDef(
     stars: const StarSpec(star3Fuel: 0.55, star2Fuel: 0.25, star3Time: 220.0),
     spec: LevelSpec.expedition(
@@ -759,7 +759,7 @@ final List<LevelDef> generatedExpeditions = [
       ],
       chambers: const [
         ChamberSpec(Pt(6.0, 10.5), 2.6, 2.6),
-        ChamberSpec(Pt(19.9, 10.4), 3.6, 2.6),
+        ChamberSpec(Pt(19.9, 10.4), 4.0, 3.4),
         ChamberSpec(Pt(25.4, 16.7), 1.8, 1.8),
         ChamberSpec(Pt(37.1, 10.4), 3.6, 2.6),
         ChamberSpec(Pt(45.0, 9.8), 3.0, 2.4),
@@ -770,7 +770,7 @@ final List<LevelDef> generatedExpeditions = [
         ChamberSpec(Pt(97.9, 10.5), 3.6, 2.6),
         ChamberSpec(Pt(103.9, 15.1), 1.8, 1.8),
         ChamberSpec(Pt(126.2, 9.7), 3.0, 2.4),
-        ChamberSpec(Pt(139.6, 9.2), 3.6, 2.6),
+        ChamberSpec(Pt(139.6, 9.2), 4.0, 3.4),
         ChamberSpec(Pt(146.1, 14.7), 1.8, 1.8),
         ChamberSpec(Pt(157.5, 9.2), 3.4, 3.2),
         ChamberSpec(Pt(165.8, 8.6), 3.0, 2.4),
@@ -792,25 +792,25 @@ final List<LevelDef> generatedExpeditions = [
         RotatingBarSpec(Pt(201.5, 8.6), halfLength: 1.6, radPerSec: 1.0),
       ],
       fields: const [
-        GravityWellSpec(Pt(19.9, 6.6), strength: 2.5, coreRadius: 1.0, maxG: 1.4),
+        GravityWellSpec(Pt(19.9, 7.9), strength: 8.0, coreRadius: 0.9, maxG: 1.8),
         GravityZoneSpec(Pt(37.1, 10.4), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
         WindZoneSpec(
           Pt(59.0, 10.3),
           halfW: 3.0,
           halfH: 2.2,
-          ax: 0.22,
+          ax: 0.55,
           ay: 0.0,
-          gustAmp: 0.5,
+          gustAmp: 0.45,
           gustPeriod: 3.5,
         ),
         GravityZoneSpec(Pt(97.9, 10.5), halfW: 3.0, halfH: 2.0, gx: 0.0, gy: 0.0, feather: 1.2),
-        GravityWellSpec(Pt(139.6, 5.4), strength: 2.5, coreRadius: 1.0, maxG: 1.4),
+        GravityWellSpec(Pt(139.6, 6.7), strength: 8.0, coreRadius: 0.9, maxG: 1.8),
         WindZoneSpec(
           Pt(177.8, 7.6),
           halfW: 2.5,
           halfH: 2.5,
           ax: 0.0,
-          ay: -0.25,
+          ay: -0.55,
           gustAmp: 0.4,
           gustPeriod: 4.0,
         ),

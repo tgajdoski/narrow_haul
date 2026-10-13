@@ -41,11 +41,12 @@ class CargoBody extends BodyComponent {
 
   /// Parks a delivered Expedition pod on its staging pad: held still
   /// (kinematic) so a take-off can't knock it off.
-  void lock() {
+  void lock({Vector2? at}) {
     body
       ..setType(BodyType.kinematic)
       ..linearVelocity.setZero()
       ..angularVelocity = 0;
+    if (at != null) body.setTransform(at, 0);
   }
 
   /// Demo flight: placed along a recorded route each frame.

@@ -306,17 +306,20 @@ class _Builder {
       case Room.zeroG:
         final c = _chamber(3.6, 2.6);
         fields.add(GravityZoneSpec(c, halfW: 3, halfH: 2, gx: 0, gy: 0, feather: 1.2));
+      // Winds you have to lean into: gusts peak near the validator's 1 g cap.
       case Room.updraft:
         final c = _chamber(3.0, 2.8);
         fields.add(WindZoneSpec(c,
-            halfW: 2.5, halfH: 2.5, ax: 0, ay: -0.25, gustAmp: 0.4, gustPeriod: 4));
+            halfW: 2.5, halfH: 2.5, ax: 0, ay: -0.55, gustAmp: 0.4, gustPeriod: 4));
       case Room.crosswind:
         final c = _chamber(3.6, 2.6);
         fields.add(WindZoneSpec(c,
-            halfW: 3, halfH: 2.2, ax: rng.nextBool() ? 0.22 : -0.22, ay: 0, gustAmp: 0.5, gustPeriod: 3.5));
+            halfW: 3, halfH: 2.2, ax: rng.nextBool() ? 0.55 : -0.55, ay: 0, gustAmp: 0.45, gustPeriod: 3.5));
       case Room.well:
-        final c = _chamber(3.6, 2.6);
-        fields.add(GravityWellSpec(Pt(c.x, q(c.y - 3.8)), strength: 2.5, coreRadius: 1.0, maxG: 1.4));
+        // The core hangs in the chamber, 2.5 m above the line the route
+        // takes, so the haul passes through ~0.6 g of pull.
+        final c = _chamber(4.0, 3.4);
+        fields.add(GravityWellSpec(Pt(c.x, q(c.y - 2.5)), strength: 8, coreRadius: 0.9, maxG: 1.8));
       case Room.turret:
         final c = _chamber(3.6, 2.8);
         obstacles.add(TurretSpec(Pt(c.x, q(c.y - 2.75)),

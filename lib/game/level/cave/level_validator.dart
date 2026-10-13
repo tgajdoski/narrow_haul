@@ -31,6 +31,18 @@ List<FlightReport?> analyzeLegs(LevelSpec spec, {ShipSpec ship = kKestrel}) => [
         analyzeFlight(spec.isExpedition ? spec.forLeg(k) : spec, ship: ship),
     ];
 
+/// Where a pod dropped at [at] comes to rest: the centre height of the pod
+/// on the first rock (or well core) within 4.5 m straight below, else null.
+double? podRestY(LevelSpec spec, Pt at) {
+  final cave = buildCave(spec);
+  for (double y = at.y; y < at.y + 4.5; y += 0.05) {
+    if (math.max(cave.fieldAt(at.x, y), wellCoreField(spec, at.x, y)) >= 0) {
+      return y - kCargoRadius;
+    }
+  }
+  return null;
+}
+
 List<String> _validateHaul(LevelSpec spec, ShipSpec ship) {
   final issues = <String>[];
   final cave = buildCave(spec);
@@ -148,10 +160,7 @@ List<String> _validateHaul(LevelSpec spec, ShipSpec ship) {
   // 3. Cargo must come to rest close below its spawn, and the rest point
   //    must be approachable (auto-attach needs the ship within ~1.2 m).
   //    A locked pod (cargoClamped) stays exactly at its spawn.
-  double? restY = spec.cargoClamped ? spec.cargoSpawn.y : null;
-  for (double y = spec.cargoSpawn.y; restY == null && y < spec.cargoSpawn.y + 4.5; y += 0.05) {
-    if (f(spec.cargoSpawn.x, y) >= 0) restY = y - kCargoRadius;
-  }
+  final restY = spec.cargoClamped ? spec.cargoSpawn.y : podRestY(spec, spec.cargoSpawn);
   if (restY == null) {
     issues.add('cargo has no floor within 4.5 m below spawn');
   } else if (reached != null &&

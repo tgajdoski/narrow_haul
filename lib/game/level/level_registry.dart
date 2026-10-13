@@ -247,7 +247,10 @@ LevelData buildCaveLevelData(CaveLevelDef def) {
   final legs = [
     for (final (k, l) in spec.allLegs.indexed)
       LegData(
-        cargoSpawn: v(l.cargoSpawn),
+        // A waiting pod sits on its bowl floor (a field pod stays put).
+        cargoSpawn: k == 0 || l.cargoClamped
+            ? v(l.cargoSpawn)
+            : Vector2(l.cargoSpawn.x, (podRestY(spec, l.cargoSpawn) ?? l.cargoSpawn.y) - 0.02),
         goalCenter: v(l.goal.center),
         goalHalfWidth: l.goal.halfW,
         goalHalfHeight: l.goal.halfH,

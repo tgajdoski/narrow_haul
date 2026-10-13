@@ -126,7 +126,9 @@ class LevelSpec {
       modifiers: modifiers,
       noise: noise,
       shipId: shipId,
-      cargoClamped: k > 0 || l.cargoClamped,
+      // The leg's own pod is checked where it settles; only a field pod
+      // stays held at its spawn.
+      cargoClamped: l.cargoClamped,
       legs: legs,
     );
   }

@@ -55,7 +55,7 @@ void main() {
     final leg2 = spec.forLeg(1);
     expect(leg2.goal, same(spec.legs[1].goal));
     expect(leg2.shipSpawn.x, legShipSpawn(spec.legs[0].goal).x);
-    expect(leg2.cargoClamped, isTrue, reason: 'later pods wait locked');
+    expect(leg2.cargoClamped, isFalse, reason: 'checked where the pod settles');
     expect(analyzeLegs(spec, ship: kHopper), hasLength(spec.legs.length));
     expect(analyzeLegs(spec, ship: kHopper).every((f) => f != null), isTrue);
   });

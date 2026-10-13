@@ -129,8 +129,12 @@ void main() {
       expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'hovers');
       expect(g.elapsedSeconds, clock, reason: 'the clock waits');
       await h.step(70); // past GO
-      expect(s.launched, isTrue, reason: 'GO launches by itself');
+      expect(s.launched, isFalse, reason: 'GO never drops an untouched ship');
+      expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'still hovering');
+      expect(g.elapsedSeconds, greaterThan(clock), reason: 'the clock runs from GO');
       expect(g.runState, RunState.playing);
+      await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
+      expect(s.launched, isTrue, reason: 'the first input flies on');
 
       // Input during the hold flies on at once.
       await h.loadLevel(paid);
@@ -140,6 +144,21 @@ void main() {
       expect(g.ship!.launched, isFalse);
       await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
       expect(g.ship!.launched, isTrue);
+    });
+
+    test('GO starts the clock but never drops an untouched ship', () async {
+      final g = h.game;
+      // Lava: the heaviest pull, where the old drop crashed hardest.
+      await h.loadLevel(LevelRegistry.flat.indexWhere((d) => d.saveId == 'lava_08'));
+      final s = g.ship!;
+      final pos = s.body.position.clone();
+      await h.step(60 * 8); // level card, 3 · 2 · 1 · GO and then some
+      expect(g.runState, RunState.playing, reason: 'no crash');
+      expect(s.launched, isFalse);
+      expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'still hovering');
+      expect(g.elapsedSeconds, greaterThan(0), reason: 'the clock runs from GO');
+      await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
+      expect(s.launched, isTrue);
     });
 
     test('no continue for a crash on the pad before launch', () async {
