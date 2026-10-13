@@ -1,7 +1,11 @@
 // What a delivery pays (coins for new stars × rank multiplier, rank-up
 // bonuses, 2× coins once) and the rewarded continue after a crash, in the
 // real game.
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -129,12 +133,12 @@ void main() {
       expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'hovers');
       expect(g.elapsedSeconds, clock, reason: 'the clock waits');
       await h.step(70); // past GO
-      expect(s.launched, isFalse, reason: 'GO never drops an untouched ship');
-      expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'still hovering');
+      expect(s.launched, isTrue, reason: 'GO flies on by itself');
+      expect(s.settling, isTrue, reason: 'sinking gently until the first input');
       expect(g.elapsedSeconds, greaterThan(clock), reason: 'the clock runs from GO');
       expect(g.runState, RunState.playing);
       await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
-      expect(s.launched, isTrue, reason: 'the first input flies on');
+      expect(s.settling, isFalse, reason: 'the first input gives full physics');
 
       // Input during the hold flies on at once.
       await h.loadLevel(paid);
@@ -146,20 +150,31 @@ void main() {
       expect(g.ship!.launched, isTrue);
     });
 
-    test('GO starts the clock but never drops an untouched ship', () async {
+    test('GO launches the ship, which settles without crashing', () async {
       final g = h.game;
-      // Lava: the heaviest pull, where the old drop crashed hardest.
-      await h.loadLevel(LevelRegistry.flat.indexWhere((d) => d.saveId == 'lava_08'));
-      final s = g.ship!;
-      final pos = s.body.position.clone();
-      await h.step(60 * 8); // level card, 3 · 2 · 1 · GO and then some
-      expect(g.runState, RunState.playing, reason: 'no crash');
-      expect(s.launched, isFalse);
-      expect(s.body.position.distanceTo(pos), lessThan(0.01), reason: 'still hovering');
-      expect(g.elapsedSeconds, greaterThan(0), reason: 'the clock runs from GO');
-      await h.fly((_) => const BotInput(thrust: true), maxSeconds: 0.1);
-      expect(s.launched, isTrue);
-    });
+      // Every cave level: spawns sit ~2 m up, and a free fall from there
+      // crashed on 53 of 57. An untouched ship must sink and rest instead.
+      for (final def in LevelRegistry.flat.whereType<CaveLevelDef>()) {
+        await h.loadLevel(LevelRegistry.flat.indexOf(def));
+        final s = g.ship!;
+        final pos = s.body.position.clone();
+        var fastest = 0.0; // along local gravity
+        for (var i = 0; i < 60 * 9; i++) {
+          await h.step(1); // level card, 3 · 2 · 1 · GO and ~4 s idle
+          final gv = s.localGravity;
+          if (gv.length > 1e-6) {
+            fastest = math.max(fastest, s.body.linearVelocity.dot(gv) / gv.length);
+          }
+        }
+        expect(g.runState, RunState.playing, reason: '${def.saveId}: no crash');
+        expect(s.launched, isTrue, reason: '${def.saveId}: GO flew on');
+        expect(fastest, lessThan(ShipBody.goSinkSpeed + 0.2), reason: def.saveId);
+        if (s.localGravity.length > 0.1) {
+          expect(s.body.position.distanceTo(pos), greaterThan(0.05), reason: '${def.saveId}: gravity is on');
+        }
+        expect(g.elapsedSeconds, greaterThan(0), reason: 'the clock runs from GO');
+      }
+    }, timeout: const Timeout(Duration(minutes: 5)));
 
     test('no continue for a crash on the pad before launch', () async {
       await h.loadLevel(paid);

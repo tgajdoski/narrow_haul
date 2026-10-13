@@ -189,7 +189,9 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     _rotateInput = rotate.clamp(-maxRotateInput, maxRotateInput);
     _thrustInput = thrust;
     _fireInput = fire && (spec.armed || (rack?.canFire ?? false));
-    if (!_launched && (thrust || _fireInput || rotate.abs() > 0.05)) {
+    final input = thrust || _fireInput || rotate.abs() > 0.05;
+    if (input) _settling = false; // the pilot has it: full physics
+    if (!_launched && input) {
       _launched = true;
       body.gravityScale = null; // gravity on from the first input
     }
@@ -200,10 +202,22 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// hint never ends in a crash.
   bool get launched => _launched;
 
+  /// Fastest an untouched ship sinks after [launch] with `gentle` (m/s
+  /// along local gravity): under the scrape limit (0.55), so a ship nobody
+  /// flies yet settles on the rock below its pad instead of crashing.
+  static const double goSinkSpeed = 0.5;
+
+  /// Sinking at most [goSinkSpeed] until the first input (see [launch]).
+  bool get settling => _settling;
+  bool _settling = false;
+
   /// Ends the hover without input (the level-start countdown ran out).
-  void launch() {
+  /// [gentle]: gravity is on, but until the first input the ship sinks no
+  /// faster than [goSinkSpeed] (spawns sit ~2 m up; a free fall crashed).
+  void launch({bool gentle = false}) {
     if (_launched) return;
     _launched = true;
+    _settling = gentle;
     // Wake it too: a ship hovering still on its pad has fallen asleep, and
     // turning gravity on alone wouldn't move it (input forces wake it).
     body
@@ -212,10 +226,22 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   }
   bool _launched = false;
 
+  void _capSink() {
+    final g = localGravity;
+    final len = g.length;
+    if (len < 1e-6) return;
+    final v = body.linearVelocity;
+    final down = (v.x * g.x + v.y * g.y) / len;
+    if (down <= goSinkSpeed) return;
+    final cut = (down - goSinkSpeed) / len;
+    body.linearVelocity = Vector2(v.x - g.x * cut, v.y - g.y * cut);
+  }
+
   /// Back to the start-pad hover (no gravity, at rest) until the next input
   /// or [launch]: a continue after a crash counts down before flying on.
   void hold() {
     _launched = false;
+    _settling = false;
     body
       ..gravityScale = Vector2.zero()
       ..linearVelocity.setZero()
@@ -485,6 +511,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   @override
   void update(double dt) {
     super.update(dt);
+    if (_settling) _capSink();
 
     const rotateDeadzone = 0.01;
     final idle = _rotateInput.abs() < rotateDeadzone;

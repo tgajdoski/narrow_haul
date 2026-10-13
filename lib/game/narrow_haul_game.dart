@@ -4461,6 +4461,11 @@ class NarrowHaulGame extends Forge2DGame
     if (now <= 0) {
       _countdown = null;
       _countdownDone = true;
+      // GO starts the flight: gravity on, the pod free. Until the first
+      // input the ship only sinks gently (ShipBody.goSinkSpeed), so a pilot
+      // still reading settles on the rock instead of crashing.
+      s.launch(gentle: true);
+      _endResumeHold();
       _countdownHud?.go();
       AudioService.playCountdown(go: true);
       return;
