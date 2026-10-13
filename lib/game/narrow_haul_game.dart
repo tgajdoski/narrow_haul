@@ -1907,6 +1907,7 @@ class NarrowHaulGame extends Forge2DGame
     cargo = pod;
     cargoAttachment = link;
     _forces?.cargo = pod;
+    _updateLevelInfoHud();
   }
 
   /// Game over on an Expedition after a staging pad: fly on from there.

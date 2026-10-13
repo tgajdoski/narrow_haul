@@ -149,7 +149,17 @@ void main() {
     final r = await h.fly((_) => BotInput.idle, maxSeconds: (route.endT + 1) / g.legCount);
     expect(r.outcome, FlightOutcome.timedOut, reason: 'a demo never crashes or delivers');
     expect(g.legIndex, def.spec.legs.length - 1, reason: 'every staging pad passed');
-    final last = g.currentLevel!.legs.last;
+    // Each delivered pod stays parked on its pad (the replay must not drag
+    // it toward the next leg's pod).
+    final legs = g.currentLevel!.legs;
+    final pods = g.world.children.whereType<CargoBody>().toList();
+    for (var k = 0; k < legs.length - 1; k++) {
+      final d = pods[k].body.position - legs[k].goalCenter;
+      final leg = legs[k];
+      expect(d.x.abs() <= leg.goalHalfWidth + 0.5 && d.y.abs() <= leg.goalHalfHeight + 1, isTrue,
+          reason: 'leg ${k + 1}: pod parked on its pad (off by $d, pad ±${leg.goalHalfWidth})');
+    }
+    final last = legs.last;
     expect(g.cargo!.body.position.distanceTo(last.goalCenter), lessThan(3));
     await g.takeControlsFromDemo();
     await g.ready();

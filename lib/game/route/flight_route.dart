@@ -190,15 +190,31 @@ class FlightRoute {
     final u = span <= 0 ? 0.0 : (t - a.t) / span;
     var da = (b.angle - a.angle) % (2 * math.pi);
     if (da > math.pi) da -= 2 * math.pi;
+    // An Expedition records the next pod from each staging pad on: the pod
+    // curve only uses samples of [t]'s leg, so a parked pod isn't pulled
+    // toward the next one (or the next one back to the pad).
+    final leg = _legAt(t);
+    final same = _legAt(a.t) == leg ? a : b;
+    RouteSample pod(RouteSample s) => _legAt(s.t) == leg ? s : same;
+    final c0 = pod(p0), c1 = pod(a), c2 = pod(b), c3 = pod(p3);
     return (
       x: _catmull(p0.x, a.x, b.x, p3.x, u),
       y: _catmull(p0.y, a.y, b.y, p3.y, u),
       angle: a.angle + da * u,
-      cx: _catmull(p0.cx, a.cx, b.cx, p3.cx, u),
-      cy: _catmull(p0.cy, a.cy, b.cy, p3.cy, u),
+      cx: _catmull(c0.cx, c1.cx, c2.cx, c3.cx, u),
+      cy: _catmull(c0.cy, c1.cy, c2.cy, c3.cy, u),
       towing: a.towing,
       thrust: a.thrust,
     );
+  }
+
+  /// The Expedition leg in progress at [t] (staging pads landed by then).
+  int _legAt(double t) {
+    var k = 0;
+    while (k < legT.length && legT[k] <= t) {
+      k++;
+    }
+    return k;
   }
 
   static RoutePose _pose(RouteSample s) => (
