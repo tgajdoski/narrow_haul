@@ -51,6 +51,8 @@
 ### Test builds
 - [ ] **TestFlight upload.** If App Store Connect warns about ITMS-91053 (privacy manifest), add `ios/Runner/PrivacyInfo.xcprivacy`. The plugins ship their own, so a warning is unlikely.
 - [ ] **Play closed testing.** Personal developer accounts created after Nov 2023 need 12 testers for 14 days.
+- [x] **First Android run** (2026-10-13, Xiaomi 2510DRA23E, Android 15, profile build, Impeller/Vulkan): starts, plays, all 5 Play products and test ads load. Status and navigation bars showed, now fixed (immersive sticky, re-applied on resume). This phone blocks `adb install` (MIUI "Install via USB" needs a SIM): push the APK to `Download/` and install it from Files.
+- [ ] On Android: the bars stay hidden after app switches and after an ad.
 - [ ] **Profile on a cheap Android phone**, and try an Android tablet or foldable (Android 16 ignores `sensorLandscape` on screens ≥ 600 dp).
 - [ ] On each device:
   - background/resume (music silent in the background) and the back button
