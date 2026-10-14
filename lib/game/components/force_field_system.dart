@@ -232,6 +232,15 @@ class ForceFieldSystem extends Component {
     }
   }
 
+  @override
+  void onRemove() {
+    for (final tp in _zeroGTags.values) {
+      tp.dispose();
+    }
+    _zeroGTags.clear();
+    super.onRemove();
+  }
+
   /// "0 g" inside the pocket's top edge.
   void _renderZeroGTag(Canvas canvas, GravityZoneSpec z, Rect rect, double alpha) {
     final tp = _zeroGTags[z] ??= TextPainter(
@@ -241,8 +250,14 @@ class ForceFieldSystem extends Component {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    canvas.saveLayer(null, Paint()..color = Color.fromRGBO(255, 255, 255, alpha.clamp(0.0, 1.0)));
-    tp.paint(canvas, Offset(rect.center.dx - tp.width / 2, rect.top + 0.25));
+    final at = Offset(rect.center.dx - tp.width / 2, rect.top + 0.25);
+    // Bounded to the label: an unbounded layer is a full-screen offscreen
+    // pass every frame.
+    canvas.saveLayer(
+      (at & tp.size).inflate(0.1),
+      Paint()..color = Color.fromRGBO(255, 255, 255, alpha.clamp(0.0, 1.0)),
+    );
+    tp.paint(canvas, at);
     canvas.restore();
   }
 

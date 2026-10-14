@@ -21,6 +21,15 @@ class _WeaponRail extends PositionComponent with TapCallbacks {
   final _counts = List.generate(6, (_) => HudText());
   final _toast = HudText();
 
+  @override
+  void onRemove() {
+    for (final t in _counts) {
+      t.dispose();
+    }
+    _toast.dispose();
+    super.onRemove();
+  }
+
   List<Offset> _centers(WeaponHud w) =>
       layout.railCenters(math.min(w.slots.length, _counts.length));
 

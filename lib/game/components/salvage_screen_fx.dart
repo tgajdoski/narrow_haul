@@ -127,13 +127,16 @@ class SporePostProcess extends PostProcess {
       renderSubtree(canvas);
       return;
     }
+    // Half the device resolution (at least 1×): the warp hides it, and the
+    // offscreen pass every frame is the cost of this effect.
+    final res = math.max(1.0, pixelRatio / 2);
     final recorder = ui.PictureRecorder();
-    final inner = Canvas(recorder)..scale(pixelRatio);
+    final inner = Canvas(recorder)..scale(res);
     renderSubtree(inner);
     final picture = recorder.endRecording();
     final image = picture.toImageSync(
-      (size.x * pixelRatio).ceil(),
-      (size.y * pixelRatio).ceil(),
+      (size.x * res).ceil(),
+      (size.y * res).ceil(),
     );
     picture.dispose();
     _shader

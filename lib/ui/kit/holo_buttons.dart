@@ -233,10 +233,14 @@ class _HoloButtonState extends State<HoloButton>
             duration: const Duration(milliseconds: 90),
             child: pulse == null
                 ? frame(0)
-                : AnimatedBuilder(
-                    animation: pulse,
-                    builder: (context, _) =>
-                        frame(Curves.easeInOut.transform(pulse.value)),
+                // Own layer: the pulse repaints only the button (it sits over
+                // the running game on the demo badge).
+                : RepaintBoundary(
+                    child: AnimatedBuilder(
+                      animation: pulse,
+                      builder: (context, _) =>
+                          frame(Curves.easeInOut.transform(pulse.value)),
+                    ),
                   ),
           ),
         ),

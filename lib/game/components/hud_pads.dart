@@ -23,6 +23,12 @@ class _ThrustButton extends PositionComponent with DragCallbacks, TapCallbacks {
   final _thrustLabel = HudText();
 
   @override
+  void onRemove() {
+    _thrustLabel.dispose();
+    super.onRemove();
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
     _t += dt;
@@ -178,6 +184,12 @@ class _FireButton extends _ThrustButton {
   /// the minimap.
   final double innerSide;
   final _label = HudText();
+
+  @override
+  void onRemove() {
+    _label.dispose();
+    super.onRemove();
+  }
 
   bool get pressed => _pressed;
 

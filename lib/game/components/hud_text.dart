@@ -28,4 +28,12 @@ class HudText {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: maxWidth);
   }
+
+  /// Frees the laid-out text (owners call it from `onRemove`); the next
+  /// [layout] starts afresh.
+  void dispose() {
+    _painter?.dispose();
+    _painter = null;
+    _span = null;
+  }
 }

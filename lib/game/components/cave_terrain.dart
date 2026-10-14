@@ -46,6 +46,7 @@ class CaveTerrain extends BodyComponent {
   /// Resolution of the pre-rendered edge glow. The glow is a wide blur, so a
   /// coarse bitmap scaled up looks the same as the vector version.
   static const double _glowPxPerMeter = 16;
+  static const double _glowMaxPx = 4096;
   static final Paint _glowBlit = Paint()..filterQuality = FilterQuality.medium;
 
   static List<ui.Path> _pathsOf(List<List<Pt>> loops) => [
@@ -144,7 +145,12 @@ class CaveTerrain extends BodyComponent {
   /// mask filter is the most expensive thing in the scene on weak GPUs.
   ui.Image _rasterizeGlow(Paint glow) {
     _glowRect = Rect.fromLTWH(-1, -1, worldSize.x + 2, worldSize.y + 2);
-    const k = _glowPxPerMeter;
+    // Big worlds get a coarser bitmap: it stays under the 4096 px texture
+    // limit of many phone GPUs (and a few MB of memory).
+    final k = math.min(
+      _glowPxPerMeter,
+      _glowMaxPx / math.max(_glowRect.width, _glowRect.height),
+    );
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)
       ..scale(k)
