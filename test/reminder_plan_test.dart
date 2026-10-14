@@ -126,7 +126,20 @@ void main() {
       final plan = planReminders(ReminderState(now: now, expedition: exp));
       expect(kinds(plan), [ReminderKind.daily, ReminderKind.daily, ReminderKind.expedition]);
       expect(plan[2].body, startsWith('Expedition: '));
-      expect(planReminders(ReminderState(now: now)), hasLength(3));
+      // Nothing new to say: both daily wordings, then silence.
+      expect(kinds(planReminders(ReminderState(now: now))), [ReminderKind.daily, ReminderKind.daily]);
+    });
+
+    test('never the same words twice in one plan', () {
+      for (var d = 0; d < 31; d++) {
+        for (final st in [
+          ReminderState(now: now.add(Duration(days: d)), nextMission: mission),
+          ReminderState(now: now.add(Duration(days: d))),
+        ]) {
+          final texts = [for (final r in planReminders(st)) '${r.title}|${r.body}'];
+          expect(texts.toSet(), hasLength(texts.length), reason: '$texts');
+        }
+      }
     });
 
     test('wordings vary by date', () {

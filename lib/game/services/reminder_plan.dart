@@ -178,15 +178,17 @@ List<PlannedReminder> planReminders(ReminderState s, {Duration? debugSpacing}) {
         : DateTime(s.now.year, s.now.month, s.now.day + kReminderDays[slot], hour);
     (String, String)? text;
     ReminderKind? kind;
-    // An unused kind first, then any that fits.
+    // An unused kind first, then any that fits, but never the same words twice.
     for (final fresh in [true, false]) {
       for (final k in _slotKinds[slot]) {
         if (fresh && used.contains(k)) continue;
-        text = _text(s, k, slot, at);
-        if (text != null) {
-          kind = k;
-          break;
+        // A repeated kind tries its other wording.
+        for (var variant = 0; variant < 2 && kind == null; variant++) {
+          final t = _text(s, k, slot, at, variant);
+          if (t == null || out.any((r) => r.title == t.$1 && r.body == t.$2)) continue;
+          (text, kind) = (t, k);
         }
+        if (kind != null) break;
       }
       if (kind != null) break;
     }
@@ -198,10 +200,10 @@ List<PlannedReminder> planReminders(ReminderState s, {Duration? debugSpacing}) {
 }
 
 /// Title and body for [kind], or null when it doesn't apply. Kinds with
-/// several wordings pick one by date, so a regular doesn't see the same
-/// line every time.
-(String, String)? _text(ReminderState s, ReminderKind kind, int slot, DateTime at) {
-  String pick(List<String> lines) => lines[(at.day + at.month * 31) % lines.length];
+/// several wordings pick one by date (so a regular doesn't see the same line
+/// every time), shifted by [variant] when that line is already in the plan.
+(String, String)? _text(ReminderState s, ReminderKind kind, int slot, DateTime at, int variant) {
+  String pick(List<String> lines) => lines[(at.day + at.month * 31 + variant) % lines.length];
   switch (kind) {
     case ReminderKind.streak:
       final n = s.dailyStreak;

@@ -90,7 +90,15 @@ abstract final class ReminderService {
 
   /// Cancels every pending reminder and, if they're on, schedules the plan
   /// for the current state.
-  static Future<void> reschedule() async {
+  static Future<void> reschedule() {
+    // One at a time: a resume during the permission prompt would otherwise
+    // interleave its cancel with another run's scheduling.
+    return _queue = _queue.then((_) => _reschedule());
+  }
+
+  static Future<void> _queue = Future.value();
+
+  static Future<void> _reschedule() async {
     if (!_ready) return;
     try {
       await _plugin.cancelAll();
