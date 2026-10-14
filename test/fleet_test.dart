@@ -5,6 +5,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/game/narrow_haul_game.dart';
 
 import 'autopilot/harness.dart';
 import 'helpers/levels.dart';

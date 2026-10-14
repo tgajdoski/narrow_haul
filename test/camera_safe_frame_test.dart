@@ -2,6 +2,7 @@
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/camera/camera_director.dart';
+import 'package:narrow_haul/game/narrow_haul_game.dart';
 
 import 'autopilot/harness.dart';
 import 'helpers/levels.dart';

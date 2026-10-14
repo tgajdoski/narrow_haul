@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
+import 'package:narrow_haul/game/narrow_haul_game.dart';
 
 import 'autopilot/harness.dart';
 import 'helpers/levels.dart';
