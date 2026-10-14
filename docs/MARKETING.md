@@ -77,16 +77,12 @@ Realistic year 1 with no budget: 10k–100k installs ≈ $2k–20k. The downside
   - Hybrid-casual publishers (Kwalee, Homa, SayGames, Tapnation): run free CPI tests, but want broad casual appeal.
   - Pitch with a 30 s video + D1/D7 numbers.
 
-## 6. Press kit: a small page, built when outreach starts
-A press kit brings no traffic by itself. It makes outreach work: a writer or YouTuber who likes the pitch email wants a logo, screenshots and a GIF in one click, and a missing kit is a common reason a mail goes nowhere. It's cheap because the assets already exist (`art_src/store/`: screenshots, feature graphic, icon, `make_videos.sh` loop and trailer, `listing_en.md` texts).
+## 6. Press kit and contacts
+Built 2026-10-14: https://zafrk.com/narrow-haul/press, a `press` route on `website/index.html`. It shows a fact sheet, the pitch, a gameplay loop, 8 screenshots, the logo, the trailer, a download zip and a promo-code mail link. `tool/store/make_presskit.sh` builds `website/press/` from `art_src/store/`; the mp4s and the zip are gitignored, and `website/deploy.sh` builds them when they're missing. Re-run it after new screenshots or videos.
 
-Build it as a `/press` route on `website/index.html` (same S3 deploy as `/support` and `/privacy`), only when we start emailing press. It isn't needed for launch day.
-- Fact sheet: developer, platforms, release date, price model, links.
-- One-paragraph pitch plus a short feature list.
-- Trailer link + the web loop GIF.
-- 5–6 screenshots and the icon, plus a `.zip` with everything.
-- The kids / *Approved by* story in two lines.
-- Contact (`contact@zafrk.com`) and "ask for a promo code".
+A press kit brings no traffic by itself. It makes outreach work: writers want assets in one click.
+
+Contacts live in `docs/press_contacts.csv` (outlet, name, title, email, submission page, status, source). Only public editorial addresses are listed, no guessed personal emails. TouchArcade shut down in September 2024. Check the `check` rows on the outlet's site before sending.
 
 ## 7. Launch-week checklist
 - [ ] Featuring Nomination submitted in App Store Connect (launch, then 1.1)
@@ -95,7 +91,7 @@ Build it as a `/press` route on `website/index.html` (same S3 deploy as `/suppor
 - [ ] Store listing experiment running (icon or first screenshot)
 - [ ] 10+ clips recorded before launch (release build, `tool/store/make_videos.sh`)
 - [ ] Reddit / forum posts drafted, one per community, spaced out
-- [ ] Press kit page live and 20 outreach emails with promo codes (once clips exist)
+- [ ] Press kit page deployed (`website/deploy.sh`), then 20 outreach emails with promo codes (`docs/press_contacts.csv`)
 - [ ] Firebase retention / funnel dashboard checked at day 3, 7, 14, 28 → section 4 decision
 
 ## Sources

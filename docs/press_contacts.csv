@@ -1,0 +1,18 @@
+outlet,platform,type,first_name,last_name,title,email,submission_url,status,notes,source
+Pocket Gamer,iOS+Android,press,,,Reviews desk,reviews@pocketgamer.co.uk,https://www.pocketgamer.com/pages/contact-us/,active,"Send a promo code or APK, trailer, screenshots; ideally before launch",https://www.pocketgamer.com/pages/contact-us/
+Pocket Gamer,iOS+Android,press,,,News desk,news@pocketgamer.co.uk,https://www.pocketgamer.com/pages/contact-us/,active,Use before launch for news and previews,https://www.pocketgamer.com/pages/contact-us/
+Pocket Gamer,iOS+Android,press,Dann,Sullivan,Editor in Chief (Pocket Gamer brands),,https://www.pocketgamer.com/staff/000308/dann-sullivan/,active,No public personal email: address the reviews/news desk and name him,https://www.pocketgamer.com/staff/000308/dann-sullivan/
+Pocket Gamer,iOS+Android,press,Stephen,Gregson-Wood,Deputy Editor,,https://www.pocketgamer.com/pages/about/,active,No public personal email: use the desks,https://www.pocketgamer.com/pages/about/
+Pocket Gamer,iOS+Android,press,Catherine,Dellosa,Reviews Editor,,https://www.pocketgamer.com/pages/about/,active,"Decides reviews; address reviews@ to her",https://www.pocketgamer.com/pages/about/
+Pocket Gamer Connects,iOS+Android,event,,,Big Indie Pitch,,https://www.pocketgamer.com/news/how-to-promote-your-game-on-pocket-gamer-and-other-channels/,active,"Free pitch contest at PG Connects events (in person and online); good way in",https://www.pocketgamer.com/news/how-to-promote-your-game-on-pocket-gamer-and-other-channels/
+Gamezebo,iOS+Android,press,Jim,Squires,Editor,editor@gamezebo.com,https://www.gamezebo.com/get-reviewed,check,Address from an older listing: confirm on their site first,https://community.monogame.net/t/review-websites/1573
+AppAdvice,iOS,press,,,Developer contact,devcontact@appadvice.com,https://appadvice.com/appnn/contact-info-developers/,check,Address from an older listing: confirm on their site first,https://community.monogame.net/t/review-websites/1573
+Droid Gamers,Android,press,,,,,https://www.droidgamers.com/,check,No public email found: use the contact link on the site,https://www.droidgamers.com/
+Android Police,Android,press,,,Tips,,https://www.androidpolice.com/page/about/,check,Tip form on the site; rarely covers small games,https://www.androidpolice.com/page/about/
+Android Authority,Android,press,,,Tips,,https://www.androidauthority.com/,check,Tip form on the site; rarely covers small games,
+TouchArcade,iOS,press,,,Tips,tips@toucharcade.com,https://toucharcade.com/,inactive,Shut down September 2024; archive only. Don't send,https://gamedeveloper.com/business/toucharcade-is-shutting-down-after-16-years
+YouTube creators,iOS+Android,creator,,,,,https://www.youtube.com/results?search_query=best+new+mobile+games+this+week,todo,"Find 5k-100k sub channels; business email on the channel About tab",
+Keymailer,all,service,,,,,https://www.keymailer.co/,paid,"Vetted press/creator database, from ~$150; mostly PC/console, check mobile codes",https://presskit.gg/field-guides/indie-game-marketing-tools-comparison
+Terminals.io,all,service,,,,,https://terminals.io/,paid,"Curated press list, pricier and selective",https://presskit.gg/field-guides/indie-game-marketing-tools-comparison
+distribute(),all,service,,,,,https://dodistribute.com/,free,Press request copies; requests are vetted,https://indiegamesplus.com/the-indiegamesplus-guide-to-contacting-games-press/
+Muck Rack,all,service,,,,,https://muckrack.com/,paid,Search journalists by beat; paid plans show emails,https://note.com/hypnosissoft/n/n88125683eb8a?hl=en

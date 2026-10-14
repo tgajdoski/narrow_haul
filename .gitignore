@@ -60,3 +60,7 @@ art_src/store/video/*.mp4
 art_src/store/video/upload/
 art_src/store/upload/
 art_src/achievements/.noto/
+
+# Press kit downloads (built by tool/store/make_presskit.sh; deploy.sh rebuilds them)
+website/press/*.mp4
+website/press/*.zip

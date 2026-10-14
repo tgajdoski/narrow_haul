@@ -19,7 +19,9 @@ BUCKET="${NH_BUCKET:-zafrk.com}"
 REGION="${NH_REGION:-us-east-1}"
 DISTRIBUTION="${NH_DISTRIBUTION:-EWUNHC49AUTUQ}"
 PREFIX="narrow-haul"
-PAGE="$(cd "$(dirname "$0")" && pwd)/index.html"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+PAGE="$HERE/index.html"
+PRESS="$HERE/press"
 
 # Every URL the page answers to.
 KEYS=(
@@ -28,6 +30,7 @@ KEYS=(
   "$PREFIX/index.html"
   "$PREFIX/privacy"
   "$PREFIX/support"
+  "$PREFIX/press"
 )
 
 echo "Deploying $PAGE → s3://$BUCKET/$PREFIX/ (profile $PROFILE)"
@@ -46,6 +49,32 @@ for key in "${KEYS[@]}"; do
   echo "  ✓ /$key"
 done
 
+# Press kit files (screenshots, logo, videos, zip) under narrow-haul/press/.
+# The mp4s and the zip are gitignored, so build them first on a fresh checkout.
+if [ ! -f "$PRESS/narrow-haul-presskit.zip" ]; then
+  "$HERE/../tool/store/make_presskit.sh"
+fi
+for f in "$PRESS"/*; do
+  name="$(basename "$f")"
+  case "$name" in
+    *.jpg) type="image/jpeg" ;;
+    *.png) type="image/png" ;;
+    *.mp4) type="video/mp4" ;;
+    *.zip) type="application/zip" ;;
+    *) continue ;;
+  esac
+  aws s3api put-object \
+    --bucket "$BUCKET" \
+    --key "$PREFIX/press/$name" \
+    --body "$f" \
+    --content-type "$type" \
+    --cache-control "public, max-age=86400" \
+    --profile "$PROFILE" \
+    --region "$REGION" \
+    --output text --query 'ETag' >/dev/null
+  echo "  ✓ /$PREFIX/press/$name"
+done
+
 echo "Invalidating /$PREFIX* on CloudFront $DISTRIBUTION"
 aws cloudfront create-invalidation \
   --distribution-id "$DISTRIBUTION" \
@@ -53,4 +82,4 @@ aws cloudfront create-invalidation \
   --profile "$PROFILE" \
   --query 'Invalidation.Id' --output text
 
-echo "Done: https://$BUCKET/$PREFIX/  ·  /privacy  ·  /support"
+echo "Done: https://$BUCKET/$PREFIX/  ·  /privacy  ·  /support  ·  /press"

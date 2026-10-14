@@ -184,6 +184,28 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
   .brand span { display: none; }
   .doc td:first-child { white-space: normal; }
 }
+/* Press kit */
+.doc.press { max-width: var(--max); }
+.press .lead { font-size: 18px; color: var(--muted); max-width: 62ch; }
+.press .grid2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; }
+.press video, .press .shots img, .press .logo img {
+  display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
+}
+.press .shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.press .shots a { display: block; }
+.press .logo { display: flex; gap: 12px; align-items: center; }
+.press .logo img { width: 96px; border-radius: 22px; }
+.press .btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.press .btn {
+  display: inline-block; padding: 10px 16px; border-radius: 12px; font-weight: 600; text-decoration: none;
+  background: var(--panel); border: 1px solid var(--line); color: var(--text);
+}
+.press .btn:hover { background: var(--panel-2); }
+.press .btn.primary { background: var(--accent); border-color: var(--accent); color: #031018; }
+@media (max-width: 760px) {
+  .press .grid2 { grid-template-columns: 1fr; }
+  .press .shots { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -282,25 +304,95 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     </details>
     <details>
       <summary>Is my progress saved in the cloud?</summary>
-      <div>No. Stars, ranks, coins and cosmetics are stored only on your device. Deleting the app deletes your progress. Purchases can always be restored from the store.</div>
+      <div>Yes, if you sign in to Google Play Games (Android) or Game Center (iOS). The game offers it at start, or later from <b>Settings</b>. Your career (stars, best times, rank and XP, coins, unlocked items and achievements) is then saved to your Play Games or iCloud account and merged when you play on another device signed in to the same account. Settings and purchases aren't part of it. Without signing in, progress is stored only on your device and deleting the app deletes it. Purchases can always be restored from the store.</div>
     </details>
     <details>
       <summary>How do I delete my data?</summary>
-      <div>Uninstall the game. We keep no account or server copy of your progress. For data held by Google's ad services, see the <a href="privacy" data-link="privacy">privacy policy</a>.</div>
+      <div>Uninstall the game. We keep no account or server copy of your progress. If you signed in to Play Games or Game Center, delete the saved game and your activity in the Play Games app or your Google account, or remove the game's data from iCloud in your device settings. For data held by Google's ad services, see the <a href="privacy" data-link="privacy">privacy policy</a>.</div>
     </details>
     <details>
       <summary>The ship keeps crashing as soon as I touch the controls.</summary>
       <div>The ship waits on its pad until your first input. Use short, gentle thrust bursts: gravity is weak but momentum is not. Left-handed controls and vibration settings are in <b>Settings</b>.</div>
     </details>
     <details>
-      <summary>How do I steer? Can I use a joystick instead of tilting?</summary>
-      <div>Hold the phone like a steering wheel: the ship's nose follows its lean, and holding it level keeps the ship upright. Tap the left half of the screen to make your current grip the new level. If you prefer an on-screen stick, choose <b>Settings → Steer with → Joystick</b>. Tilt mode and sensitivity are in <b>Settings</b> too. Phones without a motion sensor always use the stick.</div>
+      <summary>How do I steer? Can I tilt the phone instead?</summary>
+      <div>By default you steer with the on-screen stick (on the left, or on the right with <b>Left-handed controls</b>): push it the way you want to turn. <b>Settings → Joystick</b> offers several stick styles. To steer by tilting, choose <b>Settings → Steer with → Tilt</b> and hold the phone like a steering wheel: the ship's nose follows its lean, and holding it level keeps the ship upright. Tap the steering half of the screen to make your current grip the new level. Tilt mode and sensitivity are in <b>Settings</b> too. Phones without a motion sensor always use the stick.</div>
     </details>
 
     <h2 class="section">Contact</h2>
     <p>Email us and include your phone model and the level name if it's about a bug.</p>
     <a class="mail" data-mail="Narrow Haul support" href="#">Email support</a>
     <p class="meta" style="margin-top:10px"><span data-email></span></p>
+  </section>
+
+  <!-- ── Press ────────────────────────────────────────────────────────── -->
+  <section data-page="press" class="doc press">
+    <h1>Press kit</h1>
+    <p class="meta">Everything you need to write about or film Narrow Haul. Use it freely in coverage.</p>
+    <p class="lead">A physics cave-flying game in the spirit of Thrust and Gravitar. Hook a cargo pod on a line, swing it through narrow caverns and land both on the pad.</p>
+
+    <div class="btns">
+      <a class="btn primary" data-asset-href="press/narrow-haul-presskit.zip">Download press kit (.zip, 36 MB)</a>
+      <a class="btn" data-asset-href="press/trailer.mp4" target="_blank" rel="noopener">Trailer (.mp4)</a>
+      <a class="btn" data-mail="Narrow Haul press: promo code request" href="#">Request a promo code</a>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <video data-asset="press/loop.mp4" data-poster="press/poster.jpg" autoplay muted loop playsinline preload="none" aria-label="Gameplay loop"></video>
+      </div>
+      <div>
+        <h2 class="section" style="margin-top:0">Fact sheet</h2>
+        <table>
+          <tr><td>Developer</td><td><span data-developer></span>, a solo indie studio</td></tr>
+          <tr><td>Platforms</td><td>iOS and Android</td></tr>
+          <tr><td>Release</td><td>Late 2026</td></tr>
+          <tr><td>Price</td><td>Free to play with light ads. Full Game unlock $4.99</td></tr>
+          <tr><td>Content</td><td>60 missions in 7 worlds, 8 Expeditions, 6 ships</td></tr>
+          <tr><td>Contact</td><td><span data-email-link></span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <h2>About the game</h2>
+    <p>The jump gate has gone dark and seven settlements are cut off deep underground. As the newest pilot of Operation Lifeline you fly a tiny cargo tug through narrow caves, hook a heavy pod on a line and bring both home. The pod swings with every burn, a hard knock ends the run, and every drop of fuel counts.</p>
+    <ul>
+      <li><b>Real rope physics.</b> The pod swings, drags and bounces. Land the ship and the pod on the pad to deliver.</li>
+      <li><b>60 hand-built missions in 7 worlds:</b> low-gravity crystal caverns, mines with moving machinery, slippery ice and wind, lava rock, gravity wells and zero-g, and a fortress that shoots back.</li>
+      <li><b>The Long Night:</b> 8 Expeditions, long multi-leg convoy hauls through giant caves.</li>
+      <li><b>Six ships</b> that each fly differently, from a light hopper to the armed Talon gunship.</li>
+      <li><b>Mystery salvage:</b> 19 alien relics. An overshield, slow time... or a bee in the engine.</li>
+      <li><b>A story told by radio,</b> a pilot career through 10 real aviation ranks, daily challenges and a route guide for when you're stuck.</li>
+      <li><b>Fair monetization:</b> no ads during a flight, one purchase unlocks everything and removes the ads between missions. No subscriptions, no pay-to-win.</li>
+    </ul>
+
+    <h2>The team</h2>
+    <p>Narrow Haul is made by one developer at <span data-developer></span>. Every build is play-tested and signed off by a crew of young test pilots, credited on the game's first screen as <i>Approved by</i>.</p>
+
+    <h2>Screenshots</h2>
+    <p class="meta" style="margin:0">Click for full size (1280×720). The zip has 1920×1080 and 2868×1320 versions.</p>
+    <div class="shots">
+      <a data-asset-href="press/shot_01.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_01.jpg" alt="Xenar Caverns: towing the pod past a mystery salvage cache" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_02.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_02.jpg" alt="Ember Core: lava rock and heavy gravity" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_03.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_03.jpg" alt="Outer Ring: gravity wells and zero-g" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_04.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_04.jpg" alt="The Redoubt: the armed Talon against turrets" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_05.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_05.jpg" alt="Xenar Caverns: bringing the pod in to the landing pad" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_06.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_06.jpg" alt="Rustshaft Mines: moving machinery" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_07.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_07.jpg" alt="The Garage: ships, liveries and tow gear" loading="lazy" width="1280" height="720"></a>
+      <a data-asset-href="press/shot_08.jpg" target="_blank" rel="noopener"><img data-asset="press/shot_08.jpg" alt="Mission complete: stars, XP and rank" loading="lazy" width="1280" height="720"></a>
+    </div>
+
+    <h2>Logo and art</h2>
+    <div class="logo">
+      <img data-asset="press/icon_512.png" alt="Narrow Haul app icon" loading="lazy" width="512" height="512">
+      <div class="btns">
+        <a class="btn" data-asset-href="press/icon_512.png" target="_blank" rel="noopener">App icon (512 px)</a>
+        <a class="btn" data-asset-href="press/feature.jpg" target="_blank" rel="noopener">Banner (1024×500)</a>
+      </div>
+    </div>
+
+    <h2>Contact</h2>
+    <p>Reviews, previews, interviews and promo codes: <span data-email-link></span>. We answer every press email.</p>
   </section>
 
   <!-- ── Privacy ──────────────────────────────────────────────────────── -->
@@ -382,6 +474,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <div class="links">
       <a href="support" data-link="support">Support</a>
       <a href="privacy" data-link="privacy">Privacy</a>
+      <a href="press" data-link="press">Press</a>
       <a href="/">zafrk.com</a>
     </div>
   </div>
@@ -416,9 +509,16 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
   // Deployed at /narrow-haul/ with real paths (/narrow-haul/privacy, …):
   // the deploy script uploads this same page under each route's key. Opened
   // from disk or anywhere else, it falls back to #privacy style routes.
-  var ROUTES = { home: 'Narrow Haul', support: 'Support · Narrow Haul', privacy: 'Privacy Policy · Narrow Haul' };
+  var ROUTES = { home: 'Narrow Haul', support: 'Support · Narrow Haul', privacy: 'Privacy Policy · Narrow Haul', press: 'Press kit · Narrow Haul' };
   var m = location.pathname.match(/^(.*\/narrow-haul)(?:\/([a-z-]*))?\/?$/);
   var base = m ? m[1] : null;
+
+  // Press kit files live in narrow-haul/press/; resolve them from the site
+  // root so they work on every route (and from disk).
+  function asset(path) { return base ? base + '/' + path : path; }
+  each('[data-asset]', function (el) { el.setAttribute('src', asset(el.getAttribute('data-asset'))); });
+  each('[data-poster]', function (el) { el.setAttribute('poster', asset(el.getAttribute('data-poster'))); });
+  each('[data-asset-href]', function (el) { el.setAttribute('href', asset(el.getAttribute('data-asset-href'))); });
 
   function current() {
     var name = base ? (location.pathname.slice(base.length).replace(/\//g, '') || 'home')
@@ -436,6 +536,10 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
       else el.removeAttribute('aria-current');
     });
     document.title = ROUTES[name];
+    each('video[autoplay]', function (v) {
+      if (name === 'press') { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      else v.pause();
+    });
   }
   each('[data-link]', function (el) {
     var name = el.getAttribute('data-link');
