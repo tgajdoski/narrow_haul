@@ -4,7 +4,6 @@ import 'dart:ui' show FragmentProgram;
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
-import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/input.dart' show KeyboardEvents;
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/foundation.dart';
@@ -27,7 +26,7 @@ import 'package:narrow_haul/game/components/minimap_hud.dart';
 import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
-import 'package:narrow_haul/game/camera/camera_director.dart';
+import 'package:narrow_haul/game/camera/camera_rig.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/components/salvage_fx.dart';
 import 'package:narrow_haul/game/components/world_frame.dart';
@@ -767,53 +766,20 @@ class NarrowHaulGame extends Forge2DGame
     _hudControls?.size = camera.viewport.size;
     final worldSize = _currentWorldSize;
     if (worldSize != null) {
-      _applyContainedCamera(worldSize);
-      _applyCameraBounds(worldSize);
+      _cam.fitWorld(worldSize);
     }
   }
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
-  /// Smallest zoom that still keeps the view inside the world.
-  double _minContainZoom = 0;
-
-  /// Decides focus and zoom from the flight (pure, `camera/camera_director.dart`);
-  /// this class only clamps it to the world and adds the shake.
-  final CameraDirector _director = CameraDirector(FlightTuning.camera.profile);
-
-  /// Crash, blasts and the meltdown rumble, added after the follow.
-  final TraumaShake _shake = TraumaShake();
-  Vector2 _shakeApplied = Vector2.zero();
+  /// Follow, safe frame, close-ups, shake and bounds (`camera/camera_rig.dart`).
+  late final CameraRig _cam = CameraRig(camera, world: world)
+    ..baseZoom = (() => _baseZoom * _screenScale)
+    ..avoidZones = _cameraAvoidZones;
 
   /// The system asks for reduced motion (set by the app): softer zoom and shake.
-  bool reducedMotion = false;
-
-  /// Rock along the velocity, refreshed every other frame.
-  double? _aheadGap;
-  bool _aheadTick = false;
-
-  /// Seconds since the player last thrust, turned or fired (the camera
-  /// zooms in once they let go).
-  double _idleFor = 0;
-
-  /// Level-start close-up of the ship and the delivery push-in.
-  final CloseUp _closeUp = CloseUp();
-
-  /// Close-up zooms (× the flight zoom): a first look at a new mission, a
-  /// new ship's first flight (shown off longest), and a quick one on retry.
-  static const double _closeUpFirst = 2.2;
-  static const double _closeUpNewShip = 2.6;
-  static const double _closeUpRetry = 1.5;
-  static const double _closeUpDelivery = 1.5;
-
-  /// Where the ship sits in a close-up (fraction of the screen height):
-  /// below the level card (top third) and the 3 · 2 · 1 (centre).
-  static const double _closeUpShipY = 0.72;
-
-  /// Camera shift (m) that keeps the ship out from under the controls,
-  /// eased in quickly and out slowly.
-  final Spring _nudgeX = Spring();
-  final Spring _nudgeY = Spring();
+  bool get reducedMotion => _cam.reducedMotion;
+  set reducedMotion(bool v) => _cam.reducedMotion = v;
 
   // ── Delivery ─────────────────────────────────────────────────────────────
 
@@ -1041,13 +1007,13 @@ class NarrowHaulGame extends Forge2DGame
     final scaled = dt * salvage.timeScale;
     super.update(scaled);
     final logicStart = clock?.elapsedMicroseconds ?? 0;
-    _removeShake();
+    _cam.removeShake();
     if (_legLanded) {
       _legLanded = false;
       if (runState == RunState.playing) _advanceLeg();
     }
     _updateGame(scaled);
-    _applyShake(dt);
+    _cam.applyShake(dt, meltdown: _meltdownLeft != null);
     if (clock != null) {
       final now = clock.elapsedMicroseconds;
       PerfMonitor.update.add(now / 1000);
@@ -1103,7 +1069,7 @@ class NarrowHaulGame extends Forge2DGame
       } else {
         s.towing = cargoAttachment?.attached ?? false;
         if (_keys.rotateAxis != 0) _keyHeld += dt;
-        _idleFor = thrustHeld || fireHeld || rotateAxis != 0 ? 0 : _idleFor + dt;
+        _cam.idleFor = thrustHeld || fireHeld || rotateAxis != 0 ? 0 : _cam.idleFor + dt;
         _boostCharge = FlightTuning.nextBoostCharge(_boostCharge, _touchAxis, dt);
         // Re-shape held input every frame: the key boost ramps with time
         // and the boost shrinks once the pod is hooked.

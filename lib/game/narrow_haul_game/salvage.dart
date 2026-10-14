@@ -195,7 +195,7 @@ extension GameSalvage on NarrowHaulGame {
         s.body
           ..setTransform(s.body.position, s.body.angle + kick)
           ..setAwake(true);
-        _shake.add(0.18);
+        _cam.shake.add(0.18);
         Haptics.light();
       }
     }

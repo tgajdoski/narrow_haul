@@ -447,8 +447,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _landingZone = landing;
 
     _currentWorldSize = data.worldSize;
-    _applyContainedCamera(data.worldSize);
-    _applyCameraBounds(data.worldSize);
+    _cam.fitWorld(data.worldSize);
     camera.stop();
     _snapCameraToShip();
 
@@ -554,7 +553,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _winTimer = 0;
     _winReady = false;
     _crashTimer = 0;
-    _shake.clear();
+    _cam.shake.clear();
     _pauseButton?.visible = false;
     _hudControls?.showFire = false;
     _meltdownLeft = null;

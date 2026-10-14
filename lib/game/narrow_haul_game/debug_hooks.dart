@@ -19,7 +19,7 @@ extension GameDebugHooks on NarrowHaulGame {
 
   /// Tests: the close-up zoom (× the flight zoom) right now.
   @visibleForTesting
-  double get debugCloseUp => _closeUp.factor;
+  double get debugCloseUp => _cam.closeUp.factor;
 
   /// Tests: the crate notice currently on air.
   @visibleForTesting

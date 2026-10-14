@@ -64,7 +64,7 @@ extension GameCrashContinue on NarrowHaulGame {
       world.add(burst);
       _levelEntities.add(burst);
     }
-    _shake.add(1);
+    _cam.shake.add(1);
     _crashTimer = NarrowHaulGame._crashDelay;
   }
 
@@ -149,7 +149,7 @@ extension GameCrashContinue on NarrowHaulGame {
     _snapshots.reset();
     // A free retry can rewind to the same spot again straight away.
     if (free) _snapshots.add(snap);
-    _shake.clear();
+    _cam.shake.clear();
     _crashTimer = 0;
     _resetSalvage();
     _resetInputState();

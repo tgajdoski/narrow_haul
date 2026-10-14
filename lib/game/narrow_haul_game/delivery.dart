@@ -49,7 +49,7 @@ extension GameDelivery on NarrowHaulGame {
     _winReady = false;
     // A slow push-in on ship and pod sitting on the pad.
     if (!FlightTuning.camera.profile.isStatic && !kStoreCapture) {
-      _closeUp.pushIn(reducedMotion ? 1.2 : NarrowHaulGame._closeUpDelivery, NarrowHaulGame._winDelay);
+      _cam.pushInForDelivery(NarrowHaulGame._winDelay);
     }
     // An Expedition rates the fuel left on every pad, not just the last.
     final fuelLeft = _legFuelLeft.isEmpty

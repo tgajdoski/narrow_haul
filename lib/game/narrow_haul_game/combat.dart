@@ -397,13 +397,13 @@ extension GameCombat on NarrowHaulGame {
       _turretsOfflineLeft = math.max(0, _turretsOfflineLeft - dt);
     }
     final melt = _meltdownLeft;
-    _shake.floor = 0;
+    _cam.shake.floor = 0;
     // A continue's countdown holds the meltdown clock too.
     if (melt != null && (ship?.launched ?? true)) {
       final left = melt - dt;
       _meltdownLeft = left;
       // The cave rumbles harder as the clock runs down.
-      _shake.floor = 0.26 + 0.21 * (1 - (left / 30).clamp(0.0, 1.0));
+      _cam.shake.floor = 0.26 + 0.21 * (1 - (left / 30).clamp(0.0, 1.0));
       if (left <= 0) {
         _meltdownLeft = null;
         _crashedByMeltdown = true;
@@ -455,7 +455,7 @@ extension GameCombat on NarrowHaulGame {
     _burstAt(Offset(at.x, at.y), ringRadius: r);
     AudioService.playBoom();
     Haptics.medium();
-    _shake.add(0.55);
+    _cam.shake.add(0.55);
   }
 }
 
