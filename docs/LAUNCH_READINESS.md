@@ -159,6 +159,14 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Odds: is 40% per attempt the right amount? Are durations of 5–15 s right? Tuning: `kSalvage` / `kSalvageChance`.
     - Meta: the Salvage log in the Pilot Logbook, the achievement toasts, the Grit line on the result screen, the salvage contracts, and a Salvage Chaos daily (three caches).
 
+## 1.1: Play Games / Game Center (built, not released)
+Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 33 achievements, the Total Stars leaderboard, Saved games on, two Android credentials.
+- [ ] Cloud Console → Google Auth Platform → Audience: **Publish app** (the consent screen is still in Testing).
+- [ ] App Store Connect → Game Center: the 33 achievements (`art_src/achievements/game_center.csv`, icons in `icons/`) and the `nh.total_stars` leaderboard.
+- [ ] Build once in Xcode with automatic signing, so the iCloud container `iCloud.com.zafrk.narrowhaul` gets registered.
+- [ ] Phone test on both platforms: sign-in, achievement unlock, leaderboard, cloud save onto a fresh install, an offline start, Reset progress. While Play Games is unpublished, the account must be on its testers list.
+- [ ] At release: update the Play Data safety form (player ID, saved game); deploy `website/` (the privacy text is already edited); publish the Play Games configuration with the build. Published achievements can't be deleted.
+
 ## Post-launch / nice to have
 - **Art:** themed backdrops (`far/mid/near`) and decor for the 7 worlds. Every world has rock and pod art, but the parallax uses the shared tinted fallback. Key-art feature graphic. Real liveries instead of tints; check that "Stealth" stays visible on dark caves.
 - **Loadout:** Engine and Tank kits, winch in/out, release & re-hook, beam sounds.
