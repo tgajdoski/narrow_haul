@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 
 /// Defines all achievement IDs and metadata.
@@ -262,6 +263,7 @@ class AchievementService {
   /// Returns true if newly unlocked.
   static Future<bool> unlock(String id, {bool announce = false}) async {
     final isNew = await ProgressService.instance.unlockAchievement(id);
+    if (isNew) GamesService.achievementUnlocked(id);
     if (isNew && announce) announced.value = byId(id);
     return isNew;
   }

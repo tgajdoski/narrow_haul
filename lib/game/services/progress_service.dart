@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:narrow_haul/game/services/cloud_save.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -114,7 +115,54 @@ class ProgressService {
           keepCosmeticIds.any((id) => key == 'cosmetic_unlocked_$id');
       if (!kept) await _prefs.remove(key);
     }
+    // The next cloud sync replaces the cloud copy instead of merging it
+    // back in (which would undo the reset).
+    await _prefs.setBool(_cloudOverwrite, true);
   }
+
+  // ── Cloud save (rules in CloudSave) ──────────────────────────────────────
+
+  static const _cloudBase = 'cloud_base';
+  static const _cloudOverwrite = 'cloud_overwrite';
+
+  /// Every [CloudSave.isSynced] key on this device.
+  Map<String, Object> exportSynced() => {
+    for (final key in _prefs.getKeys())
+      if (CloudSave.isSynced(key))
+        if (_prefs.get(key) case final Object v) key: v,
+  };
+
+  /// Writes merged values back (only [CloudSave.isSynced] keys).
+  Future<void> importSynced(Map<String, Object> values) async {
+    for (final MapEntry(:key, :value) in values.entries) {
+      if (!CloudSave.isSynced(key)) continue;
+      switch (value) {
+        case final bool v:
+          await _prefs.setBool(key, v);
+        case final int v:
+          await _prefs.setInt(key, v);
+        case final double v:
+          await _prefs.setDouble(key, v);
+        case final String v:
+          await _prefs.setString(key, v);
+        case final List<String> v:
+          await _prefs.setStringList(key, v);
+        default:
+          break;
+      }
+    }
+  }
+
+  /// The snapshot this device and the cloud last agreed on (null = never
+  /// synced, or reset since).
+  Map<String, Object>? get cloudBase => CloudSave.decode(_string(_cloudBase));
+
+  Future<void> setCloudBase(Map<String, Object> data, {required int atMs}) =>
+      _prefs.setString(_cloudBase, CloudSave.encode(data, atMs: atMs));
+
+  /// "Reset progress" ran since the last sync: upload, don't merge.
+  bool get cloudOverwritePending => _bool(_cloudOverwrite) ?? false;
+  Future<void> clearCloudOverwrite() => _prefs.remove(_cloudOverwrite);
 
   // ── Stars (0–3), keyed by stable level saveId ────────────────────────────
 

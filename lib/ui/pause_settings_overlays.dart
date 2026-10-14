@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
+import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/motion_input.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -513,6 +516,7 @@ class _AboutSection extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (GamesService.supported) const _GamesRows(),
         _linkRow(
           Icons.shield_outlined,
           'Privacy policy',
@@ -606,6 +610,43 @@ class _AboutSection extends StatelessWidget {
     Color color = Colors.white60,
   }) {
     return HoloListRow(icon: icon, title: title, onTap: onTap, color: color);
+  }
+}
+
+/// Play Games / Game Center: achievements and the stars leaderboard once
+/// signed in, else a row to sign in (cloud save comes with it).
+class _GamesRows extends StatelessWidget {
+  const _GamesRows();
+
+  @override
+  Widget build(BuildContext context) {
+    final name = GamesService.platformName;
+    return ValueListenableBuilder<bool>(
+      valueListenable: GamesService.signedIn,
+      builder: (context, signedIn, _) => signedIn
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                HoloListRow(
+                  icon: Icons.emoji_events_outlined,
+                  title: '$name achievements',
+                  subtitle: 'Progress saved to the cloud',
+                  onTap: GamesService.showAchievements,
+                ),
+                HoloListRow(
+                  icon: Icons.leaderboard_outlined,
+                  title: 'Star leaderboard',
+                  onTap: GamesService.showLeaderboard,
+                ),
+              ],
+            )
+          : HoloListRow(
+              icon: Icons.cloud_sync_outlined,
+              title: 'Sign in to $name',
+              subtitle: 'Cloud save, achievements, leaderboard',
+              onTap: () => unawaited(GamesService.signIn()),
+            ),
+    );
   }
 }
 

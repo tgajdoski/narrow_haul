@@ -15,6 +15,7 @@ import 'package:narrow_haul/game/perf/perf_monitor.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
+import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/reminder_service.dart';
@@ -98,10 +99,13 @@ void main() async {
   unawaited(ReminderService.init());
 }
 
+/// Ads, the store and Play Games / Game Center, once the first-launch
+/// credits are gone.
 void _initMonetizationAfterCredits(NarrowHaulGame game) {
   final credits = game.creditsVisible;
   if (!credits.value) {
     unawaited(MonetizationService.instance.init());
+    unawaited(GamesService.init());
     return;
   }
   var started = false;
@@ -111,6 +115,9 @@ void _initMonetizationAfterCredits(NarrowHaulGame game) {
     started = true;
     credits.removeListener(listener);
     unawaited(MonetizationService.instance.init());
+    // Play Games / Game Center sign-in (its welcome banner or sign-in sheet
+    // also waits for the credits).
+    unawaited(GamesService.init());
   }
 
   listener = () {

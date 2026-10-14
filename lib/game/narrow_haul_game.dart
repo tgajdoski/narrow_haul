@@ -60,6 +60,7 @@ import 'package:narrow_haul/game/route/route_repository.dart';
 import 'package:narrow_haul/game/salvage/salvage.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
+import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
@@ -648,6 +649,8 @@ class NarrowHaulGame extends Forge2DGame
     await super.onLoad();
     await AudioService.init();
     PerfMonitor.mark('audio');
+    GamesService.totalStars = LevelRegistry.totalStars;
+    GamesService.onSaveMerged = _onCloudSaveMerged;
 
     camera.viewfinder.anchor = Anchor.center;
     camera.viewfinder.zoom = _baseZoom;
@@ -1956,6 +1959,7 @@ class NarrowHaulGame extends Forge2DGame
     lastRunReward = null;
     try {
       await _bookDelivery();
+      GamesService.progressChanged();
     } catch (e, st) {
       ErrorReporter.report(e, st, context: 'delivery ${currentLevelDef.saveId}');
       lastRunReward = null;
@@ -3444,6 +3448,15 @@ class NarrowHaulGame extends Forge2DGame
     _minimap?.refreshLayout();
   }
 
+  /// The cloud save brought progress from another device: redraw the
+  /// hangar so its stars, coins and rank show it.
+  void _onCloudSaveMerged() {
+    if (!overlays.isActive(OverlayIds.menu)) return;
+    overlays
+      ..remove(OverlayIds.menu)
+      ..add(OverlayIds.menu);
+  }
+
   @override
   void lifecycleStateChange(AppLifecycleState state) {
     // Leaving the app mid-flight opens the pause menu, rather than letting
@@ -3460,7 +3473,10 @@ class NarrowHaulGame extends Forge2DGame
     } else {
       MusicService.onBackground();
       // Leaving: schedule from what was just played.
-      if (state == AppLifecycleState.paused) unawaited(ReminderService.reschedule());
+      if (state == AppLifecycleState.paused) {
+        unawaited(ReminderService.reschedule());
+        GamesService.appPaused();
+      }
     }
     super.lifecycleStateChange(state);
   }

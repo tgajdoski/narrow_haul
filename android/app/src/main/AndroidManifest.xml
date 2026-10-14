@@ -46,6 +46,11 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-7248828164794524~3337402281"/>
+        <!-- Play Games Services project (Play Console → Play Games Services →
+             Configuration), via a string resource so it stays a string. -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/game_services_project_id"/>
         <!-- Firebase Analytics never collects the advertising ID (only AdMob
              uses it); see the privacy policy section 6. -->
         <meta-data

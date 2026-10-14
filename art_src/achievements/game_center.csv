@@ -1,0 +1,34 @@
+achievement_id,title,points,hidden,pre_earned_description,earned_description,image
+nh.first_haul,First Haul,10,no,Complete your first mission.,Complete your first mission.,icons/first_haul.png
+nh.fuel_miser,Fuel Miser,25,no,Complete a level with 85% or more fuel remaining.,Complete a level with 85% or more fuel remaining.,icons/fuel_miser.png
+nh.speed_hauler,Speed Hauler,25,no,Complete any level in under 30 seconds.,Complete any level in under 30 seconds.,icons/speed_hauler.png
+nh.no_scratch,No Scratch,25,no,Complete 5 levels in a row without retrying.,Complete 5 levels in a row without retrying.,icons/no_scratch.png
+nh.perfect_pilot,Perfect Pilot,75,no,Earn 3 stars on every level.,Earn 3 stars on every level.,icons/perfect_pilot.png
+nh.level_10,Deep Space,25,no,Reach Mission 10.,Reach Mission 10.,icons/level_10.png
+nh.level_20,Master Hauler,50,no,Complete every mission.,Complete every mission.,icons/level_20.png
+nh.daily_pilot,Daily Pilot,10,no,Complete a daily challenge.,Complete a daily challenge.,icons/daily_pilot.png
+nh.cargo_swinger,Cargo Swinger,25,no,Attach rope and swing cargo 360° before landing.,Attach rope and swing cargo 360° before landing.,icons/cargo_swinger.png
+nh.rank_commercial,Fly for Hire,10,no,Earn your Commercial Pilot licence.,Earn your Commercial Pilot licence.,icons/rank_commercial.png
+nh.rank_captain,Left Seat,50,no,Make Captain.,Make Captain.,icons/rank_captain.png
+nh.rank_chief,Chief Pilot,50,no,Reach the top of the pilot career.,Reach the top of the pilot career.,icons/rank_chief.png
+nh.full_manifest,Full Manifest,25,no,Complete all of a day's contracts.,Complete all of a day's contracts.,icons/full_manifest.png
+nh.week_on_duty,Week on Duty,50,no,Complete the daily challenge 7 days in a row.,Complete the daily challenge 7 days in a row.,icons/week_on_duty.png
+nh.century_hauler,Century Hauler,50,no,Deliver 100 cargos.,Deliver 100 cargos.,icons/century_hauler.png
+nh.fleet_qualified,Fleet Qualified,50,no,Hold a type rating for every ship.,Hold a type rating for every ship.,icons/fleet_qualified.png
+nh.off_type,Off Type,25,no,Earn 3 stars on a mission in a ship other than its own.,Earn 3 stars on a mission in a ship other than its own.,icons/off_type.png
+nh.storm_rider,Storm Rider,25,no,Earn 3 stars on a mission with wind.,Earn 3 stars on a mission with wind.,icons/storm_rider.png
+nh.orbital_mechanic,Orbital Mechanic,25,no,Earn 3 stars on a mission with a gravity well.,Earn 3 stars on a mission with a gravity well.,icons/orbital_mechanic.png
+nh.heavy_lifter,Heavy Lifter,25,no,Deliver cargo at 1.5 g or more.,Deliver cargo at 1.5 g or more.,icons/heavy_lifter.png
+nh.test_pilot,Test Pilot,25,no,Complete a Test Flight daily challenge.,Complete a Test Flight daily challenge.,icons/test_pilot.png
+nh.weapons_hot,Weapons Hot,10,no,Destroy your first defence turret.,Destroy your first defence turret.,icons/weapons_hot.png
+nh.meltdown_escape,Meltdown Escape,25,no,Destroy a reactor core and deliver before it blows.,Destroy a reactor core and deliver before it blows.,icons/meltdown_escape.png
+nh.hold_fire,Hold Fire,25,no,Deliver on a defended mission in an armed ship without firing a shot.,Deliver on a defended mission in an armed ship without firing a shot.,icons/hold_fire.png
+nh.hot_refuel,Hot Refuel,25,no,Collect 10 fuel canisters in flight.,Collect 10 fuel canisters in flight.,icons/hot_refuel.png
+nh.opened_the_box,Opened the Box,10,no,Open your first mystery salvage cache.,Open your first mystery salvage cache.,icons/opened_the_box.png
+nh.gambler,Gambler,50,no,Open 50 mystery salvage caches.,Open 50 mystery salvage caches.,icons/gambler.png
+nh.ghost_protocol,Ghost Protocol,25,yes,Fly through a turret's sights under a Stealth Field.,Fly through a turret's sights under a Stealth Field.,icons/ghost_protocol.png
+nh.bee_lieve_it,Bee-lieve It,25,yes,Deliver while still swollen from a Swarm Sting.,Deliver while still swollen from a Swarm Sting.,icons/bee_lieve_it.png
+nh.bad_trip,"Bad Trip, Good Landing",25,yes,Deliver during a Spore Trip.,Deliver during a Spore Trip.,icons/bad_trip.png
+nh.shake_it_off,Shake It Off,25,yes,Spin a Swarm Sting's bee off before it wears off.,Spin a Swarm Sting's bee off before it wears off.,icons/shake_it_off.png
+nh.clover,Four-Leaf Clover,25,no,Open three boons in a row.,Open three boons in a row.,icons/clover.png
+nh.salvage_collector,Salvage Collector,50,no,Find every mystery salvage effect (see the Logbook).,Find every mystery salvage effect (see the Logbook).,icons/salvage_collector.png

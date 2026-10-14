@@ -59,3 +59,4 @@ art_src/store/video/frames/
 art_src/store/video/*.mp4
 art_src/store/video/upload/
 art_src/store/upload/
+art_src/achievements/.noto/
