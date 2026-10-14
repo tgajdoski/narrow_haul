@@ -311,10 +311,8 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text(
+          child: MarqueeText(
             def.name.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: hudLabel(20, spacing: 2.4),
           ),
         ),
@@ -686,17 +684,13 @@ class _LoadoutLine extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              MarqueeText(
                 'Loadout: ${rope?.name ?? 'Steel Winch Cable'} · ${kit?.name ?? 'Standard Fit'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
               if (nudge != null)
-                Text(
+                MarqueeText(
                   nudge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: SpaceColors.gold, fontSize: 11.5),
                 ),
             ],

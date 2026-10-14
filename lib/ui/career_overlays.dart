@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
+import 'package:narrow_haul/ui/feedback_mail.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/story_card.dart';
@@ -92,10 +93,8 @@ class _AchievementTile extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  MarqueeText(
                     meta.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: unlocked ? SpaceColors.gold : Colors.white70,
                       fontWeight: FontWeight.w700,
@@ -239,6 +238,26 @@ class _PilotLogbookOverlayState extends State<PilotLogbookOverlay> {
                 const SizedBox(height: 4),
                 for (final effect in kSalvage)
                   _SalvageLogRow(spec: effect, found: progress.salvageFound(effect.id)),
+                const SizedBox(height: 18),
+                const PanelTitle('Ideas or trouble?', color: SpaceColors.gold),
+                const SizedBox(height: 4),
+                const Text(
+                  'Tell the developer what to fix or what you would like next.',
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                HoloButton(
+                  label: 'Write to us',
+                  icon: Icons.mail_outline_rounded,
+                  variant: HoloVariant.ghost,
+                  height: 38,
+                  fontSize: 12,
+                  onPressed: () => openFeedbackMail(
+                    context,
+                    levelId: widget.game.currentLevelDef.saveId,
+                    source: 'logbook',
+                  ),
+                ),
               ],
             ),
           ),

@@ -209,7 +209,7 @@ class _DeliveredByScreenState extends State<DeliveredByScreen>
               child: Transform.translate(
                 offset: Offset(0, -16 * (1 - title)),
                 child: Text(
-                  'DELIVERED BY',
+                  'APPROVED BY',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontFamily: kDisplayFont,
                     color: _accent,

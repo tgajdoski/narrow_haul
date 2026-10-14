@@ -226,11 +226,9 @@ class _WorldMapState extends State<_WorldMap> {
                       top: nodePositions[i].dy + 47,
                       width: 140,
                       child: IgnorePointer(
-                        child: Text(
+                        child: MarqueeText(
                           flatDefs[i].name,
                           textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: i == next ? Colors.white : Colors.white54,
                             fontSize: 11,
@@ -408,10 +406,8 @@ class _WorldHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Flexible(
-                      child: Text(
+                      child: MarqueeText(
                         shipById(world.defaultShipId).name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: accent.withValues(alpha: 0.9),
                           fontSize: 10,

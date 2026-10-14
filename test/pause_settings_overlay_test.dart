@@ -40,7 +40,7 @@ void main() {
     tester,
   ) async {
     await pump(tester, SettingsOverlay(game: NarrowHaulGame()));
-    for (final label in ['Privacy policy', 'Support', 'Licenses', 'Reset progress']) {
+    for (final label in ['Privacy policy', 'Support', 'Open-source licenses', 'Reset progress']) {
       // The right-hand column (purchases + about) is the last scroll view.
       await tester.scrollUntilVisible(
         find.text(label),

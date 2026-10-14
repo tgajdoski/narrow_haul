@@ -129,10 +129,8 @@ class _ChapterCardState extends State<ChapterCard> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          MarqueeText(
             c.title.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: hudLabel(20, spacing: 2.4),
           ),
           const SizedBox(height: 2),

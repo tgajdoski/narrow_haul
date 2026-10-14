@@ -67,12 +67,12 @@ void main() async {
   FlightTuning.load(
     steerName: ProgressService.instance.steerMode,
     cameraName: ProgressService.instance.cameraMode,
-    tiltOn: ProgressService.instance.tiltSteer ?? MotionInput.supported,
+    tiltOn: ProgressService.instance.tiltSteer ?? false,
     tiltSensitivityName: ProgressService.instance.tiltSensitivity,
     tiltModeName: ProgressService.instance.tiltMode,
   );
-  // Tilt steering is the default where the phone has an accelerometer;
-  // without one the joystick steers.
+  // The joystick steers by default; tilt is opt-in in Settings, and only
+  // offered where the phone has an accelerometer.
   unawaited(MotionInput.probe().then((ok) {
     if (!ok) FlightTuning.tilt = false;
   }));
@@ -91,9 +91,34 @@ void main() async {
   PerfMonitor.mark('runApp');
   runApp(_NarrowHaulApp(game: game));
   // After runApp: the UMP consent form needs a live UI. Never blocks play.
-  unawaited(MonetizationService.instance.init());
+  // On the first launch it waits for the credits, so the consent form and
+  // the iOS tracking prompt don't pop up over the kids' photos.
+  _initMonetizationAfterCredits(game);
   // Opt-in return reminders: reschedules from today's state.
   unawaited(ReminderService.init());
+}
+
+void _initMonetizationAfterCredits(NarrowHaulGame game) {
+  final credits = game.creditsVisible;
+  if (!credits.value) {
+    unawaited(MonetizationService.instance.init());
+    return;
+  }
+  var started = false;
+  late final VoidCallback listener;
+  void start() {
+    if (started) return;
+    started = true;
+    credits.removeListener(listener);
+    unawaited(MonetizationService.instance.init());
+  }
+
+  listener = () {
+    if (!credits.value) start();
+  };
+  credits.addListener(listener);
+  // Safety net: the credits never take this long.
+  Timer(const Duration(seconds: 20), start);
 }
 
 /// Firebase (Android / iOS only). Crashlytics: native crashes are captured by

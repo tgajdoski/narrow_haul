@@ -32,7 +32,7 @@ void main() {
     Future<void> shot(String name) => cap.shot(name);
 
     app.main();
-    // Fresh prefs: the first-launch "Delivered by" credits play over the menu.
+    // Fresh prefs: the first-launch "Approved by" credits play over the menu.
     await wait(2.2);
     await shot('00_credits');
     await wait(2.5);

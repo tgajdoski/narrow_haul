@@ -375,17 +375,13 @@ class _GarageOverlayState extends State<GarageOverlay> {
               Expanded(
                 child: Column(
                   children: [
-                    Text(
+                    MarqueeText(
                       ship.name.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: hudLabel(13, spacing: 2),
                     ),
                     if (item != null)
-                      Text(
+                      MarqueeText(
                         owned ? item.name : '${item.name} · preview',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: owned ? Colors.white60 : SpaceColors.gold,
                           fontSize: 11,

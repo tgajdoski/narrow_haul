@@ -104,6 +104,11 @@ class HudTouchControls extends PositionComponent {
   /// The ammo rail is on screen.
   bool get railShown => _rail != null && (weapon?.showRail ?? false);
 
+  /// Rail slots spilled to the screen-centre side of THRUST/FIRE (small
+  /// phones with a full rack): the comms line and safe frame make room.
+  bool get railInner =>
+      railShown && (_layout?.railInnerCount(weapon!.slots.length) ?? 0) > 0;
+
   /// Screen areas the ship shouldn't sit under: the steering dial (where it
   /// rests, and where it floats while held) and the THRUST / FIRE / rail
   /// cluster. The camera nudges the view so the ship stays clear of them.
@@ -125,7 +130,7 @@ class HudTouchControls extends PositionComponent {
     if (_showFire) top = math.min(top, l.fire.dy - HudButtonLayout.fireRadius);
     final rail = railShown ? l.railCenters(weapon!.slots.length) : const <Offset>[];
     if (rail.isNotEmpty) top = math.min(top, rail.first.dy - HudButtonLayout.slotRadius);
-    final inner = l.thrust.dx + l.innerSide * HudButtonLayout.innerReach(rail: rail.isNotEmpty);
+    final inner = l.thrust.dx + l.innerSide * HudButtonLayout.innerReach(rail: railInner);
     final outer = l.thrust.dx - l.innerSide * thrustR;
     zones.add((
       l: math.min(inner, outer) - pad,
@@ -313,12 +318,12 @@ class HudButtonLayout {
   }
 
   /// How far past THRUST's centre the inner-side controls reach: the pad,
-  /// plus the ammo rail and its counts when it's up.
+  /// plus rail slots that spilled to the inner side ([railInnerCount]).
   static double innerReach({required bool rail}) =>
       thrustRadius + 14 + (rail ? slotRadius * 2 + 44 : 0);
 
   /// The free strip along the bottom between the steering dial and THRUST
-  /// (or the rail): where the comms line goes.
+  /// (or a spilled rail): where the comms line goes.
   Rect bottomBand({required bool rail}) {
     final dialEdge = dialRest.dx - innerSide * (dialRadius + 14);
     final thrustEdge = thrust.dx + innerSide * innerReach(rail: rail);
@@ -330,14 +335,70 @@ class HudButtonLayout {
     );
   }
 
-  /// Centres of [n] rail slots, top to bottom: a column on the screen-centre
-  /// side of THRUST/FIRE, centred on FIRE where it fits, squeezed (never
-  /// tighter than the slots) when it doesn't.
+  /// Bottom of the mystery-salvage badge under the top-left fuel gauge
+  /// (`SalvageHud.origin` + `plateSize`, + 4 px): a left-handed rail at the
+  /// screen edge starts below it.
+  static const double salvageClear = 152;
+
+  /// Where the rail may start: below the minimap (right-handed), or below
+  /// the salvage badge for a left-handed rail on the gauge's side.
+  double get _topLimit => leftHanded ? salvageClear : topClear;
+
+  /// Gap between FIRE and the outer rail column.
+  static const double _outerGap = 6;
+
+  /// Outer rail column: beside FIRE on the screen-edge side, out of the
+  /// pilot's view of the cave.
+  double get _outerX => fire.dx - innerSide * (fireRadius + _outerGap + slotRadius);
+
+  /// The outer column's free height: below the minimap (right-handed) or
+  /// the salvage badge (left-handed), above THRUST.
+  (double, double) get _outerRange {
+    final dx = (_outerX - thrust.dx).abs();
+    final clear = thrustRadius + slotRadius + 4;
+    final minY = insets.top + _topLimit + slotRadius;
+    final maxY = thrust.dy - math.sqrt(math.max(0, clear * clear - dx * dx));
+    return (minY, maxY);
+  }
+
+  /// How many of [n] slots fit in the outer column (at least 2·[slotRadius]
+  /// apart). The rest spill to an inner column (small phones, full racks).
+  int railOuterCount(int n) {
+    final (minY, maxY) = _outerRange;
+    if (maxY < minY) return 0;
+    final fit = ((maxY - minY) / (slotRadius * 2)).floor() + 1;
+    return math.min(n, fit);
+  }
+
+  /// Rail slots on the screen-centre side of THRUST/FIRE.
+  int railInnerCount(int n) => n - railOuterCount(n);
+
+  /// Centres of [n] rail slots, top to bottom: a column on the screen-edge
+  /// side of FIRE, centred on FIRE where it fits, squeezed (never tighter
+  /// than the slots) when it doesn't. Slots that still don't fit continue
+  /// in columns on the screen-centre side.
   List<Offset> railCenters(int n) {
     if (n <= 0) return const [];
-    final x = thrust.dx + innerSide * (thrustRadius + 14 + slotRadius);
-    final minY = insets.top + topClear + slotRadius;
+    final outer = railOuterCount(n);
+    final (oMin, oMax) = _outerRange;
+    final out = _column(outer, _outerX, oMin, oMax);
+    // Spill columns, each one further in (room for the counts between).
+    final minY = insets.top + _topLimit + slotRadius;
     final maxY = screen.height - insets.bottom - 6 - slotRadius;
+    final cap = ((maxY - minY) / (slotRadius * 2)).floor() + 1;
+    var x = thrust.dx + innerSide * (thrustRadius + 14 + slotRadius);
+    for (var left = n - outer; left > 0; left -= cap) {
+      out.addAll(_column(math.min(left, cap), x, minY, maxY));
+      x += innerSide * (slotRadius * 2 + 34);
+    }
+    return out;
+  }
+
+  /// Whether a rail slot at [c] is in the outer column.
+  bool isOuterSlot(Offset c) => (c.dx - fire.dx) * innerSide < 0;
+
+  List<Offset> _column(int n, double x, double minY, double maxY) {
+    if (n <= 0) return [];
     final room = math.max(0.0, maxY - minY);
     final step = n == 1
         ? 0.0
@@ -972,19 +1033,39 @@ class _WeaponRail extends PositionComponent with TapCallbacks {
         on ? HudColors.gold : HudColors.cyan.withValues(alpha: 0.55),
         on ? 2 : 1.2,
       );
+      // An outer slot sits at the screen edge: its count is a tag under the
+      // icon. An inner slot keeps its count beside it, toward the centre.
+      final outer = layout.isOuterSlot(c);
       drawWeaponGlyph(
         canvas,
         s.kind,
-        c,
-        r * 0.5,
+        outer && s.count != null ? c - Offset(0, r * 0.18) : c,
+        outer && s.count != null ? r * 0.42 : r * 0.5,
         color: Colors.white.withValues(alpha: on ? 1 : 0.6),
       );
       if (s.costsStar) {
-        canvas.drawCircle(c + Offset(-side * r * 0.7, -r * 0.62), 3, Paint()..color = HudColors.gold);
+        canvas.drawCircle(c + Offset(side * r * 0.7, -r * 0.62), 3, Paint()..color = HudColors.gold);
       }
-      // Count on the screen-centre side; the loaded slot names its weapon
-      // for a moment after a switch.
       final named = on && toast > 0;
+      if (s.count case final count? when outer) {
+        final tp = _counts[i].layout(TextSpan(
+          text: count,
+          style: hudFont(8.5, Colors.white.withValues(alpha: on ? 0.95 : 0.7), spacing: 0.3),
+        ));
+        final tag = RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: c + Offset(0, r * 0.72),
+            width: tp.width + 6,
+            height: tp.height + 1,
+          ),
+          const Radius.circular(3),
+        );
+        canvas.drawRRect(tag, Paint()..color = HudColors.plateDark);
+        tp.paint(canvas, Offset(tag.left + 3, tag.top + 0.5));
+      }
+      if (!named && outer) continue;
+      // The loaded slot names its weapon for a moment after a switch, on the
+      // screen-centre side (past FIRE when the slot sits beside it).
       final tp = named
           ? _toast.layout(TextSpan(
               text: [s.name.toUpperCase(), if (s.count != null) s.count].join(' '),
@@ -998,7 +1079,12 @@ class _WeaponRail extends PositionComponent with TapCallbacks {
                 spacing: 0.5,
               ),
             ));
-      final x = side < 0 ? c.dx - r - 5 - tp.width : c.dx + r + 5;
+      final besideFire =
+          outer && (c.dy - layout.fire.dy).abs() < HudButtonLayout.fireRadius + tp.height / 2;
+      final edge = besideFire
+          ? layout.fire.dx + side * HudButtonLayout.fireRadius
+          : c.dx + side * r;
+      final x = side < 0 ? edge - 5 - tp.width : edge + 5;
       tp.paint(canvas, Offset(x, c.dy - tp.height / 2));
     }
   }

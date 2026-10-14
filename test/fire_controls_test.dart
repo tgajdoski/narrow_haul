@@ -2,6 +2,7 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/components/hud_touch_controls.dart';
+import 'package:narrow_haul/game/components/salvage_fx.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 
 void main() {
@@ -47,6 +48,13 @@ void main() {
               90,
             );
             final gauge = Rect.fromLTWH(insets.left + 12, insets.top + 8, 220, 26);
+            // The mystery-salvage badge under the gauge.
+            final salvage = Rect.fromLTWH(
+              insets.left + SalvageHud.origin.dx,
+              insets.top + SalvageHud.origin.dy,
+              SalvageHud.plateSize.width,
+              SalvageHud.plateSize.height,
+            );
             for (var n = 1; n <= 6; n++) {
               final cs = l.railCenters(n);
               expect(cs, hasLength(n));
@@ -59,15 +67,21 @@ void main() {
                     isTrue, reason: why);
                 expect(box.overlaps(minimap), isFalse, reason: '$why vs minimap');
                 expect(box.overlaps(gauge), isFalse, reason: '$why vs fuel gauge');
+                expect(box.overlaps(salvage), isFalse, reason: '$why vs salvage badge');
                 expect((cs[i] - l.thrust).distance,
                     greaterThan(HudButtonLayout.thrustRadius + r), reason: '$why vs thrust');
                 expect((cs[i] - l.fire).distance,
                     greaterThan(HudButtonLayout.fireRadius + r), reason: '$why vs fire');
-                if (i > 0) {
+                if (i > 0 && cs[i].dx == cs[i - 1].dx) {
                   expect(cs[i].dy - cs[i - 1].dy, greaterThanOrEqualTo(2 * r), reason: why);
                 }
-                // On the screen-centre side, in the thumb's half.
-                expect(left ? cs[i].dx > l.thrust.dx : cs[i].dx < l.thrust.dx, isTrue);
+                // Beside FIRE on the screen-edge side, out of the view of
+                // the cave; only what doesn't fit spills to the centre side.
+                final outer = l.railOuterCount(n);
+                expect(l.isOuterSlot(cs[i]), i < outer, reason: why);
+                if (i < outer) {
+                  expect(left ? cs[i].dx < l.fire.dx : cs[i].dx > l.fire.dx, isTrue, reason: why);
+                }
                 expect(
                   left ? cs[i].dx < screen.width / 2 : cs[i].dx > screen.width / 2,
                   isTrue,
@@ -79,6 +93,17 @@ void main() {
         }
       }
     }
+
+    test('phones hold a rack of 3 at the screen edge, both hands', () {
+      for (final screen in const [Size(667, 375), Size(844, 390), Size(932, 430)]) {
+        for (final left in [false, true]) {
+          final l = HudButtonLayout(screen, leftHanded: left);
+          expect(l.railOuterCount(3), 3, reason: '$screen left=$left');
+        }
+      }
+      // A full rack on an iPhone 13 still fits beside FIRE right-handed.
+      expect(HudButtonLayout(const Size(844, 390)).railOuterCount(5), 5);
+    });
 
     test('a short rail centres on FIRE', () {
       final l = HudButtonLayout(const Size(844, 390));

@@ -141,7 +141,7 @@ class CoachMarkHud extends PositionComponent {
               hexRotation: 0,
               side: l.innerSide,
               // Past the ammo rail's slots and counts.
-              extraGap: HudButtonLayout.innerReach(rail: controls.railShown) -
+              extraGap: HudButtonLayout.innerReach(rail: controls.railInner) -
                   HudButtonLayout.innerReach(rail: false),
             )
           : null,
@@ -913,7 +913,7 @@ class CommsHud extends PositionComponent {
 
     const padH = 12.0;
     const padV = 7.0;
-    final band = controls.layout?.bottomBand(rail: controls.railShown);
+    final band = controls.layout?.bottomBand(rail: controls.railInner);
     final bottomBand = band != null && band.width >= 220;
     final maxW = bottomBand ? math.min(400.0, band.width) : 320.0;
 

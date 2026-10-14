@@ -9,6 +9,8 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/reminder_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/tilt_steer.dart';
+import 'package:narrow_haul/ui/feedback_mail.dart';
+import 'package:narrow_haul/ui/licenses_screen.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
@@ -53,10 +55,8 @@ class PauseOverlay extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    MarqueeText(
                       game.currentLevelDef.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 13,
@@ -524,19 +524,24 @@ class _AboutSection extends StatelessWidget {
           () => _open(_supportUrl),
         ),
         _linkRow(
-          Icons.description_outlined,
-          'Licenses',
-          () => showLicensePage(
-            context: context,
-            applicationName: 'Narrow Haul',
-            applicationLegalese: '© 2026 zafrk',
+          Icons.mail_outline_rounded,
+          'Send feedback · ideas',
+          () => openFeedbackMail(
+            context,
+            levelId: game.currentLevelDef.saveId,
+            source: 'settings',
           ),
         ),
         if (!game.isPaused)
-          _linkRow(Icons.favorite_border_rounded, 'Credits · Delivered by', () {
+          _linkRow(Icons.favorite_border_rounded, 'Credits · Approved by', () {
             game.closeSettings();
             game.creditsVisible.value = true;
           }),
+        _linkRow(
+          Icons.description_outlined,
+          'Open-source licenses',
+          () => openLicenses(context),
+        ),
         if (!game.isPaused)
           _linkRow(
             Icons.restart_alt_rounded,
@@ -647,10 +652,8 @@ class _PresetRow<T> extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(title, style: const TextStyle(fontSize: 14)),
-                    Text(
+                    MarqueeText(
                       blurb(value),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white38,
                         fontSize: 11,

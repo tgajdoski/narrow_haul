@@ -207,7 +207,10 @@ class MonetizationService {
   /// Call once after `runApp` (the consent form needs a live UI). Never
   /// throws; ads stay off if consent or the SDK isn't available. Store and
   /// ads set up in parallel, so a slow store never delays the first ad.
+  bool _initStarted = false;
+
   Future<void> init() async {
+    _initStarted = true;
     _lastRefreshMs = DateTime.now().millisecondsSinceEpoch;
     await Future.wait([_initStore(), _initAds()]);
   }
@@ -217,6 +220,8 @@ class MonetizationService {
   /// app resume and when the hangar or a shop screen opens. Throttled and
   /// fail-safe; offline it does nothing visible.
   void refreshIfNeeded() {
+    // Nothing before init (the first launch holds it until the credits end).
+    if (!_initStarted) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now - _lastRefreshMs < 30000) return;
     _lastRefreshMs = now;

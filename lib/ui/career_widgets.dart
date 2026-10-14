@@ -71,10 +71,8 @@ class CareerProgress extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              MarqueeText(
                 rankTitle(xp).toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: hudLabel(
                   compact ? 11.5 : 12.5,
                   color: SpaceColors.gold,
@@ -92,12 +90,10 @@ class CareerProgress extends StatelessWidget {
               ),
               if (!compact) ...[
                 const SizedBox(height: 3),
-                Text(
+                MarqueeText(
                   next != null
                       ? '$into / $step XP  ·  next: ${next.title}'
                       : '$into / $step XP  ·  next: ★${prestigeStars(xp) + 1}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white38, fontSize: 10),
                 ),
               ],

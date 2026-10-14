@@ -118,10 +118,8 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              MarqueeText(
                 isChallengeMode ? 'CHALLENGE COMPLETE' : 'MISSION COMPLETE',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: hudLabel(20, color: SpaceColors.green, spacing: 3)
                     .copyWith(
                       shadows: const [
@@ -389,10 +387,8 @@ class XpSummary extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
+                        child: MarqueeText(
                           lines[i].label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white60,
                             fontSize: 12,
