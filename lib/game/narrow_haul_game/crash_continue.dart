@@ -146,10 +146,9 @@ extension GameCrashContinue on NarrowHaulGame {
       NarrowHaulGame._resumeCountdownSeconds + NarrowHaulGame._continueTurretGrace,
     );
     _syncCombatHud();
-    _snapshots.clear();
+    _snapshots.reset();
     // A free retry can rewind to the same spot again straight away.
     if (free) _snapshots.add(snap);
-    _snapshotTimer = 0;
     _shake.clear();
     _crashTimer = 0;
     _resetSalvage();
@@ -182,26 +181,19 @@ extension GameCrashContinue on NarrowHaulGame {
 
   /// Newest snapshot well before the crash with the same tow state (so the
   /// rope never has to snap to a different length); else the newest one.
-  _FlightSnapshot? _pickSnapshot() {
-    final tow = cargoAttachment?.attached ?? false;
-    _FlightSnapshot? fallback;
-    for (final snap in _snapshots.reversed) {
-      if (snap.attached != tow) continue;
-      if (_crashElapsed - snap.time >= NarrowHaulGame._continueRewind) return snap;
-      fallback ??= snap;
-    }
-    return fallback;
-  }
+  FlightSnapshot? _pickSnapshot() => _snapshots.pick(
+    attached: cargoAttachment?.attached ?? false,
+    crashTime: _crashElapsed,
+    rewind: NarrowHaulGame._continueRewind,
+  );
 
   void _sampleSnapshot(double dt, ShipBody s) {
     if (!s.launched || isPaused) return;
-    _snapshotTimer += dt;
-    if (_snapshotTimer < NarrowHaulGame._snapshotEvery) return;
-    _snapshotTimer = 0;
+    if (!_snapshots.due(dt)) return;
     final c = cargo;
     if (c == null || !_isSafeSpot(s, c)) return;
     _snapshots.add(
-      _FlightSnapshot(
+      FlightSnapshot(
         time: elapsedSeconds,
         shipPos: s.body.position.clone(),
         shipAngle: s.body.angle,
@@ -211,7 +203,6 @@ extension GameCrashContinue on NarrowHaulGame {
         attached: cargoAttachment?.attached ?? false,
       ),
     );
-    if (_snapshots.length > NarrowHaulGame._snapshotKeep) _snapshots.removeAt(0);
   }
 
   /// Clear of terrain/obstacles all round and not in a strong pull (well

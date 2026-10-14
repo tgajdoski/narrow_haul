@@ -86,6 +86,7 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
+import 'package:narrow_haul/game/run/snapshot_buffer.dart';
 import 'package:narrow_haul/game/env.dart';
 import 'package:narrow_haul/game/components/flight_gauges_hud.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
@@ -515,10 +516,7 @@ class NarrowHaulGame extends Forge2DGame
 
   // ── Continue after crash (rewarded ad) ───────────────────────────────────
   /// Safe points sampled while flying; the newest few seconds only.
-  final List<_FlightSnapshot> _snapshots = [];
-  double _snapshotTimer = 0;
-  static const double _snapshotEvery = 0.5;
-  static const int _snapshotKeep = 10;
+  final SnapshotBuffer _snapshots = SnapshotBuffer();
 
   /// Restore at least this long before the crash (not the doomed approach).
   static const double _continueRewind = 1.5;
@@ -1161,27 +1159,6 @@ class NarrowHaulGame extends Forge2DGame
 /// stops quietly (see [NarrowHaulGame._checkLoad]).
 class _LoadSuperseded implements Exception {
   const _LoadSuperseded();
-}
-
-/// One safe point of a flight, for "continue after crash".
-class _FlightSnapshot {
-  _FlightSnapshot({
-    required this.time,
-    required this.shipPos,
-    required this.shipAngle,
-    required this.fuel,
-    required this.cargoPos,
-    required this.cargoAngle,
-    required this.attached,
-  });
-
-  final double time;
-  final Vector2 shipPos;
-  final double shipAngle;
-  final double fuel;
-  final Vector2 cargoPos;
-  final double cargoAngle;
-  final bool attached;
 }
 
 /// Laser path: the first solid thing along the beam. The ship, the pod and

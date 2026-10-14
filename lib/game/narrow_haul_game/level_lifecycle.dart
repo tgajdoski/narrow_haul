@@ -100,8 +100,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _currentLevelRetried = retry;
     lastCrashKind = null;
     _hookLogged = false;
-    _snapshots.clear();
-    _snapshotTimer = 0;
+    _snapshots.reset();
     _continueUsed = false;
     _podHeldForResume = null;
     continuedThisRun = false;
