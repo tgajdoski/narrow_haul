@@ -89,218 +89,50 @@ extension GameDelivery on NarrowHaulGame {
           '${continuedThisRun ? ' (continued)' : ''}');
     }
 
-    final progress = ProgressService.instance;
-    final xpBefore = progress.getXp();
-    final prevStars =
-        isChallengeMode ? stars : progress.getStarsById(currentLevelDef.saveId);
-    final worldsBefore = {
-      for (final w in LevelRegistry.worlds)
-        if (LevelRegistry.isWorldUnlocked(w)) w.id,
-    };
-    Analytics.levelEnd(
-      levelId: currentLevelDef.saveId,
-      stars: stars,
-      prevStars: prevStars,
-      attempt: _attempt,
-      seconds: elapsed,
-      fuelLeft: lastLevelFuelFraction,
-      guided: guidedThisRun,
-      continued: continuedThisRun,
-      carriedAmmo: carriedWeaponUsedThisRun,
-      mode: _analyticsMode,
-      ship: ship?.spec.id ?? '',
-      noseDownWarnings: _noseDown.warnings,
-      steer: FlightTuning.tilt ? 'tilt' : FlightTuning.steer.name,
-    );
-    if (_noseDown.warnings == 0) {
-      final clean = ProgressService.instance.noseDownCleanFlights;
-      if (clean < kNoseDownCleanFlights) {
-        unawaited(ProgressService.instance.setNoseDownCleanFlights(clean + 1));
-      }
-    }
-    final saveId = currentLevelDef.saveId;
-    if (prevStars == 0 && saveId.startsWith('rating_')) {
-      Analytics.shipUnlock(saveId.substring('rating_'.length), 'rating');
-    }
     _attemptLevel = null; // the next flight here is a fresh attempt series
-    final currencyMul = CareerService.currencyMultiplier;
-    int currency = 0;
-    final XpBreakdown runXp;
-
-    unawaited(progress.incrementStat(ProgressService.statDeliveries));
-    unawaited(MonetizationService.instance.recordLevelClear());
     _lastWinDailyFirst = false;
     _currencyDoubled = false;
-    final (levelWorld, _) = LevelRegistry.worldOf(levelIndex);
-    final worldIndex = LevelRegistry.worlds.indexOf(levelWorld);
-    int earnedStars = 0;
-    bool personalBest = false;
-
-    if (isChallengeMode) {
-      final firstToday = !progress.isDailyChallengeComplete();
-      _lastWinDailyFirst = firstToday;
-      int streak = progress.getDailyStreak();
-      if (firstToday) {
-        currency += (50 * currencyMul).round(); // Daily reward
-        streak = await progress.advanceDailyStreak();
-      }
-      unawaited(progress.markDailyChallengeComplete());
-      unawaited(progress.saveDailyBestTime(elapsed));
-      runXp = computeRunXp(
-        challenge: true,
-        firstClear: false,
-        newStars: 0,
-        tier: 1,
-        cleanFlight: !_currentLevelRetried,
-        personalBest: false,
-        dailyFirstToday: firstToday,
-        dailyStreak: streak,
-        replayXpUsedToday: progress.getReplayXpToday(),
-      );
-      if (!firstToday) unawaited(progress.addReplayXpToday(runXp.total));
-    } else {
-      final def = currentLevelDef;
-      final world = levelWorld;
-      final prevStars = progress.getStarsById(def.saveId);
-      final prevBest = progress.getBestTimeById(def.saveId);
-
-      // Newly earned stars pay out cosmetic currency, scaled by world + rank.
-      final newStars = stars - prevStars;
-      earnedStars = math.max(0, newStars);
-      personalBest = prevBest != null && elapsed < prevBest;
-      if (newStars > 0) {
-        currency += (newStars * world.rewardPerStar * currencyMul).round();
-      }
-
-      unawaited(progress.saveStarsById(def.saveId, stars));
-      unawaited(progress.saveBestTimeById(def.saveId, elapsed));
-
-      // No-retry streak
-      if (!_currentLevelRetried) {
-        final streak = progress.getNoRetryStreak() + 1;
-        unawaited(progress.setNoRetryStreak(streak));
-      }
-
-      runXp = computeRunXp(
-        challenge: false,
-        firstClear: prevStars == 0,
-        newStars: earnedStars,
-        tier: worldTier(worldIndex),
-        cleanFlight: !_currentLevelRetried,
-        personalBest: personalBest,
-        replayXpUsedToday: progress.getReplayXpToday(),
-      );
-      if (prevStars > 0 && newStars <= 0) {
-        unawaited(progress.addReplayXpToday(runXp.total));
-      }
-    }
-
-    final (
-      contractLines,
-      allContractsDone,
-    ) = await ContractsService.recordDelivery(
-      DeliveryEvent(
-        worldIndex: worldIndex,
+    final s2 = ship;
+    final booking = await DeliveryBooker.book(
+      DeliveryFacts(
+        level: currentLevelDef,
+        levelIndex: levelIndex,
         challenge: isChallengeMode,
-        clean: !_currentLevelRetried,
-        fuelFraction: fuelLeft / _shipMaxFuel,
+        challengeShipId: activeChallengeConfig?.shipId,
+        stars: stars,
         seconds: elapsed,
-        newStars: earnedStars,
-        personalBest: personalBest,
+        fuelLeft: fuelLeft,
+        maxFuel: _shipMaxFuel,
+        attempt: _attempt,
+        guided: guidedThisRun,
+        continued: continuedThisRun,
+        carriedAmmo: carriedWeaponUsedThisRun,
+        mode: _analyticsMode,
+        shipId: s2?.spec.id ?? '',
+        noseDownWarnings: _noseDown.warnings,
+        steer: FlightTuning.tilt ? 'tilt' : FlightTuning.steer.name,
+        retried: _currentLevelRetried,
         turretsDestroyed: _turretsDestroyed,
         salvageOpened: _salvageOpenedThisRun,
-        cursed: _cursesThisRun.isNotEmpty,
-      ),
-    );
-
-    // Reactor escape (Thrust's big finish): bonus the first time per level.
-    final combatLines = <XpLine>[];
-    if (reactorEscape) {
-      unawaited(progress.incrementStat(ProgressService.statReactorEscapes));
-      if (await progress.markOnce('reactor_${currentLevelDef.saveId}')) {
-        combatLines.add(const XpLine('Reactor escape', kReactorEscapeXp));
-        currency += (kReactorEscapeCurrency * currencyMul).round();
-      }
-    }
-
-    // Mystery salvage: flying a curse home pays a little grit bonus.
-    if (_cursesThisRun.isNotEmpty) {
-      final curse = _cursesThisRun.last;
-      combatLines.add(XpLine('Grit: ${_titleCase(curse.name)}', kSalvageGritXp));
-      currency += (kSalvageGritCoins * currencyMul).round();
-      unawaited(progress.incrementStat(ProgressService.statSalvageGrit));
-    }
-    if (_luckyCoins > 0) currency += (_luckyCoins * currencyMul).round();
-
-    final unlocked = [
-      ..._inFlightAchievements,
-      ...await _checkAchievements(
-        stars,
-        elapsed,
-        fuelLeft,
-        allContractsDone: allContractsDone,
+        curses: List.of(_cursesThisRun),
+        luckyCoins: _luckyCoins,
         reactorEscape: reactorEscape,
+        inFlightAchievements: List.of(_inFlightAchievements),
+        heldFire: s2 != null &&
+            s2.spec.armed &&
+            s2.shotsFired == 0 &&
+            currentLevel?.hasCombat == true,
+        fields: currentLevel?.fields ?? const <FieldSpec>[],
+        gravityG: _levelGravityG,
+        flyingParShip: flyingParShip,
+        salvageEffect: salvage.effect,
+        shipSizeMul: s2?.sizeMul ?? 1,
       ),
-    ];
+    );
     _inFlightAchievements.clear();
-    var xp = XpBreakdown([
-      ...runXp.lines,
-      ...combatLines,
-      ...contractLines,
-      for (final a in unlocked) XpLine('Achievement: ${a.title}', 100),
-    ]);
-
-    // Rank achievements depend on the XP just earned (and pay XP themselves).
-    final rankUnlocks = await _checkRankAchievements(
-      rankFor(xpBefore + xp.total),
-    );
-    if (rankUnlocks.isNotEmpty) {
-      unlocked.addAll(rankUnlocks);
-      xp = XpBreakdown([
-        ...xp.lines,
-        for (final a in rankUnlocks) XpLine('Achievement: ${a.title}', 100),
-      ]);
-    }
-    final xpAfter = xpBefore + xp.total;
-    await progress.setXp(xpAfter);
-
-    // Each rank crossed pays its one-off bonus.
-    for (
-      int i = rankFor(xpBefore).index + 1;
-      i <= rankFor(xpAfter).index;
-      i++
-    ) {
-      currency += rankUpBonus(kRanks[i]);
-    }
-    final coinsBefore = progress.getCosmeticCurrency();
-    if (currency > 0) unawaited(progress.addCosmeticCurrency(currency));
-
-    if (currency > 0) Analytics.earnCoins(currency, 'delivery');
-    final rankAfter = rankFor(xpAfter);
-    if (rankAfter.index > rankFor(xpBefore).index) {
-      Analytics.rankUp(rankAfter.index, rankAfter.title);
-    }
-    for (final a in unlocked) {
-      Analytics.achievement(a.id);
-    }
-    if (currentLevelDef == LevelRegistry.trainingFinale && prevStars == 0) {
-      Analytics.tutorialComplete();
-    }
-    for (final w in LevelRegistry.worlds) {
-      if (!worldsBefore.contains(w.id) && LevelRegistry.isWorldUnlocked(w)) {
-        Analytics.worldUnlocked(w.id);
-      }
-    }
+    _lastWinDailyFirst = booking.dailyFirst;
     _syncAnalyticsUser();
-
-    lastRunReward = RunReward(
-      xp: xp,
-      xpBefore: xpBefore,
-      xpAfter: xpAfter,
-      currency: currency,
-      newAchievements: unlocked,
-      coinsBefore: coinsBefore,
-    );
+    lastRunReward = booking.reward;
 
     AudioService.playLand();
     if (stars >= 2) AudioService.playStar();
@@ -335,102 +167,6 @@ extension GameDelivery on NarrowHaulGame {
           carriedWeaponUsedThisRun ||
           checkpointUsedThisRun,
     );
-  }
-
-  /// Runs the post-win achievement checks; returns the newly unlocked ones.
-  Future<List<AchievementMeta>> _checkAchievements(
-    int stars,
-    double timeSeconds,
-    double fuelRemaining, {
-    required bool allContractsDone,
-    bool reactorEscape = false,
-  }) async {
-    final progress = ProgressService.instance;
-    final candidates = <String>[AchievementIds.firstHaul];
-
-    if (reactorEscape) candidates.add(AchievementIds.meltdownEscape);
-    final s = ship;
-    if (s != null && s.spec.armed && s.shotsFired == 0 && currentLevel?.hasCombat == true) {
-      candidates.add(AchievementIds.holdFire);
-    }
-
-    if (fuelRemaining >= 0.85 * _shipMaxFuel) candidates.add(AchievementIds.fuelMiser);
-    if (timeSeconds < 30) candidates.add(AchievementIds.speedHauler);
-
-    final streak = progress.getNoRetryStreak();
-    if (!_currentLevelRetried && streak >= 5) {
-      candidates.add(AchievementIds.noScratch);
-    }
-
-    int completed = 0;
-    bool allPerfect = true;
-    for (final def in LevelRegistry.career) {
-      final s = progress.getStarsById(def.saveId);
-      if (s > 0) completed++;
-      if (s < 3) allPerfect = false;
-    }
-    if (completed >= 10) candidates.add(AchievementIds.level10);
-    if (completed >= LevelRegistry.careerLevels) {
-      candidates.add(AchievementIds.level20);
-    }
-
-    if (isChallengeMode) candidates.add(AchievementIds.dailyPilot);
-    if (isChallengeMode && activeChallengeConfig?.shipId != null) {
-      candidates.add(AchievementIds.testPilot);
-    }
-
-    // Flight-condition achievements.
-    final fields = currentLevel?.fields ?? const <FieldSpec>[];
-    if (stars >= 3 && fields.any((f) => f is WindZoneSpec)) {
-      candidates.add(AchievementIds.stormRider);
-    }
-    if (stars >= 3 && fields.any((f) => f is GravityWellSpec)) {
-      candidates.add(AchievementIds.orbitalMechanic);
-    }
-    if (_levelGravityG >= 1.5) candidates.add(AchievementIds.heavyLifter);
-    if (stars >= 3 && !isChallengeMode && !flyingParShip) {
-      candidates.add(AchievementIds.offType);
-    }
-    if (kShips.keys.every(LevelRegistry.hasTypeRating)) {
-      candidates.add(AchievementIds.fleetQualified);
-    }
-
-    if (allPerfect) candidates.add(AchievementIds.perfectPilot);
-
-    if (allContractsDone) candidates.add(AchievementIds.fullManifest);
-    // Mystery salvage: delivered mid-curse.
-    if (salvage.effect == SalvageEffect.swarmSting && (ship?.sizeMul ?? 1) > 1.05) {
-      candidates.add(AchievementIds.beeLieveIt);
-    }
-    if (salvage.effect == SalvageEffect.sporeTrip) candidates.add(AchievementIds.badTrip);
-    if (progress.getDailyStreak() >= 7) {
-      candidates.add(AchievementIds.weekOnDuty);
-    }
-    if (progress.getStat(ProgressService.statDeliveries) >= 100) {
-      candidates.add(AchievementIds.centuryHauler);
-    }
-
-    final unlocked = <AchievementMeta>[];
-    for (final id in candidates) {
-      if (await AchievementService.unlock(id)) {
-        unlocked.add(AchievementService.all.firstWhere((a) => a.id == id));
-      }
-    }
-    return unlocked;
-  }
-
-  Future<List<AchievementMeta>> _checkRankAchievements(PilotRank rank) async {
-    final unlocked = <AchievementMeta>[];
-    for (final (id, minRank) in [
-      (AchievementIds.rankCommercial, 2),
-      (AchievementIds.rankCaptain, 6),
-      (AchievementIds.rankChief, 9),
-    ]) {
-      if (rank.index >= minRank && await AchievementService.unlock(id)) {
-        unlocked.add(AchievementService.byId(id));
-      }
-    }
-    return unlocked;
   }
 
   void _onAchievementAnnounced() {
@@ -472,9 +208,3 @@ extension GameDelivery on NarrowHaulGame {
     }
   }
 }
-
-String _titleCase(String s) => s
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');

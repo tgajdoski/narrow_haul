@@ -63,7 +63,6 @@ import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
-import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
@@ -85,7 +84,10 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
+import 'package:narrow_haul/game/run/delivery_booker.dart';
 import 'package:narrow_haul/game/run/snapshot_buffer.dart';
+
+export 'package:narrow_haul/game/run/delivery_booker.dart' show RunReward, kReactorEscapeCurrency, kReactorEscapeXp;
 import 'package:narrow_haul/game/env.dart';
 import 'package:narrow_haul/game/components/flight_gauges_hud.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
@@ -106,49 +108,11 @@ part 'narrow_haul_game/salvage.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
-/// First reactor escape on a level pays this XP and currency (once).
 /// Test Flight ship options for [level], on a background isolate. Top-level
 /// so the closure can't capture the game, which an isolate can't receive.
 Future<List<String>> _testFlightShipIds(int level) => Isolate.run(
       () => [for (final s in LevelRegistry.testFlightOptions(level)) s.id],
     );
-
-const int kReactorEscapeXp = 150;
-const int kReactorEscapeCurrency = 40;
-
-/// Everything a successful delivery paid out, for the level-complete screen.
-class RunReward {
-  const RunReward({
-    required this.xp,
-    required this.xpBefore,
-    required this.xpAfter,
-    required this.currency,
-    required this.newAchievements,
-    this.coinsBefore = 0,
-  });
-
-  final XpBreakdown xp;
-  final int xpBefore;
-  final int xpAfter;
-  final int currency;
-  final List<AchievementMeta> newAchievements;
-
-  /// Coin balance before this payout (what it made affordable).
-  final int coinsBefore;
-
-  RunReward withCurrency(int value) => RunReward(
-    xp: xp,
-    xpBefore: xpBefore,
-    xpAfter: xpAfter,
-    currency: value,
-    newAchievements: newAchievements,
-    coinsBefore: coinsBefore,
-  );
-
-  PilotRank get rankBefore => rankFor(xpBefore);
-  PilotRank get rankAfter => rankFor(xpAfter);
-  bool get rankedUp => rankAfter.index > rankBefore.index;
-}
 
 class NarrowHaulGame extends Forge2DGame
     with KeyboardEvents
