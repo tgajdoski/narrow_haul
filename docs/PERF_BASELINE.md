@@ -90,9 +90,38 @@ Only do these if a device's raster p95 is above about 8 ms, or there are late fr
 2. **`CaveTerrain.render`.** It fills the whole world's even-odd rock path with an image shader and strokes every edge twice, with no culling. Fix: rasterise it into world tiles (like the glow bitmap) and draw only the visible ones.
 3. **Off-screen culling.** Ambient particles (up to 260 circles), route dots and force-field streaks.
 
-The bench says these aren't worth doing (CPU cost under 0.02 ms each): entity registries for shells and turrets, the rock-probe AABB early-out, and an isolate for `crateSpots`.
+## Refactor pass (2026-10-14)
 
-Larger refactors, deliberately not done yet:
-- Split `NarrowHaulGame` (3,200 lines) into `LevelSession`/`LevelLoader` and `WeaponsController`.
-- Put the static services behind interfaces.
-- A `CameraRig` that composes follow, shake, rumble and meltdown.
+`NarrowHaulGame` is split into part files plus `CameraRig`, `DeliveryBooker` and `SnapshotBuffer` (see CLAUDE.md, *Code layout*). Autopilot fuel and time are bit-identical before and after on tut_01, alien_01, mine_06, ice_03, orbit_05, redoubt_03, redoubt_05 and exp_00.
+
+Per-frame changes:
+- Turrets, fuel canisters and shells are kept in lists at spawn / fire. Intercept, guidance markers, the route guide and salvage no longer scan `world.children`.
+- The rock probe reuses its ray, end point, directions and scaled hull.
+- The weapon HUD syncs while the laser fires and once when it stops. The FIRE label is built once per slot.
+- The timer line, countdown digits and marker labels re-lay out only when what they show changes.
+
+Cheap GPU fixes:
+- The zero-g label's layer is bounded to the label; it was a full-screen layer.
+- The cave glow bitmap is capped at 4096 px.
+- Spore Trip renders its warp source at half resolution.
+- The primary button pulse gets its own layer.
+
+Leaks: `HudText.dispose()` is called by the controls that are rebuilt, and the force-field system disposes its labels.
+
+Headless bench, same 7 levels, mean ms per frame (JIT, so compare runs, not absolute numbers):
+
+| section | before | after |
+|---|---:|---:|
+| rock probe | 0.022 | 0.016 |
+| intercept | 0.007 | 0.000 |
+| weapons | 0.007 | 0.004 |
+| camera | 0.024 | 0.020 |
+| LevelInfoHud render | 0.014 | 0.012 |
+
+Level update p95 is unchanged (noise between runs is larger than the difference).
+
+Still open:
+- GPU items 1–3 above.
+- Recording the joystick and pad plates into a `Picture`.
+- A `SalvageController` and a `FlightInputController`. They're already self-contained part files, so pulling them out would mean host interfaces through six other parts for little gain.
+- Caching `CosmeticsService.getEquippedId` per flight. It's a cheap prefs read, and trials and resets change it.
