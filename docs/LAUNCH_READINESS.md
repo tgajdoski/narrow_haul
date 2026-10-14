@@ -37,8 +37,8 @@
   - the prologue and chapter cards, and the radio lines (tut_09 Severance, alien_08, redoubt_05 outro)
   - `exp_00` Lifeline Convoy: refuel and checkpoint pads, *Resume · pad N*
   - one long generated Expedition (e.g. `exp_01` Cave-in), for length and fun
-  - a sandbox Full Game buy: gold beacons open, interstitials stop
-  - a sandbox ammo pack or Fleet Pass buy (after *Reset purchases (dev)*): Settings shows *Ad-free until <date>* (7 days), the log shows `adFreeUntil=…`, and the soft Full Game offer still appears
+  - a sandbox Full Game buy: gold beacons open, interstitials stop — ✅ iOS 2026-10-14 (already owned in sandbox → granted, ad-free line gone, Restore OK)
+  - a sandbox ammo pack or Fleet Pass buy (after *Reset purchases (dev)*): Settings shows *Ad-free until <date>* (7 days), the log shows `adFreeUntil=…`, and the soft Full Game offer still appears — ✅ iOS ammo pack 2026-10-14 (all 5 products load, ad-free until 21 Oct); Fleet Pass untested (every ship already rated on that save; test on Android or a fresh install)
 - [ ] **Playtest the profile build** on the iPhone (plan below). No human has flown these yet: weapons, kits, steering presets, the Dynamic camera, forgiving rock and the shield glow, the guidance HUD, the briefing, the intro, the mystery salvage caches and the fleet (pick another ship in a briefing and in the Garage Ships tab, buy one with coins, check its stars feel fair and that *With route* hides off par).
 - [ ] **Recapture the store screenshots and feature graphic** (`tool/store/capture_screenshots.sh`, plus `ipad`).
   - The current ones are from 2026-10-07, before the holo hangar, drawn flight controls and the bigger ship/pod.
@@ -57,7 +57,7 @@
 - [ ] On each device:
   - background/resume (music silent in the background) and the back button
   - an interstitial and a rewarded ad (music pauses)
-  - a sandbox purchase and Restore
+  - a sandbox purchase and Restore (✅ iPhone 13, 2026-10-14)
 - [ ] **Android only: buy an ammo pack twice.** The second buy must go through, which proves the pack is consumed. Also kill the app while the Play sheet is open, relaunch, and check the pack arrives once and can be bought again.
 - [ ] **Offline:** start in airplane mode (no ads, no buy rows, the game plays), then go online and open the Garage. Ads and the store should come back.
 - [ ] DebugView check now needs `--dart-define=FIREBASE_COLLECT=true` on a profile build (`docs/ANALYTICS.md`).
