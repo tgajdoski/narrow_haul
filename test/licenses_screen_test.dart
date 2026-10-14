@@ -69,6 +69,14 @@ void main() {
       ) async {
         await pump(tester, size, scale);
         expect(tester.takeException(), isNull);
+        // Big text can push the last rows below the fold.
+        await tester.scrollUntilVisible(
+          find.text('forge2d'),
+          40,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.ensureVisible(find.text('forge2d'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('forge2d'));
         await tester.pumpAndSettle();
         expect(find.text('Shared text'), findsOneWidget);
@@ -79,7 +87,8 @@ void main() {
         await tester.tap(find.byType(HoloBackButton));
         await tester.pumpAndSettle();
         if (!wide) {
-          expect(find.text('forge2d'), findsOneWidget);
+          expect(find.text('Shared text'), findsNothing);
+          expect(find.textContaining('PACKAGES'), findsOneWidget);
           await tester.tap(find.byType(HoloBackButton));
           await tester.pumpAndSettle();
         }
