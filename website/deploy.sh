@@ -29,8 +29,11 @@ KEYS=(
   "$PREFIX/"
   "$PREFIX/index.html"
   "$PREFIX/privacy"
+  "$PREFIX/privacy/"
   "$PREFIX/support"
+  "$PREFIX/support/"
   "$PREFIX/press"
+  "$PREFIX/press/"
 )
 
 echo "Deploying $PAGE → s3://$BUCKET/$PREFIX/ (profile $PROFILE)"
