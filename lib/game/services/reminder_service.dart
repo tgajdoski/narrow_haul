@@ -63,12 +63,14 @@ abstract final class ReminderService {
         onDidReceiveNotificationResponse: (r) => _opened(r.payload),
       );
       _ready = true;
+      _log('ready (enabled=${ProgressService.instance.remindersEnabled})');
       final launch = await _plugin.getNotificationAppLaunchDetails();
       if (launch?.didNotificationLaunchApp ?? false) {
         _opened(launch?.notificationResponse?.payload);
       }
       await onForeground();
     } catch (e, st) {
+      _log('init failed: $e');
       ErrorReporter.report(e, st, context: 'reminders init');
     }
   }
@@ -91,7 +93,10 @@ abstract final class ReminderService {
     if (!_ready) return;
     try {
       await _plugin.cancelAll();
-      if (ProgressService.instance.remindersEnabled != true) return;
+      if (ProgressService.instance.remindersEnabled != true) {
+        _log('reschedule: off (enabled=${ProgressService.instance.remindersEnabled})');
+        return;
+      }
       final plan = planReminders(
         _state(),
         debugSpacing: _debugSeconds > 0 ? const Duration(seconds: _debugSeconds) : null,
@@ -107,8 +112,10 @@ abstract final class ReminderService {
           body: r.body,
           payload: r.kind.name,
         );
+        _log('scheduled #${r.id} ${r.kind.name} at ${r.at} "${r.title}"');
       }
     } catch (e, st) {
+      _log('schedule failed: $e');
       ErrorReporter.report(e, st, context: 'reminders schedule');
     }
   }
@@ -161,6 +168,8 @@ abstract final class ReminderService {
       lastAskMs: p.reminderAskMs,
       nowMs: now,
     );
+    _log('ask? $ask (enabled=${p.remindersEnabled} asks=${p.reminderAsks} '
+        'training=${LevelRegistry.trainingComplete} streak=${p.getDailyStreak()})');
     if (ask) unawaited(p.recordReminderAsk(now));
     return ask;
   }
@@ -183,8 +192,10 @@ abstract final class ReminderService {
             false;
       }
     } catch (e, st) {
+      _log('permission failed: $e');
       ErrorReporter.report(e, st, context: 'reminders permission');
     }
+    _log('permission granted=$granted ($where)');
     await ProgressService.instance.setRemindersEnabled(granted);
     Analytics.reminderOptIn(on: true, where: where, granted: granted);
     await reschedule();
@@ -197,4 +208,9 @@ abstract final class ReminderService {
     Analytics.reminderOptIn(on: false, where: 'settings');
     await reschedule();
   }
+}
+
+/// Debug and profile builds log every reminder decision.
+void _log(String message) {
+  if (!kReleaseMode) debugPrint('ReminderService: $message');
 }

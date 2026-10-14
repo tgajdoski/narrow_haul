@@ -37,11 +37,26 @@ class _MenuOverlayState extends State<MenuOverlay> {
   @override
   void initState() {
     super.initState();
-    // The reminder question waits for the hangar, never over the intro.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || game.creditsVisible.value || game.introVisible.value) return;
-      maybeAskForReminders(context);
-    });
+    // The reminder question waits for the hangar, never over the intro:
+    // if the intro or credits are up, it asks once they've gone.
+    game.creditsVisible.addListener(_askWhenClear);
+    game.introVisible.addListener(_askWhenClear);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _askWhenClear());
+  }
+
+  bool _asked = false;
+
+  void _askWhenClear() {
+    if (_asked || !mounted || game.creditsVisible.value || game.introVisible.value) return;
+    _asked = true;
+    maybeAskForReminders(context);
+  }
+
+  @override
+  void dispose() {
+    game.creditsVisible.removeListener(_askWhenClear);
+    game.introVisible.removeListener(_askWhenClear);
+    super.dispose();
   }
 
   void _toggleContracts() {
