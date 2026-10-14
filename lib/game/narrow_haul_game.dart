@@ -71,6 +71,7 @@ import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/motion_input.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/reminder_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/services/system_ui.dart';
 import 'package:narrow_haul/game/ship/loadout.dart';
@@ -3454,8 +3455,11 @@ class NarrowHaulGame extends Forge2DGame
       unawaited(applyImmersiveMode());
       MusicService.onForeground();
       MonetizationService.instance.refreshIfNeeded();
+      unawaited(ReminderService.onForeground());
     } else {
       MusicService.onBackground();
+      // Leaving: schedule from what was just played.
+      if (state == AppLifecycleState.paused) unawaited(ReminderService.reschedule());
     }
     super.lifecycleStateChange(state);
   }

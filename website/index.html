@@ -316,6 +316,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <h2>2. What the game stores on your device</h2>
     <p>Your progress (stars, best times, pilot rank and XP, coins, unlocked cosmetics, tow gear and handling kits, carried weapon ammo, achievements, daily challenge and contract state) and your settings (sound, music, vibration, steering and camera, minimap) are saved locally on your device. Your save itself stays on your device and is not sent to us (anonymous gameplay statistics are described in section 6). Uninstalling the game deletes it.</p>
     <p>When you steer by tilting, the game reads your phone's motion sensors (accelerometer and gyroscope) only while you fly. The readings are used on the spot to turn the ship and are never stored or sent anywhere.</p>
+    <p><b>Reminders.</b> If you say yes to the game's "Radio calls" question or turn on <b>Settings → Reminders</b>, the game schedules reminder notifications on your device (for example when the daily dispatch is posted), at most one a day, at about the time you usually play. They are created by the game itself on your phone: no notification service or server is involved, and no push token or other identifier is sent anywhere. You can turn them off in Settings or in your phone's notification settings.</p>
     <p>The game has no user accounts and does not ask for your name, email, location, contacts, camera or microphone.</p>
 
     <h2>3. Advertising (Google AdMob)</h2>
@@ -337,7 +338,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
     <h2>6. Gameplay statistics (Google Analytics for Firebase)</h2>
     <p>To see which levels are too hard, where players get stuck and whether the game runs well, the game sends anonymous usage events through Google Analytics for Firebase. They include:</p>
     <ul>
-      <li>game events: a level started (with the ship, tow gear and mode), crashed (with the cause and the spot in the level), was abandoned or completed (stars, time, fuel left, attempt number, and whether you steered by tilt or with the on-screen stick), route guide and demo use, tutorial progress (practice steps finished, the tutorial finished), worlds unlocked, ships unlocked and picked, ranks, achievements, coins earned and spent, weapons used, supply crates and mystery salvage caches collected (and what they held), ads watched and purchase attempts with their result (never payment details),</li>
+      <li>game events: a level started (with the ship, tow gear and mode), crashed (with the cause and the spot in the level), was abandoned or completed (stars, time, fuel left, attempt number, and whether you steered by tilt or with the on-screen stick), route guide and demo use, tutorial progress (practice steps finished, the tutorial finished), worlds unlocked, ships unlocked and picked, ranks, achievements, coins earned and spent, weapons used, supply crates and mystery salvage caches collected (and what they held), ads watched and purchase attempts with their result (never payment details), whether you turned reminders on or off and which kind of reminder opened the game,</li>
       <li>three summary values: your pilot rank, your total stars and whether you have made a purchase,</li>
       <li>app usage that Firebase collects on its own: first open, sessions and their length, app version, device model, operating system, language, country (derived from the IP address, which is not stored), and when the app is removed (Android),</li>
       <li>a random app-instance identifier that is reset when you reinstall the game. Analytics does not collect your advertising ID.</li>
@@ -390,7 +391,7 @@ footer .links { margin-left: auto; display: flex; gap: 16px; }
   var SITE = {
     developer: 'Zafrk',
     email: 'contact@zafrk.com',
-    updated: 'October 13, 2026',
+    updated: 'October 14, 2026',
   };
 
   // ── Fill shared values ─────────────────────────────────────────────────

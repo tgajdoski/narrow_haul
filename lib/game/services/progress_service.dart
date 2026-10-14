@@ -91,6 +91,10 @@ class ProgressService {
     'tilt_sensitivity',
     'tilt_mode',
     'credits_seen',
+    'reminders_enabled',
+    'reminder_asks',
+    'reminder_ask_ms',
+    'reminder_hours',
     'save_v2',
     'save_v3',
   };
@@ -279,6 +283,32 @@ class ProgressService {
   /// tells the story again.
   bool storySeen(String key) => _bool('story_$key') ?? false;
   Future<void> markStorySeen(String key) async => _prefs.setBool('story_$key', true);
+
+  /// Return reminders (local notifications): null until the player answers
+  /// the in-game question, then their choice (Settings can change it).
+  bool? get remindersEnabled => _bool('reminders_enabled');
+  Future<void> setRemindersEnabled(bool v) async =>
+      _prefs.setBool('reminders_enabled', v);
+
+  /// How often, and when last (ms), the reminder question was shown.
+  int get reminderAsks => _int('reminder_asks') ?? 0;
+  int get reminderAskMs => _int('reminder_ask_ms') ?? 0;
+  Future<void> recordReminderAsk(int nowMs) async {
+    await _prefs.setInt('reminder_asks', reminderAsks + 1);
+    await _prefs.setInt('reminder_ask_ms', nowMs);
+  }
+
+  /// Hours (0–23) of the last 8 session starts: reminders go out at the
+  /// player's usual time.
+  List<int> get reminderHours => [
+        for (final h in _stringList('reminder_hours') ?? const <String>[])
+          ?int.tryParse(h),
+      ];
+  Future<void> recordSessionHour(int hour) async {
+    final hours = [...reminderHours, hour];
+    final last = hours.length > 8 ? hours.sublist(hours.length - 8) : hours;
+    await _prefs.setStringList('reminder_hours', [for (final h in last) '$h']);
+  }
 
   bool get minimapEnabled => _bool('minimap_enabled') ?? true;
   Future<void> setMinimapEnabled(bool v) async =>

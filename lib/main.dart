@@ -17,6 +17,7 @@ import 'package:narrow_haul/game/services/analytics_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/reminder_service.dart';
 import 'package:narrow_haul/game/services/system_ui.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
@@ -91,6 +92,8 @@ void main() async {
   runApp(_NarrowHaulApp(game: game));
   // After runApp: the UMP consent form needs a live UI. Never blocks play.
   unawaited(MonetizationService.instance.init());
+  // Opt-in return reminders: reschedules from today's state.
+  unawaited(ReminderService.init());
 }
 
 /// Firebase (Android / iOS only). Crashlytics: native crashes are captured by

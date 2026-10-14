@@ -210,6 +210,17 @@ class Analytics {
   static void salvageOpened(String effect, {required bool good}) =>
       log('salvage_opened', {'effect': effect, 'good': good});
 
+  // ── Reminders ─────────────────────────────────────────────────────────────
+
+  /// The answer to the reminder question or the Settings toggle: `where` is
+  /// ask / settings; `granted` false when the OS permission was refused.
+  static void reminderOptIn({required bool on, required String where, bool granted = true}) =>
+      log('reminder_opt_in', {'on': on, 'where': where, 'granted': granted});
+
+  /// The app was opened from a reminder (its kind: streak / daily / gear /
+  /// mission).
+  static void reminderOpened(String kind) => log('reminder_opened', {'kind': kind});
+
   // ── Ads & purchases ───────────────────────────────────────────────────────
 
   static void rewardedAd(String placement, {required bool earned}) =>

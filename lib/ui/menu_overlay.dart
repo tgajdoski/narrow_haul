@@ -13,6 +13,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
+import 'package:narrow_haul/ui/reminder_ask.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/tow_art.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
@@ -32,6 +33,16 @@ class _MenuOverlayState extends State<MenuOverlay> {
   bool _contractsOpen = false;
 
   NarrowHaulGame get game => widget.game;
+
+  @override
+  void initState() {
+    super.initState();
+    // The reminder question waits for the hangar, never over the intro.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || game.creditsVisible.value || game.introVisible.value) return;
+      maybeAskForReminders(context);
+    });
+  }
 
   void _toggleContracts() {
     AudioService.playUi(_contractsOpen ? UiSound.close : UiSound.open);

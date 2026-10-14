@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/motion_input.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/reminder_service.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 import 'package:narrow_haul/game/ship/tilt_steer.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
@@ -145,6 +146,21 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _setReminders(bool v) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (!v) {
+      await ReminderService.disable();
+    } else if (!await ReminderService.enable(where: 'settings')) {
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text("Notifications are off for Narrow Haul. Turn them on in the phone's Settings."),
+          behavior: SnackBarBehavior.floating,
+        ));
+    }
+    if (mounted) setState(() {});
+  }
+
   void _back() {
     widget.game.closeSettings();
   }
@@ -173,6 +189,14 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           value: _p.hapticsEnabled,
           onChanged: (v) => _set(_p.setHapticsEnabled, v),
         ),
+        if (ReminderService.supported)
+          HoloToggle(
+            icon: Icons.notifications_none_rounded,
+            title: 'Reminders',
+            subtitle: 'Daily dispatch and the next run, at most once a day',
+            value: _p.remindersEnabled ?? false,
+            onChanged: _setReminders,
+          ),
         HoloToggle(
           icon: Icons.swap_horiz_rounded,
           title: 'Left-handed controls',

@@ -1,0 +1,200 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:narrow_haul/game/level/level_registry.dart';
+import 'package:narrow_haul/game/services/analytics_service.dart';
+import 'package:narrow_haul/game/services/error_reporter.dart';
+import 'package:narrow_haul/game/services/garage_notices.dart';
+import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/services/reminder_plan.dart';
+import 'package:narrow_haul/game/story/story.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+/// Return reminders as local notifications (Android/iOS only, no server).
+/// Opt-in: nothing is scheduled until the player says yes to the in-game
+/// question or turns *Reminders* on in Settings. Every app open and every
+/// trip to the background cancels what's pending and schedules the plan
+/// again from the current state ([planReminders]), so a reminder never
+/// fires on a day the game was played and stops after the last slot.
+/// Fail-safe: a plugin error only loses the reminders.
+abstract final class ReminderService {
+  static final _plugin = FlutterLocalNotificationsPlugin();
+  static bool _ready = false;
+
+  /// `--dart-define=REMINDER_SECONDS=30`: fire the plan 30 s, 60 s, 90 s
+  /// after the app goes to the background (device testing).
+  static const _debugSeconds = int.fromEnvironment('REMINDER_SECONDS');
+
+  static bool get supported =>
+      !kIsWeb &&
+      (Platform.isAndroid || Platform.isIOS) &&
+      !Platform.environment.containsKey('FLUTTER_TEST');
+
+  static const _channel = AndroidNotificationDetails(
+    'reminders',
+    'Mission reminders',
+    channelDescription: 'Daily dispatch, streaks and the next relief run',
+    importance: Importance.defaultImportance,
+    priority: Priority.defaultPriority,
+    icon: 'ic_launcher_monochrome',
+  );
+  static const _details = NotificationDetails(
+    android: _channel,
+    iOS: DarwinNotificationDetails(),
+  );
+
+  /// Once in `main()` after the save is loaded: notes the hour, picks up a
+  /// launch from a reminder and refreshes the schedule.
+  static Future<void> init() async {
+    if (!supported) return;
+    try {
+      await _plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('ic_launcher_monochrome'),
+          // The OS prompt comes only from [enable], after the player said yes.
+          iOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestSoundPermission: false,
+            requestBadgePermission: false,
+          ),
+        ),
+        onDidReceiveNotificationResponse: (r) => _opened(r.payload),
+      );
+      _ready = true;
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        _opened(launch?.notificationResponse?.payload);
+      }
+      await onForeground();
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'reminders init');
+    }
+  }
+
+  static void _opened(String? kind) {
+    if (kind != null) Analytics.reminderOpened(kind);
+  }
+
+  /// App opened or resumed: the player is here, so note the hour and
+  /// schedule from now.
+  static Future<void> onForeground() async {
+    if (!_ready) return;
+    await ProgressService.instance.recordSessionHour(DateTime.now().hour);
+    await reschedule();
+  }
+
+  /// Cancels every pending reminder and, if they're on, schedules the plan
+  /// for the current state.
+  static Future<void> reschedule() async {
+    if (!_ready) return;
+    try {
+      await _plugin.cancelAll();
+      if (ProgressService.instance.remindersEnabled != true) return;
+      final plan = planReminders(
+        _state(),
+        debugSpacing: _debugSeconds > 0 ? const Duration(seconds: _debugSeconds) : null,
+      );
+      for (final r in plan) {
+        await _plugin.zonedSchedule(
+          id: r.id,
+          scheduledDate: tz.TZDateTime.from(r.at.toUtc(), tz.UTC),
+          notificationDetails: _details,
+          // Inexact: no exact-alarm permission, the OS batches it.
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          title: r.title,
+          body: r.body,
+          payload: r.kind.name,
+        );
+      }
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'reminders schedule');
+    }
+  }
+
+  static ReminderState _state() {
+    final p = ProgressService.instance;
+    return ReminderState(
+      now: DateTime.now(),
+      dailyStreak: p.getDailyStreak(),
+      dailyDoneToday: p.isDailyChallengeComplete(),
+      affordableGear: _affordableGear(),
+      nextMission: _nextMission(),
+      playHours: p.reminderHours,
+    );
+  }
+
+  /// The cheapest gear the player can buy now (rank reached, coins enough).
+  static String? _affordableGear() {
+    final snap = GarageNotices.current();
+    String? name;
+    var cost = 1 << 30;
+    for (final i in snap.items) {
+      if (!isGear(i) || i.supporterOnly || snap.owned.contains(i.id)) continue;
+      if (i.rankRequired > snap.rankIndex || i.cost > snap.coins) continue;
+      if (i.cost < cost) (name, cost) = (i.name, i.cost);
+    }
+    return name;
+  }
+
+  static MissionReminder? _nextMission() {
+    final def = LevelRegistry.defAt(LevelRegistry.nextLevelIndex());
+    if (ProgressService.instance.getStarsById(def.saveId) > 0) return null;
+    final story = storyFor(def.saveId);
+    if (story == null) return null;
+    return MissionReminder(from: story.from, cargo: story.cargo, brief: story.brief);
+  }
+
+  // ── Opt-in ────────────────────────────────────────────────────────────────
+
+  /// Show the in-game question now? (Training done or a daily flown, never
+  /// answered yes/no in Settings, at most twice a week apart.) Counts the ask.
+  static bool takeAsk() {
+    if (!_ready) return false;
+    final p = ProgressService.instance;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final ask = shouldAskForReminders(
+      enabled: p.remindersEnabled,
+      engaged: LevelRegistry.trainingComplete || p.getDailyStreak() > 0,
+      asks: p.reminderAsks,
+      lastAskMs: p.reminderAskMs,
+      nowMs: now,
+    );
+    if (ask) unawaited(p.recordReminderAsk(now));
+    return ask;
+  }
+
+  /// The player said yes: asks the OS (iOS once ever, Android 13+) and turns
+  /// reminders on if it agrees. Returns whether they are on.
+  static Future<bool> enable({required String where}) async {
+    if (!_ready) return false;
+    var granted = false;
+    try {
+      if (Platform.isIOS) {
+        granted = await _plugin
+                .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+                ?.requestPermissions(alert: true, sound: true) ??
+            false;
+      } else {
+        granted = await _plugin
+                .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+                ?.requestNotificationsPermission() ??
+            false;
+      }
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'reminders permission');
+    }
+    await ProgressService.instance.setRemindersEnabled(granted);
+    Analytics.reminderOptIn(on: true, where: where, granted: granted);
+    await reschedule();
+    return granted;
+  }
+
+  /// Settings switched them off: nothing pending, nothing new.
+  static Future<void> disable() async {
+    await ProgressService.instance.setRemindersEnabled(false);
+    Analytics.reminderOptIn(on: false, where: 'settings');
+    await reschedule();
+  }
+}
