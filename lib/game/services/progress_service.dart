@@ -5,7 +5,18 @@ import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:narrow_haul/game/services/monetization_ids.dart';
 
-/// Persists level progress, star ratings, best times, achievements, streaks.
+part 'progress_ads.dart';
+part 'progress_career.dart';
+part 'progress_daily.dart';
+part 'progress_prefs.dart';
+part 'progress_settings.dart';
+
+/// Persists level progress, star ratings, best times, achievements, streaks,
+/// settings and purchases in `shared_preferences`.
+///
+/// The API is split by domain into part files (extensions on this class):
+/// career, settings, ads & purchases, daily. Keys with a default are
+/// [_Pref]s in `progress_prefs.dart`, so each key string is written once.
 class ProgressService {
   ProgressService._(this._prefs);
 
@@ -44,6 +55,21 @@ class ProgressService {
     return v is String ? v : null;
   }
 
+  T _read<T extends Object>(_Pref<T> p) {
+    final v = _prefs.get(p.key);
+    if (v is T) return v;
+    if (p.fallback is double && v is num) return v.toDouble() as T;
+    return p.fallback;
+  }
+
+  Future<void> _write<T extends Object>(_Pref<T> p, T v) => switch (v) {
+    final bool b => _prefs.setBool(p.key, b),
+    final int i => _prefs.setInt(p.key, i),
+    final double d => _prefs.setDouble(p.key, d),
+    final String s => _prefs.setString(p.key, s),
+    _ => throw ArgumentError.value(v, p.key),
+  };
+
   List<String>? _stringList(String key) {
     try {
       return _prefs.getStringList(key);
@@ -67,7 +93,7 @@ class ProgressService {
   /// string save ids. The first 10 TMX levels became the trimmed tutorial;
   /// progress on dropped levels 11-20 is orphaned intentionally.
   Future<void> _migrateToV2() async {
-    if (_bool('save_v2') ?? false) return;
+    if (_bool(_Keys.saveV2) ?? false) return;
     for (int i = 0; i < 10; i++) {
       final saveId = 'tut_${(i + 1).toString().padLeft(2, '0')}';
       final stars = _int('stars_$i');
@@ -75,30 +101,30 @@ class ProgressService {
       final time = _double('time_$i');
       if (time != null) await _prefs.setDouble('time2_$saveId', time);
     }
-    await _prefs.setBool('save_v2', true);
+    await _prefs.setBool(_Keys.saveV2, true);
   }
 
   // ── Reset ────────────────────────────────────────────────────────────────
 
   /// Settings and migration flags that survive "Reset progress".
-  static const _keptOnReset = {
-    'sound_enabled',
-    'music_enabled',
-    'haptics_enabled',
-    'left_handed',
-    'minimap_enabled',
-    'steer_mode',
-    'camera_mode',
-    'tilt_steer',
-    'tilt_sensitivity',
-    'tilt_mode',
-    'credits_seen',
-    'reminders_enabled',
-    'reminder_asks',
-    'reminder_ask_ms',
-    'reminder_hours',
-    'save_v2',
-    'save_v3',
+  static final _keptOnReset = {
+    _soundEnabled.key,
+    _musicEnabled.key,
+    _hapticsEnabled.key,
+    _leftHanded.key,
+    _minimapEnabled.key,
+    _Keys.steerMode,
+    _Keys.cameraMode,
+    _Keys.tiltSteer,
+    _Keys.tiltSensitivity,
+    _Keys.tiltMode,
+    _creditsSeen.key,
+    _Keys.remindersEnabled,
+    _reminderAsks.key,
+    _reminderAskMs.key,
+    _Keys.reminderHours,
+    _Keys.saveV2,
+    _xpMigrated.key,
   };
 
   /// Wipes the career (stars, times, XP, coins, achievements, Garage,
@@ -165,327 +191,7 @@ class ProgressService {
   bool get cloudOverwritePending => _bool(_cloudOverwrite) ?? false;
   Future<void> clearCloudOverwrite() => _prefs.remove(_cloudOverwrite);
 
-  // ── Stars (0–3), keyed by stable level saveId ────────────────────────────
-
-  int getStarsById(String saveId) =>
-      (_int('stars2_$saveId') ?? 0).clamp(0, 3);
-
-  Future<void> saveStarsById(String saveId, int stars) async {
-    if (stars > getStarsById(saveId)) {
-      await _prefs.setInt('stars2_$saveId', stars);
-    }
-  }
-
-  // ── Best time ────────────────────────────────────────────────────────────
-
-  double? getBestTimeById(String saveId) => _double('time2_$saveId');
-
-  Future<void> saveBestTimeById(String saveId, double seconds) async {
-    final current = getBestTimeById(saveId);
-    if (current == null || seconds < current) {
-      await _prefs.setDouble('time2_$saveId', seconds);
-    }
-  }
-
-  // ── No-retry streak ──────────────────────────────────────────────────────
-
-  int getNoRetryStreak() => _int('no_retry_streak') ?? 0;
-  Future<void> setNoRetryStreak(int v) async =>
-      _prefs.setInt('no_retry_streak', v);
-
-  // ── Achievements ─────────────────────────────────────────────────────────
-
-  Set<String> getUnlockedAchievements() =>
-      (_stringList('achievements') ?? []).toSet();
-
-  Future<bool> unlockAchievement(String id) async {
-    final current = getUnlockedAchievements();
-    if (current.contains(id)) return false;
-    current.add(id);
-    await _prefs.setStringList('achievements', current.toList());
-    return true;
-  }
-
-  // ── Stats & Currencies ───────────────────────────────────────────────────
-
-  double getTotalFuelSpent() => _double('total_fuel_spent') ?? 0.0;
-
-  Future<void> addFuelSpent(double amount) async {
-    final current = getTotalFuelSpent();
-    await _prefs.setDouble('total_fuel_spent', current + amount);
-  }
-
-  int getCosmeticCurrency() => math.max(0, _int('cosmetic_currency') ?? 0);
-
-  Future<void> addCosmeticCurrency(int amount) async {
-    final current = getCosmeticCurrency();
-    await _prefs.setInt('cosmetic_currency', current + amount);
-  }
-
-  Future<void> spendCosmeticCurrency(int amount) async {
-    final current = getCosmeticCurrency();
-    if (current >= amount) {
-      await _prefs.setInt('cosmetic_currency', current - amount);
-    }
-  }
-
-  /// A consumable purchase (store transaction id) was already paid out.
-  bool isTransactionGranted(String purchaseId) => _bool('iap_tx_$purchaseId') ?? false;
-  Future<void> markTransactionGranted(String purchaseId) async =>
-      _prefs.setBool('iap_tx_$purchaseId', true);
-
-  // ── Weapon ammo (carried stock) ──────────────────────────────────────────
-
-  /// Carried units of a special weapon (charges, bombs, laser seconds).
-  /// Kept across a progress reset: most of it was paid for.
-  double getAmmo(String weaponId) => math.max(0, _double('ammo_$weaponId') ?? 0);
-
-  Future<void> addAmmo(String weaponId, double units) async {
-    final next = math.max(0.0, getAmmo(weaponId) + units);
-    await _prefs.setDouble('ammo_$weaponId', next);
-  }
-
-  // ── Route guide ──────────────────────────────────────────────────────────
-
-  /// "Show route" was offered and taken on this level; it stays available.
-  bool isRouteUnlocked(String saveId) => _bool('route_unlocked_$saveId') ?? false;
-  Future<void> setRouteUnlocked(String saveId) async =>
-      _prefs.setBool('route_unlocked_$saveId', true);
-
-  // ── Cosmetics ────────────────────────────────────────────────────────────
-
-  bool isCosmeticUnlocked(String id) => _bool('cosmetic_unlocked_$id') ?? false;
-
-  Future<void> unlockCosmetic(String id) async {
-    await _prefs.setBool('cosmetic_unlocked_$id', true);
-  }
-
-  String getEquippedCosmetic(String category, String defaultId) {
-    return _string('equipped_cosmetic_$category') ?? defaultId;
-  }
-
-  Future<void> equipCosmetic(String category, String id) async {
-    await _prefs.setString('equipped_cosmetic_$category', id);
-  }
-
-  /// Garage notice state keys the player has already seen
-  /// (`GarageSnapshot.stateKey`).
-  Set<String> getGarageSeen() => (_stringList('garage_seen') ?? []).toSet();
-
-  Future<void> addGarageSeen(Iterable<String> keys) async {
-    final current = getGarageSeen();
-    if (current.containsAll(keys)) return;
-    current.addAll(keys);
-    await _prefs.setStringList('garage_seen', current.toList());
-  }
-
-  // ── Fleet ────────────────────────────────────────────────────────────────
-
-  /// A ship bought with coins before its type rating (the Fleet Pass is
-  /// `iap_granted_nh_fleet_pass`, kept on reset).
-  bool isShipBought(String id) => _bool('ship_owned_$id') ?? false;
-  Future<void> setShipBought(String id) async => _prefs.setBool('ship_owned_$id', true);
-
-  /// The Garage's "Fly by default" ship (null: each level's par ship).
-  String? get preferredShip => _string('ship_preferred');
-  Future<void> setPreferredShip(String? id) async => id == null
-      ? _prefs.remove('ship_preferred')
-      : _prefs.setString('ship_preferred', id);
-
-  /// The ship last picked for one level in its briefing.
-  String? shipChoiceFor(String saveId) => _string('ship_choice_$saveId');
-  Future<void> setShipChoice(String saveId, String id) async =>
-      _prefs.setString('ship_choice_$saveId', id);
-
-  /// Tow gear / kit the player has flown with at some point.
-  bool isGearFitted(String id) => _bool('gear_fitted_$id') ?? false;
-  Future<void> markGearFitted(String id) async =>
-      _prefs.setBool('gear_fitted_$id', true);
-
-  // ── Settings ─────────────────────────────────────────────────────────────
-
-  /// The "Delivered by" credits play on the first launch only.
-  bool get creditsSeen => _bool('credits_seen') ?? false;
-
-  /// "Slow touches are safe" shows on the first scrape only.
-  bool get scrapeHintSeen => _bool('scrape_hint_seen') ?? false;
-  Future<void> markScrapeHintSeen() async =>
-      _prefs.setBool('scrape_hint_seen', true);
-
-  /// Deliveries in a row without a nose-down warning; the in-flight lesson
-  /// runs until it reaches `kNoseDownCleanFlights`.
-  int get noseDownCleanFlights => _int('nose_down_clean') ?? 0;
-  Future<void> setNoseDownCleanFlights(int n) async =>
-      _prefs.setInt('nose_down_clean', n);
-  /// A crate's "loaded, tap FIRE" plate shows the first time each weapon
-  /// is picked up; after that the icon flying into FIRE says it.
-  bool crateHintSeen(String weaponId) => _bool('crate_hint_$weaponId') ?? false;
-  Future<void> markCrateHintSeen(String weaponId) async =>
-      _prefs.setBool('crate_hint_$weaponId', true);
-  /// OPS's "You're flying the X" line plays on a ship's first flight only.
-  bool shipIntroSeen(String shipId) => _bool('ship_intro_$shipId') ?? false;
-  Future<void> markShipIntroSeen(String shipId) async =>
-      _prefs.setBool('ship_intro_$shipId', true);
-  Future<void> markCreditsSeen() async => _prefs.setBool('credits_seen', true);
-
-  /// Story chapter cards seen (`intro_<world>` / `outro_<world>`); a reset
-  /// tells the story again.
-  bool storySeen(String key) => _bool('story_$key') ?? false;
-  Future<void> markStorySeen(String key) async => _prefs.setBool('story_$key', true);
-
-  /// Return reminders (local notifications): null until the player answers
-  /// the in-game question, then their choice (Settings can change it).
-  bool? get remindersEnabled => _bool('reminders_enabled');
-  Future<void> setRemindersEnabled(bool v) async =>
-      _prefs.setBool('reminders_enabled', v);
-
-  /// How often, and when last (ms), the reminder question was shown.
-  int get reminderAsks => _int('reminder_asks') ?? 0;
-  int get reminderAskMs => _int('reminder_ask_ms') ?? 0;
-  Future<void> recordReminderAsk(int nowMs) async {
-    await _prefs.setInt('reminder_asks', reminderAsks + 1);
-    await _prefs.setInt('reminder_ask_ms', nowMs);
-  }
-
-  /// The career mission last launched: a reminder picks it up if it's
-  /// still unflown.
-  String? get reminderLastTried => _string('reminder_last_tried');
-  Future<void> setReminderLastTried(String saveId) async =>
-      _prefs.setString('reminder_last_tried', saveId);
-
-  /// Hours (0–23) of the last 8 session starts: reminders go out at the
-  /// player's usual time.
-  List<int> get reminderHours => [
-        for (final h in _stringList('reminder_hours') ?? const <String>[])
-          ?int.tryParse(h),
-      ];
-  Future<void> recordSessionHour(int hour) async {
-    final hours = [...reminderHours, hour];
-    final last = hours.length > 8 ? hours.sublist(hours.length - 8) : hours;
-    await _prefs.setStringList('reminder_hours', [for (final h in last) '$h']);
-  }
-
-  bool get minimapEnabled => _bool('minimap_enabled') ?? true;
-  Future<void> setMinimapEnabled(bool v) async =>
-      _prefs.setBool('minimap_enabled', v);
-
-  bool get soundEnabled => _bool('sound_enabled') ?? true;
-  Future<void> setSoundEnabled(bool v) async =>
-      _prefs.setBool('sound_enabled', v);
-
-  bool get musicEnabled => _bool('music_enabled') ?? true;
-  Future<void> setMusicEnabled(bool v) async =>
-      _prefs.setBool('music_enabled', v);
-
-  bool get hapticsEnabled => _bool('haptics_enabled') ?? true;
-  Future<void> setHapticsEnabled(bool v) async =>
-      _prefs.setBool('haptics_enabled', v);
-
-  /// Mirrors the touch controls: thrust on the left, joystick on the right.
-  bool get leftHanded => _bool('left_handed') ?? false;
-  Future<void> setLeftHanded(bool v) async => _prefs.setBool('left_handed', v);
-
-  /// Steering and camera presets (`SteerMode` / `CameraMode` names).
-  String? get steerMode => _string('steer_mode');
-  Future<void> setSteerMode(String v) async => _prefs.setString('steer_mode', v);
-  String? get cameraMode => _string('camera_mode');
-  Future<void> setCameraMode(String v) async =>
-      _prefs.setString('camera_mode', v);
-
-  /// Tilt steering on/off (null = never chosen: on wherever the phone has
-  /// the sensor) and its `TiltSensitivity` name.
-  bool? get tiltSteer => _bool('tilt_steer');
-  Future<void> setTiltSteer(bool v) async => _prefs.setBool('tilt_steer', v);
-  String? get tiltSensitivity => _string('tilt_sensitivity');
-  Future<void> setTiltSensitivity(String v) async =>
-      _prefs.setString('tilt_sensitivity', v);
-  String? get tiltMode => _string('tilt_mode');
-  Future<void> setTiltMode(String v) async => _prefs.setString('tilt_mode', v);
-
-  // ── Ads & purchases (see MonetizationService / AdPacing) ─────────────────
-
-  /// No interstitials for good: the Full Game (on its own or in the
-  /// Supporter Pack).
-  bool get adsRemoved => _bool('ads_removed') ?? false;
-  Future<void> setAdsRemoved(bool v) async => _prefs.setBool('ads_removed', v);
-
-  /// Epoch ms until which interstitials stay off after any other purchase
-  /// (ammo pack, Fleet Pass; `kAdPurchaseGrace`). 0 = none.
-  int get adFreeUntilMs => _int('ads_free_until') ?? 0;
-  Future<void> setAdFreeUntilMs(int v) async =>
-      _prefs.setInt('ads_free_until', v);
-
-  /// Any IAP ever made (ad pacing reads [adsRemoved] / [adFreeUntilMs]).
-  bool get hasPurchased => _bool('iap_any_purchase') ?? false;
-  Future<void> setHasPurchased(bool v) async =>
-      _prefs.setBool('iap_any_purchase', v);
-
-  /// Non-consumable product ids already granted (supporter pack payout once).
-  bool isProductGranted(String id) => _bool('iap_granted_$id') ?? false;
-
-  /// The Full Game is owned (on its own or in the Supporter Pack): every
-  /// Expedition opens.
-  bool get hasFullGame => isProductGranted(ProductIds.fullGame);
-  Future<void> markProductGranted(String id) async =>
-      _prefs.setBool('iap_granted_$id', true);
-
-  /// Dev only: forgets every purchase on this device (sandbox test buys), so
-  /// ads show again. A store restore grants them back.
-  Future<void> debugClearPurchases() async {
-    for (final key in _prefs.getKeys().toList()) {
-      if (key == 'ads_removed' ||
-          key == 'ads_free_until' ||
-          key.startsWith('iap_')) {
-        await _prefs.remove(key);
-      }
-    }
-  }
-
-  int get adClearsSinceInterstitial => _int('ads_clears_since_inter') ?? 0;
-  Future<void> setAdClearsSinceInterstitial(int v) async =>
-      _prefs.setInt('ads_clears_since_inter', v);
-
-  /// Epoch ms of the last interstitial / rewarded ad (0 = never).
-  int get lastInterstitialMs => _int('ads_last_inter_ms') ?? 0;
-  Future<void> setLastInterstitialMs(int v) async =>
-      _prefs.setInt('ads_last_inter_ms', v);
-
-  int get lastRewardedMs => _int('ads_last_rewarded_ms') ?? 0;
-  Future<void> setLastRewardedMs(int v) async =>
-      _prefs.setInt('ads_last_rewarded_ms', v);
-
-  /// Epoch ms the remove-ads offer was last shown on the result screen.
-  int get removeAdsOfferMs => _int('ads_offer_ms') ?? 0;
-  Future<void> setRemoveAdsOfferMs(int v) async =>
-      _prefs.setInt('ads_offer_ms', v);
-
-  // ── Pilot career (XP) ────────────────────────────────────────────────────
-
-  int getXp() => math.max(0, _int('xp_total') ?? 0);
-  Future<void> setXp(int v) async => _prefs.setInt('xp_total', v);
-  Future<void> addXp(int amount) async => setXp(getXp() + amount);
-
-  /// `save_v3`: XP backfilled from pre-rank progress (see CareerService).
-  bool get isXpMigrated => _bool('save_v3') ?? false;
-  Future<void> markXpMigrated() async => _prefs.setBool('save_v3', true);
-
-  int getReplayXpToday() => _int('replay_xp_${_todayKey()}') ?? 0;
-  Future<void> addReplayXpToday(int amount) async =>
-      _prefs.setInt('replay_xp_${_todayKey()}', getReplayXpToday() + amount);
-
-  // ── Contracts (per day) ──────────────────────────────────────────────────
-
-  List<String>? getTodayContracts() =>
-      _stringList('contracts_${_todayKey()}');
-  Future<void> setTodayContracts(List<String> encoded) async =>
-      _prefs.setStringList('contracts_${_todayKey()}', encoded);
-
-  int getContractProgress(int i) =>
-      _int('contract_${_todayKey()}_$i') ?? 0;
-  Future<void> setContractProgress(int i, int v) async =>
-      _prefs.setInt('contract_${_todayKey()}_$i', v);
-
-  // ── Lifetime stats ───────────────────────────────────────────────────────
+  // ── Lifetime stat names (getStat / incrementStat) ─────────────────────
 
   static const statFlights = 'flights';
   static const statCrashes = 'crashes';
@@ -502,69 +208,4 @@ class ProgressService {
 
   /// Boons opened in a row (Four-Leaf Clover at 3).
   static const statSalvageBoonStreak = 'salvage_boon_streak';
-
-  /// Sets a one-time flag; true only the first time (e.g. first reactor
-  /// escape on a level, which pays its bonus once).
-  Future<bool> markOnce(String key) async {
-    if (_bool('once_$key') ?? false) return false;
-    await _prefs.setBool('once_$key', true);
-    return true;
-  }
-
-  int getStat(String name) => _int('stat_$name') ?? 0;
-  Future<void> incrementStat(String name, [int by = 1]) async =>
-      _prefs.setInt('stat_$name', getStat(name) + by);
-  Future<void> setStat(String name, int value) async =>
-      _prefs.setInt('stat_$name', value);
-
-  /// Mystery salvage: how often each effect was found (the Salvage Log).
-  int salvageFound(String effectId) => getStat('salvage_$effectId');
-  Future<void> recordSalvageFound(String effectId) =>
-      incrementStat('salvage_$effectId');
-
-  // ── Daily challenge ──────────────────────────────────────────────────────
-
-  String _todayKey() => _dateKey(clock());
-
-  String _dateKey(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  /// Consecutive days with a completed daily. Still shown as alive until a
-  /// full day is missed.
-  int getDailyStreak() {
-    final last = _string('daily_last_date');
-    final now = clock();
-    final yesterday = _dateKey(DateTime(now.year, now.month, now.day - 1));
-    if (last == _todayKey() || last == yesterday) {
-      return _int('daily_streak') ?? 0;
-    }
-    return 0;
-  }
-
-  /// Call once on the first daily completion of a day; returns the new streak.
-  Future<int> advanceDailyStreak() async {
-    if (_string('daily_last_date') == _todayKey()) {
-      return getDailyStreak();
-    }
-    final streak = getDailyStreak() + 1;
-    await _prefs.setInt('daily_streak', streak);
-    await _prefs.setString('daily_last_date', _todayKey());
-    return streak;
-  }
-
-  bool isDailyChallengeComplete() =>
-      _bool('daily_${_todayKey()}') ?? false;
-
-  Future<void> markDailyChallengeComplete() async {
-    await _prefs.setBool('daily_${_todayKey()}', true);
-  }
-
-  double? getDailyBestTime() => _double('daily_time_${_todayKey()}');
-
-  Future<void> saveDailyBestTime(double seconds) async {
-    final current = getDailyBestTime();
-    if (current == null || seconds < current) {
-      await _prefs.setDouble('daily_time_${_todayKey()}', seconds);
-    }
-  }
 }
