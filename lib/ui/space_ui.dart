@@ -1,13 +1,16 @@
-import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../game/env.dart';
 import '../game/services/audio_service.dart';
 import '../game/services/haptics.dart';
 import 'fonts.dart';
+import 'kit/shapes.dart';
+
+export 'kit/shapes.dart';
 
 /// The space UI kit: cockpit-style panels, buttons, chips and the animated
 /// starfield shared by every menu and popup. Widgets play their own
@@ -52,10 +55,8 @@ TextStyle hudLabel(
 /// `pumpAndSettle` would never settle, and when the system asks for reduced
 /// motion.
 bool spaceAnimationsOn(BuildContext context) =>
-    !_inTest && !MediaQuery.disableAnimationsOf(context);
+    !kInFlutterTest && !MediaQuery.disableAnimationsOf(context);
 
-final bool _inTest =
-    !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
 /// One line of text that scrolls when it doesn't fit, instead of being cut
 /// with an ellipsis: it holds at the start, glides to the end, holds, and
@@ -236,23 +237,6 @@ class _MarqueeScrollerState extends State<_MarqueeScroller>
 // Chamfered shape
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A rectangle with the top-left and bottom-right corners cut ([cut]) and the
-/// other two slightly cut — the kit's signature silhouette.
-Path chamferPath(Rect r, double cut) {
-  final c = math.min(cut, math.min(r.width, r.height) / 2);
-  final s = c * 0.35;
-  return Path()
-    ..moveTo(r.left + c, r.top)
-    ..lineTo(r.right - s, r.top)
-    ..lineTo(r.right, r.top + s)
-    ..lineTo(r.right, r.bottom - c)
-    ..lineTo(r.right - c, r.bottom)
-    ..lineTo(r.left + s, r.bottom)
-    ..lineTo(r.left, r.bottom - s)
-    ..lineTo(r.left, r.top + c)
-    ..close();
-}
-
 class ChamferBorder extends ShapeBorder {
   const ChamferBorder({this.cut = 12});
   final double cut;
@@ -304,11 +288,7 @@ class _HoloFramePainter extends CustomPainter {
     if (glow > 0) {
       canvas.drawPath(
         path,
-        Paint()
-          ..color = accent.withValues(alpha: 0.35 * glow)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 6
-          ..maskFilter = MaskFilter.blur(BlurStyle.outer, 8 * glow),
+        GlowPaint.of(accent.withValues(alpha: 0.35 * glow), 6, 8 * glow),
       );
     }
 
@@ -570,8 +550,10 @@ class HoloDialog extends StatelessWidget {
 enum HoloVariant { primary, secondary, ghost }
 
 /// Shake + [UiSound.denied] for taps on something locked.
-mixin _Denied<T extends StatefulWidget>
-    on State<T>, TickerProviderStateMixin<T> {
+/// Buzz + sideways shake for a refused tap: call [deny], wrap the widget in
+/// [shaking].
+mixin DeniedShake<T extends StatefulWidget> on State<T>
+    implements TickerProvider {
   late final AnimationController shake = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 320),
@@ -653,7 +635,7 @@ class HoloButton extends StatefulWidget {
 }
 
 class _HoloButtonState extends State<HoloButton>
-    with TickerProviderStateMixin, _Denied {
+    with TickerProviderStateMixin, DeniedShake {
   bool _down = false;
   AnimationController? _pulse;
 

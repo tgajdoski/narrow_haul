@@ -12,6 +12,7 @@ import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/reminder_plan.dart';
 import 'package:narrow_haul/game/story/story.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:narrow_haul/game/env.dart';
 
 /// Return reminders as local notifications (Android/iOS only, no server).
 /// Opt-in: nothing is scheduled until the player says yes to the in-game
@@ -31,7 +32,7 @@ abstract final class ReminderService {
   static bool get supported =>
       !kIsWeb &&
       (Platform.isAndroid || Platform.isIOS) &&
-      !Platform.environment.containsKey('FLUTTER_TEST');
+      !kInFlutterTest;
 
   static const _channel = AndroidNotificationDetails(
     'reminders',

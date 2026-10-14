@@ -36,7 +36,7 @@ class PauseButtonHud extends PositionComponent with TapCallbacks {
   void render(Canvas canvas) {
     if (!visible) return;
     const c = Offset(_size / 2, _size / 2);
-    final plate = chamferRect(Offset.zero & const Size(_size, _size), 11);
+    final plate = chamferPath(Offset.zero & const Size(_size, _size), 11);
     drawGlow(canvas, plate, HudColors.cyan, 0.25);
     canvas.drawPath(plate, Paint()..color = HudColors.plate);
     drawStroke(canvas, plate, HudColors.cyan.withValues(alpha: 0.7), 1.4);
@@ -454,7 +454,7 @@ class CelebrationBurst extends Component {
   Future<void> onLoad() async {
     final colors = [
       accent,
-      const Color(0xFF4ADE80),
+      HudColors.green,
       const Color(0xFFFFD166),
       Colors.white,
     ];
@@ -581,7 +581,7 @@ class CombatStatusHud extends PositionComponent {
     final w = tp.width + glyphW + stripeW * 2 + 22;
     final h = tp.height + 12;
     final rect = Rect.fromLTWH((size.x - w) / 2, top, w, h);
-    final plate = chamferRect(rect, 8);
+    final plate = chamferPath(rect, 8);
     drawGlow(canvas, plate, color, melt != null ? 0.7 : 0.4);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
     canvas.save();

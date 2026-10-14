@@ -2,8 +2,9 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 
-const _gold = Color(0xFFFFD166);
+const _gold = HudColors.star;
 const _silver = Color(0xFFCBD5E1);
 const _board = Color(0xFF0D1B2A);
 
@@ -136,16 +137,5 @@ void _paintEpaulette(
   }
 }
 
-void _drawStar(Canvas canvas, Offset c, double r, Paint paint) {
-  final path = Path();
-  for (int i = 0; i < 5; i++) {
-    final a = -math.pi / 2 + i * 2 * math.pi / 5;
-    final b = a + math.pi / 5;
-    final o = Offset(c.dx + r * math.cos(a), c.dy + r * math.sin(a));
-    final n = Offset(c.dx + r * 0.4 * math.cos(b), c.dy + r * 0.4 * math.sin(b));
-    i == 0 ? path.moveTo(o.dx, o.dy) : path.lineTo(o.dx, o.dy);
-    path.lineTo(n.dx, n.dy);
-  }
-  path.close();
-  canvas.drawPath(path, paint);
-}
+void _drawStar(Canvas canvas, Offset c, double r, Paint paint) =>
+    canvas.drawPath(starPath(c, r), paint);

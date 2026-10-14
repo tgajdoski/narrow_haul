@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/flame.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/ship_fx.dart';
 import 'package:narrow_haul/game/components/thrust_plume.dart';
@@ -17,6 +15,7 @@ import 'package:narrow_haul/game/ship/loadout.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
+import 'package:narrow_haul/game/env.dart';
 
 /// Rocket with rear thrust along local −Y (nose at −Y). [onWallHit] from contacts.
 class ShipBody extends BodyComponent with ContactCallbacks {
@@ -312,7 +311,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
         _usingFallbackArt = path != spec.sprite;
         renderBody = false;
         // Lighting comes in once its atlas is baked (cached per sprite + rim).
-        if (!_inTest) {
+        if (!kInFlutterTest) {
           unawaited(hullLightAtlas(path, img, rimColor).then((a) {
             if (a != null && a.width == img.width * 4) _lightAtlas = a;
           }));
@@ -321,9 +320,6 @@ class ShipBody extends BodyComponent with ContactCallbacks {
       } catch (_) {}
     }
   }
-
-  static final bool _inTest =
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   // Same scale on both axes, nozzle row on the engine anchor: the hull
   // polygons ([ShipSpec.hullPolygons]) are traced from this very framing.

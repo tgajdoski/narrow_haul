@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/painting.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/ui/fonts.dart';
+import 'package:narrow_haul/ui/kit/shapes.dart';
+
+export 'package:narrow_haul/ui/kit/shapes.dart';
 
 /// Canvas helpers for the in-flight cockpit controls, matching the menus'
 /// space UI kit (`lib/ui/space_ui.dart`): hexagons, chamfered plates, glow.
@@ -13,36 +16,14 @@ abstract final class HudColors {
   static const thrustHot = Color(0xFFFFC46B);
   static const fire = Color(0xFFFF5252);
   static const gold = Color(0xFFFFC857);
+  /// The menus' warmer gold (`SpaceColors.gold`): earned stars, insignia.
+  static const star = Color(0xFFFFD166);
+  static const green = Color(0xFF4ADE80);
+  static const amber = Color(0xFFFFB347);
+  /// Low fuel, and the fallback accent for crash / combat plates.
+  static const warn = Color(0xFFFF6B35);
   static const plate = Color(0x99081222);
   static const plateDark = Color(0xCC050B18);
-}
-
-/// Pointy-top hexagon around [c].
-Path hexPath(Offset c, double r, {double rotation = 0}) {
-  final p = Path();
-  for (var i = 0; i < 6; i++) {
-    final a = rotation + math.pi / 6 + i * math.pi / 3;
-    final v = c + Offset(math.cos(a), math.sin(a)) * r;
-    i == 0 ? p.moveTo(v.dx, v.dy) : p.lineTo(v.dx, v.dy);
-  }
-  return p..close();
-}
-
-/// Rectangle with the top-left / bottom-right corners cut ([cut]) and the
-/// other two nicked — the menus' signature plate.
-Path chamferRect(Rect r, double cut) {
-  final c = math.min(cut, math.min(r.width, r.height) / 2);
-  final s = c * 0.35;
-  return Path()
-    ..moveTo(r.left + c, r.top)
-    ..lineTo(r.right - s, r.top)
-    ..lineTo(r.right, r.top + s)
-    ..lineTo(r.right, r.bottom - c)
-    ..lineTo(r.right - c, r.bottom)
-    ..lineTo(r.left + s, r.bottom)
-    ..lineTo(r.left, r.bottom - s)
-    ..lineTo(r.left, r.top + c)
-    ..close();
 }
 
 /// Soft outer glow along [path].
@@ -50,11 +31,7 @@ void drawGlow(Canvas canvas, Path path, Color color, double strength) {
   if (strength <= 0) return;
   canvas.drawPath(
     path,
-    Paint()
-      ..color = color.withValues(alpha: 0.5 * strength)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..maskFilter = MaskFilter.blur(BlurStyle.outer, 9 * strength),
+    GlowPaint.of(color.withValues(alpha: 0.5 * strength), 6, 9 * strength),
   );
 }
 

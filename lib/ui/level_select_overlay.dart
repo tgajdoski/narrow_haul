@@ -513,11 +513,8 @@ class _MapNode extends StatefulWidget {
   State<_MapNode> createState() => _MapNodeState();
 }
 
-class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
-  late final AnimationController _shake = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 320),
-  );
+class _MapNodeState extends State<_MapNode>
+    with TickerProviderStateMixin, DeniedShake {
   AnimationController? _pulse;
 
   @override
@@ -533,7 +530,6 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _shake.dispose();
     _pulse?.dispose();
     super.dispose();
   }
@@ -559,8 +555,7 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
     if (widget.unlocked || widget.fullGame) {
       widget.onTap();
     } else {
-      AudioService.playUi(UiSound.denied);
-      _shake.forward(from: 0);
+      deny();
     }
   }
 
@@ -629,22 +624,17 @@ class _MapNodeState extends State<_MapNode> with TickerProviderStateMixin {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
-      child: AnimatedBuilder(
-        animation: _shake,
-        builder: (context, child) {
-          final t = _shake.value;
-          final dx = _shake.isAnimating
-              ? math.sin(t * math.pi * 6) * 6 * (1 - t)
-              : 0.0;
-          return Transform.translate(offset: Offset(dx, 0), child: child);
-        },
-        child: Opacity(
+      child: shaking(
+        Opacity(
           opacity: unlocked ? 1 : 0.55,
           child: pulse == null
               ? hex(0)
-              : AnimatedBuilder(
-                  animation: pulse,
-                  builder: (context, _) => hex(pulse.value),
+              // Own layer, so the pulse doesn't repaint the whole map.
+              : RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: pulse,
+                    builder: (context, _) => hex(pulse.value),
+                  ),
                 ),
         ),
       ),
@@ -669,21 +659,11 @@ class _HexPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
     final r = size.shortestSide / 2 - 4;
-    final hex = Path();
-    for (var i = 0; i < 6; i++) {
-      final a = math.pi / 6 + i * math.pi / 3;
-      final p = c + Offset(math.cos(a), math.sin(a)) * r;
-      i == 0 ? hex.moveTo(p.dx, p.dy) : hex.lineTo(p.dx, p.dy);
-    }
-    hex.close();
+    final hex = hexPath(c, r);
     if (strength > 0) {
       canvas.drawPath(
         hex,
-        Paint()
-          ..color = accent.withValues(alpha: 0.55 * strength)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 8
-          ..maskFilter = MaskFilter.blur(BlurStyle.outer, 10 * strength),
+        GlowPaint.of(accent.withValues(alpha: 0.55 * strength), 8, 10 * strength),
       );
     }
     canvas.drawPath(

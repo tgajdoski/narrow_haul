@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/services/cloud_save.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/games_ids.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/env.dart';
 
 /// What [GamesService] needs from Play Games / Game Center. The real one is
 /// [PluginGamesBackend]; tests pass a fake.
@@ -38,7 +39,7 @@ class GamesService {
   static bool get supported =>
       !kIsWeb &&
       (Platform.isAndroid || Platform.isIOS) &&
-      !Platform.environment.containsKey('FLUTTER_TEST');
+      !kInFlutterTest;
 
   static String get platformName =>
       !kIsWeb && Platform.isIOS ? 'Game Center' : 'Play Games';

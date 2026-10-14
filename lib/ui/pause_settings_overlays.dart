@@ -18,10 +18,8 @@ import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
-import 'package:narrow_haul/ui/tap_sound.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const _panelColor = SpaceColors.panel;
 
 /// Mid-flight pause menu ('pause' overlay): one wide cockpit panel, every
 /// action in a single row so it fits a landscape phone.
@@ -568,27 +566,35 @@ class _AboutSection extends StatelessWidget {
   Future<void> _confirmReset(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _panelColor,
-        title: const Text('Reset progress?'),
-        content: const Text(
+      builder: (context) => HoloDialog(
+        title: 'Reset progress?',
+        accent: SpaceColors.red,
+        maxWidth: 440,
+        scrim: Colors.transparent,
+        footer: Row(
+          children: [
+            Expanded(
+              child: HoloButton(
+                label: 'Cancel',
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: HoloButton(
+                label: 'Reset',
+                accent: SpaceColors.red,
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ),
+          ],
+        ),
+        child: const Text(
           'This erases your stars, times, rank, coins, achievements and Garage '
           'items. Purchases (ad removal, Supporter Livery) and settings are '
           'kept. This cannot be undone.',
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.35),
         ),
-        actions: [
-          TextButton(
-            onPressed: withTapSound(() => Navigator.of(context).pop(false)),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: withTapSound(() => Navigator.of(context).pop(true)),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFFF6B6B),
-            ),
-            child: const Text('Reset'),
-          ),
-        ],
       ),
     );
     if (ok != true) return;

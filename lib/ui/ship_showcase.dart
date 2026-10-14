@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +10,7 @@ import 'package:narrow_haul/game/components/ship_fx.dart';
 import 'package:narrow_haul/game/ship/livery.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
+import 'package:narrow_haul/game/env.dart';
 
 /// The ship on a display stand: the real sprite with its baked hull
 /// lighting, livery tint, plume and nav lights, lying on a holo pad tilted
@@ -37,7 +36,7 @@ class ShipShowcase extends StatefulWidget {
 
   /// Bake the hull lighting (off in `flutter test`, where it's slow).
   @visibleForTesting
-  static bool bakeLighting = !_inTest;
+  static bool bakeLighting = !kInFlutterTest;
 
   /// The spin angle to start from (rad).
   @visibleForTesting
@@ -165,8 +164,6 @@ class _ShipShowcaseState extends State<ShipShowcase> with SingleTickerProviderSt
     );
   }
 }
-
-final bool _inTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
 final Map<String, Future<ui.Image?>> _loading = {};
 final Map<String, ui.Image?> _decoded = {};

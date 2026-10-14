@@ -23,8 +23,6 @@ import 'package:narrow_haul/game/ship/weapons.dart';
 /// * [CommsHud]: the radio line (TOWER / OPS) in the free band between the
 ///   thumbs, typed on and gone after its reading time.
 
-const _green = Color(0xFF4ADE80);
-const _amber = Color(0xFFFFB347);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Coach marks
@@ -315,7 +313,7 @@ class CoachMarkHud extends PositionComponent {
       );
     }
 
-    final plate = chamferRect(rect, 9);
+    final plate = chamferPath(rect, 9);
     drawGlow(canvas, plate, a.color, 0.35 * e);
     canvas.drawPath(
       plate,
@@ -378,18 +376,18 @@ class CoachMarkHud extends PositionComponent {
     if (a == null || _exit >= 1) return;
     final p = Curves.easeInCubic.transform(_exit);
     final fade = 1 - _exit;
-    _ring(canvas, a, (a.r + 7) * (1 - 0.45 * p), _green.withValues(alpha: 0.9 * fade), 2.4);
+    _ring(canvas, a, (a.r + 7) * (1 - 0.45 * p), HudColors.green.withValues(alpha: 0.9 * fade), 2.4);
     // Tick in the middle of the control.
     final s = a.r * 0.32 * (0.8 + 0.4 * Curves.easeOutBack.transform(math.min(1, _exit * 2)));
     final tick = Path()
       ..moveTo(a.c.dx - s * 0.9, a.c.dy)
       ..lineTo(a.c.dx - s * 0.25, a.c.dy + s * 0.65)
       ..lineTo(a.c.dx + s, a.c.dy - s * 0.7);
-    drawGlow(canvas, tick, _green, fade);
+    drawGlow(canvas, tick, HudColors.green, fade);
     canvas.drawPath(
       tick,
       Paint()
-        ..color = _green.withValues(alpha: fade)
+        ..color = HudColors.green.withValues(alpha: fade)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3.5
         ..strokeCap = StrokeCap.round
@@ -593,11 +591,11 @@ class WorldMarkerHud extends PositionComponent {
       final p = proj(can);
       if (safe.contains(p)) {
         final r = 0.9 * zoom * (1 + 0.08 * math.sin(_t * 4));
-        _dashedRing(canvas, p, r, _green.withValues(alpha: 0.85));
-        final tp = _tag('fuel', '+FUEL', _green);
+        _dashedRing(canvas, p, r, HudColors.green.withValues(alpha: 0.85));
+        final tp = _tag('fuel', '+FUEL', HudColors.green);
         tp.paint(canvas, p + Offset(-tp.width / 2, r + 4));
       } else {
-        _chevron(canvas, p, _green, 'FUEL');
+        _chevron(canvas, p, HudColors.green, 'FUEL');
       }
     }
 
@@ -624,7 +622,7 @@ class WorldMarkerHud extends PositionComponent {
     final tag = podTag;
     if (podAt != null && tag != null) {
       final p = proj(podAt);
-      final color = tag == PodTag.hook ? HudColors.cyanBright : _amber;
+      final color = tag == PodTag.hook ? HudColors.cyanBright : HudColors.amber;
       final label = tag == PodTag.hook ? 'HOOK' : 'LOWER ▼';
       if (safe.contains(p)) {
         final half = podRadius * zoom + 10 + 3 * math.sin(_t * 4);
@@ -644,14 +642,14 @@ class WorldMarkerHud extends PositionComponent {
       if (safe.inflate(40).contains(p)) {
         _padBeacon(canvas, p, padTag);
       } else {
-        _chevron(canvas, p, _green, 'PAD');
+        _chevron(canvas, p, HudColors.green, 'PAD');
       }
     }
   }
 
   void _drillRing(Canvas canvas, Offset c, DrillView d) {
     final r = d.radius * zoom;
-    final color = d.inside ? _green : HudColors.gold;
+    final color = d.inside ? HudColors.green : HudColors.gold;
     final breathe = d.inside ? 0.0 : 0.04 * math.sin(_t * 3);
     final rect = Rect.fromCircle(center: c, radius: r * (1 + breathe));
     canvas.drawCircle(
@@ -667,7 +665,7 @@ class WorldMarkerHud extends PositionComponent {
         2 * math.pi * d.progress,
         false,
         Paint()
-          ..color = _green
+          ..color = HudColors.green
           ..strokeWidth = 4
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.round,
@@ -695,7 +693,7 @@ class WorldMarkerHud extends PositionComponent {
   void _noseUpArrow(Canvas canvas, Offset c, NoseUpCue cue) {
     final a = Curves.easeOutCubic.transform(_noseUpIn);
     final pulse = 0.5 + 0.5 * math.sin(_t * 10);
-    final color = Color.lerp(_amber, HudColors.fire, pulse)!.withValues(alpha: a);
+    final color = Color.lerp(HudColors.amber, HudColors.fire, pulse)!.withValues(alpha: a);
     final r = math.max(34.0, 1.7 * zoom);
     final from = math.atan2(cue.nose.dy, cue.nose.dx);
     final to = math.atan2(cue.up.dy, cue.up.dx);
@@ -797,7 +795,7 @@ class WorldMarkerHud extends PositionComponent {
 
   void _padBeacon(Canvas canvas, Offset deck, PadTag tag) {
     final both = tag.shipIn && tag.podIn;
-    final title = _tag('pad_title', 'LAND BOTH', _green);
+    final title = _tag('pad_title', 'LAND BOTH', HudColors.green);
     const slot = 9.0;
     final w = math.max(title.width + 20, slot * 4 + 34);
     final h = title.height + slot * 2 + 16;
@@ -812,13 +810,13 @@ class WorldMarkerHud extends PositionComponent {
       Offset(deck.dx, rect.bottom),
       deck - const Offset(0, 4),
       Paint()
-        ..color = _green.withValues(alpha: 0.5)
+        ..color = HudColors.green.withValues(alpha: 0.5)
         ..strokeWidth = 1.2,
     );
-    final plate = chamferRect(rect, 7);
-    drawGlow(canvas, plate, _green, 0.35);
+    final plate = chamferPath(rect, 7);
+    drawGlow(canvas, plate, HudColors.green, 0.35);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
-    drawStroke(canvas, plate, _green.withValues(alpha: 0.8), 1.2);
+    drawStroke(canvas, plate, HudColors.green.withValues(alpha: 0.8), 1.2);
     title.paint(canvas, Offset(rect.center.dx - title.width / 2, rect.top + 5));
 
     final y = rect.bottom - 6 - slot;
@@ -827,10 +825,10 @@ class WorldMarkerHud extends PositionComponent {
     final pulse = 0.5 + 0.5 * math.sin(_t * 6);
     for (final (c, inside, isShip) in [(shipC, tag.shipIn, true), (podC, tag.podIn, false)]) {
       final hex = hexPath(c, slot);
-      final col = inside ? _green : Colors.white.withValues(alpha: 0.35 + 0.4 * pulse);
+      final col = inside ? HudColors.green : Colors.white.withValues(alpha: 0.35 + 0.4 * pulse);
       if (inside) {
-        canvas.drawPath(hex, Paint()..color = _green.withValues(alpha: 0.28));
-        if (both) drawGlow(canvas, hex, _green, 0.8);
+        canvas.drawPath(hex, Paint()..color = HudColors.green.withValues(alpha: 0.28));
+        if (both) drawGlow(canvas, hex, HudColors.green, 0.8);
       }
       drawStroke(canvas, hex, col, 1.4);
       final icon = Paint()..color = col;
@@ -953,7 +951,7 @@ class CommsHud extends PositionComponent {
     // Slide up into place.
     rect = rect.shift(Offset(0, (1 - Curves.easeOutCubic.transform(shown)) * 10));
 
-    final plate = chamferRect(rect, 9);
+    final plate = chamferPath(rect, 9);
     drawGlow(canvas, plate, HudColors.cyan, 0.3 * a);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark.withValues(alpha: 0.92 * a));
     drawStroke(canvas, plate, HudColors.cyan.withValues(alpha: 0.7 * a), 1.2);

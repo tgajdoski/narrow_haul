@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
@@ -19,6 +18,7 @@ import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
+import 'package:narrow_haul/ui/rewarded_button.dart';
 
 const _garageAccent = SpaceColors.coral;
 
@@ -632,25 +632,22 @@ class _TryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: MonetizationService.instance.rewardedReady,
-      builder: (context, ready, _) => !ready
-          ? const SizedBox.shrink()
-          : Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: HoloButton(
-                label: 'Try',
-                icon: Icons.ondemand_video_rounded,
-                accent: SpaceColors.gold,
-                height: 32,
-                fontSize: 11,
-                expand: false,
-                onPressed: () => MonetizationService.instance.showRewarded(
-                  AdPlacement.cosmeticTrial,
-                  onReward: onReward,
-                ),
-              ),
-            ),
+    return WhenRewardedReady(
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10),
+        child: HoloButton(
+          label: 'Try',
+          icon: Icons.ondemand_video_rounded,
+          accent: SpaceColors.gold,
+          height: 32,
+          fontSize: 11,
+          expand: false,
+          onPressed: () => MonetizationService.instance.showRewarded(
+            AdPlacement.cosmeticTrial,
+            onReward: onReward,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -877,43 +874,21 @@ class _ItemTap extends StatefulWidget {
 }
 
 class _ItemTapState extends State<_ItemTap>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _shake = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 320),
-  );
-
-  @override
-  void dispose() {
-    _shake.dispose();
-    super.dispose();
-  }
-
+    with SingleTickerProviderStateMixin, DeniedShake {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         if (widget.locked) {
-          AudioService.playUi(UiSound.denied);
-          _shake.forward(from: 0);
+          deny();
           widget.onLocked?.call();
           return;
         }
         AudioService.playUi(UiSound.select);
         widget.onTap();
       },
-      child: AnimatedBuilder(
-        animation: _shake,
-        builder: (context, child) {
-          final t = _shake.value;
-          final dx = _shake.isAnimating
-              ? math.sin(t * math.pi * 6) * 6 * (1 - t)
-              : 0.0;
-          return Transform.translate(offset: Offset(dx, 0), child: child);
-        },
-        child: widget.child,
-      ),
+      child: shaking(widget.child),
     );
   }
 }

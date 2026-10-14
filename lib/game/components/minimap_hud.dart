@@ -8,6 +8,7 @@ import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/level_data.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 
 /// Whole-level overview in the top-right corner: terrain, landing pad, cargo,
 /// ship and the camera's view. Tap toggles between the map and a small map
@@ -25,7 +26,7 @@ class MinimapHud extends PositionComponent
   static const double _iconSize = 28;
   static const double _radius = 6;
 
-  static const _padColor = Color(0xFF4ADE80);
+  static const _padColor = HudColors.green;
   static const _cargoColor = Color(0xFFFFB347);
 
   LevelData? _level;

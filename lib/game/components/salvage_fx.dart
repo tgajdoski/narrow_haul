@@ -614,7 +614,7 @@ class SalvageHud extends PositionComponent {
         Paint()..color = Color.fromRGBO(255, 255, 255, _fade),
       );
     }
-    final plate = chamferRect(Offset.zero & plateSize, 9);
+    final plate = chamferPath(Offset.zero & plateSize, 9);
     drawGlow(canvas, plate, color, spinning ? 0.7 : 0.45);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
     drawStroke(canvas, plate, color.withValues(alpha: 0.85), 1.4);

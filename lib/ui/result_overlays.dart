@@ -10,6 +10,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
+import 'package:narrow_haul/ui/rewarded_button.dart';
 import 'package:narrow_haul/ui/route_guide_overlays.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
@@ -657,60 +658,6 @@ class _CrashAdvice extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Opt-in rewarded-ad button. Hidden until an ad is actually loaded, so a tap
-/// always pays out; runs [onReward] only when the reward was earned.
-class RewardedButton extends StatefulWidget {
-  const RewardedButton({
-    super.key,
-    required this.label,
-    required this.note,
-    required this.icon,
-    required this.placement,
-    required this.onReward,
-  });
-
-  final String label;
-  final String note;
-  final IconData icon;
-  final String placement;
-  final VoidCallback onReward;
-
-  @override
-  State<RewardedButton> createState() => _RewardedButtonState();
-}
-
-class _RewardedButtonState extends State<RewardedButton> {
-  bool _busy = false;
-
-  Future<void> _watch() async {
-    setState(() => _busy = true);
-    await MonetizationService.instance.showRewarded(
-      widget.placement,
-      onReward: widget.onReward,
-    );
-    if (mounted) setState(() => _busy = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: MonetizationService.instance.rewardedReady,
-      builder: (context, ready, _) {
-        if (!ready && !_busy) return const SizedBox.shrink();
-        return HoloButton(
-          label: widget.label,
-          subtitle: widget.note,
-          icon: widget.icon,
-          accent: SpaceColors.gold,
-          height: 48,
-          fontSize: 13,
-          onPressed: _busy ? null : _watch,
-        );
-      },
     );
   }
 }

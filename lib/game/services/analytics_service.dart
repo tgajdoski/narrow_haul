@@ -1,6 +1,6 @@
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:narrow_haul/game/env.dart';
 
 /// Gameplay analytics (Firebase Analytics on Android / iOS release builds).
 ///
@@ -43,8 +43,7 @@ class Analytics {
   }
 
   /// `flutter test` (incl. the autopilot) keeps quiet; tests read [debugLog].
-  static final bool _underTest =
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+  static bool get _underTest => kInFlutterTest;
 
   static void setUserProperty(String name, String? value) {
     try {

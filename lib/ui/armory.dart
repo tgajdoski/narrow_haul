@@ -6,6 +6,7 @@ import '../game/services/progress_service.dart';
 import '../game/ship/weapons.dart';
 import 'store_feedback.dart';
 import 'space_ui.dart';
+import 'rewarded_button.dart';
 
 /// Units a rewarded ad adds (laser: seconds).
 double rewardedAmmoUnits(WeaponSpec w) => w.continuous ? 5 : 1;
@@ -212,23 +213,19 @@ class _WeaponTile extends StatelessWidget {
                   onPressed: canAfford ? onBuy : null,
                   onLocked: () {},
                 ),
-                ValueListenableBuilder<bool>(
-                  valueListenable: MonetizationService.instance.rewardedReady,
-                  builder: (context, ready, _) => !ready
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: HoloButton(
-                            label:
-                                '+${ammoText(weapon, rewardedAmmoUnits(weapon))}',
-                            icon: Icons.ondemand_video_rounded,
-                            accent: SpaceColors.gold,
-                            height: 34,
-                            fontSize: 11,
-                            expand: false,
-                            onPressed: onWatch,
-                          ),
-                        ),
+                WhenRewardedReady(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: HoloButton(
+                      label: '+${ammoText(weapon, rewardedAmmoUnits(weapon))}',
+                      icon: Icons.ondemand_video_rounded,
+                      accent: SpaceColors.gold,
+                      height: 34,
+                      fontSize: 11,
+                      expand: false,
+                      onPressed: onWatch,
+                    ),
+                  ),
                 ),
               ],
             ),

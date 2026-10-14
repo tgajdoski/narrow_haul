@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/components/rank_insignia.dart';
@@ -125,23 +124,7 @@ class _StarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final outer = size.width / 2;
-    final inner = outer * 0.4;
-
-    final path = Path();
-    for (int i = 0; i < 5; i++) {
-      final outerAngle = -math.pi / 2 + (i * 2 * math.pi / 5);
-      final innerAngle = outerAngle + math.pi / 5;
-      final ox = cx + outer * math.cos(outerAngle);
-      final oy = cy + outer * math.sin(outerAngle);
-      final ix = cx + inner * math.cos(innerAngle);
-      final iy = cy + inner * math.sin(innerAngle);
-      i == 0 ? path.moveTo(ox, oy) : path.lineTo(ox, oy);
-      path.lineTo(ix, iy);
-    }
-    path.close();
+    final path = starPath(size.center(Offset.zero), size.width / 2);
 
     if (filled) {
       if (size.width >= 16) {

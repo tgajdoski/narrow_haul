@@ -939,7 +939,7 @@ class _FireButton extends _ThrustButton {
   /// HUD font has no ★).
   void _drawStarBadge(Canvas canvas) {
     final c = Offset(radius + innerSide * radius * 0.95, radius * 0.72);
-    final plate = chamferRect(Rect.fromCenter(center: c, width: 28, height: 17), 5);
+    final plate = chamferPath(Rect.fromCenter(center: c, width: 28, height: 17), 5);
     drawGlow(canvas, plate, HudColors.gold, 0.6);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
     drawStroke(canvas, plate, HudColors.gold, 1.3);
@@ -948,18 +948,7 @@ class _FireButton extends _ThrustButton {
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(c + const Offset(-9, 0), c + const Offset(-4, 0), gold);
-    canvas.drawPath(_starPath(c + const Offset(4, 0.5), 6), gold);
-  }
-
-  static Path _starPath(Offset c, double r) {
-    final p = Path();
-    for (var i = 0; i < 10; i++) {
-      final a = -math.pi / 2 + i * math.pi / 5;
-      final d = i.isEven ? r : r * 0.45;
-      final v = c + Offset(math.cos(a), math.sin(a)) * d;
-      i == 0 ? p.moveTo(v.dx, v.dy) : p.lineTo(v.dx, v.dy);
-    }
-    return p..close();
+    canvas.drawPath(starPath(c + const Offset(4, 0.5), 6, inner: 0.45), gold);
   }
 }
 
@@ -1142,17 +1131,17 @@ class FuelGaugeHud extends PositionComponent {
         ? HudColors.cyan
         : fuelFraction > 0.15
             ? const Color(0xFFFFD166)
-            : const Color(0xFFFF6B35);
+            : HudColors.warn;
     // Low fuel: the fill blinks so it's noticed in peripheral vision.
     final low = fuelFraction > 0 && fuelFraction < lowFuel;
     final blink = low ? 0.35 + 0.65 * (math.sin(_t * 9) * 0.5 + 0.5) : 1.0;
 
     // Cockpit plate.
-    final plate = chamferRect(
+    final plate = chamferPath(
       const Rect.fromLTWH(_left, _top, _barW, _barH),
       9,
     );
-    drawGlow(canvas, plate, low ? const Color(0xFFFF6B35) : HudColors.cyan,
+    drawGlow(canvas, plate, low ? HudColors.warn : HudColors.cyan,
         low ? 0.6 * blink : 0.25);
     canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
     drawStroke(canvas, plate, HudColors.cyan.withValues(alpha: 0.7), 1.4);
@@ -1206,7 +1195,7 @@ class FuelGaugeHud extends PositionComponent {
           text: 'LOW FUEL',
           style: hudFont(
             11,
-            const Color(0xFFFF6B35).withValues(alpha: quantizeAlpha(blink)),
+            HudColors.warn.withValues(alpha: quantizeAlpha(blink)),
             spacing: 1.5,
           ),
         ),
@@ -1221,8 +1210,8 @@ class FuelGaugeHud extends PositionComponent {
     if (towing) {
       const towC = Offset(_left + _barW + 10, _top + _barH / 2);
       final hex = hexPath(towC, 4.5);
-      drawGlow(canvas, hex, const Color(0xFF4ADE80), 0.8);
-      canvas.drawPath(hex, Paint()..color = const Color(0xFF4ADE80));
+      drawGlow(canvas, hex, HudColors.green, 0.8);
+      canvas.drawPath(hex, Paint()..color = HudColors.green);
     }
   }
 
@@ -1282,7 +1271,6 @@ class LevelInfoHud extends PositionComponent {
   double fuelFraction = 1;
   StarSpec starSpec = const StarSpec();
 
-  static const _gold = Color(0xFFFFD166);
 
   /// Outline the target line (the comms is explaining the star rules).
   bool frameTarget = false;
@@ -1321,7 +1309,7 @@ class LevelInfoHud extends PositionComponent {
         canvas,
         Offset(starX + 7, top + tp.height / 2),
         6,
-        i < stars ? _gold : const Color(0x55FFFFFF),
+        i < stars ? HudColors.star : const Color(0x55FFFFFF),
       );
       starX += 16;
     }
@@ -1350,12 +1338,12 @@ class LevelInfoHud extends PositionComponent {
     line.paint(canvas, Offset(left, lineTop));
     if (_frame > 0) {
       final pulse = 0.6 + 0.4 * math.sin(_t * 5);
-      final frame = chamferRect(
+      final frame = chamferPath(
         Rect.fromLTWH(left - 6, lineTop - 3, line.width + 12, line.height + 6),
         6,
       );
-      drawGlow(canvas, frame, _gold, 0.5 * _frame * pulse);
-      drawStroke(canvas, frame, _gold.withValues(alpha: 0.85 * _frame * pulse), 1.3);
+      drawGlow(canvas, frame, HudColors.star, 0.5 * _frame * pulse);
+      drawStroke(canvas, frame, HudColors.star.withValues(alpha: 0.85 * _frame * pulse), 1.3);
     }
   }
 
@@ -1363,7 +1351,7 @@ class LevelInfoHud extends PositionComponent {
     final s = starSpec;
     if (s.earnsThree(fuelFraction, elapsed)) {
       final left = (s.star3Time - elapsed).ceil();
-      return (3, 'keep ≥${(s.star3Fuel * 100).round()}% fuel · ${left}s left', _gold);
+      return (3, 'keep ≥${(s.star3Fuel * 100).round()}% fuel · ${left}s left', HudColors.star);
     }
     if (s.earnsTwo(fuelFraction)) {
       return (2, 'keep ≥${(s.star2Fuel * 100).round()}% fuel', const Color(0xFFE0E0E0));
@@ -1377,25 +1365,8 @@ class LevelInfoHud extends PositionComponent {
     return '$m:$sec';
   }
 
-  void _drawStar(Canvas canvas, Offset center, double size, Color color) {
-    final path = Path();
-    for (int i = 0; i < 5; i++) {
-      final outerAngle = -math.pi / 2 + (i * 2 * math.pi / 5);
-      final innerAngle = outerAngle + math.pi / 5;
-      final outerX = center.dx + size * math.cos(outerAngle);
-      final outerY = center.dy + size * math.sin(outerAngle);
-      final innerX = center.dx + size * 0.4 * math.cos(innerAngle);
-      final innerY = center.dy + size * 0.4 * math.sin(innerAngle);
-      if (i == 0) {
-        path.moveTo(outerX, outerY);
-      } else {
-        path.lineTo(outerX, outerY);
-      }
-      path.lineTo(innerX, innerY);
-    }
-    path.close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
+  void _drawStar(Canvas canvas, Offset center, double size, Color color) =>
+      canvas.drawPath(starPath(center, size), Paint()..color = color);
 }
 
 /// Local gravity readout next to the fuel gauge: an arrow pointing where the

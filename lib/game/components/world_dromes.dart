@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 
 /// Visual-only start helipad (no physics).
 class HelipadVisual extends RectangleComponent {
@@ -93,7 +94,6 @@ class LandingStripVisual extends RectangleComponent {
   /// Deck plate thickness, drawn into the rock under the floor line (m).
   static const double deckDepth = 0.26;
 
-  static const Color _green = Color(0xFF4ADE80);
 
   double _time = 0;
   Sprite? _landingSprite;
@@ -172,7 +172,7 @@ class LandingStripVisual extends RectangleComponent {
     final lightOn = math.sin(_time * 4) > 0;
     final lightPaint = Paint()
       ..color = lightOn
-          ? const Color(0xFF4ADE80)
+          ? HudColors.green
           : const Color(0x224ADE80);
     for (final dx in [0.12, size.x - 0.12]) {
       for (final dy in [0.12, size.y - 0.12]) {
@@ -194,8 +194,8 @@ class LandingStripVisual extends RectangleComponent {
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
           colors: [
-            _green.withValues(alpha: 0.10 + 0.08 * pulse),
-            _green.withValues(alpha: 0.0),
+            HudColors.green.withValues(alpha: 0.10 + 0.08 * pulse),
+            HudColors.green.withValues(alpha: 0.0),
           ],
         ).createShader(column),
     );
@@ -203,7 +203,7 @@ class LandingStripVisual extends RectangleComponent {
       ..shader = LinearGradient(
         begin: Alignment.bottomCenter,
         end: Alignment.topCenter,
-        colors: [_green.withValues(alpha: 0.55), _green.withValues(alpha: 0.0)],
+        colors: [HudColors.green.withValues(alpha: 0.55), HudColors.green.withValues(alpha: 0.0)],
       ).createShader(column)
       ..strokeWidth = 0.04;
     canvas.drawLine(Offset(0, floorY), const Offset(0, 0), edge);
@@ -213,7 +213,7 @@ class LandingStripVisual extends RectangleComponent {
     final deck = Rect.fromLTWH(0, floorY, w, deckDepth);
     canvas.drawRect(deck, Paint()..color = const Color(0xFF1B2433));
     final stripeCount = (w / 0.7).floor().clamp(2, 10);
-    final chevron = Paint()..color = _green.withValues(alpha: 0.35 + 0.25 * pulse);
+    final chevron = Paint()..color = HudColors.green.withValues(alpha: 0.35 + 0.25 * pulse);
     for (int i = 0; i < stripeCount; i++) {
       final x = (i + 0.5) * (w / stripeCount);
       // Chevrons point at the pad's centre.
@@ -235,13 +235,13 @@ class LandingStripVisual extends RectangleComponent {
       Offset(0, floorY),
       Offset(w, floorY),
       Paint()
-        ..color = _green.withValues(alpha: 0.75 + 0.25 * pulse)
+        ..color = HudColors.green.withValues(alpha: 0.75 + 0.25 * pulse)
         ..strokeWidth = 0.05,
     );
 
     // Edge lights on the deck corners (blinking).
     final lightOn = math.sin(_time * 4) > 0;
-    final light = Paint()..color = lightOn ? _green : _green.withValues(alpha: 0.15);
+    final light = Paint()..color = lightOn ? HudColors.green : HudColors.green.withValues(alpha: 0.15);
     canvas.drawCircle(Offset(0.1, floorY - 0.05), 0.06, light);
     canvas.drawCircle(Offset(w - 0.1, floorY - 0.05), 0.06, light);
   }

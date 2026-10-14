@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:ui' show FragmentProgram;
 import 'dart:math' as math;
@@ -87,6 +86,8 @@ import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
+import 'package:narrow_haul/game/env.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
 
 enum RunState { menu, playing, gameOver, won }
 
@@ -362,7 +363,7 @@ class NarrowHaulGame extends Forge2DGame
   /// by default under `flutter test`, so a random cache never changes a
   /// test's flight; tests that want one switch it on.
   @visibleForTesting
-  bool debugNoSalvage = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+  bool debugNoSalvage = kInFlutterTest;
 
   /// Source of salvage odds, spots and contents (seedable in tests).
   @visibleForTesting
@@ -1809,7 +1810,7 @@ class NarrowHaulGame extends Forge2DGame
       final p = s.body.position;
       final burst = ExplosionBurst(
         center: Offset(p.x, p.y),
-        accent: currentLevel?.theme.uiAccent ?? const Color(0xFFFF6B35),
+        accent: currentLevel?.theme.uiAccent ?? HudColors.warn,
         seed: levelIndex,
       );
       world.add(burst);
@@ -3609,7 +3610,7 @@ class NarrowHaulGame extends Forge2DGame
   void _burstAt(Offset at, {double ringRadius = 2.7}) {
     final burst = ExplosionBurst(
       center: at,
-      accent: currentLevel?.theme.uiAccent ?? const Color(0xFFFF6B35),
+      accent: currentLevel?.theme.uiAccent ?? HudColors.warn,
       seed: _combatRng.nextInt(1 << 20),
       ringRadius: ringRadius,
     );
