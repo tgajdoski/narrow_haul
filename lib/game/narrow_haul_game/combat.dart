@@ -304,19 +304,24 @@ extension GameCombat on NarrowHaulGame {
       _crateNoticeLeft -= dt;
       if (_crateNoticeLeft <= 0) _crateNotice = null;
     }
-    if (_rack != null && (s.laserFiring || _rack!.selected?.continuous == true)) {
-      _syncWeaponHud();
-    }
+    // While the laser fires, each shot syncs the HUD ([_onWeaponFired]);
+    // one more when it stops shows where the ammo ended.
+    if (_rack != null && _laserWasFiring && !s.laserFiring) _syncWeaponHud();
+    _laserWasFiring = s.laserFiring;
   }
 
-  Iterable<Shell> _liveShells({required bool fromPlayer}) => world.children
-      .whereType<Shell>()
-      .where((s) => s.fromPlayer == fromPlayer && !s.spent)
-      .toList();
+  List<Shell> _liveShells({required bool fromPlayer}) {
+    _shells.removeWhere((s) => s.isRemoved);
+    return [
+      for (final s in _shells)
+        if (s.isMounted && s.fromPlayer == fromPlayer && !s.spent) s,
+    ];
+  }
 
   /// Player rounds meet turret shells (`combat/intercept.dart`): equal
   /// strength trades both, a stronger round flies on.
   void _interceptShells() {
+    if (_shells.isEmpty) return;
     final enemies = _liveShells(fromPlayer: false);
     if (enemies.isEmpty) return;
     for (final mine in _liveShells(fromPlayer: true)) {

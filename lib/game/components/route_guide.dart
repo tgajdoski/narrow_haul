@@ -47,14 +47,24 @@ class RouteGuideLine extends Component {
 
   /// Per dot: a live turret covers it. Recomputed when a turret goes down.
   List<bool> _covered = const [];
-  String _coverKey = '';
+  int _coverKey = -1;
+
+  late final Paint _free = Paint()..color = accent.withValues(alpha: 0.55);
+  late final Paint _tow = Paint()..color = _podColor.withValues(alpha: 0.6);
+  late final Paint _danger = Paint()
+    ..color = _dangerColor.withValues(alpha: 0.75);
 
   @override
   void update(double dt) {
     super.update(dt);
     final all = turrets();
     final offline = turretsOffline();
-    final key = '$offline ${all.where((t) => t.destroyed).length}/${all.where((t) => t.isMounted).length}';
+    var destroyed = 0, mounted = 0;
+    for (final t in all) {
+      if (t.destroyed) destroyed++;
+      if (t.isMounted) mounted++;
+    }
+    final key = (destroyed << 16) | (mounted << 1) | (offline ? 1 : 0);
     if (key == _coverKey) return;
     _coverKey = key;
     final live = offline ? const <Turret>[] : [for (final t in all) if (!t.destroyed && t.isMounted) t];
@@ -109,12 +119,10 @@ class RouteGuideLine extends Component {
 
   @override
   void render(Canvas canvas) {
-    final free = Paint()..color = accent.withValues(alpha: 0.55);
-    final tow = Paint()..color = _podColor.withValues(alpha: 0.6);
-    final danger = Paint()..color = _dangerColor.withValues(alpha: 0.75);
-    for (final (k, (o, towing)) in _dots.indexed) {
+    for (var k = 0; k < _dots.length; k++) {
+      final (o, towing) = _dots[k];
       final hot = k < _covered.length && _covered[k];
-      canvas.drawCircle(o, hot ? _dotRadius * 1.3 : _dotRadius, hot ? danger : (towing ? tow : free));
+      canvas.drawCircle(o, hot ? _dotRadius * 1.3 : _dotRadius, hot ? _danger : (towing ? _tow : _free));
     }
     _renderHolds(canvas);
     _renderFireMarks(canvas);

@@ -47,7 +47,7 @@ extension GameSalvage on NarrowHaulGame {
     final goal = currentLevel?.goalCenter;
     final nearPad = goal != null &&
         (Vector2(cache.pos.dx, cache.pos.dy) - goal).length < kSalvageNoCurseNearPad;
-    final liveTurrets = world.children.whereType<Turret>().any((t) => !t.destroyed);
+    final liveTurrets = _turrets.any((t) => !t.destroyed);
     final spec = salvageById(NarrowHaulGame._salvageDefine) ??
         pickSalvage(
           _salvageRoll,
@@ -276,7 +276,7 @@ extension GameSalvage on NarrowHaulGame {
     if (_ghostCheckIn > 0) return;
     _ghostCheckIn = 0.25;
     final p = s.body.position;
-    if (world.children.whereType<Turret>().any((t) => t.covers(p))) {
+    if (_turrets.any((t) => t.covers(p))) {
       AchievementService.unlock(AchievementIds.ghostProtocol, announce: true);
     }
   }

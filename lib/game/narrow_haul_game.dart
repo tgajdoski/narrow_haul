@@ -228,6 +228,12 @@ class NarrowHaulGame extends Forge2DGame
   bool debugSkipHazards = false;
 
   // ── Combat (turrets, reactor, fuel cells) ────────────────────────────────
+  /// This level's turrets and fuel canisters (kept when destroyed /
+  /// collected; the flags say so), and the shells in flight: read every
+  /// frame without scanning the world.
+  final List<Turret> _turrets = [];
+  final List<FuelCell> _fuelCells = [];
+  final List<Shell> _shells = [];
   CombatStatusHud? _combatHud;
 
   /// Seconds left to deliver after the reactor was destroyed; null = calm.
@@ -642,7 +648,11 @@ class NarrowHaulGame extends Forge2DGame
     camera.viewport.add(_levelIntro!);
     _countdownHud = CountdownHud();
     camera.viewport.add(_countdownHud!);
-    _markers = WorldMarkerHud();
+    _markers = WorldMarkerHud()
+      ..project = (p) {
+        final v = camera.localToGlobal(Vector2(p.dx, p.dy));
+        return Offset(v.x, v.y);
+      };
     camera.viewport.add(_markers!);
     _coach = CoachMarkHud(controls: _hudControls!);
     camera.viewport.add(_coach!);
@@ -857,6 +867,7 @@ class NarrowHaulGame extends Forge2DGame
   void spawnShell(Shell shell) {
     world.add(shell);
     _levelEntities.add(shell);
+    _shells.add(shell);
     if (!shell.fromPlayer) AudioService.playEnemyShot();
   }
 
@@ -931,6 +942,9 @@ class NarrowHaulGame extends Forge2DGame
   /// Most of each weapon held this flight: the FIRE pad's ammo ring is
   /// drawn against it.
   final Map<String, double> _ammoPeak = {};
+
+  /// The laser fired last frame (the HUD syncs once more when it stops).
+  bool _laserWasFiring = false;
 
   // ── Mystery salvage ──────────────────────────────────────────────────────
 

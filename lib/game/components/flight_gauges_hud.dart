@@ -237,26 +237,7 @@ class LevelInfoHud extends PositionComponent {
       starX += 16;
     }
 
-    final (targetStars, hint, color) = _target();
-    final line = _lineText.layout(
-      TextSpan(
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          fontFeatures: [FontFeature.tabularFigures()],
-          shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
-        ),
-        children: [
-          TextSpan(
-            text: _fmt(elapsed),
-            style: const TextStyle(color: Color(0xCCFFFFFF)),
-          ),
-          const TextSpan(text: '   '),
-          TextSpan(text: '★' * targetStars, style: TextStyle(color: color)),
-          TextSpan(text: '  $hint', style: TextStyle(color: color.withValues(alpha: 0.85))),
-        ],
-      ),
-    );
+    final line = _lineText.layout(_lineSpan());
     final lineTop = top + tp.height + 3;
     line.paint(canvas, Offset(left, lineTop));
     if (_frame > 0) {
@@ -269,6 +250,43 @@ class LevelInfoHud extends PositionComponent {
       drawStroke(canvas, frame, HudColors.star.withValues(alpha: 0.85 * _frame * pulse), 1.3);
     }
   }
+
+  /// The timer + star target line, rebuilt only when what it shows
+  /// changes (a tenth of a second, the star tier or the seconds left).
+  TextSpan _lineSpan() {
+    final s = starSpec;
+    final tier = s.earnsThree(fuelFraction, elapsed)
+        ? 3
+        : s.earnsTwo(fuelFraction)
+        ? 2
+        : 1;
+    final left = tier == 3 ? (s.star3Time - elapsed).ceil() : 0;
+    final key = ((elapsed * 10).round(), tier, left, s);
+    final cached = _span;
+    if (cached != null && key == _spanKey) return cached;
+    _spanKey = key;
+    final (targetStars, hint, color) = _target();
+    return _span = TextSpan(
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        fontFeatures: [FontFeature.tabularFigures()],
+        shadows: [Shadow(color: Color(0xAA000000), blurRadius: 3)],
+      ),
+      children: [
+        TextSpan(
+          text: _fmt(elapsed),
+          style: const TextStyle(color: Color(0xCCFFFFFF)),
+        ),
+        const TextSpan(text: '   '),
+        TextSpan(text: '★' * targetStars, style: TextStyle(color: color)),
+        TextSpan(text: '  $hint', style: TextStyle(color: color.withValues(alpha: 0.85))),
+      ],
+    );
+  }
+
+  TextSpan? _span;
+  (int, int, int, StarSpec)? _spanKey;
 
   (int, String, Color) _target() {
     final s = starSpec;

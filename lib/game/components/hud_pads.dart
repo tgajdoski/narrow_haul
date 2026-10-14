@@ -181,6 +181,9 @@ class _FireButton extends _ThrustButton {
 
   bool get pressed => _pressed;
 
+  WeaponSlot? _textSlot;
+  String _text = 'FIRE';
+
   @override
   void render(Canvas canvas) {
     _drawPad(canvas, HudColors.fire, flatTop: false);
@@ -193,9 +196,14 @@ class _FireButton extends _ThrustButton {
       radius * 0.36,
       color: Colors.white.withValues(alpha: 0.75 + 0.25 * _heat),
     );
-    final text = slot == null
-        ? 'FIRE'
-        : [slot.label, if (slot.count != null) slot.count].join(' ');
+    // The game builds a new slot only when the rack changes.
+    if (!identical(slot, _textSlot)) {
+      _textSlot = slot;
+      _text = slot == null
+          ? 'FIRE'
+          : [slot.label, if (slot.count != null) slot.count].join(' ');
+    }
+    final text = _text;
     final tp = _label.layout(
       TextSpan(
         text: text,

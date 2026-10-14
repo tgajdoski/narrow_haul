@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:narrow_haul/game/components/ship_body.dart';
+import 'package:narrow_haul/game/ship/ship_spec.dart';
 import 'package:narrow_haul/game/tags.dart';
 
 /// The nearest solid thing (rock, obstacle) around the ship.
@@ -27,27 +28,27 @@ class RockNearby {
 /// gap subtracts how far the hull itself reaches in each ray's direction.
 RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1.0}) {
   final body = ship.body;
-  final spec = ship.spec;
-  final k = ship.sizeMul;
-  final hull = [
-    for (final poly in spec.hullPolygons)
-      for (final (x, y) in poly) Vector2(x * k, y * k),
-  ];
+  final hull = _scaledHull(ship.spec, ship.sizeMul);
   final from = body.position;
-  final ray = _NearRay(body);
+  final q = body.transform.q;
+  final ray = _probeRay..ship = body;
   RockNearby? best;
-  for (var i = 0; i < _rays; i++) {
-    final a = i * 2 * math.pi / _rays;
-    final dir = Vector2(math.cos(a), math.sin(a));
-    // How far the hull reaches toward [dir] (support distance).
-    final local = body.localVector(dir);
+  for (final dir in _rayDirs) {
+    // How far the hull reaches toward [dir] (support distance), in the
+    // body's frame (as Body.localVector).
+    final lx = q.cos * dir.x + q.sin * dir.y;
+    final ly = -q.sin * dir.x + q.cos * dir.y;
     var reach = 0.0;
-    for (final v in hull) {
-      reach = math.max(reach, v.dot(local));
+    for (var j = 0; j < hull.length; j += 2) {
+      reach = math.max(reach, hull[j] * lx + hull[j + 1] * ly);
     }
     final length = reach + range;
     ray.reset();
-    world.raycast(ray, from, from + dir * length);
+    _probeTo
+      ..setFrom(dir)
+      ..scale(length)
+      ..add(from);
+    world.raycast(ray, from, _probeTo);
     if (!ray.hit) continue;
     final gap = ray.fraction * length - reach;
     if (best == null || gap < best.gap) {
@@ -62,6 +63,34 @@ RockNearby? probeRockNearby(Forge2DWorld world, ShipBody ship, {double range = 1
   }
   return best;
 }
+
+/// Unit ray directions, evenly round the ship.
+final List<Vector2> _rayDirs = [
+  for (var i = 0; i < _rays; i++)
+    Vector2(math.cos(i * 2 * math.pi / _rays), math.sin(i * 2 * math.pi / _rays)),
+];
+
+/// Reused every frame: the ray callback and the ray's end point.
+final _NearRay _probeRay = _NearRay(null);
+final Vector2 _probeTo = Vector2.zero();
+
+/// The hull's vertices × [k] as x, y pairs, rebuilt only when the ship or
+/// its size (salvage) changes.
+List<double> _scaledHull(ShipSpec spec, double k) {
+  if (!identical(spec, _hullSpec) || k != _hullK) {
+    _hullSpec = spec;
+    _hullK = k;
+    _hullXY = [
+      for (final poly in spec.hullPolygons)
+        for (final (x, y) in poly) ...[x * k, y * k],
+    ];
+  }
+  return _hullXY;
+}
+
+ShipSpec? _hullSpec;
+double _hullK = 0;
+List<double> _hullXY = const [];
 
 const int _rays = 12;
 
@@ -95,7 +124,7 @@ double? probeAhead(Forge2DWorld world, ShipBody ship, Vector2 dir, {double range
 
 class _NearRay extends RayCastCallback {
   _NearRay(this.ship);
-  final Body ship;
+  Body? ship;
   bool hit = false;
   bool rock = false;
   double fraction = 1;

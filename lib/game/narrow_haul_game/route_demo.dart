@@ -66,7 +66,7 @@ extension GameRouteDemo on NarrowHaulGame {
     _guideComponents.add(RouteGuideLine(
       route: route,
       accent: level.theme.uiAccent,
-      turrets: () => [for (final c in world.children) if (c is Turret) c],
+      turrets: () => _turrets,
       turretsOffline: () => turretsDisabled,
     ));
     if (!demoMode) {

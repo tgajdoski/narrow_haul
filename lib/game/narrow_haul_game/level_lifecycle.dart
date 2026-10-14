@@ -320,6 +320,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     for (final spec in debugSkipHazards ? const <ObstacleSpec>[] : data.obstacles) {
       final obstacle = obstacleFromSpec(spec, theme, this);
       await _addToLevel(obstacle, gen);
+      if (obstacle is Turret) _turrets.add(obstacle);
     }
 
     for (final spec in data.pickups) {
@@ -327,6 +328,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
         FuelCellSpec s => FuelCell(spec: s, host: this, accent: theme.uiAccent),
       };
       await _addToLevel(pickup, gen);
+      _fuelCells.add(pickup);
     }
 
     final helipad = HelipadVisual(
@@ -511,6 +513,9 @@ extension GameLevelLifecycle on NarrowHaulGame {
     PerfMonitor.flightEnded('left');
     _flushAmmo();
     _levelGen++;
+    _turrets.clear();
+    _fuelCells.clear();
+    _shells.clear();
     _rack = null;
     _carver = null;
     _terrain = null;
@@ -605,7 +610,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     if (now <= 3) {
       final n = now.ceil();
       if (n != left.ceil() || left > 3) AudioService.playCountdown(go: false);
-      _countdownHud?.text = '$n';
+      _countdownHud?.text = const ['0', '1', '2', '3'][n];
     }
   }
 }

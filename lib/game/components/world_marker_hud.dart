@@ -108,7 +108,11 @@ class WorldMarkerHud extends PositionComponent {
           final half = math.max(18.0, turretRadius * zoom + 8) *
               (1 + 0.6 * (1 - Curves.easeOutCubic.transform(_turretIn)));
           _brackets(canvas, p, half, HudColors.fire.withValues(alpha: 0.9 * _turretIn));
-          final tp = _tag('turret', 'TURRET', HudColors.fire.withValues(alpha: _turretIn));
+          final tp = _tag(
+            'turret',
+            'TURRET',
+            HudColors.fire.withValues(alpha: quantizeAlpha(_turretIn)),
+          );
           tp.paint(canvas, p + Offset(-tp.width / 2, -half - tp.height - 3));
         } else {
           final d = (p - centre).distanceSquared;
@@ -260,7 +264,13 @@ class WorldMarkerHud extends PositionComponent {
         ..close(),
       Paint()..color = color,
     );
-    final tp = _tag('nose_up', 'NOSE UP', color, size: 10);
+    // The label pulses in a few steps, so it isn't laid out every frame.
+    final labelColor = Color.lerp(
+      HudColors.amber,
+      HudColors.fire,
+      (pulse * 4).round() / 4,
+    )!.withValues(alpha: quantizeAlpha(a));
+    final tp = _tag('nose_up', 'NOSE UP', labelColor, size: 10);
     final labelAt = c + out * (r + 16);
     tp.paint(canvas, labelAt - Offset(tp.width / 2, tp.height / 2));
   }

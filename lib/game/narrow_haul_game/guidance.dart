@@ -36,16 +36,11 @@ extension GameGuidance on NarrowHaulGame {
     final m = _markers;
     if (m != null) {
       m
-        ..project = (p) {
-          final v = camera.localToGlobal(Vector2(p.dx, p.dy));
-          return Offset(v.x, v.y);
-        }
         ..zoom = camera.viewfinder.zoom
         ..turrets = g.markTurrets
             ? [
-                for (final c in world.children)
-                  if (c is Turret && !c.destroyed)
-                    Offset(c.spec.base.x, c.spec.base.y),
+                for (final c in _turrets)
+                  if (!c.destroyed) Offset(c.spec.base.x, c.spec.base.y),
               ]
             : const []
         ..turretRadius = Turret.domeRadius
@@ -94,8 +89,8 @@ extension GameGuidance on NarrowHaulGame {
     final p = s.body.position;
     Offset? best;
     var bestD = double.infinity;
-    for (final c in world.children) {
-      if (c is! FuelCell || c.collected) continue;
+    for (final c in _fuelCells) {
+      if (c.collected) continue;
       final d = (c.spec.pos.x - p.x) * (c.spec.pos.x - p.x) +
           (c.spec.pos.y - p.y) * (c.spec.pos.y - p.y);
       if (d < bestD) {
