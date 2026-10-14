@@ -137,7 +137,8 @@ Runtime (`narrow_haul_game.dart`, `LevelData.legs` / `LegData`):
 **Generator** (`lib/game/level/gen/`, pure Dart, authoring time only):
 - **Outlines:** `kExpeditionOutlines` (`outlines.dart`) sets each Expedition's theme, ship, modifiers and, per leg, a list of `Room`s: `plain squeeze climb drop bar pendulum block zeroG updraft crosswind well turret canister`.
 - **Layout:** `generateExpedition` lays them left to right (`_Builder`). The spawn cave comes first. Every leg leaves its start level, puts the pod in a bowl under the tunnel after `podAfter` rooms, and ends in a pad chamber. Widths come from the ship's `circumradius`, and a pod within 8 m of a field is clamped.
-- **Selection:** reseeds until 3 layouts pass `validateCaveSpec` on every leg, keeps the one whose route is closest to 40 m a leg, and derives `StarSpec` from `analyzeLegs`.
+- **Selection:** reseeds until 3 layouts pass `validateCaveSpec` on every leg, keeps the one whose route is closest to 40 m a leg, and derives `StarSpec` from `analyzeLegs`. Each reseed `forgetCave`s the outline id first (caves are memoized by id; before 2026-10-13 every reseed validated against attempt 0's cave, so only attempt 0 could pass).
+- **Difficulty:** the story order E0→E7 is also the difficulty order (`tool/difficulty_curve.dart` lists the Expeditions, 2026-10-13: 37 → 46 → 48 → 52 → 53 → 54 → 58 → 64). Tune an outline's rooms, modifiers and `seed` (the seed alone moves the narrowest gap by a few points) to keep it rising, never the list order.
 - **Output:** `dart run tool/generate_expedition.dart` writes `specs/expeditions_gen.dart` (`generatedExpeditions`, appended to `expeditionLevels`), and the output is deterministic.
 - **After editing an outline:** regenerate, then re-run the autopilot for it (`LEVELS=exp_0N EXPORT_ROUTES=true`), and add its story beats in `story_act2.dart`.
 - **Tests:** `test/expedition_generator_test.dart`.

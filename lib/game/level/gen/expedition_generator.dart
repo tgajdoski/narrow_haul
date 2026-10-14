@@ -6,6 +6,7 @@
 
 import 'dart:math' as math;
 
+import 'package:narrow_haul/game/level/cave/cave_builder.dart';
 import 'package:narrow_haul/game/level/cave/geom.dart';
 import 'package:narrow_haul/game/level/cave/level_spec.dart';
 import 'package:narrow_haul/game/level/cave/level_validator.dart';
@@ -114,6 +115,8 @@ GeneratedExpedition? generateExpedition(
   final passed = <GeneratedExpedition>[];
   for (var a = 0; a < attempts && passed.length < keep; a++) {
     final spec = _lay(o, ship, a);
+    // Every reseed shares the outline's id, and caves are memoized by id.
+    forgetCave(spec.id);
     final issues = validateCaveSpec(spec, ship: ship);
     onAttempt?.call(a, issues);
     if (issues.isNotEmpty) continue;
@@ -131,6 +134,7 @@ GeneratedExpedition? generateExpedition(
       legFuel: fuel,
     ));
   }
+  forgetCave(o.id);
   if (passed.isEmpty) return null;
   final target = targetLength > 0 ? targetLength : 40.0 * o.legs.length;
   passed.sort((x, y) => (x.routeLength - target).abs().compareTo((y.routeLength - target).abs()));
