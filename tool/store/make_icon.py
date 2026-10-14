@@ -5,6 +5,7 @@ towing a cargo pod on its rope through a cave gap.
 
     python tool/store/make_icon.py            # writes art_src/icon/*.png
     python tool/store/make_icon.py --splash   # only splash_logo.png
+    python tool/store/make_icon.py --notify   # only the reminder status-bar icon
 
 Outputs (all 1024x1024 unless noted):
   icon_1024.png        full icon, opaque (App Store, iOS, macOS, legacy Android)
@@ -16,6 +17,11 @@ Outputs (all 1024x1024 unless noted):
   splash_logo.png      the ship alone (no pod) for the launch screen,
                        transparent; fits Android 12's circular mask
   play_icon_512.png    Google Play listing icon (32-bit PNG)
+
+--notify writes ic_stat_reminder.png (white ship + pod silhouette filling a
+24dp frame) straight into android/app/src/main/res/drawable-*dpi/, for the
+reminder notifications (ReminderService). Android tints it; the launcher's
+monochrome layer has the adaptive-icon margin and reads too small there.
 
 If you have AI art instead, run tool/store/prepare_icon.py on it; it writes
 the same file names, so flutter_launcher_icons doesn't need to change.
@@ -233,9 +239,27 @@ def main():
     print('wrote', OUT)
 
 
+NOTIFY_SIZES = {'mdpi': 24, 'hdpi': 36, 'xhdpi': 48, 'xxhdpi': 72, 'xxxhdpi': 96}
+
+
+def notify_icon():
+    """Status-bar icon: the ship towing its pod as a white silhouette, filling
+    the frame (Android keeps ~1dp of padding inside 24dp)."""
+    alpha = fit_center(subject(), 0.94).split()[3].point(lambda v: 255 if v > 110 else 0)
+    mono = Image.new('RGBA', (N, N), (255, 255, 255, 0))
+    mono.putalpha(alpha)
+    res = os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res')
+    for density, size in NOTIFY_SIZES.items():
+        path = os.path.join(res, f'drawable-{density}', 'ic_stat_reminder.png')
+        mono.resize((size, size), Image.LANCZOS).save(path)
+        print('wrote', path)
+
+
 if __name__ == '__main__':
     import sys
-    if '--splash' in sys.argv:
+    if '--notify' in sys.argv:
+        notify_icon()
+    elif '--splash' in sys.argv:
         splash()
         print('wrote', os.path.join(OUT, 'splash_logo.png'))
     else:

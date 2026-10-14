@@ -39,7 +39,7 @@ abstract final class ReminderService {
     channelDescription: 'Daily dispatch, streaks and the next relief run',
     importance: Importance.defaultImportance,
     priority: Priority.defaultPriority,
-    icon: 'ic_launcher_monochrome',
+    icon: 'ic_stat_reminder',
   );
   static const _details = NotificationDetails(
     android: _channel,
@@ -53,7 +53,7 @@ abstract final class ReminderService {
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('ic_launcher_monochrome'),
+          android: AndroidInitializationSettings('ic_stat_reminder'),
           // The OS prompt comes only from [enable], after the player said yes.
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,

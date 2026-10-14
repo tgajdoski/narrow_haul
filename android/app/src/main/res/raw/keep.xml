@@ -2,4 +2,4 @@
 <!-- The reminder notification icon is named only from Dart
      (ReminderService), so resource shrinking must not drop it. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_launcher_monochrome" />
+    tools:keep="@drawable/ic_stat_reminder" />
