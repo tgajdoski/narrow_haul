@@ -62,7 +62,7 @@
 - [ ] **Offline:** start in airplane mode (no ads, no buy rows, the game plays), then go online and open the Garage. Ads and the store should come back.
 - [ ] DebugView check now needs `--dart-define=FIREBASE_COLLECT=true` on a profile build (`docs/ANALYTICS.md`).
 
-- [ ] **Return reminders** (built 2026-10-14; analyze and tests pass; iPhone 13 ✅ 2026-10-14: scheduled, delivered in the background): still to check on Android with a profile build with `--dart-define=REMINDER_SECONDS=30`. Finish the Training Grounds, answer *Yes* to *Radio calls* (the OS prompt follows), and send the app to the background: three reminders should arrive 30/60/90 s later, and tapping one should open the hangar. Check the Android status-bar icon (`ic_launcher_monochrome`), that *Not now* asks again only a week later, and that the Settings → *Reminders* switch cancels them. Then deploy the site (`website/deploy.sh`): the privacy policy now describes reminders.
+- [ ] **Return reminders** (built 2026-10-14; analyze and tests pass; iPhone 13 ✅ 2026-10-14: scheduled, delivered in the background): still to check on Android with a profile build with `--dart-define=REMINDER_SECONDS=30`. Finish the Training Grounds, answer *Yes* to *Radio calls* (the OS prompt follows), and send the app to the background: four reminders (the day 1/3/7/14 plan) should arrive 30/60/90/120 s later, with texts that match the save (daily, unfinished mission, new world, gear, next mission's brief), and tapping one should open the hangar. Check the Android status-bar icon (`ic_launcher_monochrome`), that *Not now* asks again only a week later, and that the Settings → *Reminders* switch cancels them.
 
 ### Store paperwork
 - [ ] **App Store Connect:**
