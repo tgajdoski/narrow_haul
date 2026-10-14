@@ -634,7 +634,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
     _fireCooldown = spec.fireCooldown;
     shotsFired++;
     final dir = body.worldVector(Vector2(0, -1));
-    final muzzle = body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
+    final muzzle = muzzleWorld;
     onFire?.call(muzzle, body.linearVelocity + dir * spec.muzzleSpeed);
   }
 
@@ -642,7 +642,7 @@ class ShipBody extends BodyComponent with ContactCallbacks {
   /// from the recording; a kinematic replay has no velocity of its own).
   void fireScripted(Vector2 shipVelocity) {
     final dir = body.worldVector(Vector2(0, -1));
-    final muzzle = body.worldPoint(Vector2(0, spec.noseLocalY - 0.1));
+    final muzzle = muzzleWorld;
     onFire?.call(muzzle, shipVelocity + dir * spec.muzzleSpeed);
   }
 

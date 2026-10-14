@@ -46,6 +46,15 @@ void drawStroke(Canvas canvas, Path path, Color color, double width) {
   );
 }
 
+/// The first of [candidates] that overlaps none of [avoid] (each inflated
+/// by 6 px), and whether one was found; otherwise the first, not clear.
+(Rect, bool) placeAvoiding(List<Rect> candidates, List<Rect> avoid) {
+  for (final c in candidates) {
+    if (!avoid.any((r) => r.inflate(6).overlaps(c))) return (c, true);
+  }
+  return (candidates.first, false);
+}
+
 /// Letter-spaced display text (RussoOne) for HUD labels.
 TextStyle hudFont(double size, Color color, {double spacing = 1.6}) =>
     TextStyle(

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:narrow_haul/game/components/salvage_fx.dart';
+import 'package:narrow_haul/game/components/salvage_glyphs.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/physics_constants.dart';

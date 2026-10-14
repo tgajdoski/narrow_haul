@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:narrow_haul/game/services/cloud_save.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:narrow_haul/game/services/monetization_ids.dart';
 
 /// Persists level progress, star ratings, best times, achievements, streaks.
 class ProgressService {
@@ -424,7 +425,7 @@ class ProgressService {
 
   /// The Full Game is owned (on its own or in the Supporter Pack): every
   /// Expedition opens.
-  bool get hasFullGame => isProductGranted('nh_full_game'); // ProductIds.fullGame
+  bool get hasFullGame => isProductGranted(ProductIds.fullGame);
   Future<void> markProductGranted(String id) async =>
       _prefs.setBool('iap_granted_$id', true);
 

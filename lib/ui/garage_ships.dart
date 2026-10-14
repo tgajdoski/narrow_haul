@@ -6,7 +6,7 @@ import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/fleet.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
-import 'package:narrow_haul/ui/garage_overlay.dart' show StatBar;
+import 'package:narrow_haul/ui/garage_stats.dart';
 import 'package:narrow_haul/ui/ship_showcase.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';

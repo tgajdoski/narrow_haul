@@ -87,6 +87,7 @@ import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/game/tags.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
 import 'package:narrow_haul/game/env.dart';
+import 'package:narrow_haul/game/components/flight_gauges_hud.dart';
 import 'package:narrow_haul/game/components/hud_holo.dart';
 
 enum RunState { menu, playing, gameOver, won }

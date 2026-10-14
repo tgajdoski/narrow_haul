@@ -1,0 +1,391 @@
+import 'dart:math' as math;
+
+import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
+import 'package:narrow_haul/game/components/hud_holo.dart';
+import 'package:narrow_haul/game/components/hud_text.dart';
+import 'package:narrow_haul/game/guidance/flight_drills.dart';
+import 'package:narrow_haul/game/guidance/flight_guidance.dart';
+
+/// The nose-down warning on the ship: unit vectors (world = screen axes)
+/// along the nose and along local up.
+class NoseUpCue {
+  const NoseUpCue({required this.nose, required this.up});
+  final Offset nose;
+  final Offset up;
+}
+
+/// Markers on things in the world, drawn in screen space over the world and
+/// under the controls. The game sets the world positions and the projection
+/// every frame.
+class WorldMarkerHud extends PositionComponent {
+  WorldMarkerHud() : super(priority: 4800);
+
+  /// World (m) → screen (px), and px per metre.
+  Offset Function(Offset world)? project;
+  double zoom = 28;
+  EdgeInsets insets = EdgeInsets.zero;
+
+  List<Offset> turrets = const [];
+  double turretRadius = 0.5;
+
+  Offset? pod;
+  double podRadius = 0.3;
+  PodTag? podTag;
+
+  Offset? padCenter;
+  PadTag? pad;
+
+  Offset? canister;
+
+  /// The flight drill ring to fly to.
+  DrillView? drill;
+
+  /// The ship (world m), for [noseUp].
+  Offset? shipAt;
+  NoseUpCue? noseUp;
+
+  double _t = 0;
+  double _turretIn = 0;
+  double _noseUpIn = 0;
+
+  final _tags = <String, HudText>{};
+
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    this.size = size;
+  }
+
+  void clear() {
+    turrets = const [];
+    pod = null;
+    podTag = null;
+    padCenter = null;
+    pad = null;
+    canister = null;
+    drill = null;
+    noseUp = null;
+    _turretIn = 0;
+    _noseUpIn = 0;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+    _turretIn = (_turretIn + (turrets.isEmpty ? -dt : dt) * 3).clamp(0.0, 1.0);
+    _noseUpIn = (_noseUpIn + (noseUp == null ? -dt : dt) * 6).clamp(0.0, 1.0);
+  }
+
+  TextPainter _tag(String key, String text, Color color, {double size = 9}) =>
+      (_tags[key] ??= HudText()).layout(
+        TextSpan(text: text, style: hudFont(size, color, spacing: 1.2)),
+      );
+
+  /// The on-screen area markers may use before they turn into chevrons.
+  Rect get _safe => Rect.fromLTRB(
+        insets.left + 26,
+        insets.top + 26,
+        size.x - insets.right - 26,
+        size.y - insets.bottom - 26,
+      );
+
+  @override
+  void render(Canvas canvas) {
+    final proj = project;
+    if (proj == null || size.x <= 0) return;
+    final safe = _safe;
+
+    // Turrets: lock-on brackets that close in as they appear.
+    if (_turretIn > 0 && turrets.isNotEmpty) {
+      Offset? nearestOff;
+      var nearestD = double.infinity;
+      final centre = size.toOffset() / 2;
+      for (final t in turrets) {
+        final p = proj(t);
+        if (safe.contains(p)) {
+          final half = math.max(18.0, turretRadius * zoom + 8) *
+              (1 + 0.6 * (1 - Curves.easeOutCubic.transform(_turretIn)));
+          _brackets(canvas, p, half, HudColors.fire.withValues(alpha: 0.9 * _turretIn));
+          final tp = _tag('turret', 'TURRET', HudColors.fire.withValues(alpha: _turretIn));
+          tp.paint(canvas, p + Offset(-tp.width / 2, -half - tp.height - 3));
+        } else {
+          final d = (p - centre).distanceSquared;
+          if (d < nearestD) {
+            nearestD = d;
+            nearestOff = p;
+          }
+        }
+      }
+      if (nearestOff != null) {
+        _chevron(canvas, nearestOff, HudColors.fire.withValues(alpha: _turretIn), 'TURRET');
+      }
+    }
+
+    // Canister: a dashed ring that breathes.
+    final can = canister;
+    if (can != null) {
+      final p = proj(can);
+      if (safe.contains(p)) {
+        final r = 0.9 * zoom * (1 + 0.08 * math.sin(_t * 4));
+        _dashedRing(canvas, p, r, HudColors.green.withValues(alpha: 0.85));
+        final tp = _tag('fuel', '+FUEL', HudColors.green);
+        tp.paint(canvas, p + Offset(-tp.width / 2, r + 4));
+      } else {
+        _chevron(canvas, p, HudColors.green, 'FUEL');
+      }
+    }
+
+    // Flight drill ring.
+    final d = drill;
+    if (d != null) {
+      final p = proj(Offset(d.center.x, d.center.y));
+      if (safe.inflate(d.radius * zoom).contains(p)) {
+        _drillRing(canvas, p, d);
+      } else {
+        _chevron(canvas, p, HudColors.gold, d.label.split(' ').first);
+      }
+    }
+
+    // Nose-down: an arrow round the ship turning the nose back to up.
+    final cue = noseUp;
+    final at = shipAt;
+    if (cue != null && at != null && _noseUpIn > 0) {
+      _noseUpArrow(canvas, proj(at), cue);
+    }
+
+    // Pod.
+    final podAt = pod;
+    final tag = podTag;
+    if (podAt != null && tag != null) {
+      final p = proj(podAt);
+      final color = tag == PodTag.hook ? HudColors.cyanBright : HudColors.amber;
+      final label = tag == PodTag.hook ? 'HOOK' : 'LOWER ▼';
+      if (safe.contains(p)) {
+        final half = podRadius * zoom + 10 + 3 * math.sin(_t * 4);
+        _brackets(canvas, p, half, color);
+        final tp = _tag('pod_$label', label, color);
+        tp.paint(canvas, p + Offset(-tp.width / 2, -half - tp.height - 3));
+      } else {
+        _chevron(canvas, p, color, 'POD');
+      }
+    }
+
+    // Pad beacon: a plate above the deck with a ship slot and a pod slot.
+    final padAt = padCenter;
+    final padTag = pad;
+    if (padAt != null && padTag != null) {
+      final p = proj(padAt);
+      if (safe.inflate(40).contains(p)) {
+        _padBeacon(canvas, p, padTag);
+      } else {
+        _chevron(canvas, p, HudColors.green, 'PAD');
+      }
+    }
+  }
+
+  void _drillRing(Canvas canvas, Offset c, DrillView d) {
+    final r = d.radius * zoom;
+    final color = d.inside ? HudColors.green : HudColors.gold;
+    final breathe = d.inside ? 0.0 : 0.04 * math.sin(_t * 3);
+    final rect = Rect.fromCircle(center: c, radius: r * (1 + breathe));
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()..color = color.withValues(alpha: d.inside ? 0.14 : 0.07),
+    );
+    _dashedRing(canvas, c, r * (1 + breathe), color.withValues(alpha: 0.85));
+    if (d.progress > 0) {
+      canvas.drawArc(
+        rect.inflate(4),
+        -math.pi / 2,
+        2 * math.pi * d.progress,
+        false,
+        Paint()
+          ..color = HudColors.green
+          ..strokeWidth = 4
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    if (d.kind == DrillKind.land) {
+      // Down arrows: settle here.
+      final arrow = Paint()..color = color.withValues(alpha: 0.8);
+      for (var k = 0; k < 2; k++) {
+        final y = c.dy - r * 0.35 + k * 9 + 3 * math.sin(_t * 4);
+        canvas.drawPath(
+          Path()
+            ..moveTo(c.dx - 7, y)
+            ..lineTo(c.dx + 7, y)
+            ..lineTo(c.dx, y + 7)
+            ..close(),
+          arrow,
+        );
+      }
+    }
+    final tp = _tag('drill_${d.label}', '${d.number}/${d.count}  ${d.label}', color);
+    tp.paint(canvas, c + Offset(-tp.width / 2, -r - tp.height - 8));
+  }
+
+  void _noseUpArrow(Canvas canvas, Offset c, NoseUpCue cue) {
+    final a = Curves.easeOutCubic.transform(_noseUpIn);
+    final pulse = 0.5 + 0.5 * math.sin(_t * 10);
+    final color = Color.lerp(HudColors.amber, HudColors.fire, pulse)!.withValues(alpha: a);
+    final r = math.max(34.0, 1.7 * zoom);
+    final from = math.atan2(cue.nose.dy, cue.nose.dx);
+    final to = math.atan2(cue.up.dy, cue.up.dx);
+    var sweep = to - from;
+    while (sweep > math.pi) {
+      sweep -= 2 * math.pi;
+    }
+    while (sweep < -math.pi) {
+      sweep += 2 * math.pi;
+    }
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: c, radius: r), from, sweep, false, paint);
+    // Arrowhead at "up", pointing along the turn.
+    final tip = c + Offset(math.cos(to), math.sin(to)) * r;
+    final along = Offset(-math.sin(to), math.cos(to)) * sweep.sign;
+    final out = Offset(math.cos(to), math.sin(to));
+    canvas.drawPath(
+      Path()
+        ..moveTo(tip.dx + along.dx * 9, tip.dy + along.dy * 9)
+        ..lineTo(tip.dx - along.dx * 3 + out.dx * 7, tip.dy - along.dy * 3 + out.dy * 7)
+        ..lineTo(tip.dx - along.dx * 3 - out.dx * 7, tip.dy - along.dy * 3 - out.dy * 7)
+        ..close(),
+      Paint()..color = color,
+    );
+    final tp = _tag('nose_up', 'NOSE UP', color, size: 10);
+    final labelAt = c + out * (r + 16);
+    tp.paint(canvas, labelAt - Offset(tp.width / 2, tp.height / 2));
+  }
+
+  void _brackets(Canvas canvas, Offset c, double half, Color color) {
+    final arm = half * 0.45;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.square;
+    for (final sx in const [-1.0, 1.0]) {
+      for (final sy in const [-1.0, 1.0]) {
+        final corner = c + Offset(sx * half, sy * half);
+        canvas.drawPath(
+          Path()
+            ..moveTo(corner.dx - sx * arm, corner.dy)
+            ..lineTo(corner.dx, corner.dy)
+            ..lineTo(corner.dx, corner.dy - sy * arm),
+          paint,
+        );
+      }
+    }
+  }
+
+  void _dashedRing(Canvas canvas, Offset c, double r, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke;
+    const n = 12;
+    final spin = _t * 0.6;
+    for (var i = 0; i < n; i++) {
+      final a0 = spin + i * 2 * math.pi / n;
+      canvas.drawArc(Rect.fromCircle(center: c, radius: r), a0, math.pi / n, false, paint);
+    }
+  }
+
+  /// Off-screen target: a hex chevron on the screen edge pointing at it.
+  void _chevron(Canvas canvas, Offset target, Color color, String label) {
+    final safe = _safe.deflate(14);
+    final c = size.toOffset() / 2;
+    final d = target - c;
+    if (d.distance < 1) return;
+    // Scale the direction until it meets the safe rect.
+    final sx = d.dx.abs() < 1e-6 ? double.infinity : (safe.width / 2) / d.dx.abs();
+    final sy = d.dy.abs() < 1e-6 ? double.infinity : (safe.height / 2) / d.dy.abs();
+    final p = safe.center + d * math.min(sx, sy);
+    final ang = math.atan2(d.dy, d.dx);
+    final bob = 3 * math.sin(_t * 5);
+    final tip = p + Offset(math.cos(ang), math.sin(ang)) * (bob + 4);
+    final hex = hexPath(p, 11);
+    canvas.drawPath(hex, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, hex, color, 1.5);
+    final perp = Offset(-math.sin(ang), math.cos(ang));
+    final dir = Offset(math.cos(ang), math.sin(ang));
+    canvas.drawPath(
+      Path()
+        ..moveTo(tip.dx + dir.dx * 8, tip.dy + dir.dy * 8)
+        ..lineTo(tip.dx + perp.dx * 6, tip.dy + perp.dy * 6)
+        ..lineTo(tip.dx - perp.dx * 6, tip.dy - perp.dy * 6)
+        ..close(),
+      Paint()..color = color,
+    );
+    final tp = _tag('chev_$label', label, color, size: 8);
+    // The label sits on the inner side of the chevron.
+    final inward = p - dir * 22;
+    tp.paint(canvas, inward - Offset(tp.width / 2, tp.height / 2));
+  }
+
+  void _padBeacon(Canvas canvas, Offset deck, PadTag tag) {
+    final both = tag.shipIn && tag.podIn;
+    final title = _tag('pad_title', 'LAND BOTH', HudColors.green);
+    const slot = 9.0;
+    final w = math.max(title.width + 20, slot * 4 + 34);
+    final h = title.height + slot * 2 + 16;
+    final rise = 26 + 3 * math.sin(_t * 2.5);
+    final rect = Rect.fromCenter(
+      center: deck - Offset(0, rise + h / 2),
+      width: w,
+      height: h,
+    );
+    // Stem down to the deck.
+    canvas.drawLine(
+      Offset(deck.dx, rect.bottom),
+      deck - const Offset(0, 4),
+      Paint()
+        ..color = HudColors.green.withValues(alpha: 0.5)
+        ..strokeWidth = 1.2,
+    );
+    final plate = chamferPath(rect, 7);
+    drawGlow(canvas, plate, HudColors.green, 0.35);
+    canvas.drawPath(plate, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, plate, HudColors.green.withValues(alpha: 0.8), 1.2);
+    title.paint(canvas, Offset(rect.center.dx - title.width / 2, rect.top + 5));
+
+    final y = rect.bottom - 6 - slot;
+    final shipC = Offset(rect.center.dx - slot - 6, y);
+    final podC = Offset(rect.center.dx + slot + 6, y);
+    final pulse = 0.5 + 0.5 * math.sin(_t * 6);
+    for (final (c, inside, isShip) in [(shipC, tag.shipIn, true), (podC, tag.podIn, false)]) {
+      final hex = hexPath(c, slot);
+      final col = inside ? HudColors.green : Colors.white.withValues(alpha: 0.35 + 0.4 * pulse);
+      if (inside) {
+        canvas.drawPath(hex, Paint()..color = HudColors.green.withValues(alpha: 0.28));
+        if (both) drawGlow(canvas, hex, HudColors.green, 0.8);
+      }
+      drawStroke(canvas, hex, col, 1.4);
+      final icon = Paint()..color = col;
+      if (isShip) {
+        canvas.drawPath(
+          Path()
+            ..moveTo(c.dx, c.dy - 5)
+            ..lineTo(c.dx + 4, c.dy + 4)
+            ..lineTo(c.dx - 4, c.dy + 4)
+            ..close(),
+          icon,
+        );
+      } else {
+        canvas.drawCircle(c, 3.6, icon);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comms line
+// ─────────────────────────────────────────────────────────────────────────────
