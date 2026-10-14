@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/services/analytics_service.dart';
+import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -122,12 +123,20 @@ abstract final class ReminderService {
 
   static ReminderState _state() {
     final p = ProgressService.instance;
+    final tried = p.reminderLastTried;
+    final stalled = tried != null && p.getStarsById(tried) == 0 ? _mission(tried) : null;
     return ReminderState(
       now: DateTime.now(),
       dailyStreak: p.getDailyStreak(),
       dailyDoneToday: p.isDailyChallengeComplete(),
       affordableGear: _affordableGear(),
+      contractsOpen: ContractsService.isUnlocked,
       nextMission: _nextMission(),
+      stalledMission: stalled,
+      stalledRouteReady: stalled != null && p.isRouteUnlocked(tried!),
+      newWorld: _newWorld(),
+      gate: _gate(),
+      expedition: _freeExpedition(),
       playHours: p.reminderHours,
     );
   }
@@ -145,12 +154,74 @@ abstract final class ReminderService {
     return name;
   }
 
+  /// [saveId]'s story line, with its world's settlement and contact.
+  static MissionReminder? _mission(String saveId) {
+    final story = storyFor(saveId);
+    final i = LevelRegistry.flat.indexWhere((d) => d.saveId == saveId);
+    if (story == null || i < 0) return null;
+    final world = worldStoryFor(LevelRegistry.worldOf(i).$1.id);
+    return MissionReminder(
+      from: story.from,
+      cargo: story.cargo,
+      brief: story.brief,
+      place: world?.place ?? '',
+      contact: world?.contact ?? '',
+    );
+  }
+
+  /// The first open career mission without a star.
   static MissionReminder? _nextMission() {
-    final def = LevelRegistry.defAt(LevelRegistry.nextLevelIndex());
-    if (ProgressService.instance.getStarsById(def.saveId) > 0) return null;
-    final story = storyFor(def.saveId);
-    if (story == null) return null;
-    return MissionReminder(from: story.from, cargo: story.cargo, brief: story.brief);
+    final p = ProgressService.instance;
+    for (var i = 0; i < LevelRegistry.totalLevels; i++) {
+      if (LevelRegistry.isExpedition(i) || !LevelRegistry.isLevelUnlocked(i)) continue;
+      final id = LevelRegistry.defAt(i).saveId;
+      if (p.getStarsById(id) == 0) return _mission(id);
+    }
+    return null;
+  }
+
+  /// A career world past the Training Grounds that's open but whose chapter
+  /// card hasn't been read (the player hasn't been there).
+  static WorldReminder? _newWorld() {
+    for (final w in LevelRegistry.worlds.skip(1)) {
+      if (w.expedition || !LevelRegistry.isWorldUnlocked(w)) continue;
+      if (ProgressService.instance.storySeen('intro_${w.id}')) continue;
+      final story = worldStoryFor(w.id);
+      if (story == null || story.intro.isEmpty) continue;
+      return WorldReminder(contact: story.contact, place: story.place, teaser: story.intro.first);
+    }
+    return null;
+  }
+
+  /// The next locked career world and the stars it still needs.
+  static GateReminder? _gate() {
+    for (final w in LevelRegistry.worlds) {
+      if (w.expedition || LevelRegistry.isWorldUnlocked(w)) continue;
+      return GateReminder(
+        place: worldStoryFor(w.id)?.place ?? w.name,
+        starsToGo: w.starsRequired - LevelRegistry.totalStars(),
+      );
+    }
+    return null;
+  }
+
+  /// The free Expedition, once it's open and while it has no stars.
+  static MissionReminder? _freeExpedition() {
+    for (var i = 0; i < LevelRegistry.totalLevels; i++) {
+      if (!LevelRegistry.isExpedition(i)) continue;
+      final id = LevelRegistry.defAt(i).saveId;
+      if (!LevelRegistry.isLevelUnlocked(i) || ProgressService.instance.getStarsById(id) > 0) {
+        return null;
+      }
+      return _mission(id);
+    }
+    return null;
+  }
+
+  /// A career mission launched (not a daily or demo): a day-1 reminder can
+  /// pick it up if it's still unflown.
+  static void noteMissionStarted(String saveId) {
+    unawaited(ProgressService.instance.setReminderLastTried(saveId));
   }
 
   // ── Opt-in ────────────────────────────────────────────────────────────────

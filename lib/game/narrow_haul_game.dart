@@ -970,6 +970,7 @@ class NarrowHaulGame extends Forge2DGame
     }
     _attempt++;
     final (world, _) = LevelRegistry.worldOf(levelIndex);
+    if (!isChallengeMode && !world.expedition) ReminderService.noteMissionStarted(id);
     Analytics.levelStart(
       levelId: id,
       world: world.id,

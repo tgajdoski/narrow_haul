@@ -298,6 +298,12 @@ class ProgressService {
     await _prefs.setInt('reminder_ask_ms', nowMs);
   }
 
+  /// The career mission last launched: a reminder picks it up if it's
+  /// still unflown.
+  String? get reminderLastTried => _string('reminder_last_tried');
+  Future<void> setReminderLastTried(String saveId) async =>
+      _prefs.setString('reminder_last_tried', saveId);
+
   /// Hours (0–23) of the last 8 session starts: reminders go out at the
   /// player's usual time.
   List<int> get reminderHours => [
