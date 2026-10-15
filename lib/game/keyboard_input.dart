@@ -40,6 +40,21 @@ class KeyboardFlightInput {
     LogicalKeyboardKey.digit6,
   ];
 
+  /// + / − zoom the camera a notch in / out, 0 resets it: the notches for
+  /// [key] (0 = reset), or null when it isn't a zoom key.
+  static int? zoomNotches(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.equal ||
+        key == LogicalKeyboardKey.add ||
+        key == LogicalKeyboardKey.numpadAdd) {
+      return 1;
+    }
+    if (key == LogicalKeyboardKey.minus || key == LogicalKeyboardKey.numpadSubtract) {
+      return -1;
+    }
+    if (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0) return 0;
+    return null;
+  }
+
   double rotateAxis = 0;
   bool thrust = false;
   bool fire = false;

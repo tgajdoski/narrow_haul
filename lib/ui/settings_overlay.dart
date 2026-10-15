@@ -172,6 +172,20 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             _p.setCameraMode(m.name);
           },
         ),
+        HoloListRow(
+          icon: Icons.zoom_in_rounded,
+          title: 'Zoom',
+          subtitle: FlightTuning.cameraZoom == 1
+              ? 'Pinch with two fingers in flight (mouse wheel or + / −)'
+              : 'Tap to reset · pinch with two fingers in flight',
+          trailing: '${FlightTuning.cameraZoom.toStringAsFixed(1)}×',
+          onTap: FlightTuning.cameraZoom == 1
+              ? null
+              : () {
+                  setState(() => FlightTuning.cameraZoom = 1);
+                  _p.setCameraZoom(1);
+                },
+        ),
       ],
     );
 

@@ -1,4 +1,5 @@
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
@@ -55,38 +56,53 @@ class NarrowHaulApp extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: GameWidget<NarrowHaulGame>(
-                    game: game,
-                    overlayBuilderMap: {
-                      OverlayIds.menu: (context, game) =>
-                          MenuOverlay(game: game),
-                      OverlayIds.levelSelect: (context, game) =>
-                          LevelSelectOverlay(game: game),
-                      OverlayIds.achievements: (context, game) =>
-                          AchievementsOverlay(game: game),
-                      OverlayIds.cosmetics: (context, game) => GarageOverlay(
-                        game: game,
-                        initialTab: game.takeGarageTab(),
-                      ),
-                      OverlayIds.gameOver: (context, game) =>
-                          GameOverOverlay(game: game),
-                      OverlayIds.demo: (context, game) =>
-                          DemoFlightOverlay(game: game),
-                      OverlayIds.levelComplete: (context, game) =>
-                          LevelCompleteOverlay(game: game),
-                      OverlayIds.rankUp: (context, game) =>
-                          RankUpOverlay(game: game),
-                      OverlayIds.story: (context, game) =>
-                          StoryChapterOverlay(game: game),
-                      OverlayIds.pause: (context, game) =>
-                          PauseOverlay(game: game),
-                      OverlayIds.settings: (context, game) =>
-                          SettingsOverlay(game: game),
-                      OverlayIds.pilotProfile: (context, game) =>
-                          PilotLogbookOverlay(game: game),
-                      OverlayIds.briefing: (context, game) =>
-                          MissionBriefingOverlay(game: game),
+                  // Raw pointers for the pinch zoom: a Listener never takes
+                  // part in the gesture arena, so the controls keep theirs.
+                  child: Listener(
+                    onPointerDown: (e) =>
+                        game.zoomPointerDown(e.pointer, e.localPosition),
+                    onPointerMove: (e) =>
+                        game.zoomPointerMove(e.pointer, e.localPosition),
+                    onPointerUp: (e) => game.zoomPointerUp(e.pointer),
+                    onPointerCancel: (e) => game.zoomPointerUp(e.pointer),
+                    onPointerSignal: (e) {
+                      if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
+                        game.zoomBy(e.scrollDelta.dy < 0 ? 1 : -1);
+                      }
                     },
+                    child: GameWidget<NarrowHaulGame>(
+                      game: game,
+                      overlayBuilderMap: {
+                        OverlayIds.menu: (context, game) =>
+                            MenuOverlay(game: game),
+                        OverlayIds.levelSelect: (context, game) =>
+                            LevelSelectOverlay(game: game),
+                        OverlayIds.achievements: (context, game) =>
+                            AchievementsOverlay(game: game),
+                        OverlayIds.cosmetics: (context, game) => GarageOverlay(
+                          game: game,
+                          initialTab: game.takeGarageTab(),
+                        ),
+                        OverlayIds.gameOver: (context, game) =>
+                            GameOverOverlay(game: game),
+                        OverlayIds.demo: (context, game) =>
+                            DemoFlightOverlay(game: game),
+                        OverlayIds.levelComplete: (context, game) =>
+                            LevelCompleteOverlay(game: game),
+                        OverlayIds.rankUp: (context, game) =>
+                            RankUpOverlay(game: game),
+                        OverlayIds.story: (context, game) =>
+                            StoryChapterOverlay(game: game),
+                        OverlayIds.pause: (context, game) =>
+                            PauseOverlay(game: game),
+                        OverlayIds.settings: (context, game) =>
+                            SettingsOverlay(game: game),
+                        OverlayIds.pilotProfile: (context, game) =>
+                            PilotLogbookOverlay(game: game),
+                        OverlayIds.briefing: (context, game) =>
+                            MissionBriefingOverlay(game: game),
+                      },
+                    ),
                   ),
                 ),
                 const AchievementToastHost(),

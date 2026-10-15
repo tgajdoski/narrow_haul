@@ -7,7 +7,10 @@ extension GameInput on NarrowHaulGame {
   void _combineInputs() {
     final boost = ship?.maxRotateInput ?? 1.0;
     final s = ship;
-    final touch = FlightTuning.steer.isPointer
+    // A pinch's fingers zoom, they don't steer.
+    final touch = _pinch.active
+        ? 0.0
+        : FlightTuning.steer.isPointer
         ? (s == null
               ? 0.0
               : FlightTuning.pointerAxis(

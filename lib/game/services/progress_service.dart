@@ -115,6 +115,7 @@ class ProgressService {
     _minimapEnabled.key,
     _Keys.steerMode,
     _Keys.cameraMode,
+    _Keys.cameraZoom,
     _Keys.tiltSteer,
     _Keys.tiltSensitivity,
     _Keys.tiltMode,

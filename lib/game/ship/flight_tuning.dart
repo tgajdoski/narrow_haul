@@ -104,6 +104,13 @@ abstract final class FlightTuning {
   static SteerMode steer = SteerMode.twoSpeed;
   static CameraMode camera = CameraMode.lookAhead;
 
+  /// The player's own zoom (× the camera mode's), set by a pinch, the
+  /// mouse wheel or + / − (`PinchZoom`).
+  static double cameraZoom = 1;
+  static const double minZoom = 0.6;
+  static const double maxZoom = 1.6;
+  static double clampZoom(double z) => z.clamp(minZoom, maxZoom).toDouble();
+
   /// Steer by tilting the phone like a wheel (see `TiltSteer`); the dial
   /// still works on top of it.
   static bool tilt = false;
@@ -149,12 +156,14 @@ abstract final class FlightTuning {
   static void load({
     String? steerName,
     String? cameraName,
+    double? cameraZoom,
     bool tiltOn = false,
     String? tiltSensitivityName,
     String? tiltModeName,
   }) {
     steer = SteerMode.values.asNameMap()[steerName] ?? SteerMode.twoSpeed;
     camera = CameraMode.values.asNameMap()[cameraName] ?? CameraMode.lookAhead;
+    FlightTuning.cameraZoom = clampZoom(cameraZoom ?? 1);
     tilt = tiltOn;
     tiltMode = TiltMode.values.asNameMap()[tiltModeName] ?? TiltMode.heading;
     tiltSensitivity =

@@ -187,7 +187,8 @@ extension GameGuidance on NarrowHaulGame {
           id: 'camera',
           callsign: 'TOWER',
           text: 'Camera: ${FlightTuning.camera.label}. '
-              'Change it any time in Pause → Settings → Camera.',
+              '${_desktop ? 'Scroll' : 'Pinch'} to zoom; '
+              'more in Pause → Settings → Camera.',
         ),
         delay: afterIntro,
         expiresIn: NarrowHaulGame._commsHelpExpiry,

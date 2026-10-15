@@ -143,7 +143,7 @@ class CameraRig {
 
   /// Normal zoom for the camera mode, never showing outside the world.
   double get _restZoom => math.max(
-    baseZoom() * FlightTuning.camera.profile.zoomMul,
+    baseZoom() * FlightTuning.camera.profile.zoomMul * FlightTuning.cameraZoom,
     _minContainZoom,
   );
 

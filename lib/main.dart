@@ -31,6 +31,7 @@ void main() async {
   FlightTuning.load(
     steerName: ProgressService.instance.steerMode,
     cameraName: ProgressService.instance.cameraMode,
+    cameraZoom: ProgressService.instance.cameraZoom,
     tiltOn: ProgressService.instance.tiltSteer ?? false,
     tiltSensitivityName: ProgressService.instance.tiltSensitivity,
     tiltModeName: ProgressService.instance.tiltMode,

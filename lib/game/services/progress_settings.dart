@@ -106,6 +106,11 @@ extension ProgressSettings on ProgressService {
   Future<void> setCameraMode(String v) async =>
       _prefs.setString(_Keys.cameraMode, v);
 
+  /// The player's pinch zoom (× the camera mode's); null = never pinched.
+  double? get cameraZoom => _double(_Keys.cameraZoom);
+  Future<void> setCameraZoom(double v) async =>
+      _prefs.setDouble(_Keys.cameraZoom, v);
+
   /// Tilt steering on/off (null = never chosen: on wherever the phone has
   /// the sensor) and its `TiltSensitivity` name.
   bool? get tiltSteer => _bool(_Keys.tiltSteer);

@@ -13,6 +13,7 @@ abstract final class _Keys {
   static const tiltSteer = 'tilt_steer';
   static const steerMode = 'steer_mode';
   static const cameraMode = 'camera_mode';
+  static const cameraZoom = 'camera_zoom';
   static const tiltSensitivity = 'tilt_sensitivity';
   static const tiltMode = 'tilt_mode';
   static const remindersEnabled = 'reminders_enabled';

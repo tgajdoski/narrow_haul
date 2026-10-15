@@ -131,6 +131,16 @@ class HudTouchControls extends PositionComponent {
     if (held != null) {
       zones.add(around(Offset(held.x + _joystick!.position.x, held.y), dialR));
     }
+    zones.add(padsZone!);
+    return zones;
+  }
+
+  /// The THRUST / FIRE / rail cluster, with a margin (a pinch never starts
+  /// there).
+  ScreenZone? get padsZone {
+    final l = _layout;
+    if (l == null) return null;
+    const pad = 12.0;
     const thrustR = HudButtonLayout.thrustRadius;
     var top = l.thrust.dy - thrustR;
     if (_showFire) top = math.min(top, l.fire.dy - HudButtonLayout.fireRadius);
@@ -138,13 +148,12 @@ class HudTouchControls extends PositionComponent {
     if (rail.isNotEmpty) top = math.min(top, rail.first.dy - HudButtonLayout.slotRadius);
     final inner = l.thrust.dx + l.innerSide * HudButtonLayout.innerReach(rail: railInner);
     final outer = l.thrust.dx - l.innerSide * thrustR;
-    zones.add((
+    return (
       l: math.min(inner, outer) - pad,
       t: top - pad,
       r: math.max(inner, outer) + pad,
       b: l.thrust.dy + thrustR + pad,
-    ));
-    return zones;
+    );
   }
 
   _FloatingJoystick? _joystick;

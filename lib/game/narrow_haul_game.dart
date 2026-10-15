@@ -27,6 +27,7 @@ import 'package:narrow_haul/game/components/obstacles.dart';
 import 'package:narrow_haul/game/components/parallax_background.dart';
 import 'package:narrow_haul/game/components/route_guide.dart';
 import 'package:narrow_haul/game/camera/camera_rig.dart';
+import 'package:narrow_haul/game/camera/pinch_zoom.dart';
 import 'package:narrow_haul/game/components/rock_proximity.dart';
 import 'package:narrow_haul/game/components/salvage_fx.dart';
 import 'package:narrow_haul/game/components/world_frame.dart';
@@ -201,6 +202,13 @@ class NarrowHaulGame extends Forge2DGame
         KeyboardFlightInput.cycleKeys.contains(event.logicalKey)) {
       cycleWeapon();
       return KeyEventResult.handled;
+    }
+    if (flying && event is! KeyUpEvent) {
+      final zoom = KeyboardFlightInput.zoomNotches(event.logicalKey);
+      if (zoom != null) {
+        zoom == 0 ? resetZoom() : zoomBy(zoom);
+        return KeyEventResult.handled;
+      }
     }
     final slotKey = KeyboardFlightInput.slotKeys.indexOf(event.logicalKey);
     if (flying && event is KeyDownEvent && slotKey >= 0) {
@@ -760,6 +768,9 @@ class NarrowHaulGame extends Forge2DGame
   // ── Camera ────────────────────────────────────────────────────────────────
 
   /// Follow, safe frame, close-ups, shake and bounds (`camera/camera_rig.dart`).
+  /// Two-finger pinch on the flight view (`zoomPointerDown` …).
+  final PinchZoom _pinch = PinchZoom();
+
   late final CameraRig _cam = CameraRig(camera, world: world)
     ..baseZoom = (() => _baseZoom * _screenScale)
     ..avoidZones = _cameraAvoidZones;
