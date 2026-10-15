@@ -434,6 +434,13 @@ class NarrowHaulGame extends Forge2DGame
   double _thrustUsed = 0;
   double _rotateUsed = 0;
 
+  /// The FIRE coach mark's time left on screen (its one showing ever).
+  double _fireCoachLeft = 0;
+  static const double _fireCoachSeconds = 6;
+
+  /// The canister line aired this flight: its +FUEL ring stays up.
+  bool _canisterHintThisFlight = false;
+
   /// tut_01's flight drills (hover, drift, set down) before the first tow.
   /// Progress survives retries within the app session.
   DrillCourse? _drills;
@@ -663,8 +670,14 @@ class NarrowHaulGame extends Forge2DGame
         AudioService.playUi(UiSound.open);
         // Heard once it's on air, so quitting during the level card keeps it.
         final s = ship;
+        final progress = ProgressService.instance;
         if (line.id == 'ship' && s != null) {
-          unawaited(ProgressService.instance.markShipIntroSeen(s.spec.id));
+          unawaited(progress.markShipIntroSeen(s.spec.id));
+        } else if (line.id == 'camera') {
+          unawaited(progress.markCameraTipSeen());
+        } else if (line.id == 'canister') {
+          _canisterHintThisFlight = true;
+          unawaited(progress.markCanisterHintSeen());
         }
       },
     );
@@ -789,7 +802,8 @@ class NarrowHaulGame extends Forge2DGame
   /// Missions whose story beats played this app session.
   final _storyToldThisSession = <String>{};
 
-  /// The camera tip aired this app session (`_scheduleComms`).
+  /// The camera tip was queued this app session (`_scheduleComms`); once
+  /// it airs it's never said again (`camera_tip_seen`).
   bool _cameraTipToldThisSession = false;
 
   /// Whether this flight tells the mission's story (set by `_scheduleComms`).
@@ -1036,7 +1050,7 @@ class NarrowHaulGame extends Forge2DGame
         _updateNoseDown(dt, s);
       }
       if (kPerfProbe) PerfMonitor.lapStart();
-      _updateGuidance(s);
+      _updateGuidance(s, dt);
       if (kPerfProbe) PerfMonitor.lap('guidance');
       final worldSize = _currentWorldSize;
       if (worldSize != null) _followCamera(s, worldSize, dt);

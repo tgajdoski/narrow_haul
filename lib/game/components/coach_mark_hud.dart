@@ -39,6 +39,11 @@ class CoachMarkHud extends PositionComponent {
   double _exit = 1;
   static const double _exitSeconds = 0.45;
 
+  // A mark that timed out (or a notice) fading where it stood.
+  CoachMark? _fading;
+  double _fade = 0;
+  static const double _fadeSeconds = 0.35;
+
   final _flights = <_FlyIn>[];
 
   final _title = HudText();
@@ -61,6 +66,18 @@ class CoachMarkHud extends PositionComponent {
     _exit = 1;
     _flights.clear();
     _plateRect = null;
+    _fading = null;
+  }
+
+  /// The current mark leaves without the tick (it timed out, nothing was
+  /// done): it fades where it stands.
+  void dismiss() {
+    final old = _shown;
+    if (old == null) return;
+    _fading = old;
+    _fade = 1;
+    _shown = null;
+    mark = null;
   }
 
   /// A crate's weapon flies from [from] (screen px) into the FIRE pad.
@@ -78,14 +95,22 @@ class CoachMarkHud extends PositionComponent {
       if (old != null && old.confirmOnExit) {
         _exitAt = _anchorFor(old.target);
         _exit = 0;
+      } else if (old != null) {
+        _fading = old;
+        _fade = 1;
       }
       _shown = next;
       _in = 0;
-      _vis = _visTarget = 1;
+      // A fading plate keeps its opacity (a ghost over the ship stays one).
+      if (next != null) _vis = _visTarget = 1;
     }
     if (_shown != null) _in = math.min(1, _in + dt * 5);
     _vis += (_visTarget - _vis) * math.min(1, dt * 8);
     if (_exit < 1) _exit = math.min(1, _exit + dt / _exitSeconds);
+    if (_fading != null) {
+      _fade -= dt / _fadeSeconds;
+      if (_fade <= 0) _fading = null;
+    }
     for (final f in _flights) {
       f.t += dt;
     }
@@ -128,6 +153,11 @@ class CoachMarkHud extends PositionComponent {
   void render(Canvas canvas) {
     _plateRect = null;
     _renderExit(canvas);
+    final f = _fading;
+    if (f != null && _shown == null) {
+      final a = _anchorFor(f.target);
+      if (a != null) _renderMark(canvas, f, a, fade: _fade);
+    }
     final m = _shown;
     if (m != null) {
       final a = _anchorFor(m.target);
@@ -143,8 +173,10 @@ class CoachMarkHud extends PositionComponent {
     drawStroke(canvas, path, color, width);
   }
 
-  void _renderMark(Canvas canvas, CoachMark m, _Anchor a) {
-    final ease = Curves.easeOutCubic.transform(_in);
+  void _renderMark(Canvas canvas, CoachMark m, _Anchor a, {double? fade}) {
+    final ease = fade == null
+        ? Curves.easeOutCubic.transform(_in)
+        : Curves.easeInCubic.transform(fade.clamp(0.0, 1.0));
     var e = ease;
     final ringR = a.r + 7;
 

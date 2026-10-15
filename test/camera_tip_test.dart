@@ -1,5 +1,5 @@
-// The first flight of an app session names the camera mode on the radio,
-// once: not again on the next level, and never on the onboarding levels.
+// The first flight names the camera mode on the radio (once ever),
+// not again on the next level, and never on the onboarding levels.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/ship/flight_tuning.dart';
 

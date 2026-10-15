@@ -10,6 +10,22 @@ extension ProgressSettings on ProgressService {
   bool get scrapeHintSeen => _read(_scrapeHintSeen);
   Future<void> markScrapeHintSeen() => _write(_scrapeHintSeen, true);
 
+  /// The FIRE coach mark: once ever, until the first shot or its timeout.
+  bool get fireHintSeen => _read(_fireHintSeen);
+  Future<void> markFireHintSeen() => _write(_fireHintSeen, true);
+
+  /// THRUST / STEER coach marks: until both are learned once.
+  bool get controlsHintSeen => _read(_controlsHintSeen);
+  Future<void> markControlsHintSeen() => _write(_controlsHintSeen, true);
+
+  /// TOWER's camera tip airs once ever.
+  bool get cameraTipSeen => _read(_cameraTipSeen);
+  Future<void> markCameraTipSeen() => _write(_cameraTipSeen, true);
+
+  /// OPS's fuel canister line airs once ever.
+  bool get canisterHintSeen => _read(_canisterHintSeen);
+  Future<void> markCanisterHintSeen() => _write(_canisterHintSeen, true);
+
   /// Deliveries in a row without a nose-down warning; the in-flight lesson
   /// runs until it reaches `kNoseDownCleanFlights`.
   int get noseDownCleanFlights => _read(_noseDownClean);

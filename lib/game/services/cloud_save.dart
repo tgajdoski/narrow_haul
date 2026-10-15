@@ -46,6 +46,10 @@ class CloudSave {
       key.startsWith('once_') ||
       key.startsWith('crate_hint_') ||
       key == 'scrape_hint_seen' ||
+      key == 'fire_hint_seen' ||
+      key == 'controls_hint_seen' ||
+      key == 'camera_tip_seen' ||
+      key == 'canister_hint_seen' ||
       _isDailyDone(key);
 
   static final _dailyDone = RegExp(r'^daily_\d{4}-\d{2}-\d{2}$');

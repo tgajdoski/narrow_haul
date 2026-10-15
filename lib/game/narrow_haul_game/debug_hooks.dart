@@ -21,6 +21,10 @@ extension GameDebugHooks on NarrowHaulGame {
   @visibleForTesting
   double get debugCloseUp => _cam.closeUp.factor;
 
+  /// Tests: the coach mark on a control this frame.
+  @visibleForTesting
+  CoachMark? get debugCoachMark => _coach?.mark;
+
   /// Tests: the crate notice currently on air.
   @visibleForTesting
   CrateNotice? get debugCrateNotice => _crateNotice;

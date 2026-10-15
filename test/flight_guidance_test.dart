@@ -11,6 +11,7 @@ void main() {
     const armed = GuidanceInputs(
       armed: true,
       combatLevel: true,
+      fireLesson: true,
       fuelPerShotFrac: 0.6 / 115,
     );
 
@@ -23,22 +24,30 @@ void main() {
       expect(g.coach?.keys, isEmpty);
       expect(g.markTurrets, isTrue, reason: 'the turrets get lock-on brackets');
 
-      const fired = GuidanceInputs(armed: true, combatLevel: true, shotsFired: 1);
+      const fired = GuidanceInputs(
+        armed: true,
+        combatLevel: true,
+        fireLesson: true,
+        shotsFired: 1,
+      );
       expect(resolveGuidance(fired).coach, isNull);
       expect(resolveGuidance(fired).markTurrets, isFalse);
     });
 
-    test('FIRE is not coached once the level has a star, or without turrets', () {
+    test('FIRE is not coached once the lesson is over, or without turrets', () {
       expect(
-        resolveGuidance(const GuidanceInputs(
-          armed: true,
-          combatLevel: true,
-          levelStarred: true,
-        )).coach,
+        resolveGuidance(const GuidanceInputs(armed: true, combatLevel: true)).coach,
+        isNull,
+        reason: 'seen once already, or its seconds are up',
+      );
+      expect(
+        resolveGuidance(const GuidanceInputs(armed: true, fireLesson: true)).coach,
         isNull,
       );
-      expect(resolveGuidance(const GuidanceInputs(armed: true)).coach, isNull);
-      expect(resolveGuidance(const GuidanceInputs(combatLevel: true)).coach, isNull);
+      expect(
+        resolveGuidance(const GuidanceInputs(combatLevel: true, fireLesson: true)).coach,
+        isNull,
+      );
     });
 
     test('the Talon\'s real shot cost is what the chip shows', () {
@@ -46,6 +55,7 @@ void main() {
       final g = resolveGuidance(GuidanceInputs(
         armed: true,
         combatLevel: true,
+        fireLesson: true,
         fuelPerShotFrac: frac,
       ));
       expect(g.coach?.cost, '${formatFuelPercent(frac)} fuel / shot');
@@ -56,9 +66,19 @@ void main() {
         desktop: true,
         armed: true,
         combatLevel: true,
+        fireLesson: true,
       ));
       expect(g.coach?.keys, ['F', 'ENTER']);
       expect(g.coach?.detail, isNot(contains('Tap')));
+    });
+
+    test('controls learned on an earlier flight: straight to the pod', () {
+      final g = resolveGuidance(const GuidanceInputs(
+        tutorial: true,
+        controlsKnown: true,
+      ));
+      expect(g.coach, isNull);
+      expect(g.pod, PodTag.hook);
     });
 
     test('tutorial: thrust, then steering, then the pod', () {
@@ -130,6 +150,7 @@ void main() {
         demo: true,
         armed: true,
         combatLevel: true,
+        fireLesson: true,
         shipOnPad: true,
         canisterUnseen: true,
       ));

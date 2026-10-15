@@ -104,7 +104,8 @@ class GuidanceInputs {
     this.armed = false,
     this.combatLevel = false,
     this.shotsFired = 0,
-    this.levelStarred = false,
+    this.fireLesson = false,
+    this.controlsKnown = false,
     this.fuelPerShotFrac = 0,
     this.crate,
     this.canisterUnseen = false,
@@ -139,7 +140,13 @@ class GuidanceInputs {
   final bool armed;
   final bool combatLevel;
   final int shotsFired;
-  final bool levelStarred;
+
+  /// The FIRE lesson is live: never seen before, and its few seconds on
+  /// screen aren't up.
+  final bool fireLesson;
+
+  /// THRUST and STEER were learned on an earlier flight: no coach marks.
+  final bool controlsKnown;
 
   /// One cannon round as a share of the tank.
   final double fuelPerShotFrac;
@@ -196,6 +203,7 @@ Guidance resolveGuidance(GuidanceInputs i) {
 
   final controlsTaught = !i.tutorial ||
       i.starRulesStep ||
+      i.controlsKnown ||
       (i.thrustUsed >= kThrustLearned && i.rotateUsed >= kRotateLearned);
 
   CoachMark? coach;
@@ -211,7 +219,7 @@ Guidance resolveGuidance(GuidanceInputs i) {
       confirmOnExit: false,
       subtle: true,
     );
-  } else if (i.armed && i.combatLevel && i.shotsFired == 0 && !i.levelStarred) {
+  } else if (i.armed && i.combatLevel && i.shotsFired == 0 && i.fireLesson) {
     coach = CoachMark(
       id: 'fire_turrets',
       target: CoachTarget.fire,
@@ -221,7 +229,7 @@ Guidance resolveGuidance(GuidanceInputs i) {
       cost: '${formatFuelPercent(i.fuelPerShotFrac)} fuel / shot',
       glyph: WeaponKind.cannon,
     );
-  } else if (i.tutorial && !i.starRulesStep) {
+  } else if (i.tutorial && !i.starRulesStep && !i.controlsKnown) {
     if (i.thrustUsed < kThrustLearned) {
       coach = CoachMark(
         id: 'thrust',

@@ -4,9 +4,11 @@ part of '../narrow_haul_game.dart';
 extension GameGuidance on NarrowHaulGame {
   /// Coach marks and world markers for this frame ([resolveGuidance]); the
   /// route-guide comms once the guide is on.
-  void _updateGuidance(ShipBody s) {
+  void _updateGuidance(ShipBody s, double dt) {
     final zone = _landingZone;
     final crate = _crateNotice;
+    final progress = ProgressService.instance;
+    _updateLessons(s, dt, progress);
     final g = resolveGuidance(GuidanceInputs(
       demo: demoMode,
       desktop: _desktop,
@@ -22,11 +24,12 @@ extension GameGuidance on NarrowHaulGame {
       armed: s.spec.armed,
       combatLevel: currentLevel?.hasCombat == true,
       shotsFired: s.shotsFired,
-      levelStarred:
-          ProgressService.instance.getStarsById(currentLevelDef.saveId) > 0,
+      fireLesson: _fireCoachLeft > 0,
+      controlsKnown: progress.controlsHintSeen,
       fuelPerShotFrac: s.spec.fuelPerShot * s.fuelDrainMultiplier / s.maxFuel,
       crate: crate,
-      canisterUnseen: _pickupHint() != null,
+      canisterUnseen: _pickupHint() != null &&
+          (_canisterHintThisFlight || !progress.canisterHintSeen),
       drill: _drills?.view,
       noseDown: _noseDownLesson && _noseDown.warning,
     ));
@@ -78,6 +81,28 @@ extension GameGuidance on NarrowHaulGame {
     }
   }
 
+  /// The FIRE mark shows once ever: gone at the first shot or after
+  /// [NarrowHaulGame._fireCoachSeconds]. THRUST / STEER count as learned for
+  /// good once both are used on a tutorial flight.
+  void _updateLessons(ShipBody s, double dt, ProgressService progress) {
+    if (_fireCoachLeft > 0) {
+      final fired = s.shotsFired > 0;
+      // The plate holds while a crate notice uses the FIRE pad.
+      if (_crateNotice == null) _fireCoachLeft -= dt;
+      if (fired || _fireCoachLeft <= 0) {
+        _fireCoachLeft = 0;
+        if (!fired) _coach?.dismiss();
+        unawaited(progress.markFireHintSeen());
+      }
+    }
+    if (_tutorialHints &&
+        !progress.controlsHintSeen &&
+        _thrustUsed >= kThrustLearned &&
+        _rotateUsed >= kRotateLearned) {
+      unawaited(progress.markControlsHintSeen());
+    }
+  }
+
   Offset? _cargoPos() {
     final c = cargo;
     if (c == null) return null;
@@ -122,7 +147,7 @@ extension GameGuidance on NarrowHaulGame {
         delay: afterIntro,
       );
     }
-    if (_starRulesStep) {
+    if (_starRulesStep && !retry) {
       comms.say(
         const CommsLine(
           id: 'stars',
@@ -138,7 +163,7 @@ extension GameGuidance on NarrowHaulGame {
       comms.say(CommsLine(id: 'ship', callsign: 'OPS', text: shipHint), delay: afterIntro);
     }
     _sayStory(BeatCue.start, after: afterIntro);
-    if (_pickupHint() != null && !retry) {
+    if (_pickupHint() != null && !retry && !ProgressService.instance.canisterHintSeen) {
       comms.say(
         const CommsLine(
           id: 'canister',
@@ -149,9 +174,13 @@ extension GameGuidance on NarrowHaulGame {
         expiresIn: NarrowHaulGame._commsHelpExpiry,
       );
     }
-    // The first flight of an app session names the camera, so players learn
-    // there are others. Last in the queue: it drops if it would air late.
-    if (!retry && !isChallengeMode && !_tutorialHints && !_cameraTipToldThisSession) {
+    // The first flight names the camera once ever, so players learn there
+    // are others. Last in the queue: it drops if it would air late.
+    if (!retry &&
+        !isChallengeMode &&
+        !_tutorialHints &&
+        !_cameraTipToldThisSession &&
+        !ProgressService.instance.cameraTipSeen) {
       _cameraTipToldThisSession = true;
       comms.say(
         CommsLine(

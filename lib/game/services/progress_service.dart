@@ -119,6 +119,11 @@ class ProgressService {
     _Keys.tiltSensitivity,
     _Keys.tiltMode,
     _creditsSeen.key,
+    // Learned controls stay learned.
+    _fireHintSeen.key,
+    _controlsHintSeen.key,
+    _cameraTipSeen.key,
+    _canisterHintSeen.key,
     _Keys.remindersEnabled,
     _reminderAsks.key,
     _reminderAskMs.key,

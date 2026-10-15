@@ -461,6 +461,13 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _fuelBaseline = shipBody.maxFuel;
     _thrustUsed = 0;
     _rotateUsed = 0;
+    _fireCoachLeft = !demoMode &&
+            shipBody.spec.armed &&
+            data.hasCombat &&
+            !ProgressService.instance.fireHintSeen
+        ? NarrowHaulGame._fireCoachSeconds
+        : 0;
+    _canisterHintThisFlight = false;
     _tutorialHints =
         !isChallengeMode &&
         !demoMode &&
