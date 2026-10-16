@@ -45,6 +45,7 @@ const Map<String, String> kPlayAchievementIds = {
   'shake_it_off': 'CgkI-LT6hcYGEAIQFg',
   'clover': 'CgkI-LT6hcYGEAIQAw',
   'salvage_collector': 'CgkI-LT6hcYGEAIQHg',
+  'flawless_world': 'CgkI-LT6hcYGEAIQJA',
 };
 
 /// Career stars (the "Total stars" leaderboard).

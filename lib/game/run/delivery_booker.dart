@@ -455,6 +455,12 @@ abstract final class DeliveryBooker {
     }
 
     if (allPerfect) candidates.add(AchievementIds.perfectPilot);
+    if (stars >= 3 && !f.challenge) {
+      final (world, _) = LevelRegistry.worldOf(f.levelIndex);
+      if (world.levels.every((d) => progress.isFlawless(d.saveId))) {
+        candidates.add(AchievementIds.flawlessWorld);
+      }
+    }
 
     if (allContractsDone) candidates.add(AchievementIds.fullManifest);
     // Mystery salvage: delivered mid-curse.

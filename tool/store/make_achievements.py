@@ -49,7 +49,7 @@ def noto_png(emoji):
 POINTS = {
     'first_haul': 10, 'daily_pilot': 10, 'opened_the_box': 10,
     'weapons_hot': 10, 'rank_commercial': 10,
-    'rank_captain': 50, 'week_on_duty': 50, 'century_hauler': 50,
+    'rank_captain': 50, 'week_on_duty': 50,
     'gambler': 50, 'fleet_qualified': 50, 'level_20': 50,
     'rank_chief': 50, 'salvage_collector': 50,
     'perfect_pilot': 75,
@@ -125,7 +125,7 @@ def badge(emoji, accent):
 
 def main():
     items = read_achievements()
-    assert len(items) == 33, f'expected 33 achievements, found {len(items)}'
+    assert len(items) == 34, f'expected 34 achievements, found {len(items)}'
     total = sum(POINTS.get(a['id'], 25) for a in items)
     assert total <= 1000, total
     os.makedirs(os.path.join(OUT, 'icons'), exist_ok=True)

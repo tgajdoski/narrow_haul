@@ -9,6 +9,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/route/personal_best_routes.dart';
 import 'package:narrow_haul/game/run/star_watch.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
+import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/career_goal.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 
@@ -144,6 +145,26 @@ void main() {
       await settle();
       expect(h.game.lastRunReward!.newFlawless, isFalse);
       expect(p.isFlawless(id), isFalse);
+    });
+
+    test('a whole world flawless unlocks Greaser', () async {
+      final p = ProgressService.instance;
+      final (world, _) = LevelRegistry.worldOf(level);
+      for (final d in world.levels) {
+        if (d.saveId != LevelRegistry.defAt(4).saveId) await p.markFlawless(d.saveId);
+      }
+      expect(AchievementService.unlocked, isNot(contains(AchievementIds.flawlessWorld)));
+      // tut_05, the one left: a clean 3★ delivery finishes the set.
+      await h.loadLevel(4);
+      await hover(0.5);
+      await h.game.debugDeliver();
+      await settle();
+      expect(h.game.lastLevelStars, 3);
+      expect(h.game.lastRunReward!.newFlawless, isTrue);
+      expect(
+        h.game.lastRunReward!.newAchievements.map((a) => a.id),
+        contains(AchievementIds.flawlessWorld),
+      );
     });
 
     test('a slower replay keeps the old ghost', () async {

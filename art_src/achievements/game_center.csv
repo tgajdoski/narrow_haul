@@ -13,7 +13,7 @@ nh.rank_captain,Left Seat,50,no,Make Captain.,Make Captain.,icons/rank_captain.p
 nh.rank_chief,Chief Pilot,50,no,Reach the top of the pilot career.,Reach the top of the pilot career.,icons/rank_chief.png
 nh.full_manifest,Full Manifest,25,no,Complete all of a day's contracts.,Complete all of a day's contracts.,icons/full_manifest.png
 nh.week_on_duty,Week on Duty,50,no,Complete the daily challenge 7 days in a row.,Complete the daily challenge 7 days in a row.,icons/week_on_duty.png
-nh.century_hauler,Century Hauler,50,no,Deliver 100 cargos.,Deliver 100 cargos.,icons/century_hauler.png
+nh.century_hauler,Century Hauler,25,no,Deliver 100 cargos.,Deliver 100 cargos.,icons/century_hauler.png
 nh.fleet_qualified,Fleet Qualified,50,no,Hold a type rating for every ship.,Hold a type rating for every ship.,icons/fleet_qualified.png
 nh.off_type,Off Type,25,no,Earn 3 stars on a mission in a ship other than its own.,Earn 3 stars on a mission in a ship other than its own.,icons/off_type.png
 nh.storm_rider,Storm Rider,25,no,Earn 3 stars on a mission with wind.,Earn 3 stars on a mission with wind.,icons/storm_rider.png
@@ -32,3 +32,4 @@ nh.bad_trip,"Bad Trip, Good Landing",25,yes,Deliver during a Spore Trip.,Deliver
 nh.shake_it_off,Shake It Off,25,yes,Spin a Swarm Sting's bee off before it wears off.,Spin a Swarm Sting's bee off before it wears off.,icons/shake_it_off.png
 nh.clover,Four-Leaf Clover,25,no,Open three boons in a row.,Open three boons in a row.,icons/clover.png
 nh.salvage_collector,Salvage Collector,50,no,Find every mystery salvage effect (see the Logbook).,Find every mystery salvage effect (see the Logbook).,icons/salvage_collector.png
+nh.flawless_world,Greaser,25,no,Fly every mission of one world flawless: 3 stars and not one scrape.,Fly every mission of one world flawless: 3 stars and not one scrape.,icons/flawless_world.png

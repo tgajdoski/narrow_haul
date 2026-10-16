@@ -37,6 +37,7 @@ class AchievementIds {
   static const shakeItOff = 'shake_it_off';
   static const clover = 'clover';
   static const salvageCollector = 'salvage_collector';
+  static const flawlessWorld = 'flawless_world';
 }
 
 class AchievementMeta {
@@ -251,6 +252,13 @@ class AchievementService {
       title: 'Salvage Collector',
       description: 'Find every mystery salvage effect (see the Logbook).',
       icon: '🗃️',
+    ),
+    // A "greaser" is pilots' slang for a landing so smooth you barely feel it.
+    AchievementMeta(
+      id: AchievementIds.flawlessWorld,
+      title: 'Greaser',
+      description: 'Fly every mission of one world flawless: 3 stars and not one scrape.',
+      icon: '🪶',
     ),
   ];
 

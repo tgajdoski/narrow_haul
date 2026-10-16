@@ -167,9 +167,9 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Rank up once: the fanfare and the haptic.
 
 ## 1.1: Play Games / Game Center (built, not released)
-Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 33 achievements, the Total Stars leaderboard, Saved games on, two Android credentials.
+Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 34 achievements (Greaser `flawless_world` added 2026-10-16, Century Hauler lowered to 25 points to keep Game Center's 1000 cap), the Total Stars leaderboard, Saved games on, two Android credentials.
 - [ ] Cloud Console → Google Auth Platform → Audience: **Publish app** (the consent screen is still in Testing).
-- [ ] App Store Connect → Game Center: the 33 achievements (`art_src/achievements/game_center.csv`, icons in `icons/`) and the `nh.total_stars` leaderboard.
+- [ ] App Store Connect → Game Center: add `nh.flawless_world` *Greaser* (25 points, revealed, `icons/flawless_world.png`) and set `nh.century_hauler` to 25 points with its new icon; the other 32 are in. Originally: the 33 achievements (`art_src/achievements/game_center.csv`, icons in `icons/`) and the `nh.total_stars` leaderboard.
 - [ ] Build once in Xcode with automatic signing, so the iCloud container `iCloud.com.zafrk.narrowhaul` gets registered.
 - [ ] Phone test on both platforms: sign-in, achievement unlock, leaderboard, cloud save onto a fresh install, an offline start, Reset progress. While Play Games is unpublished, the account must be on its testers list.
 - [ ] At release: update the Play Data safety form (player ID, saved game); deploy `website/` (the privacy text is already edited); publish the Play Games configuration with the build. Published achievements can't be deleted.
