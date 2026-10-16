@@ -1,5 +1,30 @@
 # Narrow Haul — Launch Readiness
 
+## Start here (state on 2026-10-16)
+
+**Where things stand.** Build `1.0.0+4` (commit `19a0c00`) is live as the Play closed test (GameTesters) and on TestFlight (internal + external). Nothing has gone to App Review or Play production yet: that waits for the work below to be tested on a phone. Since +4, `main` has five commits that no build carries yet (all pushed, 727 tests pass):
+- `a9d290f` run feedback: star pops, coin count, FLAWLESS / NEW BEST / BEST FUEL line, star-lost cue, low-fuel chirp, pickup and hook-up effects, Race my best ghost, flawless map rings, the hangar's next goal
+- `1dd2255` Greaser achievement (`flawless_world`; Century Hauler now 25 points)
+- `06fb214` TOW pad: drop, re-hook and winch the line (keys E / Z / X)
+- `3ea5ba2` docs
+- `657505c` shared Daily dispatch (08:00 UTC, four career stages), *Today's board* per stage, contracts pay coins
+
+**Monday, in order:**
+1. **Profile build on the iPhone** (`flutter run --profile`) and fly playtest items **13** (run feedback) and **14** (tow controls) below. Note what's too loud, too often or hard to reach; tuning places are listed with each item.
+2. **The shared daily:** the 1.1 checklist item *Phone test of the shared daily* (needs two devices at the same stage; Game Center / Play boards only work in the 1.1 build with sign-in).
+3. **Android:** the same build on the Xiaomi (push the APK to `Download/`), checking the TOW pad on a second screen size.
+4. Fix what the playtest finds, then decide: ship these as **1.0.0+5** to both test tracks, and/or go to production (steps in *Open → Release* below).
+5. **App Store Connect:** add the four Daily Dispatch boards to the 1.1 version's Game Center section (1.1 checklist).
+
+**Roadmap after that** (from the 2026-10-16 assessment; packages 1, 2a and 3 are done):
+- **2b · Xenar Caverns gets one gentle mechanic per level** (a swinging root = `Pendulum`, a spore updraft = `WindZoneSpec`, a floating pocket = `GravityZoneSpec`), so the first cave world isn't bare tunnels. Changes shipped levels: needs the autopilot run, route re-export, `tool/gen_ship_fit.dart` and `tool/difficulty_curve.dart`.
+- **3 · Ghost Duel** (`docs/MULTIPLAYER.md` step 1): race a friend's recorded flight. Needs a small backend to swap recordings; not started.
+- **4 · Story stakes:** the per-leg timers the Expeditions' story promises (tremor, cold chain, eruption) shown on the HUD; the Training flight assist that switches off after tut_10.
+- **5 · Look:** themed parallax per world (`assets/themes/<id>/far|mid|near.png`, the loader exists), real liveries, 1–2 bonus hulls.
+- Measure between packages with the funnel in `docs/ANALYTICS.md` (tut_01 drop-off, attempts per level, D1/D7).
+
+---
+
 **Update 2026-10-10:**
 - The story, Operation Lifeline (`docs/STORY.md`), with a brief, radio lines and a debrief for every mission, plus chapter cards and the Mission Log.
 - The **Expeditions** world (8 multi-leg levels, generator-built E1–E7).
@@ -46,11 +71,11 @@
 - [x] **Deploy the website** (`website/deploy.sh`, done 2026-10-13: the live page describes the Full Game and Fleet Pass). The privacy policy now covers the ammo packs, every analytics event (including `salvage_opened`), and that Analytics doesn't collect the ad ID.
 - [ ] **Back up** `~/narrowhaul-upload.jks` and `android/key.properties` off this machine. If they're lost, you can't ship updates on Play.
 - [ ] **AdMob:** confirm the IDFA explainer message is published. The ATT prompt comes from it.
-- [ ] Bump the build number in `pubspec.yaml`. It's `1.0.0+3`; use +4 unless 3 was never uploaded.
+- [x] Bump the build number in `pubspec.yaml`: `1.0.0+4` uploaded 2026-10-14. The next upload is `+5`.
 
 ### Test builds
-- [ ] **TestFlight upload.** If App Store Connect warns about ITMS-91053 (privacy manifest), add `ios/Runner/PrivacyInfo.xcprivacy`. The plugins ship their own, so a warning is unlikely.
-- [ ] **Play closed testing.** Personal developer accounts created after Nov 2023 need 12 testers for 14 days.
+- [x] **TestFlight upload** (build 4, 2026-10-14; external beta review passed). If App Store Connect warns about ITMS-91053 (privacy manifest), add `ios/Runner/PrivacyInfo.xcprivacy`. The plugins ship their own, so a warning is unlikely.
+- [x] **Play closed testing** (1.0.0+4 published to GameTesters 2026-10-14). It's an organisation account, so no 12-testers/14-days gate showed.
 - [x] **First Android run** (2026-10-13, Xiaomi 2510DRA23E, Android 15, profile build, Impeller/Vulkan): starts, plays, all 5 Play products and test ads load. Status and navigation bars showed, now fixed (immersive sticky, re-applied on resume). This phone blocks `adb install` (MIUI "Install via USB" needs a SIM): push the APK to `Download/` and install it from Files.
 - [ ] On Android: the bars stay hidden after app switches and after an ad.
 - [ ] **Profile on a cheap Android phone**, and try an Android tablet or foldable (Android 16 ignores `sensorLandscape` on screens ≥ 600 dp).
@@ -81,6 +106,11 @@
     - All collected, not shared, encrypted in transit.
 - [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
 - [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 5 IAPs with 1.0: the ammo packs as **consumables** (`nh_demo_kit` $0.99, `nh_arsenal_crate` $2.99); `nh_full_game` ($4.99), `nh_supporter_pack` ($6.99) and `nh_fleet_pass` ($2.99) as **non-consumables**, in both stores.
+
+### Release (when asked)
+- **Play production:** Create new release with the new bundle, release notes, all countries, IAPs Active; you click Send.
+- **App Store 1.0:** pick the build, attach the 5 IAPs with review screenshots, Submit for Review.
+- Then link the AdMob apps to both store listings (real ads only serve after that).
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
@@ -183,7 +213,7 @@ Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up a
 
 ## Post-launch / nice to have
 - **Art:** themed backdrops (`far/mid/near`) and decor for the 7 worlds. Every world has rock and pod art, but the parallax uses the shared tinted fallback. Key-art feature graphic. Real liveries instead of tints; check that "Stealth" stays visible on dark caves.
-- **Loadout:** Engine and Tank kits, winch in/out, release & re-hook, beam sounds.
+- **Loadout:** Engine and Tank kits, beam sounds. (Winch in/out, release and re-hook shipped 2026-10-16 as the TOW pad.)
 - **Audio:** volume sliders, pro SFX, and confirm the source of `attach.mp3` / `crash.mp3`.
 - **Tests:** layout checks for the `rankUp` and `demo` overlays and the contracts popover; a drawn-HUD check (coach marks, comms) at 568×320 left-handed.
 - **IAP:** an ammo pack's grant writes each weapon before marking the transaction. A crash in between re-grants the whole pack once, which errs toward the player.
