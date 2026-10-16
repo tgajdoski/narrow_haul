@@ -26,13 +26,36 @@ extension GameExpeditionLegs on NarrowHaulGame {
           AudioService.playAttach();
           Haptics.light();
           _hookPulse(s, pod);
+          _towTipOnce();
           _sayStory(BeatCue.hooked);
           if (_tutorialHints && !_hookLogged) {
             _hookLogged = true;
             Analytics.tutorialStep('hooked', levelId: currentLevelDef.saveId);
           }
         },
-      )..onBeamLost = Haptics.medium;
+      )
+        ..onBeamLost = Haptics.medium
+        ..onReleased = () {
+          Haptics.light();
+          AudioService.playUi(UiSound.back);
+        };
+
+  /// The first hook-up past the Training Grounds: TOWER names the TOW pad
+  /// once ever (`once_tow_tip`, cloud-synced).
+  void _towTipOnce() {
+    if (demoMode || isChallengeMode || !LevelRegistry.trainingComplete) return;
+    final desktop = _desktop;
+    unawaited(ProgressService.instance.markOnce('tow_tip').then((first) {
+      if (!first) return;
+      _comms?.say(CommsLine(
+        id: 'tow_tip',
+        callsign: 'TOWER',
+        text: desktop
+            ? 'Line control is yours: E drops the pod, Z and X reel it in and out.'
+            : 'Line control is yours: tap TOW to drop the pod, drag it to reel the line.',
+      ));
+    }));
+  }
 
   /// The hook-up "clamp": a ring at the winch, then one round the pod.
   void _hookPulse(ShipBody s, CargoBody pod) {

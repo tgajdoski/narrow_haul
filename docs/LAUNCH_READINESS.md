@@ -165,6 +165,11 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Pick up a canister and hook a pod: are the sparkle and the rings visible on a phone, and not too much?
     - Race my best: on a replay, does the gold ghost help or distract? Check the briefing chip and the pause toggle switch it, and that it never caps the stars.
     - Rank up once: the fanfare and the haptic.
+14. **Tow controls (2026-10-16):** hook a pod and try the TOW pad up and in from THRUST, both hands.
+    - Can the thumb reach it from THRUST without letting a hover drop? Is a drag to winch too fiddly while hovering?
+    - Tap to drop: does the pod stay off the hook until you pull away, and hook again on the way back?
+    - Pay the line out to lower a pod into a pocket, then reel it in. Is 0.9 m/s right? Is 4.5 m too long?
+    - On a small phone with three or more weapons the pad moves past the spilled rail: still reachable?
 
 ## 1.1: Play Games / Game Center (built, not released)
 Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 34 achievements (Greaser `flawless_world` added 2026-10-16, Century Hauler lowered to 25 points to keep Game Center's 1000 cap), the Total Stars leaderboard, Saved games on, two Android credentials.

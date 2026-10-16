@@ -28,6 +28,24 @@ void main() {
     for (final k in KeyboardFlightInput.slotKeys) {
       expect(KeyboardFlightInput.isFlightKey(k), isTrue, reason: '$k');
     }
-    expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyZ), isFalse);
+    // E drops the pod, Z / X work the winch.
+    for (final k in [LogicalKeyboardKey.keyE, LogicalKeyboardKey.keyZ, LogicalKeyboardKey.keyX]) {
+      expect(KeyboardFlightInput.isFlightKey(k), isTrue, reason: '$k');
+    }
+    expect(KeyboardFlightInput.isFlightKey(LogicalKeyboardKey.keyM), isFalse);
+  });
+
+  test('Z reels in, X pays out, both cancel', () {
+    final k = KeyboardFlightInput();
+    k.update({LogicalKeyboardKey.keyZ});
+    expect(k.winchAxis, -1);
+    k.update({LogicalKeyboardKey.keyX});
+    expect(k.winchAxis, 1);
+    k.update({LogicalKeyboardKey.keyZ, LogicalKeyboardKey.keyX});
+    expect(k.winchAxis, 0);
+    k
+      ..update({LogicalKeyboardKey.keyX})
+      ..reset();
+    expect(k.winchAxis, 0);
   });
 }

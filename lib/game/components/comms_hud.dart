@@ -66,7 +66,10 @@ class CommsHud extends PositionComponent {
 
     const padH = 12.0;
     const padV = 7.0;
-    final band = controls.layout?.bottomBand(rail: controls.railInner);
+    final band = controls.layout?.bottomBand(
+      rail: controls.railInner,
+      reach: controls.innerReach,
+    );
     final bottomBand = band != null && band.width >= 220;
     final maxW = bottomBand ? math.min(400.0, band.width) : 320.0;
 

@@ -129,6 +129,40 @@ class RopePhysicsCoupling extends Component with HasGameReference<Forge2DGame> {
 
   Vector2 get _winch => ship.body.worldPoint(Vector2(0, ship.rearLocalY));
 
+  /// The pilot's winch (TOW pad drag, Z / X): line speed in m/s.
+  static const double pilotWinchSpeed = 0.9;
+
+  /// The most line the pilot can pay out (m); the level cap still applies.
+  static const double maxPayOut = 4.5;
+
+  /// Shortest and longest line the pilot's winch reaches now.
+  double get minPilotLength => rope.minTowLength;
+  double get maxPilotLength => math.min(maxPayOut, ropeMaxLengthMeters);
+
+  /// The pilot winches: [axis] −1 reels in, +1 pays out, for [dt] s. The
+  /// automatic winch-in then holds the new length (it never undoes a pay
+  /// out). No-op for a very short [DistanceJoint] tow.
+  void winch(double axis, double dt) {
+    final joint = _ropeJoint;
+    final rest = _restLength;
+    if (joint is! RopeJoint || rest == null || axis == 0) return;
+    final step = axis.clamp(-1.0, 1.0) * pilotWinchSpeed * dt;
+    // Paying out stops at the longest line (or where a far catch already
+    // is); reeling in stops at the shortest tow.
+    final next = step > 0
+        ? math.min(rest + step, math.max(maxPilotLength, rest))
+        : math.max(rest + step, math.min(minPilotLength, rest));
+    if (next == rest) return;
+    _restLength = next;
+    _settleLength = next;
+    _tetherLengthMeters = next;
+    joint.maxLength = rope.isElastic
+        ? math.min(next * (1 + rope.maxStretch), ropeMaxLengthMeters)
+        : next;
+    ship.body.setAwake(true);
+    cargo.body.setAwake(true);
+  }
+
   @override
   void update(double dt) {
     super.update(dt);

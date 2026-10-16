@@ -275,3 +275,172 @@ class _FireButton extends _ThrustButton {
     canvas.drawPath(starPath(c + const Offset(4, 0.5), 6, inner: 0.45), gold);
   }
 }
+
+/// TOW pad, shown while a pod is in tow: a tap drops the pod, a vertical
+/// drag works the winch (up reels in, down pays out; let go to hold).
+class _TowPad extends PositionComponent with DragCallbacks, TapCallbacks {
+  _TowPad({
+    required Vector2 center,
+    required this.radius,
+    required this.canWinch,
+    required this.onRelease,
+    required this.onWinch,
+  }) : super(
+          position: center - Vector2.all(radius),
+          size: Vector2.all(radius * 2),
+          anchor: Anchor.topLeft,
+        );
+
+  final double radius;
+
+  /// A tractor beam only drops; a line also winches.
+  final bool canWinch;
+  final void Function() onRelease;
+  final void Function(double axis) onWinch;
+
+  /// Drag distance (px) for full winch speed, and the dead zone.
+  static const double _fullDrag = 30;
+  static const double _deadDrag = 6;
+
+  int? _dragPointer;
+  double _dragY0 = 0;
+  double _dragY = 0;
+  double _axis = 0;
+  bool _down = false;
+  double _t = 0;
+  final _label = HudText();
+
+  bool get winching => _axis != 0;
+
+  @override
+  void onRemove() {
+    _label.dispose();
+    super.onRemove();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _t += dt;
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    super.onTapDown(event);
+    _down = true;
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    super.onTapUp(event);
+    _down = false;
+    onRelease();
+  }
+
+  @override
+  void onTapCancel(TapCancelEvent event) {
+    super.onTapCancel(event);
+    _down = false;
+  }
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    if (_dragPointer != null) return;
+    _dragPointer = event.pointerId;
+    _dragY0 = _dragY = event.localPosition.y;
+    _down = true;
+  }
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+    if (event.pointerId != _dragPointer || !canWinch) return;
+    _dragY += event.localDelta.y;
+    final d = _dragY - _dragY0;
+    final axis = d.abs() < _deadDrag
+        ? 0.0
+        : ((d.abs() - _deadDrag) / (_fullDrag - _deadDrag)).clamp(0.0, 1.0) * d.sign;
+    if (axis != _axis) {
+      _axis = axis;
+      onWinch(axis);
+    }
+  }
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    if (event.pointerId == _dragPointer) _endDrag();
+  }
+
+  @override
+  void onDragCancel(DragCancelEvent event) {
+    super.onDragCancel(event);
+    if (event.pointerId == _dragPointer) _endDrag();
+  }
+
+  void _endDrag() {
+    _dragPointer = null;
+    _down = false;
+    if (_axis != 0) {
+      _axis = 0;
+      onWinch(0);
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final c = Offset(radius, radius);
+    const accent = HudColors.green;
+    final heat = _down ? 1.0 : 0.0;
+    final hex = hexPath(c, radius, rotation: math.pi / 6);
+    drawGlow(canvas, hex, accent, 0.25 + 0.6 * heat);
+    canvas.drawPath(hex, Paint()..color = HudColors.plateDark);
+    drawStroke(canvas, hex, accent.withValues(alpha: 0.7 + 0.3 * heat), 1.8);
+
+    // Hook glyph: a shank and a J.
+    final hook = Paint()
+      ..color = Colors.white.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    final top = c + Offset(0, -radius * 0.5);
+    final bend = c + Offset(0, radius * 0.05);
+    canvas.drawLine(top, bend, hook);
+    canvas.drawArc(
+      Rect.fromCircle(center: bend + Offset(-radius * 0.16, 0), radius: radius * 0.16),
+      0,
+      math.pi,
+      false,
+      hook,
+    );
+
+    // Winch arrows: lit in the direction the line is moving.
+    if (canWinch) {
+      void arrow(double dir, bool lit) {
+        final tip = c + Offset(radius * 0.48, dir * radius * 0.42);
+        final p = Path()
+          ..moveTo(tip.dx, tip.dy)
+          ..lineTo(tip.dx - 4, tip.dy - dir * 5)
+          ..lineTo(tip.dx + 4, tip.dy - dir * 5)
+          ..close();
+        final pulse = lit ? 0.75 + 0.25 * math.sin(_t * 12) : 0.0;
+        canvas.drawPath(
+          p,
+          Paint()..color = (lit ? accent : Colors.white).withValues(alpha: lit ? pulse : 0.35),
+        );
+      }
+
+      arrow(-1, _axis < 0);
+      arrow(1, _axis > 0);
+    }
+
+    final tp = _label.layout(
+      TextSpan(
+        text: canWinch ? 'TOW' : 'DROP',
+        style: hudFont(8.5, Colors.white.withValues(alpha: 0.7), spacing: 1.4),
+      ),
+    );
+    tp.paint(canvas, Offset(radius - tp.width / 2, radius + radius * 0.38));
+  }
+}

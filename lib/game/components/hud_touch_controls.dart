@@ -32,7 +32,33 @@ class HudTouchControls extends PositionComponent {
     this.onFire,
     this.onSelectWeapon,
     this.onTiltTap,
+    this.onTowRelease,
+    this.onWinch,
   }) : super(priority: 5000);
+
+  /// TOW pad: a tap drops the pod; a vertical drag winches (−1 reel in when
+  /// dragged up, +1 pay out when dragged down, 0 on release).
+  final void Function()? onTowRelease;
+  final void Function(double axis)? onWinch;
+
+  /// Whether the TOW pad shows, and whether it can winch (a rope) or only
+  /// drop (a tractor beam).
+  TowPadState get tow => _tow;
+  TowPadState _tow = TowPadState.hidden;
+  set tow(TowPadState v) {
+    if (v == _tow) return;
+    _tow = v;
+    _relayoutTow();
+  }
+
+  /// How far past THRUST's centre the controls reach toward the screen
+  /// centre right now (pad, spilled rail, TOW pad).
+  double get innerReach {
+    final l = _layout;
+    final base = HudButtonLayout.innerReach(rail: railInner);
+    if (l == null || _tow == TowPadState.hidden) return base;
+    return math.max(base, l.towReach(railSlots: railShown ? weapon!.slots.length : 0));
+  }
 
   /// A tap on the steering side while tilting: recentre.
   final void Function()? onTiltTap;
@@ -146,7 +172,11 @@ class HudTouchControls extends PositionComponent {
     if (_showFire) top = math.min(top, l.fire.dy - HudButtonLayout.fireRadius);
     final rail = railShown ? l.railCenters(weapon!.slots.length) : const <Offset>[];
     if (rail.isNotEmpty) top = math.min(top, rail.first.dy - HudButtonLayout.slotRadius);
-    final inner = l.thrust.dx + l.innerSide * HudButtonLayout.innerReach(rail: railInner);
+    final tow = _towPad;
+    if (tow != null) {
+      top = math.min(top, tow.position.y);
+    }
+    final inner = l.thrust.dx + l.innerSide * innerReach;
     final outer = l.thrust.dx - l.innerSide * thrustR;
     return (
       l: math.min(inner, outer) - pad,
@@ -157,6 +187,7 @@ class HudTouchControls extends PositionComponent {
   }
 
   _FloatingJoystick? _joystick;
+  _TowPad? _towPad;
   _ThrustButton? _thrustBtn;
   _FireButton? _fireBtn;
   _WeaponRail? _rail;
@@ -226,5 +257,30 @@ class HudTouchControls extends PositionComponent {
       )..size = sz;
       add(_rail!);
     }
+    _relayoutTow();
+  }
+
+  void _relayoutTow() {
+    final pad = _towPad;
+    if (pad != null) {
+      if (pad.winching) onWinch?.call(0);
+      pad.removeFromParent();
+      _towPad = null;
+    }
+    final l = _layout;
+    if (l == null || _tow == TowPadState.hidden) return;
+    final c = l.towCenter(railSlots: railShown ? weapon!.slots.length : 0);
+    _towPad = _TowPad(
+      center: Vector2(c.dx, c.dy),
+      radius: HudButtonLayout.towRadius,
+      canWinch: _tow == TowPadState.winch,
+      onRelease: () => onTowRelease?.call(),
+      onWinch: (v) => onWinch?.call(v),
+    );
+    add(_towPad!);
   }
 }
+
+/// What the TOW pad offers: hidden (no pod in tow), drop only (tractor
+/// beam), or drop and winch (a line).
+enum TowPadState { hidden, releaseOnly, winch }

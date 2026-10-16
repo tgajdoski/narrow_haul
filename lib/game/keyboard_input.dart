@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 /// Keyboard flight controls (desktop): the same inputs the touch HUD gives.
 ///
 /// ← → / A D rotate, ↑ / W / Space thrust, F / Enter fire, Q / Tab switch
-/// weapon, 1–6 pick one.
+/// weapon, 1–6 pick one, E drops the pod, Z / X reel the line in / out.
 class KeyboardFlightInput {
   static final Set<LogicalKeyboardKey> rotateLeftKeys = {
     LogicalKeyboardKey.arrowLeft,
@@ -29,6 +29,13 @@ class KeyboardFlightInput {
     LogicalKeyboardKey.keyQ,
     LogicalKeyboardKey.tab,
   };
+
+  /// Drop the towed pod (a key press, handled by the game on key down).
+  static final Set<LogicalKeyboardKey> releaseKeys = {LogicalKeyboardKey.keyE};
+
+  /// The winch, held: reel the line in / pay it out.
+  static final Set<LogicalKeyboardKey> reelInKeys = {LogicalKeyboardKey.keyZ};
+  static final Set<LogicalKeyboardKey> payOutKeys = {LogicalKeyboardKey.keyX};
 
   /// 1–6 pick that slot of the ammo rail directly.
   static final List<LogicalKeyboardKey> slotKeys = [
@@ -59,6 +66,9 @@ class KeyboardFlightInput {
   bool thrust = false;
   bool fire = false;
 
+  /// −1 reel in, +1 pay out.
+  double winchAxis = 0;
+
   /// Recomputes the inputs from the keys currently held down.
   void update(Set<LogicalKeyboardKey> keysPressed) {
     final left = keysPressed.any(rotateLeftKeys.contains);
@@ -66,12 +76,15 @@ class KeyboardFlightInput {
     rotateAxis = (right ? 1.0 : 0.0) - (left ? 1.0 : 0.0);
     thrust = keysPressed.any(thrustKeys.contains);
     fire = keysPressed.any(fireKeys.contains);
+    winchAxis = (keysPressed.any(payOutKeys.contains) ? 1.0 : 0.0) -
+        (keysPressed.any(reelInKeys.contains) ? 1.0 : 0.0);
   }
 
   void reset() {
     rotateAxis = 0;
     thrust = false;
     fire = false;
+    winchAxis = 0;
   }
 
   /// Whether [key] is one of the flight keys (handled, not passed on).
@@ -81,5 +94,8 @@ class KeyboardFlightInput {
       thrustKeys.contains(key) ||
       fireKeys.contains(key) ||
       cycleKeys.contains(key) ||
-      slotKeys.contains(key);
+      slotKeys.contains(key) ||
+      releaseKeys.contains(key) ||
+      reelInKeys.contains(key) ||
+      payOutKeys.contains(key);
 }

@@ -136,7 +136,7 @@ class CoachMarkHud extends PositionComponent {
               hexRotation: 0,
               side: l.innerSide,
               // Past the ammo rail's slots and counts.
-              extraGap: HudButtonLayout.innerReach(rail: controls.railInner) -
+              extraGap: controls.innerReach -
                   HudButtonLayout.innerReach(rail: false),
             )
           : null,

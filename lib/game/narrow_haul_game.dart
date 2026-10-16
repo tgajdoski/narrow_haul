@@ -161,6 +161,11 @@ class NarrowHaulGame extends Forge2DGame
   bool thrustHeld = false;
   bool fireHeld = false;
 
+  /// The pilot's winch: −1 reels the line in, +1 pays it out (TOW pad
+  /// drag, Z / X). The autopilot never touches it.
+  double winchAxis = 0;
+  double _touchWinch = 0;
+
   // Touch HUD and keyboard each keep their own state; the flight inputs
   // above are both combined (either one can steer, thrust or fire).
   double _touchAxis = 0; // raw stick deflection, shaped in [_combineInputs]
@@ -212,6 +217,12 @@ class NarrowHaulGame extends Forge2DGame
         zoom == 0 ? resetZoom() : zoomBy(zoom);
         return KeyEventResult.handled;
       }
+    }
+    if (flying &&
+        event is KeyDownEvent &&
+        KeyboardFlightInput.releaseKeys.contains(event.logicalKey)) {
+      releaseTow();
+      return KeyEventResult.handled;
     }
     final slotKey = KeyboardFlightInput.slotKeys.indexOf(event.logicalKey);
     if (flying && event is KeyDownEvent && slotKey >= 0) {
@@ -671,6 +682,11 @@ class NarrowHaulGame extends Forge2DGame
       },
       onSelectWeapon: selectWeapon,
       onTiltTap: recentreTilt,
+      onTowRelease: releaseTow,
+      onWinch: (v) {
+        _touchWinch = v;
+        _combineInputs();
+      },
     );
     _hudControls!.size = camera.viewport.size;
     camera.viewport.add(_hudControls!);
@@ -1117,7 +1133,15 @@ class NarrowHaulGame extends Forge2DGame
         );
         _updateCountdown(dt, s);
         if (routeGuideOn && s.launched) guidedThisRun = true;
+        if (winchAxis != 0) cargoAttachment?.winch(winchAxis, dt);
       }
+      _hudControls?.tow = cargoAttachment == null || demoMode
+          ? TowPadState.hidden
+          : cargoAttachment!.canWinch
+          ? TowPadState.winch
+          : cargoAttachment!.canRelease
+          ? TowPadState.releaseOnly
+          : TowPadState.hidden;
       if (kPerfProbe) PerfMonitor.lap('input');
       _updateRockWarning(s, dt);
       if (kPerfProbe) PerfMonitor.lap('rock');

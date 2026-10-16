@@ -111,11 +111,35 @@ class HudButtonLayout {
   static double innerReach({required bool rail}) =>
       thrustRadius + 14 + (rail ? slotRadius * 2 + 44 : 0);
 
+  /// The TOW pad (drop / winch, while a pod is in tow): up and in from
+  /// THRUST, like a controller's second face button, and past any rail
+  /// slots that spilled to the inner side.
+  static const double towRadius = 28;
+  static const double _towDist = thrustRadius + 16 + towRadius;
+  static const double _towAngle = 50 * math.pi / 180;
+
+  Offset towCenter({int railSlots = 0}) {
+    var dx = _towDist * math.cos(_towAngle);
+    if (railInnerCount(railSlots) > 0) {
+      for (final c in railCenters(railSlots)) {
+        if (isOuterSlot(c)) continue;
+        // Past the slot and the count tag beside it.
+        dx = math.max(dx, (c.dx - thrust.dx).abs() + slotRadius + 34 + towRadius);
+      }
+    }
+    return Offset(thrust.dx + innerSide * dx, thrust.dy - _towDist * math.sin(_towAngle));
+  }
+
+  /// How far past THRUST's centre the TOW pad reaches (with a margin).
+  double towReach({int railSlots = 0}) =>
+      (towCenter(railSlots: railSlots).dx - thrust.dx).abs() + towRadius + 6;
+
   /// The free strip along the bottom between the steering dial and THRUST
-  /// (or a spilled rail): where the comms line goes.
-  Rect bottomBand({required bool rail}) {
+  /// (or a spilled rail, or the TOW pad: [reach] overrides the reach past
+  /// THRUST): where the comms line goes.
+  Rect bottomBand({required bool rail, double? reach}) {
     final dialEdge = dialRest.dx - innerSide * (dialRadius + 14);
-    final thrustEdge = thrust.dx + innerSide * innerReach(rail: rail);
+    final thrustEdge = thrust.dx + innerSide * (reach ?? innerReach(rail: rail));
     return Rect.fromLTRB(
       math.min(dialEdge, thrustEdge),
       0,

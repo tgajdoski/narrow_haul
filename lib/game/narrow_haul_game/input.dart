@@ -27,6 +27,7 @@ extension GameInput on NarrowHaulGame {
     final key = FlightTuning.keyAxis(_keys.rotateAxis, _keyHeld, boost);
     final tilt = s == null ? 0.0 : _tiltAxis(s, boost);
     rotateAxis = (touch + key + tilt).clamp(-boost, boost);
+    winchAxis = (_touchWinch + _keys.winchAxis).clamp(-1.0, 1.0);
     final boosting = rotateAxis.abs() > 1.001;
     if (boosting && !_wasBoosting && FlightTuning.steer.hasZones) {
       Haptics.light();
@@ -41,6 +42,8 @@ extension GameInput on NarrowHaulGame {
     _tiltFlatFor = 0;
     thrustHeld = false;
     fireHeld = false;
+    winchAxis = 0;
+    _touchWinch = 0;
     _touchAxis = 0;
     _stickX = 0;
     _stickY = 0;
@@ -116,5 +119,12 @@ extension GameInput on NarrowHaulGame {
     if (!_motion.active || s == null) return;
     _motion.steer.alignTo(s.body.angle);
     Haptics.light();
+  }
+
+  /// The pilot drops the towed pod (TOW pad tap, E). It can be hooked again
+  /// once the ship has pulled clear and comes back.
+  void releaseTow() {
+    if (runState != RunState.playing || demoMode || isPaused) return;
+    cargoAttachment?.release();
   }
 }

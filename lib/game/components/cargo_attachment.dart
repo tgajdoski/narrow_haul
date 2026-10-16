@@ -63,6 +63,40 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   double _relockIn = 0;
   static const double _relockDelay = 0.6;
 
+  /// The pilot dropped the pod: no catch until it has been out of reach
+  /// once, so it doesn't snap straight back onto the hook.
+  bool _rehookBlocked = false;
+
+  /// Whether the pilot can drop the pod or winch the line right now.
+  bool get canRelease => attached && scriptedTow == null && !_attaching;
+  bool get canWinch => canRelease && _coupling != null;
+
+  /// Called when the pilot drops the pod.
+  void Function()? onReleased;
+
+  /// The pilot drops the pod (TOW tap, E): the line or beam lets go.
+  void release() {
+    if (!canRelease) return;
+    _coupling?.removeFromParent();
+    _coupling = null;
+    _beam?.removeFromParent();
+    _beam = null;
+    attached = false;
+    _rehookBlocked = true;
+    _lastAngle = null;
+    _accumulatedAngle = 0;
+    onReleased?.call();
+  }
+
+  /// The pilot's winch: [axis] −1 reels in, +1 pays out (see
+  /// [RopePhysicsCoupling.winch]).
+  void winch(double axis, double dt) {
+    if (canWinch) _coupling!.winch(axis, dt);
+  }
+
+  /// The current line length (m), null when not on a rope.
+  double? get lineLength => _coupling?.tetherLengthMeters;
+
   double _accumulatedAngle = 0;
   double? _lastAngle;
   bool _swingerUnlocked = false;
@@ -134,7 +168,20 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
       ropeRevealProgress = (ropeRevealProgress - dt * 0.55).clamp(0.0, 1.0);
     }
 
-    if (_attaching || _relockIn > 0) return;
+    if (_rehookBlocked) {
+      // Clear of every way the hook catches: the next approach may hook it.
+      final hookAt = ship.body.worldPoint(ship.hookLocal);
+      final reach = ship.hookRadius + CargoBody.radius + rope.hookReach + 0.6;
+      final beamClear = !rope.isBeam ||
+          (cargo.body.worldCenter - ship.body.worldPoint(Vector2(0, ship.rearLocalY))).length >
+              rope.beamRange + 0.6;
+      if ((hookAt - cargo.body.worldCenter).length > reach &&
+          centerDist > rope.attachCenterDistance + 0.3 &&
+          beamClear) {
+        _rehookBlocked = false;
+      }
+    }
+    if (_attaching || _relockIn > 0 || _rehookBlocked) return;
     if (ropeRevealProgress < minRevealToAttach) return;
 
     if (rope.isBeam) {
@@ -163,7 +210,7 @@ class CargoAttachment extends Component with HasGameReference<Forge2DGame> {
   }
 
   void onHookCargoTouch() {
-    if (attached || _attaching || scriptedTow != null || _relockIn > 0) return;
+    if (attached || _attaching || scriptedTow != null || _relockIn > 0 || _rehookBlocked) return;
     if (ropeRevealProgress < minRevealToAttach) return;
     if (rope.isBeam && ship.fuel <= 0) return;
     _attach();
