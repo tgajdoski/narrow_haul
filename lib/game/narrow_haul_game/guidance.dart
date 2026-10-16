@@ -304,6 +304,29 @@ extension GameGuidance on NarrowHaulGame {
     );
   }
 
+  /// What the tank means for the stars, felt while flying: a soft falling
+  /// tone and an amber flare on the gauge the moment fuel drops past a
+  /// star's mark, and a quiet chirp every 2 s once the tank is low.
+  void _updateFuelStakes(double dt, ShipBody s) {
+    if (demoMode || runState != RunState.playing || !s.launched) return;
+    final frac = s.fuel / s.maxFuel;
+    final lost = _starWatch.update(frac);
+    if (lost != null) {
+      _fuelGauge?.flashMarkLost(lost);
+      AudioService.playStarLost();
+      Haptics.light();
+    }
+    if (frac > 0 && frac < FuelGaugeHud.lowFuel) {
+      _fuelLowBeepIn -= dt;
+      if (_fuelLowBeepIn <= 0) {
+        _fuelLowBeepIn = 2;
+        AudioService.playFuelLow();
+      }
+    } else {
+      _fuelLowBeepIn = 0;
+    }
+  }
+
   void _clearGuidance() {
     _coach?.clear();
     _markers?.clear();

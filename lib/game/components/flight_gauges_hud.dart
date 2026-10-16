@@ -31,11 +31,28 @@ class FuelGaugeHud extends PositionComponent {
     _costLeft = _costSeconds;
   }
 
+  /// Fuel just gained (a canister): the fill glows green for a moment.
+  double _gainLeft = 0;
+  static const double _gainSeconds = 0.6;
+  void flashGain() => _gainLeft = _gainSeconds;
+
+  /// The star mark at [index] (into [starMarks]) was just passed: it flares
+  /// amber and settles grey.
+  int? _lostMark;
+  double _lostLeft = 0;
+  static const double _lostSeconds = 0.7;
+  void flashMarkLost(int index) {
+    _lostMark = index;
+    _lostLeft = _lostSeconds;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
     _t += dt;
     if (_costLeft > 0) _costLeft = math.max(0, _costLeft - dt);
+    if (_gainLeft > 0) _gainLeft = math.max(0, _gainLeft - dt);
+    if (_lostLeft > 0) _lostLeft = math.max(0, _lostLeft - dt);
   }
 
   final _fuelLabel = HudText();
@@ -85,7 +102,12 @@ class FuelGaugeHud extends PositionComponent {
     const gap = 2.0;
     const cellW = (innerW - gap * (_segments - 1)) / _segments;
     final lit = fuelFraction.clamp(0.0, 1.0) * _segments;
-    final on = Paint()..color = fillColor.withValues(alpha: blink);
+    final gain = _gainLeft / _gainSeconds;
+    final on = Paint()
+      ..color = (gain > 0
+              ? Color.lerp(fillColor, HudColors.green, gain)!
+              : fillColor)
+          .withValues(alpha: blink);
     final off = Paint()..color = const Color(0x1FFFFFFF);
     for (var i = 0; i < _segments; i++) {
       final x = innerLeft + i * (cellW + gap);
@@ -98,15 +120,22 @@ class FuelGaugeHud extends PositionComponent {
     }
 
     // Star thresholds: a tick per mark, lit while fuel is still above it.
-    for (final mark in starMarks) {
+    for (var i = 0; i < starMarks.length; i++) {
+      final mark = starMarks[i];
       final x = innerLeft + innerW * mark;
       final kept = fuelFraction >= mark;
+      final flare = i == _lostMark ? _lostLeft / _lostSeconds : 0.0;
+      final reach = 3 + 5 * flare;
       canvas.drawLine(
-        Offset(x, innerTop - 3),
-        Offset(x, innerTop + innerH + 3),
+        Offset(x, innerTop - reach),
+        Offset(x, innerTop + innerH + reach),
         Paint()
-          ..color = kept ? const Color(0xFFFFD166) : const Color(0x66FFFFFF)
-          ..strokeWidth = 2,
+          ..color = flare > 0
+              ? Color.lerp(const Color(0x66FFFFFF), HudColors.thrustHot, flare)!
+              : kept
+              ? const Color(0xFFFFD166)
+              : const Color(0x66FFFFFF)
+          ..strokeWidth = 2 + 2 * flare,
       );
     }
 

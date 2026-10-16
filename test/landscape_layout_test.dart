@@ -214,6 +214,10 @@ void main() {
           AchievementService.all.first,
           AchievementService.all[1],
         ],
+        // Every best badge at once: the widest chip row.
+        personalBest: true,
+        previousBestTime: 81.9,
+        newFlawless: true,
       );
 
     await each(
@@ -222,6 +226,7 @@ void main() {
       () => LevelCompleteOverlay(game: won()),
     );
     expect(find.text('NEXT MISSION'), findsOneWidget);
+    expect(find.text('FLAWLESS · NEW BEST −7.7 s'), findsWidgets);
   });
 
   testWidgets('story chapter cards fit, every world and page', (tester) async {

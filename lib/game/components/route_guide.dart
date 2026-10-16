@@ -177,10 +177,18 @@ class RouteGuideLine extends Component {
 /// Translucent ship flying the recorded route, timed from the player's
 /// launch ([flightTime] = the level clock).
 class RouteGhost extends Component {
-  RouteGhost({required this.route, required this.ship, required this.flightTime})
-      : super(priority: -450);
+  RouteGhost({
+    required this.route,
+    required this.ship,
+    required this.flightTime,
+    this.tint = const Color(0x6600E5FF),
+  }) : super(priority: -450);
 
   final FlightRoute route;
+
+  /// Washed over the sprite: cyan for the route guide, gold for the
+  /// pilot's own best.
+  final Color tint;
   final ShipSpec ship;
 
   /// Seconds flown since launch (null before launch: the ghost waits on the pad).
@@ -230,7 +238,7 @@ class RouteGhost extends Component {
       _rect,
       Paint()
         ..color = Colors.white.withValues(alpha: alpha)
-        ..colorFilter = const ColorFilter.mode(Color(0x6600E5FF), BlendMode.srcATop),
+        ..colorFilter = ColorFilter.mode(tint, BlendMode.srcATop),
     );
     canvas.restore();
   }

@@ -159,6 +159,13 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Odds: is 40% per attempt the right amount? Are durations of 5–15 s right? Tuning: `kSalvage` / `kSalvageChance`.
     - Meta: the Salvage log in the Pilot Logbook, the achievement toasts, the Grit line on the result screen, the salvage contracts, and a Salvage Chaos daily (three caches).
 
+13. **Run feedback (2026-10-16):**
+    - Deliver tut_04 three ways: a first clear, a faster replay, a slower one. Do the star pops, the jingle, the coin count and the FLAWLESS / NEW BEST line read well, and is any of it too loud against the results music?
+    - Let the tank fall past the 3★ and 2★ marks on alien_02: is the falling tone noticed without being annoying? Is the low-fuel chirp every 2 s too much?
+    - Pick up a canister and hook a pod: are the sparkle and the rings visible on a phone, and not too much?
+    - Race my best: on a replay, does the gold ghost help or distract? Check the briefing chip and the pause toggle switch it, and that it never caps the stars.
+    - Rank up once: the fanfare and the haptic.
+
 ## 1.1: Play Games / Game Center (built, not released)
 Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 33 achievements, the Total Stars leaderboard, Saved games on, two Android credentials.
 - [ ] Cloud Console → Google Auth Platform → Audience: **Publish app** (the consent screen is still in Testing).

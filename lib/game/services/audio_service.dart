@@ -22,6 +22,11 @@ import 'thrust_envelope.dart';
 ///   alarm.wav       – reactor meltdown countdown (1 s loop)
 ///   ui_tap.wav      – menu buttons (pooled)
 ///   ui_*.wav        – space UI kit sounds, see [UiSound]
+///   star_pop_1/2/3.wav – result-screen star pops (rising)
+///   star_lost.wav   – fuel fell past a star's mark mid-flight
+///   fuel_low.wav    – low-fuel chirp
+///   rank_up.wav / achievement.wav – promotion fanfare / award chime
+///   coin_tick.wav   – coin counter tick
 ///   countdown.wav / countdown_go.wav – 3·2·1 / GO before auto-launch
 ///   start_level.m4a – level-start sting (Space Music Pack, Goose Ninja)
 /// Music tracks (music_*.m4a) are played by [MusicService].
@@ -46,6 +51,14 @@ class AudioService {
     'size_up.wav',
     'size_down.wav',
     'spore_loop.wav',
+    'star_pop_1.wav',
+    'star_pop_2.wav',
+    'star_pop_3.wav',
+    'star_lost.wav',
+    'fuel_low.wav',
+    'rank_up.wav',
+    'achievement.wav',
+    'coin_tick.wav',
     for (final s in UiSound.values) s.file,
   ];
 
@@ -92,6 +105,14 @@ class AudioService {
     'curse.wav': 1,
     'size_up.wav': 1,
     'size_down.wav': 1,
+    'star_pop_1.wav': 1,
+    'star_pop_2.wav': 1,
+    'star_pop_3.wav': 1,
+    'star_lost.wav': 1,
+    'fuel_low.wav': 1,
+    'rank_up.wav': 1,
+    'achievement.wav': 1,
+    'coin_tick.wav': 3,
     for (final s in UiSound.values) s.file: s.poolSize,
   };
   static final Map<String, AudioPool> _pools = {};
@@ -363,7 +384,26 @@ class AudioService {
   static void playScrape({bool touchdown = false}) =>
       _play('shield_hit.wav', touchdown ? 0.4 : 0.6);
 
-  static void playStar() => _play('star.wav', 0.8);
+  static void playStar({double volume = 0.8}) => _play('star.wav', volume);
+
+  /// One result-screen star popping in; [index] 0–2 rises in pitch.
+  static void playStarPop(int index) =>
+      _play('star_pop_${index.clamp(0, 2) + 1}.wav', 0.55);
+
+  /// Mid-flight: fuel fell past a star's mark (soft falling third).
+  static void playStarLost() => _play('star_lost.wav', 0.45);
+
+  /// Low-fuel cockpit chirp, repeated by the game while fuel is low.
+  static void playFuelLow() => _play('fuel_low.wav', 0.3);
+
+  /// Promotion fanfare (rank-up card).
+  static void playRankUp() => _play('rank_up.wav', 0.7);
+
+  /// Achievement toast chime.
+  static void playAchievement() => _play('achievement.wav', 0.5);
+
+  /// One tick of a counting coin total.
+  static void playCoinTick() => _play('coin_tick.wav', 0.22);
 
   /// Mystery salvage revealed a boon (the star jingle, a bit softer) or a
   /// curse (a sad "wah-wah").

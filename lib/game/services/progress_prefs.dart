@@ -33,6 +33,7 @@ const _musicEnabled = _Pref('music_enabled', true);
 const _hapticsEnabled = _Pref('haptics_enabled', true);
 const _leftHanded = _Pref('left_handed', false);
 const _minimapEnabled = _Pref('minimap_enabled', true);
+const _raceGhost = _Pref('race_ghost', true);
 const _creditsSeen = _Pref('credits_seen', false);
 const _scrapeHintSeen = _Pref('scrape_hint_seen', false);
 const _fireHintSeen = _Pref('fire_hint_seen', false);

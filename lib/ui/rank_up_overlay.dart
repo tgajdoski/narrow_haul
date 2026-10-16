@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -49,6 +50,9 @@ class _RankUpOverlayState extends State<RankUpOverlay>
     // Shown here, so the Garage doesn't flag them NEW again (unfitted gear
     // still says FIT).
     unawaited(GarageNotices.markSeen(_unlocks));
+    // The promotion's own fanfare, landing with the insignia's pop.
+    AudioService.playRankUp();
+    Haptics.heavy();
   }
 
   Future<void> _fit(CosmeticItem item) async {

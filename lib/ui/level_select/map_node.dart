@@ -12,9 +12,13 @@ class _MapNode extends StatefulWidget {
     required this.onTap,
     this.isNext = false,
     this.fullGame = false,
+    this.flawless = false,
   });
 
   final bool isNext;
+
+  /// Delivered flawless (3★, no scrape): a gold outer ring.
+  final bool flawless;
 
   /// Part of the Full Game, not owned: a gold lock that opens the briefing.
   final bool fullGame;
@@ -132,6 +136,7 @@ class _MapNodeState extends State<_MapNode>
             ? 0.45
             : 0.2,
         thick: stars == 3 || widget.isNext,
+        flawless: unlocked && widget.flawless,
       ),
       child: content,
     );
@@ -163,9 +168,11 @@ class _HexPainter extends CustomPainter {
     required this.accent,
     required this.strength,
     required this.thick,
+    this.flawless = false,
   });
 
   final Color accent;
+  final bool flawless;
 
   /// 0–1: how strongly the beacon glows.
   final double strength;
@@ -211,9 +218,21 @@ class _HexPainter extends CustomPainter {
       final dir = Offset(math.cos(a), math.sin(a));
       canvas.drawLine(c + dir * (r * 0.78), c + dir * (r * 0.86), tick);
     }
+    if (flawless) {
+      canvas.drawPath(
+        hexPath(c, r + 3),
+        Paint()
+          ..color = SpaceColors.gold.withValues(alpha: 0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(_HexPainter o) =>
-      o.accent != accent || o.strength != strength || o.thick != thick;
+      o.accent != accent ||
+      o.strength != strength ||
+      o.thick != thick ||
+      o.flawless != flawless;
 }

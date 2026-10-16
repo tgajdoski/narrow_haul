@@ -217,6 +217,7 @@ class _WorldMapState extends State<_WorldMap> {
                         fullGame: LevelRegistry.offersFullGame(i),
                         stars: progress.getStarsById(flatDefs[i].saveId),
                         bestTime: progress.getBestTimeById(flatDefs[i].saveId),
+                        flawless: progress.isFlawless(flatDefs[i].saveId),
                         isNext: i == next,
                         onTap: () => game.openBriefing(i),
                       ),

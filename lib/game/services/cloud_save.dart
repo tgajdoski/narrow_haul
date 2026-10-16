@@ -28,6 +28,7 @@ class CloudSave {
 
   static bool _isMax(String key) =>
       key.startsWith('stars2_') ||
+      key.startsWith('fuel2_') ||
       key == 'xp_total' ||
       key == 'total_fuel_spent' ||
       key.startsWith('stat_');
@@ -40,6 +41,7 @@ class CloudSave {
       key.startsWith('cosmetic_unlocked_') ||
       key.startsWith('ship_owned_') ||
       key.startsWith('route_unlocked_') ||
+      key.startsWith('flawless_') ||
       key.startsWith('story_') ||
       key.startsWith('ship_intro_') ||
       key.startsWith('gear_fitted_') ||

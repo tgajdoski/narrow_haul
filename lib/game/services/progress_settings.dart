@@ -82,6 +82,10 @@ extension ProgressSettings on ProgressService {
     ]);
   }
 
+  /// Fly against a ghost of your own best flight (where one is saved).
+  bool get raceGhostOn => _read(_raceGhost);
+  Future<void> setRaceGhostOn(bool v) => _write(_raceGhost, v);
+
   bool get minimapEnabled => _read(_minimapEnabled);
   Future<void> setMinimapEnabled(bool v) => _write(_minimapEnabled, v);
 

@@ -16,6 +16,7 @@ extension GameRockContact on NarrowHaulGame {
       );
     }
     scrapesThisRun++;
+    if (kind != HullContact.touchdown) wallScrapesThisRun++;
     if (_scrapeFxCooldown > 0) return;
     _scrapeFxCooldown = 0.2;
     final touchdown = kind == HullContact.touchdown;

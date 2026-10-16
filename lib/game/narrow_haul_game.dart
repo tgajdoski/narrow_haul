@@ -87,6 +87,9 @@ import 'package:narrow_haul/game/tags.dart';
 import 'package:narrow_haul/game/overlay_ids.dart';
 import 'package:narrow_haul/game/run/delivery_booker.dart';
 import 'package:narrow_haul/game/run/snapshot_buffer.dart';
+import 'package:narrow_haul/game/run/star_watch.dart';
+import 'package:narrow_haul/game/route/personal_best_routes.dart';
+import 'package:narrow_haul/game/components/pickup_fx.dart';
 
 export 'package:narrow_haul/game/run/delivery_booker.dart' show RunReward, kReactorEscapeCurrency, kReactorEscapeXp;
 import 'package:narrow_haul/game/env.dart';
@@ -370,6 +373,13 @@ class NarrowHaulGame extends Forge2DGame
   /// Rock touches this flight that didn't crash, and the cooldown that keeps
   /// a slide along a wall from machine-gunning sound and haptics.
   int scrapesThisRun = 0;
+
+  /// Of those, the scrapes (not touchdowns): a flawless run has none.
+  int wallScrapesThisRun = 0;
+
+  /// Fuel falling past a star's mark (a cue each) and the low-fuel chirp.
+  final StarWatch _starWatch = StarWatch();
+  double _fuelLowBeepIn = 0;
   double _scrapeFxCooldown = 0;
 
   /// Shield glow facing nearby rock (see [_updateRockWarning]).
@@ -528,6 +538,14 @@ class NarrowHaulGame extends Forge2DGame
 
   /// Recorded flight bundled for this level (null: none, or a daily run).
   FlightRoute? currentRoute;
+
+  /// The pilot's own best flight here, raced as a gold ghost (null: none
+  /// saved, a daily or a demo).
+  FlightRoute? personalBestRoute;
+
+  /// A crash was rewound this run (a free Training retry): its recording
+  /// jumps, so it's never kept as the ghost.
+  bool _rewoundThisRun = false;
 
   /// This attempt's own flight, finished on delivery (autopilot export).
   FlightRoute? lastFlightRoute;
@@ -953,6 +971,14 @@ class NarrowHaulGame extends Forge2DGame
     final s = ship;
     if (s == null) return;
     s.fuel = math.min(s.maxFuel, s.fuel + amount);
+    _fuelGauge?.flashGain();
+    final sparkle = PickupSparkle(
+      center: at,
+      color: HudColors.green,
+      seed: _fuelCells.length,
+    );
+    world.add(sparkle);
+    _levelEntities.add(sparkle);
     final progress = ProgressService.instance;
     progress.incrementStat(ProgressService.statFuelCells);
     if (progress.getStat(ProgressService.statFuelCells) >= 10) {
@@ -1112,6 +1138,7 @@ class NarrowHaulGame extends Forge2DGame
       // Update fuel gauge
       _fuelGauge?.fuelFraction = s.fuel / s.maxFuel;
       _fuelGauge?.towing = tow;
+      _updateFuelStakes(dt, s);
       s.localAccel.setFrom(_forces?.shipAccel ?? world.gravity);
       s.localGravity.setFrom(_forces?.shipGravity ?? world.gravity);
       _gravityHud?.accelG

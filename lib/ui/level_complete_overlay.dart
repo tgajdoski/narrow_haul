@@ -6,6 +6,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
+import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
@@ -46,11 +47,29 @@ class LevelCompleteOverlay extends StatefulWidget {
 }
 
 class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _anim = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
   );
+
+  /// The coin chip counting up (from [_coinFrom] to the payout).
+  late final AnimationController _coins = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  );
+  int _coinFrom = 0;
+  int _coinShown = -1;
+  int _lastTickMs = 0;
+
+  /// Result-screen beats on [_anim]'s 0–1 timeline: each earned star pops
+  /// at [starAt], the jingle follows the last one, then coins and the best
+  /// badge.
+  static double starAt(int i) => 0.05 + i * 0.1;
+  static double flourishAt(int stars) => starAt(stars.clamp(1, 3) - 1) + 0.12;
+  static const double coinsAt = 0.42;
+  static const double badgeAt = 0.5;
+  double _lastT = 0;
 
   /// True while leaving (an interstitial may be showing) — blocks double taps.
   bool _leaving = false;
@@ -80,9 +99,68 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
     await widget.game.leaveResults(then);
   }
 
+  void _onBeat() {
+    final t = _anim.value;
+    final prev = _lastT;
+    _lastT = t;
+    bool crossed(double at) => prev < at && t >= at;
+    final stars = widget.game.lastLevelStars;
+    for (var i = 0; i < stars && i < 3; i++) {
+      if (crossed(starAt(i))) {
+        AudioService.playStarPop(i);
+        Haptics.light();
+      }
+    }
+    if (stars > 0 && crossed(flourishAt(stars))) {
+      AudioService.playStar(volume: stars >= 2 ? 0.8 : 0.45);
+    }
+    final reward = widget.game.lastRunReward;
+    if (crossed(coinsAt) && (reward?.currency ?? 0) > 0) {
+      unawaited(_coins.forward(from: 0));
+    }
+    if (crossed(badgeAt) && _badge(reward) != null) {
+      AudioService.playAchievement();
+      Haptics.medium();
+    }
+  }
+
+  void _onCoinTick() {
+    final shown = _coinValue;
+    if (shown == _coinShown) return;
+    _coinShown = shown;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastTickMs >= 45 || _coins.isCompleted) {
+      _lastTickMs = now;
+      AudioService.playCoinTick();
+    }
+  }
+
+  int get _coinValue {
+    final to = widget.game.lastRunReward?.currency ?? 0;
+    final k = Curves.easeOut.transform(_coins.value);
+    return (_coinFrom + (to - _coinFrom) * k).round();
+  }
+
+  /// One gold line for what this run beat: FLAWLESS (3★, no scrape), a new
+  /// best time with the seconds saved, else a new best fuel.
+  String? _badge(RunReward? r) {
+    if (r == null) return null;
+    final prev = r.previousBestTime;
+    final saved = prev == null ? 0.0 : prev - widget.game.lastLevelTimeSeconds;
+    final parts = <String>[
+      if (r.newFlawless) 'FLAWLESS',
+      if (r.personalBest && prev != null)
+        'NEW BEST −${saved.toStringAsFixed(1)} s',
+      if (!r.personalBest && r.newBestFuel) 'BEST FUEL',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   @override
   void initState() {
     super.initState();
+    _anim.addListener(_onBeat);
+    _coins.addListener(_onCoinTick);
     _anim.forward().whenComplete(() {
       if (!mounted || widget.game.showStoryOutroIfDue()) return;
       final reward = widget.game.lastRunReward;
@@ -95,6 +173,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   @override
   void dispose() {
     _anim.dispose();
+    _coins.dispose();
     super.dispose();
   }
 
@@ -102,8 +181,6 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   Widget build(BuildContext context) {
     final game = widget.game;
     final stars = game.lastLevelStars;
-    final time = game.lastLevelTimeSeconds;
-    final isLastLevel = game.levelIndex >= LevelRegistry.totalLevels - 1;
     final isChallengeMode = game.isChallengeMode;
     final reward = game.lastRunReward;
 
@@ -138,34 +215,81 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           ),
         ),
         const SizedBox(width: 12),
-        // Stars pop in one after another (earned ones only).
-        AnimatedBuilder(
-          animation: _anim,
-          builder: (context, _) => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) {
-              final start = 0.05 + i * 0.1;
-              final t = ((_anim.value - start) / 0.18).clamp(0.0, 1.0);
-              final scale = i < stars ? Curves.elasticOut.transform(t) : 1.0;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const StarIcon(filled: false, size: 30),
-                    if (i < stars)
-                      Transform.scale(
-                        scale: scale,
-                        child: const StarIcon(filled: true, size: 30),
-                      ),
-                  ],
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _stars(stars),
+            // What this run beat, popping in under the stars.
+            if (_badge(reward) case final badge?)
+              AnimatedBuilder(
+                animation: _anim,
+                builder: (context, child) {
+                  final t = ((_anim.value - badgeAt) / 0.18).clamp(0.0, 1.0);
+                  return Opacity(
+                    opacity: t > 0 ? 1 : 0,
+                    child: Transform.scale(
+                      scale: t > 0 ? Curves.elasticOut.transform(t) : 1,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 1, right: 4),
+                  child: Text(
+                    badge,
+                    style: hudLabel(10, color: SpaceColors.gold, spacing: 1.5)
+                        .copyWith(
+                          shadows: const [
+                            Shadow(color: Color(0x88FFD166), blurRadius: 10),
+                          ],
+                        ),
+                  ),
                 ),
-              );
-            }),
-          ),
+              ),
+          ],
         ),
       ],
     );
+    return _buildBody(context, header);
+  }
+
+  Widget _stars(int stars) {
+    // Stars pop in one after another (earned ones only).
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          final start = starAt(i);
+          final t = ((_anim.value - start) / 0.18).clamp(0.0, 1.0);
+          final scale = i < stars ? Curves.elasticOut.transform(t) : 1.0;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const StarIcon(filled: false, size: 30),
+                if (i < stars)
+                  Transform.scale(
+                    scale: scale,
+                    child: const StarIcon(filled: true, size: 30),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Widget header) {
+    final game = widget.game;
+    final stars = game.lastLevelStars;
+    final time = game.lastLevelTimeSeconds;
+    final isLastLevel = game.levelIndex >= LevelRegistry.totalLevels - 1;
+    final isChallengeMode = game.isChallengeMode;
+    final reward = game.lastRunReward;
 
     final notes = <String>[
       ?_missedStarHint(game, stars, time),
@@ -192,18 +316,23 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
               icon: Icons.local_gas_station_outlined,
               label: '${(game.lastLevelFuelFraction * 100).round()}% FUEL',
             ),
-            if (reward != null && reward.currency > 0)
-              HoloChip(
-                leading: const Text('💰', style: TextStyle(fontSize: 12)),
-                label: '+${reward.currency}',
-                color: SpaceColors.green,
-                highlight: true,
-              ),
             for (final a in reward?.newAchievements ?? const [])
               HoloChip(
                 leading: Text(a.icon, style: const TextStyle(fontSize: 12)),
                 label: a.title,
                 color: SpaceColors.gold,
+              ),
+            if (reward != null && reward.currency > 0)
+              AnimatedBuilder(
+                animation: _coins,
+                builder: (context, _) => HoloChip(
+                  leading: const Text('💰', style: TextStyle(fontSize: 12)),
+                  // Counts up from 0 (last in the row, so growing never
+                  // pushes the other chips about).
+                  label: '+$_coinValue',
+                  color: SpaceColors.green,
+                  highlight: true,
+                ),
               ),
           ],
         ),
@@ -212,7 +341,8 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           Text(
             n,
             style: TextStyle(
-              color: n.startsWith('★') ||
+              color:
+                  n.startsWith('★') ||
                       n.startsWith('Enjoying') ||
                       n.startsWith(_garageNotePrefix)
                   ? const Color(0xCCFFD166)
@@ -229,8 +359,11 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
             icon: Icons.ondemand_video_rounded,
             placement: AdPlacement.doubleCoins,
             onReward: () async {
+              final before = game.lastRunReward?.currency ?? 0;
               await game.doubleRunCurrency();
-              if (mounted) setState(() {});
+              if (!mounted) return;
+              setState(() => _coinFrom = before);
+              unawaited(_coins.forward(from: 0));
             },
           ),
         ],

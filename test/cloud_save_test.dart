@@ -64,6 +64,8 @@ void main() {
         'daily_streak',
         'equipped_cosmetic_rope',
         'stat_deliveries',
+        'fuel2_alien_03',
+        'flawless_tut_04',
       ]) {
         expect(CloudSave.isSynced(key), isTrue, reason: key);
       }
@@ -79,9 +81,21 @@ void main() {
         'replay_xp_2026-10-14',
         'cloud_base',
         'save_v3',
+        // The ghost's file stays on its device, so its time does too.
+        'pbroute_tut_04',
+        'race_ghost',
       ]) {
         expect(CloudSave.isSynced(key), isFalse, reason: key);
       }
+    });
+
+    test('best fuel keeps the higher, flawless only turns on', () {
+      final merged = CloudSave.merge(
+        local: {'fuel2_alien_03': 0.62, 'flawless_tut_04': false},
+        cloud: {'fuel2_alien_03': 0.71, 'flawless_tut_04': true},
+      );
+      expect(merged['fuel2_alien_03'], 0.71);
+      expect(merged['flawless_tut_04'], isTrue);
     });
 
     test('best of both: stars, times, XP, flags, lists', () {

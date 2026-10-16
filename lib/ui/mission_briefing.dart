@@ -83,6 +83,12 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
     final newShip = !testFlight && isNewShip(ship);
     final stars = progress.getStarsById(def.saveId);
     final best = progress.getBestTimeById(def.saveId);
+    final bestFuel = progress.getBestFuelById(def.saveId);
+    final flawless = progress.isFlawless(def.saveId);
+    // The ghost race: your own best flight, saved in the par ship.
+    final ghostTime = daily || ship.id != par.id
+        ? null
+        : progress.pbRouteSeconds(def.saveId);
     // Routes were recorded with the par ship (a guided run flies it).
     final routeOffered =
         !daily && progress.isRouteUnlocked(def.saveId) && ship.id == par.id;
@@ -124,10 +130,22 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
               padding: const EdgeInsets.only(left: 2),
               child: StarIcon(filled: i < stars, size: 14),
             ),
+          if (flawless)
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(
+                Icons.verified_rounded,
+                key: ValueKey('briefing-flawless'),
+                size: 15,
+                color: SpaceColors.gold,
+              ),
+            ),
           if (best != null) ...[
             const SizedBox(width: 8),
             Text(
-              'Best ${formatFlightTime(best)}',
+              bestFuel == null
+                  ? 'Best ${formatFlightTime(best)}'
+                  : 'Best ${formatFlightTime(best)} · ${(bestFuel * 100).round()}% fuel',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -205,6 +223,22 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
                 label: f.label,
                 color: factColor(f.kind),
                 highlight: f.kind == FactKind.warn,
+              ),
+            if (ghostTime != null)
+              HoloChip(
+                key: const ValueKey('briefing-race-ghost'),
+                icon: Icons.flag_rounded,
+                label: progress.raceGhostOn
+                    ? 'Race my best · ${formatFlightTime(ghostTime)}'
+                    : 'Race my best · off',
+                color: SpaceColors.gold,
+                highlight: progress.raceGhostOn,
+                onTap: () {
+                  final on = !progress.raceGhostOn;
+                  AudioService.playUi(on ? UiSound.toggleOn : UiSound.toggleOff);
+                  game.setRaceGhost(on);
+                  setState(() {});
+                },
               ),
           ],
         ),

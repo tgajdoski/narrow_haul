@@ -136,3 +136,30 @@ class _RouteGuideToggleState extends State<RouteGuideToggle> {
     );
   }
 }
+
+/// Pause-menu switch for the gold ghost of the pilot's own best flight.
+class RaceGhostToggle extends StatefulWidget {
+  const RaceGhostToggle({super.key, required this.game});
+
+  final NarrowHaulGame game;
+
+  @override
+  State<RaceGhostToggle> createState() => _RaceGhostToggleState();
+}
+
+class _RaceGhostToggleState extends State<RaceGhostToggle> {
+  @override
+  Widget build(BuildContext context) {
+    final game = widget.game;
+    final best = game.personalBestRoute?.seconds;
+    return HoloToggle(
+      icon: Icons.flag_rounded,
+      title: 'Race my best',
+      subtitle: best == null
+          ? 'Your best flight as a gold ghost'
+          : 'Gold ghost · ${formatFlightTime(best)} · stars unaffected',
+      value: game.raceGhostOn,
+      onChanged: (v) => setState(() => game.setRaceGhost(v)),
+    );
+  }
+}

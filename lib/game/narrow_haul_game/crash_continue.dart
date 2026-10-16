@@ -119,6 +119,9 @@ extension GameCrashContinue on NarrowHaulGame {
       _continueUsed = true;
       continuedThisRun = true;
     }
+    // A crash is never flawless, even when a free rewind keeps 3★ open.
+    wallScrapesThisRun++;
+    _rewoundThisRun = true;
     overlays.remove(OverlayIds.gameOver);
 
     // Shells in flight would make the respawn a trap.

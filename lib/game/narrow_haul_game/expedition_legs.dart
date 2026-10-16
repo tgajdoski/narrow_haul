@@ -25,6 +25,7 @@ extension GameExpeditionLegs on NarrowHaulGame {
         onAttached: () {
           AudioService.playAttach();
           Haptics.light();
+          _hookPulse(s, pod);
           _sayStory(BeatCue.hooked);
           if (_tutorialHints && !_hookLogged) {
             _hookLogged = true;
@@ -32,6 +33,28 @@ extension GameExpeditionLegs on NarrowHaulGame {
           }
         },
       )..onBeamLost = Haptics.medium;
+
+  /// The hook-up "clamp": a ring at the winch, then one round the pod.
+  void _hookPulse(ShipBody s, CargoBody pod) {
+    final color = currentLevel?.theme.uiAccent ?? HudColors.cyan;
+    Offset winch() {
+      final p = s.body.worldPoint(Vector2(0, s.rearLocalY));
+      return Offset(p.x, p.y);
+    }
+
+    Offset podAt() {
+      final p = pod.body.worldCenter;
+      return Offset(p.x, p.y);
+    }
+
+    for (final ring in [
+      PulseRing(at: winch, color: color, endRadius: 0.55, life: 0.35),
+      PulseRing(at: podAt, color: color, delay: 0.1, startRadius: 0.3, endRadius: 0.95),
+    ]) {
+      world.add(ring);
+      _levelEntities.add(ring);
+    }
+  }
 
   /// The win sensors of [leg]'s pad.
   DualLandingZone _padFor(LegData leg) => DualLandingZone(

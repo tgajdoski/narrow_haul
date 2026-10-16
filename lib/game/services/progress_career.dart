@@ -23,6 +23,31 @@ extension ProgressCareer on ProgressService {
     }
   }
 
+  /// Best star-rated fuel left (0–1, normalised for an off-par ship).
+  double? getBestFuelById(String saveId) => _double('fuel2_$saveId');
+
+  Future<void> saveBestFuelById(String saveId, double fraction) async {
+    final current = getBestFuelById(saveId);
+    if (current == null || fraction > current) {
+      await _prefs.setDouble('fuel2_$saveId', fraction);
+    }
+  }
+
+  /// A flawless delivery: 3★ with no scrape (continues, guides and carried
+  /// ammo already cap the stars at 2).
+  bool isFlawless(String saveId) => _prefs.getBool('flawless_$saveId') ?? false;
+
+  Future<void> markFlawless(String saveId) =>
+      _prefs.setBool('flawless_$saveId', true);
+
+  /// The time of the personal-best flight saved on this device for the
+  /// ghost race (`PersonalBestRoutes`); null = none. Device-local: never
+  /// synced, cleared by a reset (the stale file is then ignored).
+  double? pbRouteSeconds(String saveId) => _double('pbroute_$saveId');
+
+  Future<void> setPbRouteSeconds(String saveId, double seconds) =>
+      _prefs.setDouble('pbroute_$saveId', seconds);
+
   // ── No-retry streak ──────────────────────────────────────────────────────
 
   int getNoRetryStreak() => _read(_noRetryStreak);

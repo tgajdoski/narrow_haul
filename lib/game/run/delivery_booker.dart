@@ -27,6 +27,11 @@ class RunReward {
     required this.currency,
     required this.newAchievements,
     this.coinsBefore = 0,
+    this.firstClear = false,
+    this.personalBest = false,
+    this.previousBestTime,
+    this.newBestFuel = false,
+    this.newFlawless = false,
   });
 
   final XpBreakdown xp;
@@ -38,6 +43,19 @@ class RunReward {
   /// Coin balance before this payout (what it made affordable).
   final int coinsBefore;
 
+  /// The level's first delivery (career levels only).
+  final bool firstClear;
+
+  /// Faster than the previous best, which was [previousBestTime].
+  final bool personalBest;
+  final double? previousBestTime;
+
+  /// More fuel left than ever before on this level (not on a first clear).
+  final bool newBestFuel;
+
+  /// The level's first flawless delivery (3★, no scrape).
+  final bool newFlawless;
+
   RunReward withCurrency(int value) => RunReward(
     xp: xp,
     xpBefore: xpBefore,
@@ -45,6 +63,11 @@ class RunReward {
     currency: value,
     newAchievements: newAchievements,
     coinsBefore: coinsBefore,
+    firstClear: firstClear,
+    personalBest: personalBest,
+    previousBestTime: previousBestTime,
+    newBestFuel: newBestFuel,
+    newFlawless: newFlawless,
   );
 
   PilotRank get rankBefore => rankFor(xpBefore);
@@ -85,6 +108,8 @@ class DeliveryFacts {
     required this.flyingParShip,
     required this.salvageEffect,
     required this.shipSizeMul,
+    this.scrapes = 0,
+    this.ratedFuel,
   });
 
   final LevelDef level;
@@ -132,6 +157,13 @@ class DeliveryFacts {
   /// The salvage effect running at touchdown, and the hull size it left.
   final SalvageEffect? salvageEffect;
   final double shipSizeMul;
+
+  /// Rock scrapes and touchdowns that weren't on the pad (flawless needs 0).
+  final int scrapes;
+
+  /// The fuel fraction the stars were rated on (normalised for an off-par
+  /// ship); null means [fuelFraction].
+  final double? ratedFuel;
 
   double get fuelFraction => fuelLeft / maxFuel;
 }
@@ -190,6 +222,10 @@ abstract final class DeliveryBooker {
     final worldIndex = LevelRegistry.worlds.indexOf(levelWorld);
     int earnedStars = 0;
     bool personalBest = false;
+    bool firstClear = false;
+    double? previousBestTime;
+    bool newBestFuel = false;
+    bool newFlawless = false;
 
     if (f.challenge) {
       final firstToday = !progress.isDailyChallengeComplete();
@@ -221,6 +257,16 @@ abstract final class DeliveryBooker {
       final newStars = stars - prevStars;
       earnedStars = math.max(0, newStars);
       personalBest = prevBest != null && elapsed < prevBest;
+      previousBestTime = prevBest;
+      firstClear = prevStars == 0;
+      final rated = f.ratedFuel ?? f.fuelFraction;
+      final prevFuel = progress.getBestFuelById(saveId);
+      newBestFuel = prevFuel != null && !firstClear && rated > prevFuel + 0.005;
+      unawaited(progress.saveBestFuelById(saveId, rated));
+      if (stars >= 3 && f.scrapes == 0 && !progress.isFlawless(saveId)) {
+        newFlawless = true;
+        unawaited(progress.markFlawless(saveId));
+      }
       if (newStars > 0) {
         currency += (newStars * levelWorld.rewardPerStar * currencyMul).round();
       }
@@ -346,6 +392,11 @@ abstract final class DeliveryBooker {
         currency: currency,
         newAchievements: unlocked,
         coinsBefore: coinsBefore,
+        firstClear: firstClear,
+        personalBest: personalBest,
+        previousBestTime: previousBestTime,
+        newBestFuel: newBestFuel,
+        newFlawless: newFlawless,
       ),
       dailyFirst: dailyFirst,
     );

@@ -113,6 +113,7 @@ class ProgressService {
     _hapticsEnabled.key,
     _leftHanded.key,
     _minimapEnabled.key,
+    _raceGhost.key,
     _Keys.steerMode,
     _Keys.cameraMode,
     _Keys.cameraZoom,

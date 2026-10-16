@@ -106,6 +106,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     continuedThisRun = false;
     _weaponsLogged.clear();
     guidedThisRun = false;
+    _rewoundThisRun = false;
     // A resume flies on from the last staging pad; anything else starts the
     // Expedition over.
     legIndex = _resumeLeg;
@@ -132,8 +133,12 @@ extension GameLevelLifecycle on NarrowHaulGame {
     }
     final gen = _levelGen;
     final route = await _routeForCurrentLevel();
+    final pb = isChallengeMode || demoMode
+        ? null
+        : await PersonalBestRoutes.load(currentLevelDef.saveId);
     _checkLoad(gen);
     currentRoute = route;
+    personalBestRoute = pb;
     final def = currentLevelDef;
     // In debug, rebuild the cave on every load so hot-reloaded spec edits
     // show up (tests keep the cache: the spec can't change under them).
@@ -482,10 +487,22 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _noseDownLesson = !demoMode &&
         ProgressService.instance.noseDownCleanFlights < kNoseDownCleanFlights;
     _scheduleComms(retry: _currentLevelRetried);
-    _fuelGauge?.starMarks = [
-      currentLevelDef.stars.star3Fuel,
-      currentLevelDef.stars.star2Fuel,
+    // Marks in this tank's terms: another ship than the level's own is
+    // rated on range-scaled fuel (normalisedFuelLeft), so its marks move.
+    final par = LevelRegistry.shipFor(levelIndex);
+    double tankMark(double rated) =>
+        isChallengeMode || shipSpec.id == par.id
+            ? rated
+            : (1 - (1 - rated) * par.deltaV / shipSpec.deltaV).clamp(0.0, 1.0);
+    final marks = [
+      tankMark(currentLevelDef.stars.star3Fuel),
+      tankMark(currentLevelDef.stars.star2Fuel),
     ];
+    _fuelGauge?.starMarks = marks;
+    // An Expedition rates the mean over its pads, so a mark passed on one
+    // leg isn't a star lost: no cue there.
+    _starWatch.reset(isExpeditionRun || demoMode ? const [] : marks);
+    _fuelLowBeepIn = 0;
     _updateLevelInfoHud();
 
     final (levelWorld, indexInWorld) = LevelRegistry.worldOf(levelIndex);
@@ -540,6 +557,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
     _salvageOpenedThisRun = 0;
     _luckyCoins = 0;
     scrapesThisRun = 0;
+    wallScrapesThisRun = 0;
     _scrapeFxCooldown = 0;
     _scrapeSoundCooldown = 0;
     _shieldGlow = null;

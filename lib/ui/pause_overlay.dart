@@ -51,7 +51,9 @@ class PauseOverlay extends StatelessWidget {
                 ),
               ),
               if (game.routeGuideAvailable)
-                SizedBox(width: 250, child: RouteGuideToggle(game: game)),
+                SizedBox(width: 250, child: RouteGuideToggle(game: game))
+              else if (game.raceGhostAvailable)
+                SizedBox(width: 250, child: RaceGhostToggle(game: game)),
             ],
           ),
           const SizedBox(height: 14),

@@ -45,6 +45,23 @@ extension GameRouteDemo on NarrowHaulGame {
     await restartLevel();
   }
 
+  /// The ghost race: this level has a saved best flight in this ship (the
+  /// guide's ghost takes its place while the guide is on).
+  bool get raceGhostAvailable =>
+      personalBestRoute != null &&
+      personalBestRoute!.shipId == ship?.spec.id &&
+      !isChallengeMode &&
+      !demoMode;
+
+  bool get raceGhostOn =>
+      raceGhostAvailable && ProgressService.instance.raceGhostOn && !routeGuideOn;
+
+  /// Briefing / pause toggle. Racing your own ghost never caps the stars.
+  void setRaceGhost(bool on) {
+    unawaited(ProgressService.instance.setRaceGhostOn(on));
+    _syncRouteGuide();
+  }
+
   /// Pause-menu toggle. Switching it on mid-flight caps the run at 2★.
   void setRouteGuide(bool on) {
     _routeGuideLevel = on ? currentLevelDef.saveId : null;
@@ -61,8 +78,23 @@ extension GameRouteDemo on NarrowHaulGame {
     final route = currentRoute;
     final level = currentLevel;
     final s = ship;
-    if (route == null || level == null || s == null) return;
-    if (!routeGuideOn && !demoMode) return;
+    if (level == null || s == null) return;
+    final pb = personalBestRoute;
+    if (raceGhostOn && pb != null) {
+      _guideComponents.add(RouteGhost(
+        route: pb,
+        ship: s.spec,
+        tint: const Color(0x88FFD166),
+        flightTime: () => (ship?.launched ?? false) ? elapsedSeconds : null,
+      ));
+    }
+    if (route == null || (!routeGuideOn && !demoMode)) {
+      for (final c in _guideComponents) {
+        world.add(c);
+        _levelEntities.add(c);
+      }
+      return;
+    }
     _guideComponents.add(RouteGuideLine(
       route: route,
       accent: level.theme.uiAccent,

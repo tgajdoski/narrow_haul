@@ -127,20 +127,41 @@ extension GameDelivery on NarrowHaulGame {
         flyingParShip: flyingParShip,
         salvageEffect: salvage.effect,
         shipSizeMul: s2?.sizeMul ?? 1,
+        scrapes: wallScrapesThisRun,
+        ratedFuel: _ratedFuelFraction(fuelLeft),
       ),
     );
     _inFlightAchievements.clear();
+    _keepPersonalBestRoute();
     _lastWinDailyFirst = booking.dailyFirst;
     _syncAnalyticsUser();
     lastRunReward = booking.reward;
 
+    // The star sounds play on the result screen, one per star.
     AudioService.playLand();
-    if (stars >= 2) AudioService.playStar();
     MusicService.play(MusicService.resultsTrack, MusicService.resultsVolume);
 
     _resetInputState();
     // update() raises the dialog once the celebration has played.
     _winReady = true;
+  }
+
+  /// A faster own flight becomes this level's ghost: career runs in the
+  /// par ship only, flown straight through (no continue, rewind, guide or
+  /// checkpoint), so the ghost is always a real, clean line to chase.
+  void _keepPersonalBestRoute() {
+    final route = lastFlightRoute;
+    if (route == null ||
+        isChallengeMode ||
+        demoMode ||
+        !flyingParShip ||
+        guidedThisRun ||
+        continuedThisRun ||
+        checkpointUsedThisRun ||
+        _rewoundThisRun) {
+      return;
+    }
+    unawaited(PersonalBestRoutes.saveIfBest(route));
   }
 
   /// Player-level dimensions for every report (set at launch and after
@@ -152,15 +173,20 @@ extension GameDelivery on NarrowHaulGame {
     Analytics.setUserProperty('payer', p.hasPurchased ? '1' : '0');
   }
 
-  int _calculateStars(double fuelRemaining, double timeSeconds) {
-    // A continued (rewarded ad) or guided run can never buy a perfect rating.
+  /// The fuel fraction the stars rate: another ship than the level's own
+  /// has its fuel scaled by range (fleet.dart).
+  double _ratedFuelFraction(double fuelRemaining) {
     final flown = ship?.spec;
     final fuelLeft = fuelRemaining / _shipMaxFuel;
+    return flown == null || isChallengeMode
+        ? fuelLeft
+        : normalisedFuelLeft(fuelLeft, flown, LevelRegistry.shipFor(levelIndex));
+  }
+
+  int _calculateStars(double fuelRemaining, double timeSeconds) {
+    // A continued (rewarded ad) or guided run can never buy a perfect rating.
     return currentLevelDef.stars.rate(
-      // Another ship than the level's own: fuel scaled by range (fleet.dart).
-      flown == null || isChallengeMode
-          ? fuelLeft
-          : normalisedFuelLeft(fuelLeft, flown, LevelRegistry.shipFor(levelIndex)),
+      _ratedFuelFraction(fuelRemaining),
       timeSeconds,
       capped: continuedThisRun ||
           guidedThisRun ||

@@ -5,6 +5,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/services/career_goal.dart';
 import 'package:narrow_haul/game/services/contracts_service.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
@@ -194,9 +195,18 @@ class _MenuOverlayState extends State<MenuOverlay> {
             large: true,
             icon: Icons.public_rounded,
             label: 'Missions',
-            subtitle:
-                '${LevelRegistry.worlds.where((w) => !w.expedition).length} worlds · '
-                '${LevelRegistry.careerLevels} missions',
+            subtitle: careerGoal(
+              stars: LevelRegistry.totalStars(),
+              missions: LevelRegistry.careerLevels,
+              flawless: LevelRegistry.career
+                  .where((d) => p.isFlawless(d.saveId))
+                  .length,
+              worlds: [
+                for (final w in LevelRegistry.worlds)
+                  if (!w.expedition)
+                    (name: w.name, starsRequired: w.starsRequired),
+              ],
+            ),
             onTap: () => game.openScreen(OverlayIds.levelSelect),
           ),
         ),

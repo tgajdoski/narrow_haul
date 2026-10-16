@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
+import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 
 /// Slides a banner in from the top when an achievement is announced
@@ -34,6 +35,7 @@ class _AchievementToastHostState extends State<AchievementToastHost> {
     final a = AchievementService.announced.value;
     if (a == null) return;
     final token = ++_token;
+    AudioService.playAchievement();
     setState(() {
       _shown = a;
       _visible = true;

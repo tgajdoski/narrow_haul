@@ -28,6 +28,12 @@ Python stdlib only. Deterministic: running it twice gives byte-identical files.
   size_up.wav      hull swelling: rubbery rising boing 180 -> 520 Hz, 0.5 s
   size_down.wav    Compactor: the same boing falling 520 -> 160 Hz, 0.45 s
   spore_loop.wav   Spore Trip: seamless 2 s woozy warble (detuned sines + slow tremolo)
+  star_pop_1/2/3.wav  result-screen star pops, rising C6 / E6 / G6 bells, 0.32 s
+  star_lost.wav    a star's fuel mark passed mid-flight: falling third E5 -> C5
+  fuel_low.wav     low-fuel double pip (B5), 0.2 s
+  rank_up.wav      promotion fanfare G5 C6 E6 -> C7 over G4, 1.4 s
+  achievement.wav  achievement toast: A6 -> E7, 0.55 s
+  coin_tick.wav    coin counter tick, 45 ms
 
 attach.mp3 and crash.mp3 are hand-made and not generated here. A real file of
 the same name can replace any of these.
@@ -554,6 +560,85 @@ def spore_loop():
     write_wav('spore_loop.wav', out)
 
 
+# ── result screen and career ────────────────────────────────────────────────
+
+def _bell(f, dur, decay, gain=1.0):
+    """Bell-ish tone: fundamental + soft 2nd and 3rd partials, exp decay."""
+    n = int(SR * dur)
+    out = []
+    for i in range(n):
+        t = i / SR
+        s = (math.sin(2 * math.pi * f * t) + 0.3 * math.sin(4 * math.pi * f * t)
+             + 0.12 * math.sin(6 * math.pi * f * t))
+        out.append(gain * s * math.exp(-t * decay))
+    return out
+
+
+def _mix_at(out, part, start_s):
+    s0 = int(SR * start_s)
+    for i, v in enumerate(part):
+        if s0 + i < len(out):
+            out[s0 + i] += v
+
+
+def star_pops():
+    """One pop per result-screen star, rising: C6, E6, G6 (0.32 s each)."""
+    for k, f in enumerate((1046.50, 1318.51, 1567.98)):
+        out = _bell(f, 0.32, 11)
+        _mix_at(out, _bell(f * 2, 0.32, 20, 0.25), 0.0)
+        _edges(out, 0.03)
+        write_wav(f'star_pop_{k + 1}.wav', out)
+
+
+def star_lost():
+    """A star's fuel mark passed mid-flight: soft falling third E5 -> C5."""
+    out = [0.0] * int(SR * 0.42)
+    _mix_at(out, _bell(659.25, 0.2, 14, 0.8), 0.0)
+    _mix_at(out, _bell(523.25, 0.3, 10, 0.8), 0.12)
+    _edges(out, 0.04)
+    write_wav('star_lost.wav', out)
+
+
+def fuel_low():
+    """Low-fuel cockpit chirp, two short sine pips (B5), 0.2 s."""
+    out = [0.0] * int(SR * 0.2)
+    for start in (0.0, 0.1):
+        _mix_at(out, [math.sin(2 * math.pi * 987.77 * i / SR) *
+                      math.sin(math.pi * i / (0.06 * SR)) for i in range(int(0.06 * SR))],
+                start)
+    _edges(out, 0.01)
+    write_wav('fuel_low.wav', out)
+
+
+def rank_up():
+    """Promotion fanfare: G5 C6 E6, then a ringing C7 over a G4 root, 1.4 s."""
+    out = [0.0] * int(SR * 1.4)
+    for k, f in enumerate((783.99, 1046.50, 1318.51)):
+        _mix_at(out, _bell(f, 0.3, 9, 0.8), k * 0.11)
+    _mix_at(out, _bell(2093.0, 1.05, 3.2, 0.8), 0.33)
+    _mix_at(out, _bell(1567.98, 1.05, 3.6, 0.45), 0.33)
+    _mix_at(out, _bell(392.0, 1.05, 3.0, 0.6), 0.33)
+    _edges(out, 0.08)
+    write_wav('rank_up.wav', out)
+
+
+def achievement():
+    """Achievement toast: two quick bright notes, A6 -> E7, 0.55 s."""
+    out = [0.0] * int(SR * 0.55)
+    _mix_at(out, _bell(1760.0, 0.2, 14, 0.7), 0.0)
+    _mix_at(out, _bell(2637.0, 0.45, 7, 0.7), 0.08)
+    _edges(out, 0.05)
+    write_wav('achievement.wav', out)
+
+
+def coin_tick():
+    """Coin counter tick: tiny metallic ping (~3.1 kHz), 45 ms."""
+    out = _bell(3135.96, 0.045, 70)
+    _mix_at(out, _bell(4698.6, 0.045, 90, 0.4), 0.0)
+    _edges(out, 0.01)
+    write_wav('coin_tick.wav', out)
+
+
 def _edges(out, fade_s):
     """0.5 ms attack ramp and a linear fade-out of [fade_s]."""
     att, fade = max(1, int(0.0005 * SR)), int(fade_s * SR)
@@ -590,3 +675,9 @@ if __name__ == '__main__':
     size_up()
     size_down()
     spore_loop()
+    star_pops()
+    star_lost()
+    fuel_low()
+    rank_up()
+    achievement()
+    coin_tick()
