@@ -48,6 +48,20 @@ const Map<String, String> kPlayAchievementIds = {
   'flawless_world': 'CgkI-LT6hcYGEAIQJA',
 };
 
+/// The Daily dispatch boards, one per [DispatchTier] (by name): fastest
+/// delivery, lower is better, shown for today. Game Center's are
+/// recurring daily boards starting 08:00 UTC; Play's daily view resets at
+/// midnight Pacific.
+String gameCenterDailyLeaderboard(String tier) => 'nh.daily_$tier';
+
+/// Tier name → Play Games leaderboard id, copied from Play Console.
+const Map<String, String> kPlayDailyLeaderboards = {
+  'cadet': 'CgkI-LT6hcYGEAIQJQ',
+  'line': 'CgkI-LT6hcYGEAIQJg',
+  'senior': 'CgkI-LT6hcYGEAIQJw',
+  'veteran': 'CgkI-LT6hcYGEAIQKA',
+};
+
 /// Career stars (the "Total stars" leaderboard).
 const kStarsLeaderboardGameCenter = 'nh.total_stars';
 const kStarsLeaderboardPlay = 'CgkI-LT6hcYGEAIQIw';

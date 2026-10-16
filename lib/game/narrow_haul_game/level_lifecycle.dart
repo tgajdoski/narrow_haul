@@ -23,7 +23,7 @@ extension GameLevelLifecycle on NarrowHaulGame {
   Future<void> beginChallenge() async {
     overlays.removeAll([OverlayIds.menu, OverlayIds.briefing]);
     isChallengeMode = true;
-    final levels = NarrowHaulGame.unlockedLevelIndices();
+    final levels = NarrowHaulGame.dailyLevelIndices();
     // Test Flight ship options run the full validator per ship (up to a few
     // hundred ms on a phone): do it on a background isolate, and only then.
     final (dailyLevel, testFlight) = DailyChallengeConfig.peekToday(levels);

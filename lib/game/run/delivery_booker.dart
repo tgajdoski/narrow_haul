@@ -297,6 +297,7 @@ abstract final class DeliveryBooker {
     final (
       contractLines,
       allContractsDone,
+      contractCoins,
     ) = await ContractsService.recordDelivery(
       DeliveryEvent(
         worldIndex: worldIndex,
@@ -311,6 +312,7 @@ abstract final class DeliveryBooker {
         cursed: f.curses.isNotEmpty,
       ),
     );
+    currency += (contractCoins * currencyMul).round();
 
     // Reactor escape (Thrust's big finish): bonus the first time per level.
     final combatLines = <XpLine>[];

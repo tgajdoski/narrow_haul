@@ -372,7 +372,7 @@ class _DailyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levels = NarrowHaulGame.unlockedLevelIndices();
+    final levels = NarrowHaulGame.dailyLevelIndices();
     final (_, testFlight) = DailyChallengeConfig.peekToday(levels);
     final name = testFlight
         ? DailyChallengeConfig.testFlightName
@@ -579,8 +579,8 @@ class ContractsList extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   c.done
-                      ? '+${c.contract.xp} XP'
-                      : '${c.progress}/${c.contract.target} · ${c.contract.xp} XP',
+                      ? '+${c.contract.xp} XP · ${c.contract.coins} 💰'
+                      : '${c.progress}/${c.contract.target} · ${c.contract.xp} XP · ${c.contract.coins} 💰',
                   style: TextStyle(
                     color: c.done ? SpaceColors.green : SpaceColors.cyan,
                     fontSize: 11.5,

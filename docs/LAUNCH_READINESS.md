@@ -174,6 +174,8 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
 ## 1.1: Play Games / Game Center (built, not released)
 Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 34 achievements (Greaser `flawless_world` added 2026-10-16, Century Hauler lowered to 25 points to keep Game Center's 1000 cap), the Total Stars leaderboard, Saved games on, two Android credentials.
 - [ ] Cloud Console → Google Auth Platform → Audience: **Publish app** (the consent screen is still in Testing).
+- [ ] App Store Connect → the 1.1 version's Game Center section: include the four Daily Dispatch boards (`nh.daily_cadet/line/senior/veteran`, created 2026-10-16 with names and icons, recurring daily from 08:00 UTC) along with the achievements. Play Console has the same four boards as drafts (Duration, smallest first).
+- [ ] Phone test of the shared daily: two devices at the same stage get the same level and modifier; after a daily, *Today's board* opens with your time; the daily rolls over at 08:00 UTC (10:00 in Croatia in summer, 09:00 in winter).
 - [x] App Store Connect → Game Center: all 34 achievements, 1000 points (`nh.flawless_world` *Greaser* and Century Hauler's 25 points + new icon added 2026-10-16). Originally: the 33 achievements (`art_src/achievements/game_center.csv`, icons in `icons/`) and the `nh.total_stars` leaderboard.
 - [ ] Build once in Xcode with automatic signing, so the iCloud container `iCloud.com.zafrk.narrowhaul` gets registered.
 - [ ] Phone test on both platforms: sign-in, achievement unlock, leaderboard, cloud save onto a fresh install, an offline start, Reset progress. While Play Games is unpublished, the account must be on its testers list.

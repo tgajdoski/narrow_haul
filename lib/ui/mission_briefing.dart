@@ -5,6 +5,7 @@ import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/dispatch.dart';
 import 'package:narrow_haul/game/services/fleet_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
@@ -31,6 +32,16 @@ class MissionBriefingOverlay extends StatefulWidget {
 
   @override
   State<MissionBriefingOverlay> createState() => _MissionBriefingOverlayState();
+}
+
+/// Who shares today's dispatch, and when the next one goes out.
+String _dispatchLine() {
+  final tier = NarrowHaulGame.dispatchTier();
+  final left = nextDispatchAt(ProgressService.clock()).difference(ProgressService.clock().toUtc());
+  final h = left.inHours;
+  final m = left.inMinutes % 60;
+  final next = h > 0 ? '${h}h ${m}m' : '${m}m';
+  return 'Every ${tier.title} pilot flies this one today · next dispatch in $next';
 }
 
 class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
@@ -67,7 +78,7 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
     DailyChallengeConfig? config;
     var testFlight = false;
     if (daily) {
-      final levels = NarrowHaulGame.unlockedLevelIndices();
+      final levels = NarrowHaulGame.dailyLevelIndices();
       testFlight = DailyChallengeConfig.peekToday(levels).$2;
       // Without ship options a Test Flight day reads as a standard run, so
       // only its name/description come from [testFlight] below.
@@ -261,6 +272,11 @@ class _MissionBriefingOverlayState extends State<MissionBriefingOverlay> {
                 ? '+${reward.xp} XP · streak +${reward.bonus} XP · 🔥${reward.streak}'
                 : '+${reward.xp} XP · first clear today',
             style: hudLabel(11, color: SpaceColors.gold, spacing: 1.2),
+          ),
+          const SizedBox(height: 3),
+          MarqueeText(
+            _dispatchLine(),
+            style: const TextStyle(color: Colors.white54, fontSize: 11.5),
           ),
         ],
       ],

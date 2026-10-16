@@ -14,6 +14,9 @@ extension GameDelivery on NarrowHaulGame {
     try {
       await _bookDelivery();
       GamesService.progressChanged();
+      if (isChallengeMode) {
+        GamesService.dailyDelivered(NarrowHaulGame.dispatchTier(), lastLevelTimeSeconds);
+      }
     } catch (e, st) {
       ErrorReporter.report(e, st, context: 'delivery ${currentLevelDef.saveId}');
       lastRunReward = null;

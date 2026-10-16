@@ -233,7 +233,7 @@ extension GameNavigation on NarrowHaulGame {
 
   /// Hangar Daily → today's challenge briefing (over the hangar).
   void openDailyBriefing() {
-    briefingLevel = DailyChallengeConfig.peekToday(NarrowHaulGame.unlockedLevelIndices()).$1;
+    briefingLevel = DailyChallengeConfig.peekToday(NarrowHaulGame.dailyLevelIndices()).$1;
     briefingDaily = true;
     overlays.add(OverlayIds.briefing);
   }

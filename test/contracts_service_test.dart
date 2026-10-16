@@ -90,18 +90,21 @@ void main() {
         const Contract(ContractKind.fuelFinish, target: 1, param: 60).encode(),
       ]);
 
-      var (lines, allDone) =
+      var (lines, allDone, coins) =
           await ContractsService.recordDelivery(_event(pb: true, fuel: 0.9));
       expect(lines.map((l) => l.xp), [100, 100]); // PB + fuel
       expect(allDone, isFalse);
+      expect(coins, 25 + 25);
 
-      (lines, allDone) = await ContractsService.recordDelivery(_event());
+      (lines, allDone, coins) = await ContractsService.recordDelivery(_event());
       expect(lines.map((l) => l.xp), [75, kAllContractsBonusXp]);
       expect(allDone, isTrue);
+      expect(coins, 20 + kAllContractsBonusCoins);
 
-      (lines, allDone) = await ContractsService.recordDelivery(_event(pb: true));
+      (lines, allDone, coins) = await ContractsService.recordDelivery(_event(pb: true));
       expect(lines, isEmpty);
       expect(allDone, isFalse);
+      expect(coins, 0);
     });
   });
 

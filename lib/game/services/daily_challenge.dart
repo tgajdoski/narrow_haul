@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:narrow_haul/game/services/dispatch.dart';
+import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/ship/ship_spec.dart';
 
 /// Deterministic daily challenge generated from the current date.
@@ -85,9 +87,11 @@ class DailyChallengeConfig {
     );
   }
 
+  /// Seeded by the shared dispatch day ([dispatchDay]), so every pilot
+  /// with the same list draws the same level and modifier.
   static Random _todayRng() {
-    final now = DateTime.now();
-    return Random(now.year * 10000 + now.month * 100 + now.day);
+    final d = dispatchDay(ProgressService.clock());
+    return Random(d.year * 10000 + d.month * 100 + d.day);
   }
 
   /// Today's level and whether it's a Test Flight day — same draw as

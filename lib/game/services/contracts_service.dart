@@ -11,6 +11,11 @@ const int kContractsRankIndex = 2;
 /// Bonus for finishing all of a day's contracts.
 const int kAllContractsBonusXp = 100;
 
+/// Coins for finishing all of the day's contracts (each one also pays its
+/// own [Contract.coins]): a steady income after the shop is cleared, for
+/// the Armory.
+const int kAllContractsBonusCoins = 50;
+
 enum ContractKind {
   deliverInWorld,
   fuelFinish,
@@ -45,6 +50,9 @@ class Contract {
         ContractKind.salvageDelivery => 75,
         ContractKind.cursedDelivery => 100,
       };
+
+  /// Coins on completion: a quarter of the XP, to the nearest 5.
+  int get coins => (xp / 20).round() * 5;
 
   String get description => switch (kind) {
         ContractKind.deliverInWorld =>
@@ -200,13 +208,17 @@ abstract final class ContractsService {
 
   /// Applies a delivery to today's contracts. Returns XP lines for contracts
   /// it completed (plus the bonus), and whether it finished the day's set.
-  static Future<(List<XpLine>, bool allDone)> recordDelivery(
+  /// Applies a delivery to today's contracts: the XP lines of the ones it
+  /// finished (plus the all-done bonus), whether that finished them all,
+  /// and the coins they pay.
+  static Future<(List<XpLine>, bool allDone, int coins)> recordDelivery(
     DeliveryEvent event,
   ) async {
     final statuses = today();
-    if (statuses.isEmpty) return (const <XpLine>[], false);
+    if (statuses.isEmpty) return (const <XpLine>[], false, 0);
     final progress = ProgressService.instance;
     final lines = <XpLine>[];
+    var coins = 0;
     for (int i = 0; i < statuses.length; i++) {
       final s = statuses[i];
       if (s.done) continue;
@@ -216,12 +228,14 @@ abstract final class ContractsService {
       await progress.setContractProgress(i, next);
       if (next >= s.contract.target) {
         lines.add(XpLine('Contract: ${s.contract.description}', s.contract.xp));
+        coins += s.contract.coins;
       }
     }
     final allDone = lines.isNotEmpty && today().every((s) => s.done);
     if (allDone) {
       lines.add(const XpLine('All contracts done', kAllContractsBonusXp));
+      coins += kAllContractsBonusCoins;
     }
-    return (lines, allDone);
+    return (lines, allDone, coins);
   }
 }

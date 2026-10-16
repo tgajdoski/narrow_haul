@@ -65,6 +65,7 @@ import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/music_service.dart';
 import 'package:narrow_haul/game/services/daily_challenge.dart';
+import 'package:narrow_haul/game/services/dispatch.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
@@ -865,12 +866,34 @@ class NarrowHaulGame extends Forge2DGame
   /// Tab the Garage opens on next (read once by the overlay; null: news).
   String? garageTab;
 
-  /// Flat indices of every unlocked career level (the daily's candidates;
-  /// an Expedition is too long for one).
-  static List<int> unlockedLevelIndices() => [
-    for (var i = 0; i < LevelRegistry.totalLevels; i++)
-      if (!LevelRegistry.isExpedition(i) && LevelRegistry.isLevelUnlocked(i)) i,
-  ];
+  /// The pilot's dispatch stage (who they share the daily with), fixed
+  /// for the day once seen.
+  static DispatchTier dispatchTier() {
+    final p = ProgressService.instance;
+    final kept = p.dispatchTierToday();
+    for (final t in DispatchTier.values) {
+      if (t.name == kept) return t;
+    }
+    final t = DispatchTier.forUnlocked({
+      for (final w in LevelRegistry.worlds)
+        if (!w.expedition && LevelRegistry.isWorldUnlocked(w)) w.id,
+    });
+    p.setDispatchTierToday(t.name);
+    return t;
+  }
+
+  /// Flat indices of the daily's candidates: every mission of the stage's
+  /// worlds, the same list for every pilot at that stage (an Expedition is
+  /// too long for one; see [dispatchEligible]).
+  static List<int> dailyLevelIndices() {
+    final worlds = dispatchTier().worldIds.toSet();
+    return [
+      for (var i = 0; i < LevelRegistry.totalLevels; i++)
+        if (worlds.contains(LevelRegistry.worldOf(i).$1.id) &&
+            dispatchEligible(LevelRegistry.defAt(i).saveId))
+          i,
+    ];
+  }
 
   @override
   void lifecycleStateChange(AppLifecycleState state) {

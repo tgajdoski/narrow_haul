@@ -5,6 +5,7 @@ import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
 import 'package:narrow_haul/game/services/cosmetics_service.dart';
+import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/garage_notices.dart';
 import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
@@ -349,6 +350,19 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
                   : Colors.white38,
               fontSize: 12,
             ),
+          ),
+        ],
+        if (isChallengeMode &&
+            GamesService.dailyBoardAvailable(NarrowHaulGame.dispatchTier())) ...[
+          const SizedBox(height: 8),
+          HoloButton(
+            key: const ValueKey('daily-board'),
+            label: "Today's board · ${NarrowHaulGame.dispatchTier().title} pilots",
+            icon: Icons.leaderboard_rounded,
+            variant: HoloVariant.ghost,
+            height: 34,
+            fontSize: 10.5,
+            onPressed: () => GamesService.showDailyLeaderboard(NarrowHaulGame.dispatchTier()),
           ),
         ],
         if (game.canDoubleCurrency) ...[

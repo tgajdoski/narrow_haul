@@ -52,9 +52,23 @@ void main() {
     test('carries across a month end', () async {
       await freshSave();
       final p = ProgressService.instance;
-      ProgressService.clock = () => DateTime(2026, 2, 28, 23);
+      ProgressService.clock = () => DateTime.utc(2026, 2, 28, 10);
       await p.advanceDailyStreak();
-      ProgressService.clock = () => DateTime(2026, 3, 1, 1);
+      ProgressService.clock = () => DateTime.utc(2026, 3, 1, 10);
+      expect(await p.advanceDailyStreak(), 2);
+    });
+
+    test('the daily day is the shared dispatch day, rolling over at 08:00 UTC', () async {
+      await freshSave();
+      final p = ProgressService.instance;
+      // 07:59 UTC still belongs to yesterday's dispatch.
+      ProgressService.clock = () => DateTime.utc(2026, 3, 2, 7, 59);
+      await p.markDailyChallengeComplete();
+      expect(await p.advanceDailyStreak(), 1);
+      ProgressService.clock = () => DateTime.utc(2026, 3, 1, 9);
+      expect(p.isDailyChallengeComplete(), isTrue, reason: 'the same dispatch');
+      ProgressService.clock = () => DateTime.utc(2026, 3, 2, 8);
+      expect(p.isDailyChallengeComplete(), isFalse, reason: 'a new dispatch went out');
       expect(await p.advanceDailyStreak(), 2);
     });
   });

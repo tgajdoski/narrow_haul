@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/cloud_save.dart';
+import 'package:narrow_haul/game/services/dispatch.dart';
 import 'package:narrow_haul/game/services/games_ids.dart';
 import 'package:narrow_haul/game/services/games_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -35,6 +36,14 @@ class _FakeBackend implements GamesBackend {
   Future<void> showAchievements() async {}
   @override
   Future<void> showLeaderboard() async {}
+
+  final dailyTimes = <(DispatchTier, int)>[];
+
+  @override
+  Future<void> submitDailyTime(DispatchTier tier, int ms) async => dailyTimes.add((tier, ms));
+
+  @override
+  Future<void> showDailyLeaderboard(DispatchTier tier) async {}
 }
 
 void main() {
@@ -46,6 +55,26 @@ void main() {
       kPlayAchievementIds.values.toSet(),
       hasLength(AchievementService.all.length),
     );
+  });
+
+  test('every dispatch stage has a board on both platforms, all different', () {
+    final play = {for (final t in DispatchTier.values) kPlayDailyLeaderboards[t.name]};
+    expect(play, hasLength(DispatchTier.values.length));
+    expect(play, isNot(contains(null)));
+    expect(play.intersection({...kPlayAchievementIds.values, kStarsLeaderboardPlay}), isEmpty);
+    expect(gameCenterDailyLeaderboard(DispatchTier.cadet.name), 'nh.daily_cadet');
+  });
+
+  test('a signed-in daily delivery submits its time to the stage board', () async {
+    SharedPreferences.setMockInitialValues({'save_v2': true, 'save_v3': true});
+    await ProgressService.init();
+    GamesService.debugReset();
+    final fake = _FakeBackend();
+    await GamesService.init(backend: fake);
+    GamesService.dailyDelivered(DispatchTier.line, 23.456);
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.dailyTimes, [(DispatchTier.line, 23456)]);
+    GamesService.debugReset();
   });
 
   group('merge rules', () {

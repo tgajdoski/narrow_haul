@@ -368,7 +368,7 @@ void main() {
         game: NarrowHaulGame()
           ..briefingDaily = true
           ..briefingLevel = DailyChallengeConfig.peekToday(
-            NarrowHaulGame.unlockedLevelIndices(),
+            NarrowHaulGame.dailyLevelIndices(),
           ).$1,
       ),
     );

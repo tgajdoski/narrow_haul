@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:games_services/games_services.dart';
 import 'package:narrow_haul/game/services/achievement_service.dart';
 import 'package:narrow_haul/game/services/cloud_save.dart';
+import 'package:narrow_haul/game/services/dispatch.dart';
 import 'package:narrow_haul/game/services/error_reporter.dart';
 import 'package:narrow_haul/game/services/games_ids.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
@@ -26,6 +27,13 @@ abstract class GamesBackend {
   Future<void> writeSave(String slot, String data);
   Future<void> showAchievements();
   Future<void> showLeaderboard();
+
+  /// A Daily dispatch delivered in [ms] by a pilot at stage [tier] (each
+  /// stage has its own board; the platform keeps the best of the day).
+  Future<void> submitDailyTime(DispatchTier tier, int ms);
+
+  /// Today's board of [tier].
+  Future<void> showDailyLeaderboard(DispatchTier tier);
 }
 
 /// Play Games Services (Android) and Game Center (iOS): sign-in, mirrored
@@ -172,6 +180,23 @@ class GamesService {
   /// the level list).
   static int Function() totalStars = () => 0;
 
+  /// A Daily dispatch delivered: its time goes on the stage's board.
+  static void dailyDelivered(DispatchTier tier, double seconds) {
+    if (!signedIn.value) return;
+    final ms = (seconds * 1000).round();
+    unawaited(_guard('daily time', () => _backend!.submitDailyTime(tier, ms)));
+  }
+
+  /// Whether today's board can open (signed in, and the board exists on
+  /// this platform).
+  static bool dailyBoardAvailable(DispatchTier tier) =>
+      signedIn.value &&
+      _backend != null &&
+      (kIsWeb || !Platform.isAndroid || (kPlayDailyLeaderboards[tier.name] ?? '').isNotEmpty);
+
+  static Future<void> showDailyLeaderboard(DispatchTier tier) =>
+      _guard('show daily board', () => _backend!.showDailyLeaderboard(tier));
+
   static Future<void> showAchievements() =>
       _guard('show achievements', () => _backend!.showAchievements());
 
@@ -277,5 +302,27 @@ class PluginGamesBackend implements GamesBackend {
   Future<void> showLeaderboard() => GamesServices.showLeaderboards(
     androidLeaderboardID: kStarsLeaderboardPlay,
     iOSLeaderboardID: kStarsLeaderboardGameCenter,
+  );
+
+  @override
+  Future<void> submitDailyTime(DispatchTier tier, int ms) async {
+    final play = kPlayDailyLeaderboards[tier.name] ?? '';
+    if (Platform.isAndroid && play.isEmpty) return;
+    await GamesServices.submitScore(
+      score: Score(
+        androidLeaderboardID: play,
+        iOSLeaderboardID: gameCenterDailyLeaderboard(tier.name),
+        // Play's time format is milliseconds; Game Center's finest elapsed
+        // time format is hundredths.
+        value: Platform.isIOS ? (ms / 10).round() : ms,
+      ),
+    );
+  }
+
+  @override
+  Future<void> showDailyLeaderboard(DispatchTier tier) => GamesServices.showLeaderboards(
+    androidLeaderboardID: kPlayDailyLeaderboards[tier.name] ?? '',
+    iOSLeaderboardID: gameCenterDailyLeaderboard(tier.name),
+    timeScope: TimeScope.today,
   );
 }
