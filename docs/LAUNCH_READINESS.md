@@ -10,7 +10,7 @@
 - `657505c` shared Daily dispatch (08:00 UTC, four career stages), *Today's board* per stage, contracts pay coins
 
 **Monday, in order:**
-1. **Profile build on the iPhone** (`flutter run --profile`) and fly playtest items **13** (run feedback) and **14** (tow controls) below. Note what's too loud, too often or hard to reach; tuning places are listed with each item.
+1. ~~Profile build on the iPhone, playtest items **13** and **14**~~ ✅ 2026-10-19 (iPhone 13: working fine).
 2. **The shared daily:** the 1.1 checklist item *Phone test of the shared daily* (needs two devices at the same stage; Game Center / Play boards only work in the 1.1 build with sign-in).
 3. **Android:** the same build on the Xiaomi (push the APK to `Download/`), checking the TOW pad on a second screen size.
 4. Fix what the playtest finds, then decide: ship these as **1.0.0+5** to both test tracks, and/or go to production (steps in *Open → Release* below).
@@ -189,13 +189,13 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Odds: is 40% per attempt the right amount? Are durations of 5–15 s right? Tuning: `kSalvage` / `kSalvageChance`.
     - Meta: the Salvage log in the Pilot Logbook, the achievement toasts, the Grit line on the result screen, the salvage contracts, and a Salvage Chaos daily (three caches).
 
-13. **Run feedback (2026-10-16):**
+13. **Run feedback (2026-10-16)** — ✅ iPhone 13 profile build 2026-10-19, working fine:
     - Deliver tut_04 three ways: a first clear, a faster replay, a slower one. Do the star pops, the jingle, the coin count and the FLAWLESS / NEW BEST line read well, and is any of it too loud against the results music?
     - Let the tank fall past the 3★ and 2★ marks on alien_02: is the falling tone noticed without being annoying? Is the low-fuel chirp every 2 s too much?
     - Pick up a canister and hook a pod: are the sparkle and the rings visible on a phone, and not too much?
     - Race my best: on a replay, does the gold ghost help or distract? Check the briefing chip and the pause toggle switch it, and that it never caps the stars.
     - Rank up once: the fanfare and the haptic.
-14. **Tow controls (2026-10-16):** hook a pod and try the TOW pad up and in from THRUST, both hands.
+14. **Tow controls (2026-10-16)** — ✅ iPhone 13 profile build 2026-10-19, working fine: hook a pod and try the TOW pad up and in from THRUST, both hands.
     - Can the thumb reach it from THRUST without letting a hover drop? Is a drag to winch too fiddly while hovering?
     - Tap to drop: does the pod stay off the hook until you pull away, and hook again on the way back?
     - Pay the line out to lower a pod into a pocket, then reel it in. Is 0.9 m/s right? Is 4.5 m too long?
