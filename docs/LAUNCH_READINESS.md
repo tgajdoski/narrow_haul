@@ -1,20 +1,52 @@
 # Narrow Haul — Launch Readiness
 
-## Start here (state on 2026-10-16)
+## Start here (state on 2026-10-19)
 
-**Where things stand.** Build `1.0.0+4` (commit `19a0c00`) is live as the Play closed test (GameTesters) and on TestFlight (internal + external). Nothing has gone to App Review or Play production yet: that waits for the work below to be tested on a phone. Since +4, `main` has five commits that no build carries yet (all pushed, 727 tests pass):
-- `a9d290f` run feedback: star pops, coin count, FLAWLESS / NEW BEST / BEST FUEL line, star-lost cue, low-fuel chirp, pickup and hook-up effects, Race my best ghost, flawless map rings, the hangar's next goal
-- `1dd2255` Greaser achievement (`flawless_world`; Century Hauler now 25 points)
-- `06fb214` TOW pad: drop, re-hook and winch the line (keys E / Z / X)
-- `3ea5ba2` docs
-- `657505c` shared Daily dispatch (08:00 UTC, four career stages), *Today's board* per stage, contracts pay coins
+**Where things stand: 1.0 is in store review on both stores.** Both were submitted on 2026-10-19 with the build testers already had, `1.0.0+4` (commit `19a0c00`). It was the fastest way to production.
+- **App Store:** version 1.0 with build 4 and all 5 IAPs (Full Game, Supporter Pack, Fleet Pass, Demolition Kit, Arsenal Crate), submitted in one Draft Submission. Status: *Waiting for Review*. Game Center is **unticked** on 1.0, because build 4 has no `games_services`.
+- **Google Play:** the closed-test release was promoted to Production. It is `1.0.0+4`, full rollout to 177 countries plus the rest of the world. Managed publishing is off, so it goes live as soon as it's approved. Status: *Changes in review*.
+- **Where the answer comes:**
+  - App Store: an email from App Store Connect, the App Store Connect app, and the status on the Apps list.
+  - Play: an email to admin@zafrk.com, and Play Console → Publishing overview.
+  - If either store rejects it, the reason is in Resolution Center (Apple) or the Inbox / Policy status page (Play).
+- **Typical waits:** Apple takes 1–3 days to start a review, which then takes a few hours. Play takes a few days, and can take up to a week for a new app.
+- **Browser:** both consoles are open in Chrome "Browser 3" (Play Console works there again). The auto-mode classifier blocks Save / Add for Review / Send on production releases, so the user clicks those.
 
-**Monday, in order:**
-1. ~~Profile build on the iPhone, playtest items **13** and **14**~~ ✅ 2026-10-19 (iPhone 13: working fine).
-2. **The shared daily:** the 1.1 checklist item *Phone test of the shared daily* (needs two devices at the same stage; Game Center / Play boards only work in the 1.1 build with sign-in).
-3. **Android:** the same build on the Xiaomi (push the APK to `Download/`), checking the TOW pad on a second screen size.
-4. Fix what the playtest finds, then decide: ship these as **1.0.0+5** to both test tracks, and/or go to production (steps in *Open → Release* below).
-5. **App Store Connect:** add the four Daily Dispatch boards to the 1.1 version's Game Center section (1.1 checklist).
+**When 1.0 is approved, in order:**
+1. **App Store:** if the release option is *Manual*, click **Release this version**. With *Automatic* it goes live on its own.
+2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that.
+3. **Check purchases in production:**
+   - All 5 Play products are *Active*.
+   - Make one real purchase per store (Full Game is enough), then Restore.
+4. **Firebase:** upgrade to **Blaze**, and link AdMob ↔ Firebase (*After publishing* below).
+5. **zafrk.com `deploy.sh` exclude:** see *After publishing*.
+6. Watch Crashlytics and the first-day funnel (`docs/ANALYTICS.md`).
+
+**Next release: 1.0.1 = `main`.** `main` already has everything built since build 4. All of it is pushed and 727 tests pass:
+- `a9d290f` run feedback
+- `1dd2255` Greaser achievement
+- `06fb214` TOW pad
+- `657505c` shared Daily dispatch, today's boards and coin contracts
+- Play Games Services / Game Center with cloud save, from `4e5772e`
+
+Steps:
+1. Finish the **1.0.1 (was 1.1) checklist** below:
+   - publish the consent screen
+   - add the Daily Dispatch boards to the version's Game Center section
+   - register the iCloud container
+   - phone tests on both platforms
+   - update the Play Data safety form
+   - publish the Play Games configuration
+2. Phone checks still open for `main`:
+   - the shared daily on two devices
+   - the TOW pad on the Xiaomi
+3. Set `pubspec.yaml` to **`1.0.1+5`**. Play never reuses a version code.
+4. Build and upload:
+   - `flutter build ipa` → Transporter
+   - `flutter build appbundle --release` → Play
+5. **App Store Connect:** create version 1.0.1, pick build 5, and **tick Game Center** (achievements, Total Stars and the four daily boards). Then submit.
+6. **Play:** create a Production release with bundle 5. Release notes come from the commits above.
+7. Small leftover: `flutter analyze` has 1 info (the unnecessary `dart:ui` import at `test/pinch_zoom_test.dart:2`).
 
 **Roadmap after that** (from the 2026-10-16 assessment; packages 1, 2a and 3 are done):
 - **2b · Xenar Caverns gets one gentle mechanic per level** (a swinging root = `Pendulum`, a spore updraft = `WindZoneSpec`, a floating pocket = `GravityZoneSpec`), so the first cave world isn't bare tunnels. Changes shipped levels: needs the autopilot run, route re-export, `tool/gen_ship_fit.dart` and `tool/difficulty_curve.dart`.
@@ -107,10 +139,10 @@
 - [ ] App Preview video from a release build (`tool/store/make_videos.sh`). Use Goose Ninja tracks for the YouTube promo: some Pixabay tracks are in Content ID.
 - [ ] IAP review screenshots (sandbox account): Settings buy rows, Garage → Armory → AMMO PACKS, and Garage → Ships → a locked ship's offer. Submit the 5 IAPs with 1.0: the ammo packs as **consumables** (`nh_demo_kit` $0.99, `nh_arsenal_crate` $2.99); `nh_full_game` ($4.99), `nh_supporter_pack` ($6.99) and `nh_fleet_pass` ($2.99) as **non-consumables**, in both stores.
 
-### Release (when asked)
-- **Play production:** Create new release with the new bundle, release notes, all countries, IAPs Active; you click Send.
-- **App Store 1.0:** pick the build, attach the 5 IAPs with review screenshots, Submit for Review.
-- Then link the AdMob apps to both store listings (real ads only serve after that).
+### Release
+- [x] **Play production** (2026-10-19): the closed-test release `1.0.0+4` was promoted to Production, with all countries and full rollout. It's in review.
+- [x] **App Store 1.0** (2026-10-19): build 4 and the 5 IAPs were submitted together. Supporter Pack first needed its availability set, and two ammo packs needed a retry after Apple's transient "Something went wrong". Status: Waiting for Review.
+- [ ] After approval, link the AdMob apps to both store listings. Real ads only serve after that.
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
@@ -201,10 +233,10 @@ Use a **profile or release build**: debug flies at 0.7× gravity. Install with `
     - Pay the line out to lower a pod into a pocket, then reel it in. Is 0.9 m/s right? Is 4.5 m too long?
     - On a small phone with three or more weapons the pad moves past the spilled rail: still reachable?
 
-## 1.1: Play Games / Game Center (built, not released)
+## 1.0.1 (was 1.1): Play Games / Game Center (built, not released)
 Code is in (`GamesService`, cloud save; see CLAUDE.md). Play Console is set up as drafts: 34 achievements (Greaser `flawless_world` added 2026-10-16, Century Hauler lowered to 25 points to keep Game Center's 1000 cap), the Total Stars leaderboard, Saved games on, two Android credentials.
 - [ ] Cloud Console → Google Auth Platform → Audience: **Publish app** (the consent screen is still in Testing).
-- [ ] App Store Connect → the 1.1 version's Game Center section: include the four Daily Dispatch boards (`nh.daily_cadet/line/senior/veteran`, created 2026-10-16 with names and icons, recurring daily from 08:00 UTC) along with the achievements. Play Console has the same four boards as drafts (Duration, smallest first).
+- [ ] App Store Connect → the 1.0.1 version's Game Center section: include the four Daily Dispatch boards (`nh.daily_cadet/line/senior/veteran`, created 2026-10-16 with names and icons, recurring daily from 08:00 UTC) along with the achievements. Play Console has the same four boards as drafts (Duration, smallest first).
 - [ ] Phone test of the shared daily: two devices at the same stage get the same level and modifier; after a daily, *Today's board* opens with your time; the daily rolls over at 08:00 UTC (10:00 in Croatia in summer, 09:00 in winter).
 - [x] App Store Connect → Game Center: all 34 achievements, 1000 points (`nh.flawless_world` *Greaser* and Century Hauler's 25 points + new icon added 2026-10-16). Originally: the 33 achievements (`art_src/achievements/game_center.csv`, icons in `icons/`) and the `nh.total_stars` leaderboard.
 - [ ] Build once in Xcode with automatic signing, so the iCloud container `iCloud.com.zafrk.narrowhaul` gets registered.
