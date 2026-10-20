@@ -130,7 +130,7 @@ Steps:
   - Reminders are local notifications (no push, no token), so App Privacy and Data safety don't change. The `reminder_*` analytics events fall under Product Interaction / App interactions, which is already declared.
   - Age rating and copyright.
 - [ ] **Play Console:**
-  - Ads = yes, Advertising ID (AdMob), IARC rating, **target audience 13+**.
+  - Ads = yes, Advertising ID (AdMob), IARC rating (live 2026-10-19, Global Rating ID `c57cb1f5-c647-8131-8e00-3fae02e42456`), **target audience 13+**.
   - **Data safety:**
     - Crash logs and diagnostics (Crashlytics).
     - App interactions and purchase history (Analytics).

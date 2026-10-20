@@ -111,7 +111,7 @@ The product id must match exactly; the app finds the product by it (`ProductIds.
 3. **Video:** upload `video/youtube_1080.mp4` to YouTube (public or unlisted, ads off) and paste the URL.
 4. **Phone screenshots:** `screenshots/play_1080/` (up to 8). **7" and 10" tablet:** the same files, or `ios_ipad13/` for 4:3.
 5. **App name, short description, full description** from `listing_en.md`.
-6. **Policy → App content:** Ads = yes, Data safety (AdMob, Crashlytics, Firebase Analytics: app interactions, device IDs, purchase history), Advertising ID, content rating (IARC), target audience.
+6. **Policy → App content:** Ads = yes, Data safety (AdMob, Crashlytics, Firebase Analytics: app interactions, device IDs, purchase history), Advertising ID, content rating (IARC), target audience. IARC ratings went live 2026-10-19, Global Rating ID `c57cb1f5-c647-8131-8e00-3fae02e42456` (reuse it on other IARC storefronts; Apple rates separately, 9+). Redo the questionnaire if an update changes its answers (new violence, chat or PvP, loot boxes).
 7. Upload a new AAB with the next build number (`pubspec.yaml` `1.0.0+N`) so the new icon and splash ship.
 
 ## Regenerate
