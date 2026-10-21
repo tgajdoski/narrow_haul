@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Cuts a store video from the frames of integration_test/store_video_test.dart.
 
-    python3 tool/store/assemble_store_video.py <frames_dir> <cut> <w>x<h> <out.mp4>
+    python3 tool/store/assemble_store_video.py <frames_dir> <cut> <w>x<h> <out.mp4> [crop]
 
 <frames_dir> holds one folder per scene (PNG frames + times.txt with each
 frame's game time). <cut> is `preview` (App Preview, under 30 s) or `youtube`
-(the longer promo). Each segment takes [start, start + length) seconds of a
+(the longer promo) or `header` (the App Store product page header / search
+results loop, flights only). `crop` fills <w>x<h> and cuts the overflow
+(the header's 21:9 and 3:2 from 16:9 frames) instead of letterboxing. Each segment takes [start, start + length) seconds of a
 scene's game time; frames keep their own durations, so the slow-motion capture
 plays back at real speed, resampled to a constant 30 fps. A silent stereo
 track is added (the App Store wants audio). Needs ffmpeg (FFMPEG overrides the
@@ -32,6 +34,13 @@ CUTS = {
         ('lava', 2.0, 3.0),
         ('expedition', 2.0, 3.3),
         ('complete', 0.5, 2.5),
+    ],
+    # App Store product page header / search results: a ~13 s silent loop
+    # of flights (HUD-free `header` frames).
+    'header': [
+        ('orbit', 1.0, 4.5),
+        ('lava', 2.0, 4.0),
+        ('redoubt', 1.5, 4.5),
     ],
     # YouTube / Play promo, ~75 s, the whole tour.
     'youtube': [
@@ -85,24 +94,31 @@ def concat_list(root, cut):
 
 def main():
     root, cut, size, out = sys.argv[1:5]
+    crop = len(sys.argv) > 5 and sys.argv[5] == 'crop'
     root = os.path.abspath(root)
     w, h = size.split('x')
     text, total = concat_list(root, cut)
     listing = os.path.abspath(out) + '.frames.txt'
     with open(listing, 'w') as f:
         f.write(text)
-    vf = ('fps=30,scale=%s:%s:force_original_aspect_ratio=decrease,'
-          'pad=%s:%s:(ow-iw)/2:(oh-ih)/2:color=%s,setsar=1,'
+    fit = ('scale=%s:%s:force_original_aspect_ratio=increase,crop=%s:%s' % (w, h, w, h)
+           if crop else
+           'scale=%s:%s:force_original_aspect_ratio=decrease,'
+           'pad=%s:%s:(ow-iw)/2:(oh-ih)/2:color=%s' % (w, h, w, h, BG))
+    vf = ('fps=30,%s,setsar=1,'
           'fade=t=in:st=0:d=0.3,fade=t=out:st=%.2f:d=0.4,format=yuv420p'
-          % (w, h, w, h, BG, max(0.0, total - 0.4)))
+          % (fit, max(0.0, total - 0.4)))
+    # 4K (the header art) needs level 5.1 and more bits than 1080p.
+    big = int(w) * int(h) > 2048 * 1080
+    level, rate, maxrate = ('5.1', '30M', '36M') if big else ('4.0', '10M', '12M')
     subprocess.run([
         FFMPEG, '-y', '-v', 'error',
         '-f', 'concat', '-safe', '0', '-i', listing,
         '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
         '-map', '0:v:0', '-map', '1:a:0', '-t', '%.3f' % total,
         '-vf', vf,
-        '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.0',
-        '-b:v', '10M', '-maxrate', '12M', '-bufsize', '20M',
+        '-c:v', 'libx264', '-profile:v', 'high', '-level', level,
+        '-b:v', rate, '-maxrate', maxrate, '-bufsize', '60M',
         '-c:a', 'aac', '-b:a', '256k', '-ar', '44100', '-ac', '2',
         '-movflags', '+faststart', out,
     ], check=True)

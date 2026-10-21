@@ -52,4 +52,24 @@ extension GameDebugHooks on NarrowHaulGame {
   /// Tests: coins Lucky Salvage will pay on delivery.
   @visibleForTesting
   int get debugLuckyCoins => _luckyCoins;
+
+  /// Store captures: hides or shows every HUD element (gauges, controls,
+  /// minimap, radio, markers) for clean key art; the flight runs on.
+  /// Call it once a level is loaded: HUD added later isn't covered.
+  @visibleForTesting
+  void debugHideHud(bool hide) {
+    for (final c in camera.viewport.children.whereType<PositionComponent>()) {
+      if (hide) {
+        c.decorator.addLast(_SkipDraw());
+      } else {
+        c.decorator.removeLast();
+      }
+    }
+  }
+}
+
+/// A decorator that draws nothing ([GameDebugHooks.debugHideHud]).
+class _SkipDraw extends Decorator {
+  @override
+  void apply(void Function(Canvas) draw, Canvas canvas) {}
 }

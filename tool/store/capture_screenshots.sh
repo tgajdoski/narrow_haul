@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Renders every store screenshot set into art_src/store/screenshots/:
-#   ios_69/      2868×1320  App Store iPhone 6.9"
-#   ios_ipad13/  2752×2064  App Store iPad 13"
-#   play_1080/   1920×1080  Google Play phone + tablets
+#   ios_69/         2868×1320  App Store iPhone 6.9"
+#   ios_duo_outer/  2034×1398  App Store iPhone Duo, outer display
+#   ios_duo_inner/  2853×2007  App Store iPhone Duo, inner display
+#   key_art/        5244×2950  flight scenes, no HUD (make_header.py's source)
+#   ios_ipad13/     2752×2064  App Store iPad 13"
+#   play_1080/      1920×1080  Google Play phone + tablets
 # Usage: tool/store/capture_screenshots.sh [macos|ipad]   (default: both)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -29,7 +32,7 @@ run() { # <device> <targets> [extra flutter args]
 
 what="${1:-all}"
 if [ "$what" = all ] || [ "$what" = macos ]; then
-  run macos ios_69,play_1080
+  run macos ios_69,ios_duo_outer,ios_duo_inner,key_art,play_1080
 fi
 if [ "$what" = all ] || [ "$what" = ipad ]; then
   udid=$(xcrun simctl list devices available | grep -F "$IPAD_SIM (" | head -1 | grep -oE '[0-9A-F-]{36}')

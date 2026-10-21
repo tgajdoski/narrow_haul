@@ -3,7 +3,9 @@
 # integration_test/store_video_test.dart on macOS (slow-motion frame capture
 # of the storyboard), then cuts them with assemble_store_video.py.
 #
-# Usage: tool/store/make_store_video.sh [iphone|ipad|youtube ...]   (default: all)
+# Usage: tool/store/make_store_video.sh [iphone|ipad|youtube|header ...]
+#   (default: iphone ipad youtube; `header` is the App Store product page
+#   header + search results loop: 4K, no HUD, flights only)
 #   Reuse captured frames instead of running the test:
 #   FRAMES_iphone=<dir> FRAMES_ipad=<dir> FRAMES_youtube=<dir> tool/store/make_store_video.sh
 #   Recapture some scene groups into the existing frames, then re-cut:
@@ -13,6 +15,8 @@
 #   preview_ipad.mp4    1600×1200  App Store 13" iPad App Preview (< 30 s)
 #   youtube_1080.mp4    1920×1080  Google Play promo video (upload to YouTube)
 #   poster.png          App Preview poster frame (2 s in)
+#   header_3840x1646.mp4  App Store product page header video (21:9)
+#   search_2880x1920.mp4  App Store search results video (3:2)
 #
 # Keep the test app's window visible while it runs: macOS stops drawing a
 # covered or minimised window and the capture stalls. The scenes run in small
@@ -39,15 +43,20 @@ SCENE_GROUPS=(
 )
 # Recapture only some groups: SCENE_GROUP_LIST="radio,alien,mine redoubt,expedition".
 [ -z "${SCENE_GROUP_LIST:-}" ] || read -r -a SCENE_GROUPS <<<"$SCENE_GROUP_LIST"
+# The header loop is flights only (4K frames: ~10 MB each).
+HEADER_GROUPS=(orbit lava redoubt)
 
 frame_count() { find "$1" -name 'f_*.png' 2>/dev/null | wc -l | tr -d ' '; }
 
 run_group() { # <target> <scenes> <dest dir> → 0 when done
   local log dir pid last=0 still=0 n
   log=$(mktemp)
+  # 4K frames save slowly: run the header's flights in slower motion.
+  local slow=()
+  [ "$1" != header ] || slow=(--dart-define=STORE_VIDEO_DILATION="${HEADER_DILATION:-24}")
   caffeinate -dims flutter test integration_test/store_video_test.dart -d macos \
     --dart-define=STORE_CAPTURE=true --dart-define=STORE_VIDEO_TARGET="$1" \
-    --dart-define=STORE_VIDEO_SCENES="$2" >"$log" 2>&1 &
+    --dart-define=STORE_VIDEO_SCENES="$2" ${slow[@]+"${slow[@]}"} >"$log" 2>&1 &
   pid=$!
   while kill -0 "$pid" 2>/dev/null; do
     sleep 10
@@ -76,7 +85,9 @@ run_group() { # <target> <scenes> <dest dir> → 0 when done
 capture() { # <target> → frames dir
   local dest="$OUT/frames/$1" g
   mkdir -p "$dest"
-  for g in "${SCENE_GROUPS[@]}"; do
+  local groups=("${SCENE_GROUPS[@]}")
+  [ "$1" != header ] || [ -n "${SCENE_GROUP_LIST:-}" ] || groups=("${HEADER_GROUPS[@]}")
+  for g in "${groups[@]}"; do
     echo "$1: $g" >&2
     run_group "$1" "$g" "$dest" || run_group "$1" "$g" "$dest" ||
       { echo "$1: $g failed twice" >&2; exit 1; }
@@ -100,6 +111,10 @@ for t in "${targets[@]}"; do
       ;;
     ipad) python3 tool/store/assemble_store_video.py "$dir" preview 1600x1200 "$OUT/preview_ipad.mp4" ;;
     youtube) python3 tool/store/assemble_store_video.py "$dir" youtube 1920x1080 "$OUT/youtube_1080.mp4" ;;
+    header)
+      python3 tool/store/assemble_store_video.py "$dir" header 3840x1646 "$OUT/header_3840x1646.mp4" crop
+      python3 tool/store/assemble_store_video.py "$dir" header 2880x1920 "$OUT/search_2880x1920.mp4" crop
+      ;;
     *) echo "unknown target $t" >&2; exit 1 ;;
   esac
 done

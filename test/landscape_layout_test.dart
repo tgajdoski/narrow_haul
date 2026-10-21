@@ -33,6 +33,8 @@ const _sizes = [
   Size(844, 390), // iPhone 14
   Size(667, 375), // iPhone SE
   Size(568, 320), // smallest landscape we care about
+  Size(678, 466), // iPhone Duo, outer display
+  Size(951, 669), // iPhone Duo, inner display
   Size(1366, 1024), // iPad Pro 12.9"
 ];
 

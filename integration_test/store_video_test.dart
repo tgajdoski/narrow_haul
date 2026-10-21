@@ -44,9 +44,15 @@ const _targets = {
   'ipad': _Target(Size(1366, 1024), 1600),
   // YouTube / Google Play promo, 1920×1080.
   'youtube': _Target(Size(960, 540), 1920),
+  // App Store product page header (21:9) and search results (3:2) videos:
+  // 16:9 4K flights with no HUD, cropped by assemble_store_video.py.
+  'header': _Target(Size(1280, 720), 3840),
 };
 
 const _target = String.fromEnvironment('STORE_VIDEO_TARGET', defaultValue: 'iphone');
+
+/// Flights without the HUD (the header / search art videos).
+const _clean = _target == 'header';
 
 /// Slow-motion factor while frames are saved (game seconds per wall second
 /// is 1 / this).
@@ -245,7 +251,9 @@ void main() {
       for (final c in game.world.children.whereType<RouteGuideLine>().toList()) {
         c.removeFromParent();
       }
+      if (_clean) game.debugHideHud(true);
       await record(scene, seconds);
+      if (_clean) game.debugHideHud(false);
     }
 
     // 7. The result screen (forced, like the store screenshots).

@@ -3,7 +3,9 @@
 //     --dart-define=STORE_CAPTURE=true --dart-define=STORE_TARGETS=ios_69,play_1080
 // The iPad layout (1376×1032 pt) doesn't fit a laptop screen, so that set runs
 // on the iPad Pro 13" simulator with STORE_TARGETS=ios_ipad13.
-// tool/store/capture_screenshots.sh runs both.
+// tool/store/capture_screenshots.sh runs both. The `key_art` target is the
+// flight scenes alone, with no HUD, at 5244×2950 for the App Store product
+// page header and search art (tool/store/make_header.py crops it).
 // then `tool/store/collect_screenshots.sh` copies them from the app sandbox
 // (path printed as SHOTS_DIR=...) into art_src/store/screenshots/.
 //
@@ -26,13 +28,14 @@ import 'package:narrow_haul/game/level/level_def.dart';
 import 'package:narrow_haul/game/level/level_registry.dart';
 import 'package:narrow_haul/game/narrow_haul_game.dart';
 import 'package:narrow_haul/game/services/audio_service.dart';
+import 'package:narrow_haul/game/ship/weapons.dart';
 import 'package:narrow_haul/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'capture_helpers.dart';
 
 class _Target {
-  const _Target(this.folder, this.logical, this.pixelWidth, this.zoom);
+  const _Target(this.folder, this.logical, this.pixelWidth, this.zoom, {this.keyArt = false});
 
   final String folder;
   final Size logical;
@@ -41,6 +44,9 @@ class _Target {
   /// Camera zoom (px/m) for flight shots: closer than the in-game 28 so the
   /// ship and pod read at store-thumbnail size.
   final double zoom;
+
+  /// Flight scenes only, with the HUD hidden.
+  final bool keyArt;
 }
 
 const _targets = [
@@ -48,6 +54,12 @@ const _targets = [
   _Target('ios_69', Size(956, 440), 2868, 44),
   // App Store 13" iPad (iPad Pro 13": 1376×1032 pt @2x).
   _Target('ios_ipad13', Size(1376, 1032), 2752, 64),
+  // App Store iPhone Duo, outer display (678×466 pt @3x).
+  _Target('ios_duo_outer', Size(678, 466), 2034, 46),
+  // App Store iPhone Duo, inner display (951×669 pt @3x).
+  _Target('ios_duo_inner', Size(951, 669), 2853, 54),
+  // App Store product page header / search art: 16:9 at 5244×2950 (@4x).
+  _Target('key_art', Size(1311, 737.5), 5244, 66, keyArt: true),
   // Google Play phone/tablet, 16:9 (Play caps the aspect at 2:1).
   _Target('play_1080', Size(960, 540), 1920, 48),
 ];
@@ -69,6 +81,12 @@ const _scenes = <(String, String, double, bool)>[
   ('06', 'redoubt_02', 0.35, true),
   ('07', 'alien_03', 0.5, false),
 ];
+
+/// Level for the Demolition Charge shot (an unarmed ship, rock close by).
+const _chargeScene = 'mine_03';
+
+/// Mission briefed in the briefing shot.
+const _briefingScene = 'orbit_04';
 
 /// Played-in save: early worlds starred, mid-career rank, some coins.
 Map<String, Object> _seededPrefs() {
@@ -139,6 +157,8 @@ void main() {
       game.camera.viewfinder.zoom = zoom;
       final end = DateTime.now().add(const Duration(milliseconds: 900));
       while (DateTime.now().isBefore(end) && game.runState == RunState.playing) {
+        // The app pauses a flight when its window loses focus.
+        if (game.isPaused) game.resumeGame();
         final v = s.body.linearVelocity;
         game.thrustHeld = v.y > -0.25;
         game.rotateAxis = ((bank - s.body.angle) * 3).clamp(-1.0, 1.0);
@@ -156,6 +176,17 @@ void main() {
       final cap = Capture(tester, dir);
       Future<void> shot(String name) => cap.shot(name, outputWidth: t.pixelWidth);
 
+      if (t.keyArt) {
+        for (final (n, id, along, fire) in _scenes) {
+          await towPose(cap, id, t.zoom, along: along, fire: fire);
+          game.debugHideHud(true);
+          await shot('${n}_$id');
+          game.debugHideHud(false);
+          game.thrustHeld = false;
+        }
+        continue;
+      }
+
       game.backToMenu();
       await cap.wait(1.5);
       await shot('09_menu');
@@ -172,6 +203,23 @@ void main() {
         await shot('${n}_$id');
         game.thrustHeld = false;
       }
+
+      // Weapons: a Demolition Charge going off mid-tunnel, carving the rock
+      // (found ammo, as from a supply crate, so no −★ badge).
+      game.debugSyncCarve = true;
+      await towPose(cap, _chargeScene, t.zoom, along: 0.55);
+      game.ship!.rack!
+        ..addFound(kGravityBomb.id, 2)
+        ..addFound(kDemoCharge.id, 2);
+      game.selectWeapon(kGravityBomb.id);
+      game.selectWeapon(kDemoCharge.id);
+      if (game.isPaused) game.resumeGame();
+      game.fireHeld = true;
+      await cap.wait(0.2);
+      game.fireHeld = false;
+      await shot('17_demo_charge');
+      game.thrustHeld = false;
+      game.debugSyncCarve = false;
 
       // Result screen (a real delivery can't be scripted; forced like the
       // smoke test).
@@ -253,6 +301,24 @@ void main() {
       }
       await shot('16_ammo_packs_iap');
       game.overlays.remove('cosmetics');
+      await cap.wait(0.4);
+
+      // Armory: the weapons list (top of the tab).
+      game.garageTab = 'armory';
+      game.overlays.add('cosmetics');
+      await cap.wait(1.2);
+      await shot('18_armory');
+      game.overlays.remove('cosmetics');
+
+      // Mission briefing over the missions map: the next new mission.
+      game.overlays
+        ..remove('menu')
+        ..add('levelSelect');
+      game.openBriefing(indexOf(_briefingScene));
+      await cap.wait(1.2);
+      await shot('19_briefing');
+      game.closeBriefing();
+      game.overlays.remove('levelSelect');
     }
 
     await binding.setSurfaceSize(null);

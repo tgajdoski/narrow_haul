@@ -11,6 +11,7 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | Play listing icon 512×512 | `art_src/icon/play_icon_512.png` | ✅ |
 | Launch screen (dark, ship mark) | in the build | ✅ |
 | iPhone screenshots 2868×1320 (App Store's iPhone slot now takes 6.3": upload the 2622×1206 copies) | `screenshots/ios_69/` → `upload/appstore_iphone_63/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
+| iPhone Duo screenshots: outer 2034×1398, inner 2853×2007 | `screenshots/ios_duo_outer/`, `screenshots/ios_duo_inner/` → `upload/appstore_duo_outer|inner/` | ✅ 2026-10-21, same scenes as `ios_69` (`capture_screenshots.sh macos`). Optional until April 2027; earns the "optimized for iPhone Duo" badge |
 | iPad 13" screenshots 2752×2064 | `screenshots/ios_ipad13/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
 | Play phone + tablet screenshots 1920×1080 | `screenshots/play_1080/` | ✅ recaptured 2026-10-13; JPEG upload copies (no alpha) in `upload/` and uploaded to both stores |
 | Play feature graphic 1024×500 | `feature_graphic_1024x500.png` | ✅ regenerated 2026-10-13 from the new `05_orbit_02`; uploaded to Play. AI key art optional: prompt C |
@@ -18,10 +19,12 @@ How each asset is made: see "Store assets" in `CLAUDE.md`. Prompts for AI art ar
 | App Preview videos + YouTube promo | `video/` (gitignored, rebuilt by the script) | ✅ 2026-10-13 from the game itself: `tool/store/make_store_video.sh` captures `integration_test/store_video_test.dart` on macOS (slow motion, every frame timed) and `tool/store/assemble_store_video.py` cuts `preview_iphone.mp4` 1920×886 and `preview_ipad.mp4` 1600×1200 (28.8 s) and `youtube_1080.mp4` (74 s). Keep the test window visible while it runs. Uploads under 10 MB: two-pass H.264 at 2.5 Mbps in `video/upload/`. Both previews are in App Store Connect |
 | YouTube channel banner 2560×1440 | `youtube_banner_2560x1440.jpg` | ✅ `python3 tool/store/make_banner.py`; live on @NarrowHaul |
 | IAP review screenshots (per product) | `iap_review/` | ✅ 4 shots, 2868×1320; which goes where in *IAP review screenshots and notes* below |
-| Promoted IAP image 1024 (optional) | — | ⏳ prompt E |
+| Promoted IAP image 1024 (optional) | `iap/<id>_1024.png` | ✅ the IAP images below double as the promoted images |
+| Product page header + search results images (iOS 27) | `header/header_3840x1646.jpg`, `header/search_3840x2560.jpg`, `header/universal_5244x2950.png` | ✅ 2026-10-21: `python3 tool/store/make_header.py [key_art.png] [--tag]` from the HUD-free `screenshots/key_art/` frames; `header/crop_check.png` outlines both crops |
+| Product page header + search results videos (iOS 27) | `video/header_3840x1646.mp4`, `video/search_2880x1920.mp4` | `tool/store/make_store_video.sh header` (4K HUD-free flights, ~13 s loop; needs ~10 GB free for frames) |
 | IAP images (`nh_demo_kit`, `nh_arsenal_crate`, `nh_fleet_pass`, `nh_full_game`, `nh_supporter_pack`) | `iap/<id>_1024.png`, `iap/<id>_512.png` | ✅ `tool/store/make_pack_images.py` (needs Pillow) |
 
-Worth adding to the set: a weapons shot (a charge carving rock), Garage → Armory, and the mission briefing.
+Also captured (2026-10-21): `17_demo_charge` (a charge carving rock), `18_armory`, `19_briefing`. Swap them into the upload set in place of weaker shots if they read well.
 
 Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `04_lava_03`,
 `05_orbit_02`, `06_redoubt_02`, `03_ice_03`, `10_level_complete`, `02_mine_03`, `08_missions`,
@@ -33,11 +36,17 @@ Suggested screenshot order (store pages show the first 3 most): `01_alien_05`, `
    - iPhone 6.9" Display: `screenshots/ios_69/` (up to 10) + `video/preview_iphone.mp4`
    - iPad 13" Display: `screenshots/ios_ipad13/` (up to 10) + `video/preview_ipad.mp4`
    - Smaller devices reuse these automatically.
-2. **Promotional Text, Description, Keywords, Support URL, Marketing URL** from `listing_en.md`.
-3. **Build:** upload from Xcode/Transporter. The icon comes from the binary; you don't upload it separately.
-4. **App Information:** subtitle, category Games → Arcade (secondary Action), age rating questionnaire, copyright.
-5. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
-6. **In-App Purchases:** for each of `nh_full_game` (Full Game, $4.99: every Expedition + no ads) and `nh_supporter_pack` (Supporter Pack, $6.99: the Full Game + livery + 500 coins) (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $0.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $2.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $2.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
+   - iPhone Duo (outer and inner display): `screenshots/ios_duo_outer/` and `screenshots/ios_duo_inner/` (JPEG copies in `upload/`), plus `video/preview_iphone.mp4` (Duo takes the same 1920×886 preview)
+2. **Product page header and search results** (iOS 27+, optional, reviewed on their own; can be published for the live version without a new build): Asset Library, or the version page's *Product Page Header* / *Search Results* section.
+   - Header: `header/header_3840x1646.jpg` or `video/header_3840x1646.mp4`
+   - Search results: `header/search_3840x2560.jpg` or `video/search_2880x1920.mp4`
+   - Or one image for both: `header/universal_5244x2950.png` with *Use header asset in search results*
+   - Rules: suitable for 4+, no prices or URLs, no alpha. The icon and name sit under the header, so no title is needed.
+3. **Promotional Text, Description, Keywords, Support URL, Marketing URL** from `listing_en.md`.
+4. **Build:** upload from Xcode/Transporter. The icon comes from the binary; you don't upload it separately.
+5. **App Information:** subtitle, category Games → Arcade (secondary Action), age rating questionnaire, copyright.
+6. **App Privacy:** AdMob data (identifiers, usage data, diagnostics, used for third-party advertising), Firebase Analytics (product interaction, device ID, diagnostics: Analytics, not linked, no tracking), Crashlytics (crash data) and the privacy URL.
+7. **In-App Purchases:** for each of `nh_full_game` (Full Game, $4.99: every Expedition + no ads) and `nh_supporter_pack` (Supporter Pack, $6.99: the Full Game + livery + 500 coins) (**non-consumable**), plus `nh_demo_kit` (Demolition Kit, $0.99: 10 Demolition Charges, 10 Gravity Bombs, 60 s Mining Laser) and `nh_arsenal_crate` (Arsenal Crate, $2.99: 30 of each weapon, 180 s laser) as **consumables**, and `nh_fleet_pass` (Fleet Pass, $2.99: every ship, now and later) as a **non-consumable**. For each: display name, description, review screenshot (Garage → Armory, or Garage → Ships → a locked ship). Submit them together with the first version. In Play Console, create the two packs as one-time products too (the app consumes them itself).
 
 ### IAP review screenshots and notes, per product
 
@@ -121,5 +130,7 @@ python tool/store/make_icon.py && dart run flutter_launcher_icons
 dart run flutter_native_splash:create        # then restore AndroidManifest.xml (see CLAUDE.md)
 tool/store/capture_screenshots.sh            # macOS sets; add "ipad" for the iPad set
 python tool/store/make_feature.py
+python tool/store/make_header.py              # App Store header + search art from screenshots/key_art/
+tool/store/make_store_video.sh header       # header + search videos (4K, no HUD)
 tool/store/make_videos.sh art_src/store/video/raw/<file>.mov 0 28
 ```

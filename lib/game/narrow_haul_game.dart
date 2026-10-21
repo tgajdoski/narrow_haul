@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/input.dart' show KeyboardEvents;
+import 'package:flame/rendering.dart' show Decorator;
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
