@@ -3,7 +3,7 @@
 ## Start here (state on 2026-10-19)
 
 **Where things stand: 1.0 is in store review on both stores.** Both were submitted on 2026-10-19 with the build testers already had, `1.0.0+4` (commit `19a0c00`). It was the fastest way to production.
-- **App Store:** version 1.0 with build 4 and all 5 IAPs (Full Game, Supporter Pack, Fleet Pass, Demolition Kit, Arsenal Crate), submitted in one Draft Submission. Status: *Waiting for Review*. Game Center is **unticked** on 1.0, because build 4 has no `games_services`.
+- **App Store:** version 1.0 with build 4 and all 5 IAPs (Full Game, Supporter Pack, Fleet Pass, Demolition Kit, Arsenal Crate), submitted in one Draft Submission. **Rejected on 2026-10-30** under Guideline 2.3.2: Demolition Kit had Arsenal Crate's image (`nh_arsenal_crate_1024.png`). On 2026-10-31 the submission was cancelled so the IAP could be edited, and the image was replaced with `nh_demo_kit_1024.png`. **To do:** *Add for Review* on all 5 IAPs and version 1.0, then submit. The user clicks these. Every IAP needs its own image: see `art_src/store/README.md`. Game Center is **unticked** on 1.0, because build 4 has no `games_services`.
 - **Google Play:** the closed-test release was promoted to Production. It is `1.0.0+4`, full rollout to 177 countries plus the rest of the world. Managed publishing is off, so it goes live as soon as it's approved. Status: *Changes in review*.
 - **Where the answer comes:**
   - App Store: an email from App Store Connect, the App Store Connect app, and the status on the Apps list.
@@ -14,7 +14,7 @@
 
 **When 1.0 is approved, in order:**
 1. **App Store:** if the release option is *Manual*, click **Release this version**. With *Automatic* it goes live on its own.
-2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that.
+2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that. Android linked 2026-10-28 (`com.zafrk.narrowhaul`, status *Getting ready · Review in progress*, 2–3 days). iOS waits for the App Store listing to be public.
 3. **Check purchases in production:**
    - All 5 Play products are *Active*.
    - Make one real purchase per store (Full Game is enough), then Restore.
@@ -142,11 +142,11 @@ Steps:
 ### Release
 - [x] **Play production** (2026-10-19): the closed-test release `1.0.0+4` was promoted to Production, with all countries and full rollout. It's in review.
 - [x] **App Store 1.0** (2026-10-19): build 4 and the 5 IAPs were submitted together. Supporter Pack first needed its availability set, and two ammo packs needed a retry after Apple's transient "Something went wrong". Status: Waiting for Review.
-- [ ] After approval, link the AdMob apps to both store listings. Real ads only serve after that.
+- [ ] After approval, link the AdMob apps to both store listings. Real ads only serve after that. Android done 2026-10-28 (AdMob review in progress); iOS pending the App Store release.
 
 ### After publishing
 - [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
-- [ ] Link each store listing in AdMob → App settings. Real ads only serve after that.
+- [ ] Link each store listing in AdMob → App settings. Real ads only serve after that. Android linked 2026-10-28; iOS pending.
 - [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`, or a zafrk deploy deletes the privacy and support pages.
 
 ## Playtest plan
