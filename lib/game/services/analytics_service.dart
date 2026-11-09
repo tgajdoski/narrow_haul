@@ -220,6 +220,16 @@ class Analytics {
   /// mission).
   static void reminderOpened(String kind) => log('reminder_opened', {'kind': kind});
 
+  // ── Word of mouth ─────────────────────────────────────────────────────────
+
+  /// The store's rating sheet was requested (the store may not show it).
+  static void reviewAsked(String levelId, int ask) =>
+      log('review_asked', {'level': levelId, 'ask': ask});
+
+  /// The result screen's Share was tapped; `daily` for a dispatch run.
+  static void runShared(String levelId, {required bool daily}) =>
+      log('run_shared', {'level': levelId, 'daily': daily});
+
   // ── Ads & purchases ───────────────────────────────────────────────────────
 
   static void rewardedAd(String placement, {required bool earned}) =>

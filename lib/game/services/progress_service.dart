@@ -131,6 +131,8 @@ class ProgressService {
     _Keys.remindersEnabled,
     _reminderAsks.key,
     _reminderAskMs.key,
+    _reviewAsks.key,
+    _reviewAskMs.key,
     _Keys.reminderHours,
     _Keys.saveV2,
     _xpMigrated.key,

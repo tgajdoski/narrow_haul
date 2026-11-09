@@ -43,6 +43,8 @@ const _canisterHintSeen = _Pref('canister_hint_seen', false);
 const _noseDownClean = _Pref('nose_down_clean', 0);
 const _reminderAsks = _Pref('reminder_asks', 0);
 const _reminderAskMs = _Pref('reminder_ask_ms', 0);
+const _reviewAsks = _Pref('review_asks', 0);
+const _reviewAskMs = _Pref('review_ask_ms', 0);
 const _xpMigrated = _Pref('save_v3', false);
 
 // Ads & purchases.

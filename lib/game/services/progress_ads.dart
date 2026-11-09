@@ -59,6 +59,13 @@ extension ProgressAds on ProgressService {
   int get removeAdsOfferMs => _read(_removeAdsOfferMs);
   Future<void> setRemoveAdsOfferMs(int v) => _write(_removeAdsOfferMs, v);
 
+  /// Store-rating asks so far and when the last one was (see ReviewAsk).
+  /// Kept on reset: the store's own cap doesn't reset either.
+  int get reviewAsks => _read(_reviewAsks);
+  Future<void> setReviewAsks(int v) => _write(_reviewAsks, v);
+  int get reviewAskMs => _read(_reviewAskMs);
+  Future<void> setReviewAskMs(int v) => _write(_reviewAskMs, v);
+
   /// Carried units of a special weapon (charges, bombs, laser seconds).
   /// Kept across a progress reset: most of it was paid for.
   double getAmmo(String weaponId) =>

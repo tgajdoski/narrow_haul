@@ -11,8 +11,10 @@ import 'package:narrow_haul/game/services/haptics.dart';
 import 'package:narrow_haul/game/services/monetization_service.dart';
 import 'package:narrow_haul/game/services/progress_service.dart';
 import 'package:narrow_haul/game/services/rank_service.dart';
+import 'package:narrow_haul/game/services/review_ask.dart';
 import 'package:narrow_haul/ui/career_widgets.dart';
 import 'package:narrow_haul/ui/rewarded_button.dart';
+import 'package:narrow_haul/ui/share_run.dart';
 import 'package:narrow_haul/ui/space_ui.dart';
 import 'package:narrow_haul/ui/store_feedback.dart';
 import 'package:narrow_haul/game/story/story.dart';
@@ -165,9 +167,16 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
     _anim.forward().whenComplete(() {
       if (!mounted || widget.game.showStoryOutroIfDue()) return;
       final reward = widget.game.lastRunReward;
-      if (reward != null && reward.rankedUp) {
-        widget.game.showRankUp();
-      }
+      final rankedUp = reward != null && reward.rankedUp;
+      if (rankedUp) widget.game.showRankUp();
+      // A 3★ with nothing else on screen is the moment to ask for a rating.
+      unawaited(
+        ReviewAsk.maybeAsk(
+          stars: widget.game.lastLevelStars,
+          otherCardShowing: rankedUp || widget.game.demoMode,
+          levelId: widget.game.currentLevelDef.saveId,
+        ),
+      );
     });
   }
 
@@ -414,6 +423,22 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
         ),
         const SizedBox(width: 12),
         Expanded(
+          child: Builder(
+            builder: (context) => HoloButton(
+              key: const ValueKey('share-run'),
+              label: 'Share',
+              icon: Icons.ios_share_rounded,
+              onPressed: () => shareRun(
+                context,
+                _shareText(),
+                levelId: game.currentLevelDef.saveId,
+                daily: isChallengeMode,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
           flex: 2,
           child: HoloButton.primary(
             label: isChallengeMode
@@ -462,6 +487,23 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
             ),
         ],
       ),
+    );
+  }
+
+  String _shareText() {
+    final game = widget.game;
+    final def = game.currentLevelDef;
+    return shareRunText(
+      mission: def.name,
+      world: LevelRegistry.worldOf(game.levelIndex).$1.name,
+      stars: game.lastLevelStars,
+      time: formatFlightTime(game.lastLevelTimeSeconds),
+      fuelPct: (game.lastLevelFuelFraction * 100).round(),
+      cargo: game.isChallengeMode ? null : storyFor(def.saveId)?.cargo,
+      badge: _badge(game.lastRunReward),
+      dailyTier: game.isChallengeMode
+          ? NarrowHaulGame.dispatchTier().title
+          : null,
     );
   }
 
