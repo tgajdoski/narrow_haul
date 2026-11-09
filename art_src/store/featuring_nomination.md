@@ -31,12 +31,12 @@ Narrow Haul: App Launch
 #### Nomination Type
 App Launch
 
-#### Nomination Description [1000] (963)
+#### Nomination Description [1000] (977)
 Narrow Haul is a physics cave flyer in the line of Thrust and Gravitar, rebuilt for touch. You fly a small cargo tug through narrow caves, hook a heavy pod on a line and land both on the pad while the pod swings behind you. Real physics, a thrust button and a turn stick, and every drop of fuel counts.
 
 There are 68 hand-built missions: 60 across seven worlds (low gravity, mine machinery, ice and wind, lava, gravity wells and zero-g, and a fortress that shoots back) plus 8 long multi-leg Expeditions. Six ships fly differently. The story plays out by radio: the jump gate has gone dark, and you haul rations, vaccine and coolant to cut-off settlements.
 
-It's made by one developer. His kids sign off every build and are credited on the first screen as "Approved by". The whole game plays offline, ads are light, and the Full Game is a single purchase. There's a Daily Challenge, up to 3 stars per mission, a route guide and demo flights for when you're stuck.
+It's made by one developer, and young test pilots sign off every build: they're credited on the first screen as "Approved by". The whole game plays offline, ads are light, and the Full Game is a single purchase. There's a Daily Challenge, up to 3 stars per mission, a route guide and demo flights for when you're stuck.
 
 #### Publish Date (Start) / (End)
 Start: at least 3 weeks after the day you submit (e.g. `2026-12-01`). End: leave empty.

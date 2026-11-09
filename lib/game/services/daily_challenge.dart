@@ -56,6 +56,9 @@ class DailyChallengeConfig {
     final rng = _todayRng();
     final levelIndex = levels.isEmpty ? 0 : levels[rng.nextInt(levels.length)];
     var mod = _modifiers[rng.nextInt(_modifiers.length)];
+    if (isChaosWeekend(dispatchDay(ProgressService.clock()))) {
+      mod = _modifiers.firstWhere((m) => m.$1 == chaosName);
+    }
     if (mod.$1 == chaosName && !(chaosOk?.call(levelIndex) ?? true)) {
       mod = _modifiers.first;
     }
@@ -87,6 +90,13 @@ class DailyChallengeConfig {
     );
   }
 
+  /// The first weekend of every month is a Salvage Chaos weekend (the
+  /// store's In-App Event): the Saturday in days 1–7 and the Sunday after
+  /// it. The level draw is unchanged; only the modifier is forced.
+  static bool isChaosWeekend(DateTime day) =>
+      (day.weekday == DateTime.saturday && day.day <= 7) ||
+      (day.weekday == DateTime.sunday && day.day >= 2 && day.day <= 8);
+
   /// Seeded by the shared dispatch day ([dispatchDay]), so every pilot
   /// with the same list draws the same level and modifier.
   static Random _todayRng() {
@@ -101,6 +111,9 @@ class DailyChallengeConfig {
     final rng = _todayRng();
     final levelIndex = levels.isEmpty ? 0 : levels[rng.nextInt(levels.length)];
     final mod = _modifiers[rng.nextInt(_modifiers.length)];
+    if (isChaosWeekend(dispatchDay(ProgressService.clock()))) {
+      return (levelIndex, false);
+    }
     return (levelIndex, mod.$1 == testFlightName);
   }
 }

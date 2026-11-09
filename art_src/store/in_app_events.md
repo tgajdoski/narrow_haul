@@ -9,7 +9,7 @@ Checked 2026-11-09 against Apple's *In-App Events* page and Google's
 | Event | Works with today's game? |
 |---|---|
 | 1. Daily Dispatch Boards | **Needs 1.0.1.** The shared daily and its per-stage leaderboards are on `main`, not in live build 4. Schedule it for the week 1.0.1 goes live. |
-| 2. Salvage Chaos Weekend | **Needs a code change.** Salvage Chaos is one of 7 daily modifiers, drawn from the date (`DailyChallengeConfig._modifiers`). It comes up about one day in seven, and only when the day's mission is a cave level; on a Training Grounds mission (the Cadet tier) it falls back to a standard run. You can't schedule a weekend of it today. Either ship a date override (e.g. a `kChaosDays` list that forces `chaos: true` on cave dailies, in a release before the event), or use the honest reframe below (*Relic Hunt*). |
+| 2. Salvage Chaos Weekend | **Ships in 1.0.1:** the first weekend of every month (the Saturday in days 1–7 and the Sunday after it, dispatch days) is always Salvage Chaos (`DailyChallengeConfig.isChaosWeekend`); schedule the event for one of those weekends once 1.0.1 is live. Cadet-tier pilots (Training Grounds only) still get a standard run that weekend. Before:  Salvage Chaos is one of 7 daily modifiers, drawn from the date (`DailyChallengeConfig._modifiers`). It comes up about one day in seven, and only when the day's mission is a cave level; on a Training Grounds mission (the Cadet tier) it falls back to a standard run. You can't schedule a weekend of it today. Either ship a date override (e.g. a `kChaosDays` list that forces `chaos: true` on cave dailies, in a release before the event), or use the honest reframe below (*Relic Hunt*). |
 | 3. The Long Night | **Works now.** E0 is free and E1–E7 need the Full Game. The catch: it shipped in 1.0, so on iOS it's only "new" in the first weeks after the 2026-11-08 launch. Run it now as a *Premiere* while that's still true, or save it for an update that adds something to the Expeditions (the per-leg timers on the roadmap). |
 
 Apple's rules that matter here:
@@ -46,13 +46,13 @@ One mission for everyone. Fastest delivery wins.
 #### Long description [120] (119)
 Every day at 08:00 UTC, pilots at your career stage fly the same run. Deliver fast and climb today's Game Center board.
 
-### Event 2: Salvage Chaos Weekend (needs the code change above)
+### Event 2: Salvage Chaos Weekend (first weekend of the month, from 1.0.1)
 
 - **Reference name:** `salvage-chaos-weekend-1`
 - **Badge:** Special Event
 - **Event purpose:** Bring back lapsed users
 - **Priority:** Normal
-- **Duration:** Friday 08:00 UTC to Monday 08:00 UTC (3 dispatch days)
+- **Duration:** Saturday 08:00 UTC to Monday 08:00 UTC (the 2 dispatch days of the month's first weekend, e.g. 2026-12-05 → 2026-12-07)
 - **Promotion start:** 7 days before
 - **Purchase requirement:** None
 - **Media:** card = a ship inside a glowing "?" cache; details = the Spore Trip or Swarm Sting effect in flight
@@ -66,7 +66,7 @@ Three mystery relics on every daily run.
 #### Long description [120] (118)
 All weekend the Daily Dispatch has three "?" caches. Each relic is a boon or a curse: a shield or a bee in the engine.
 
-### Event 2, alternative without a code change: Relic Hunt
+### Event 2, alternative (not needed since 1.0.1): Relic Hunt
 
 Honest without any new code: caches already turn up on about 40% of cave
 flights. Still, Apple may see an event with nothing time-limited about it as
@@ -140,10 +140,10 @@ Every day at 08:00 UTC, every pilot at your career stage gets the same mission a
 
 Each stage has its own board, so new pilots race new pilots. Sign in to Play Games from Settings to post your times. Your achievements and career now sync through cloud save too.
 
-### Card 2: Salvage Chaos Weekend (type: Time-limited event; needs the code change)
+### Card 2: Salvage Chaos Weekend (type: Time-limited event; from 1.0.1, first weekend of the month)
 
 - **Internal name:** Salvage Chaos Weekend 1
-- **Duration:** Friday 08:00 UTC to Monday 08:00 UTC
+- **Duration:** Saturday 08:00 UTC to Monday 08:00 UTC (the month's first weekend)
 
 #### Tagline [80] (63)
 Salvage Chaos Weekend — three mystery relics on every daily run
