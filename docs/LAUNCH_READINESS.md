@@ -14,7 +14,7 @@
 
 **Now that 1.0 is live, in order:**
 1. ~~**App Store:** Release this version~~ (done: it went live on its own 2026-11-08).
-2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that. Android linked 2026-10-28 (`com.zafrk.narrowhaul`, status *Getting ready · Review in progress*, 2–3 days). iOS waits for the App Store listing to be public.
+2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that. Android: linked 2026-10-28, *Ready · Ad serving enabled* by 2026-11-09. iOS: store linked 2026-11-09 (search by the full App Store URL; the bare ID finds nothing). The app-ads.txt check said *couldn't verify* right after, although `zafrk.com/app-ads.txt` is correct and the Zafrk iOS app with the same file is *Ready*: AdMob hadn't crawled the day-old listing yet. If it's still *Requires review* after ~3 days, open the app in AdMob → *Check for updates*.
 3. **Check purchases in production:**
    - All 5 Play products are *Active*.
    - Make one real purchase per store (Full Game is enough), then Restore.
