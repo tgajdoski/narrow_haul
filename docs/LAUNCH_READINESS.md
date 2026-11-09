@@ -22,6 +22,13 @@
 5. **zafrk.com `deploy.sh` exclude:** see *After publishing*.
 6. Watch Crashlytics and the first-day funnel (`docs/ANALYTICS.md`).
 
+**1.0.1 (build 5) status, 2026-11-09:**
+- **App Store:** submitted 14:16 with 40 items: the version, 34 achievements, and 5 leaderboards (Total Stars + 4 Daily Dispatch). It also carries 8 new localizations (fr, de, es-ES, es-MX, pt-BR, ja, ko, en-GB) with subtitles and keywords. It releases automatically once approved.
+- **Lesson:** a version's Game Center items must be added to the *same* review submission (each item's "Add for Review" → the draft). The version alone went in first and had to be withdrawn.
+- **Daily Dispatch Cadet:** it had no restart interval and a stuck icon upload, both fixed.
+- **Play:** build 5 is live on internal testing. Still to do: promote it to Production, publish the Play Games configuration, update the Data safety form and publish the OAuth consent screen.
+- **Upload path:** Xcode needs **admin@zafrk.com** (team Zafrk, LLC) under Settings → Accounts; t.gajdoski@gmail.com isn't on the team. `xcodebuild -exportArchive` with `destination=upload` then uploads straight to App Store Connect.
+
 **Next release: 1.0.1 = `main`.** `main` already has everything built since build 4. All of it is pushed and 727 tests pass:
 - `a9d290f` run feedback
 - `1dd2255` Greaser achievement
