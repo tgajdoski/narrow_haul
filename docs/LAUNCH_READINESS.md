@@ -30,7 +30,7 @@
   - The Data safety update adds Personal info › User IDs and App activity › Other actions. Both are collected, optional, for app functionality only and not shared.
   - "No accounts" is kept: Play Games is the platform's own profile.
 - **Play Games:** published 2026-11-09 with 34 achievements and 5 leaderboards. Before publishing, Fuel Miser got its own badge (oil drum), because it shared ⚡ with Speed Hauler and Play refuses duplicate icons.
-- **Still open:** publish the OAuth consent screen (Cloud Console → Google Auth Platform → Audience).
+- **OAuth consent screen:** set to "In production" on 2026-11-09 (Cloud project narrow-haul). Nothing is left open for 1.0.1 except the stores' reviews.
 - **Release notes:** a promoted release copies Play's placeholder text into every listing language. Keep only the `<en-US>` block.
 - **Upload path:** Xcode needs **admin@zafrk.com** (team Zafrk, LLC) under Settings → Accounts; t.gajdoski@gmail.com isn't on the team. `xcodebuild -exportArchive` with `destination=upload` then uploads straight to App Store Connect.
 
