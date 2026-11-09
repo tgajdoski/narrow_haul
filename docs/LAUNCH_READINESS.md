@@ -26,7 +26,12 @@
 - **App Store:** submitted 14:16 with 40 items: the version, 34 achievements, and 5 leaderboards (Total Stars + 4 Daily Dispatch). It also carries 8 new localizations (fr, de, es-ES, es-MX, pt-BR, ja, ko, en-GB) with subtitles and keywords. It releases automatically once approved.
 - **Lesson:** a version's Game Center items must be added to the *same* review submission (each item's "Add for Review" → the draft). The version alone went in first and had to be withdrawn.
 - **Daily Dispatch Cadet:** it had no restart interval and a stuck icon upload, both fixed.
-- **Play:** build 5 is live on internal testing. Still to do: promote it to Production, publish the Play Games configuration, update the Data safety form and publish the OAuth consent screen.
+- **Play:** build 5 was promoted to Production (full rollout) and sent for review on 2026-11-09, together with the Data safety update.
+  - The Data safety update adds Personal info › User IDs and App activity › Other actions. Both are collected, optional, for app functionality only and not shared.
+  - "No accounts" is kept: Play Games is the platform's own profile.
+- **Play Games:** published 2026-11-09 with 34 achievements and 5 leaderboards. Before publishing, Fuel Miser got its own badge (oil drum), because it shared ⚡ with Speed Hauler and Play refuses duplicate icons.
+- **Still open:** publish the OAuth consent screen (Cloud Console → Google Auth Platform → Audience).
+- **Release notes:** a promoted release copies Play's placeholder text into every listing language. Keep only the `<en-US>` block.
 - **Upload path:** Xcode needs **admin@zafrk.com** (team Zafrk, LLC) under Settings → Accounts; t.gajdoski@gmail.com isn't on the team. `xcodebuild -exportArchive` with `destination=upload` then uploads straight to App Store Connect.
 
 **Next release: 1.0.1 = `main`.** `main` already has everything built since build 4. All of it is pushed and 727 tests pass:
