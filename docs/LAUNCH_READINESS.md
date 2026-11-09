@@ -1,8 +1,8 @@
 # Narrow Haul — Launch Readiness
 
-## Start here (state on 2026-10-19)
+## Start here (state on 2026-11-09)
 
-**Where things stand: 1.0 is in store review on both stores.** Both were submitted on 2026-10-19 with the build testers already had, `1.0.0+4` (commit `19a0c00`). It was the fastest way to production.
+**Where things stand: 1.0 is LIVE on both stores.** Google Play since 2026-10-20; App Store since **2026-11-08** (approved after the expedite, released automatically; https://apps.apple.com/app/narrow-haul/id6820095954). History below. Both were submitted on 2026-10-19 with the build testers already had, `1.0.0+4` (commit `19a0c00`). It was the fastest way to production.
 - **App Store:** version 1.0 with build 4 and all 5 IAPs (Full Game, Supporter Pack, Fleet Pass, Demolition Kit, Arsenal Crate), submitted in one Draft Submission. **Rejected on 2026-10-30** under Guideline 2.3.2: Demolition Kit had Arsenal Crate's image (`nh_arsenal_crate_1024.png`). On 2026-10-31 the submission was cancelled so the IAP could be edited, and the image was replaced with `nh_demo_kit_1024.png`. **Resubmitted 2026-10-31 at 08:22** (version 1.0 + 5 IAPs, 6 items): *Waiting for Review*. Still waiting on 2026-11-03, so an **expedited review was requested and accepted** that day (developer.apple.com → Contact → App Review → expedite; the form now asks only app name + platform). A rejection during it goes back to the expedited queue automatically. To resubmit, add the version for review first, then each IAP from its own page, so they all join the iOS draft. Adding an IAP first creates a separate draft with no platform, which can't be submitted. Every IAP needs its own image: see `art_src/store/README.md`. Game Center is **unticked** on 1.0, because build 4 has no `games_services`.
 - **Google Play:** the closed-test release was promoted to Production. It is `1.0.0+4`, full rollout to 177 countries plus the rest of the world. Managed publishing is off, so it goes live as soon as it's approved. Status: *Changes in review*.
 - **Where the answer comes:**
@@ -12,8 +12,8 @@
 - **Typical waits:** Apple takes 1–3 days to start a review, which then takes a few hours. Play takes a few days, and can take up to a week for a new app.
 - **Browser:** both consoles are open in Chrome "Browser 3" (Play Console works there again). The auto-mode classifier blocks Save / Add for Review / Send on production releases, so the user clicks those.
 
-**When 1.0 is approved, in order:**
-1. **App Store:** if the release option is *Manual*, click **Release this version**. With *Automatic* it goes live on its own.
+**Now that 1.0 is live, in order:**
+1. ~~**App Store:** Release this version~~ (done: it went live on its own 2026-11-08).
 2. **AdMob:** link both AdMob apps to their published store listings (AdMob → Apps → App settings). Real ads only serve after that. Android linked 2026-10-28 (`com.zafrk.narrowhaul`, status *Getting ready · Review in progress*, 2–3 days). iOS waits for the App Store listing to be public.
 3. **Check purchases in production:**
    - All 5 Play products are *Active*.
