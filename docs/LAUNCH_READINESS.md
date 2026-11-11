@@ -24,6 +24,7 @@
 
 **1.0.1 (build 5) status, 2026-11-09:**
 - **App Store:** submitted 14:16 with 40 items: the version, 34 achievements, and 5 leaderboards (Total Stars + 4 Daily Dispatch). It also carries 8 new localizations (fr, de, es-ES, es-MX, pt-BR, ja, ko, en-GB) with subtitles and keywords. It releases automatically once approved.
+- **Rejected 2026-11-11** under Guideline 2.1: no App Tracking Transparency prompt on an iPad (iPadOS 27.2). The prompt came only from UMP's IDFA message, and 1.0.1 started the Game Center sign-in at the same moment, whose sheet makes iOS drop the request. Fixed in `8392776`: the app requests ATT itself when it's still undetermined, and Game Center waits for the consent and tracking prompts. **Build 6** was uploaded and swapped into the version. A fresh-install iPhone 13 recording (explainer → ATT → Game Center banner after) was sent in the reply. **Resubmitted 2026-11-11: Waiting for Review.** For future submissions, a link to that recording belongs in App Review Information → Notes.
 - **Lesson:** a version's Game Center items must be added to the *same* review submission (each item's "Add for Review" → the draft). The version alone went in first and had to be withdrawn.
 - **Daily Dispatch Cadet:** it had no restart interval and a stuck icon upload, both fixed.
 - **Play:** build 5 was promoted to Production (full rollout) and sent for review on 2026-11-09, together with the Data safety update.
