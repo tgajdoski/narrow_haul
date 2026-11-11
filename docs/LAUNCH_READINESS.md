@@ -18,7 +18,7 @@
 3. **Check purchases in production:**
    - All 5 Play products are *Active*.
    - Make one real purchase per store (Full Game is enough), then Restore.
-4. **Firebase:** upgrade to **Blaze**, and link AdMob ↔ Firebase (*After publishing* below).
+4. **Firebase:** link AdMob ↔ Firebase (works on the free Spark plan). **Blaze is deferred** (decided 2026-11-11): BigQuery history only pays off with many players; the Firebase Analytics dashboards are enough until then.
 5. **zafrk.com `deploy.sh` exclude:** see *After publishing*.
 6. Watch Crashlytics and the first-day funnel (`docs/ANALYTICS.md`).
 
@@ -160,7 +160,7 @@ Steps:
 - [ ] After approval, link the AdMob apps to both store listings. Real ads only serve after that. Android done 2026-10-28 (AdMob review in progress); iOS pending the App Store release.
 
 ### After publishing
-- [ ] Firebase: upgrade to **Blaze** (BigQuery sandbox tables expire after 60 days); link AdMob ↔ Firebase.
+- [ ] Firebase: link AdMob ↔ Firebase. Blaze + BigQuery export deferred until the player count makes raw-event history worth keeping (sandbox tables expire after 60 days).
 - [ ] Link each store listing in AdMob → App settings. Real ads only serve after that. Android linked 2026-10-28; iOS pending.
 - [ ] zafrk.com `deploy.sh`: add `--exclude "narrow-haul"` and `--exclude "narrow-haul/*"`, or a zafrk deploy deletes the privacy and support pages.
 
