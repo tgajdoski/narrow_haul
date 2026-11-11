@@ -39,11 +39,6 @@ void registerLicenses() {
 /// credits are gone.
 void startServicesAfterCredits(NarrowHaulGame game) {
   final credits = game.creditsVisible;
-  if (!credits.value) {
-    unawaited(MonetizationService.instance.init());
-    unawaited(GamesService.init());
-    return;
-  }
   var started = false;
   late final VoidCallback listener;
   void start() {
@@ -51,14 +46,22 @@ void startServicesAfterCredits(NarrowHaulGame game) {
     started = true;
     credits.removeListener(listener);
     unawaited(MonetizationService.instance.init());
-    // Play Games / Game Center sign-in (its welcome banner or sign-in sheet
-    // also waits for the credits).
-    unawaited(GamesService.init());
+    // Play Games / Game Center sign-in after the consent form and the iOS
+    // tracking prompt: its sheet on screen makes iOS drop the ATT request.
+    unawaited(
+      MonetizationService.instance.privacyPromptsDone
+          .timeout(const Duration(seconds: 60), onTimeout: () {})
+          .then((_) => GamesService.init()),
+    );
   }
 
   listener = () {
     if (!credits.value) start();
   };
+  if (!credits.value) {
+    start();
+    return;
+  }
   credits.addListener(listener);
   // Safety net: the credits never take this long.
   Timer(const Duration(seconds: 20), start);
@@ -87,9 +90,7 @@ const bool _firebaseCollect =
     kReleaseMode || bool.fromEnvironment('FIREBASE_COLLECT');
 
 Future<void> _connectFirebase() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final crashlytics = FirebaseCrashlytics.instance;
   await crashlytics.setCrashlyticsCollectionEnabled(_firebaseCollect);
   ErrorReporter.sink = (error, stack, context) => crashlytics.recordError(

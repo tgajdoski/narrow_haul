@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart'
+    show AppLifecycleListener, AppLifecycleState, WidgetsBinding;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_android/billing_client_wrappers.dart' show BillingResponse;
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show BillingResponse;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:narrow_haul/game/physics_constants.dart' show kStoreCapture;
 import 'package:narrow_haul/game/services/ad_pacing.dart';
@@ -105,7 +109,8 @@ class MonetizationService {
   /// Store screenshot builds (`STORE_CAPTURE`) show every product's buy
   /// row with its fallback price, for the IAP review screenshots.
   bool canBuy(String productId) =>
-      _products.containsKey(productId) || (kStoreCapture && ProductIds.all.contains(productId));
+      _products.containsKey(productId) ||
+      (kStoreCapture && ProductIds.all.contains(productId));
 
   /// Localized store price, or a fallback before the store answers.
   String priceOf(String productId) =>
@@ -128,7 +133,19 @@ class MonetizationService {
   Future<void> init() async {
     _initStarted = true;
     _lastRefreshMs = DateTime.now().millisecondsSinceEpoch;
+    if (!_adPlatform) _settlePrivacyPrompts();
     await Future.wait([_initStore(), _initAds()]);
+  }
+
+  /// Completes once the first launch's consent form and iOS tracking prompt
+  /// are over (or were never needed). Game Center waits for it: its sign-in
+  /// sheet on screen makes iOS drop the tracking request without showing it
+  /// (App Review rejected 1.0.1 under 2.1 for a missing ATT prompt).
+  Future<void> get privacyPromptsDone => _privacyPrompts.future;
+  final Completer<void> _privacyPrompts = Completer<void>();
+
+  void _settlePrivacyPrompts() {
+    if (!_privacyPrompts.isCompleted) _privacyPrompts.complete();
   }
 
   /// Picks up whatever failed while offline: ads that never set up, store
@@ -155,6 +172,8 @@ class MonetizationService {
     _adsInitInFlight = true;
     try {
       await _gatherConsent();
+      await _requestTracking();
+      _settlePrivacyPrompts();
       if (!await ConsentInformation.instance.canRequestAds()) {
         _log('MonetizationService: consent does not allow ads yet');
         return;
@@ -173,21 +192,55 @@ class MonetizationService {
       _log('MonetizationService: ads unavailable ($e)');
     } finally {
       _adsInitInFlight = false;
+      _settlePrivacyPrompts();
     }
   }
 
+  /// iOS: asks for tracking (ATT) ourselves when UMP's IDFA message didn't,
+  /// before the ads SDK starts. Only while the status is undetermined, so
+  /// it's asked once ever. iOS ignores the request unless the app is active
+  /// and no other sheet is still on screen, hence the wait and the beat.
+  Future<void> _requestTracking() async {
+    if (!Platform.isIOS) return;
+    try {
+      if (await AppTrackingTransparency.trackingAuthorizationStatus !=
+          TrackingStatus.notDetermined) {
+        return;
+      }
+      await _whenAppActive();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      final status =
+          await AppTrackingTransparency.requestTrackingAuthorization();
+      _log('MonetizationService: tracking $status');
+    } catch (e) {
+      _log('MonetizationService: tracking request failed ($e)');
+    }
+  }
+
+  Future<void> _whenAppActive() async {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    final active = Completer<void>();
+    final listener = AppLifecycleListener(
+      onResume: () {
+        if (!active.isCompleted) active.complete();
+      },
+    );
+    await active.future;
+    listener.dispose();
+  }
+
   /// UMP: refresh consent status every launch and show the form when the
-  /// user is in a regulated region (GDPR first; the IDFA explainer + ATT
-  /// prompt on iOS come from the "IDFA message" configured in AdMob).
+  /// user is in a regulated region (GDPR first; on iOS the "IDFA message"
+  /// configured in AdMob may show the ATT prompt, else [_requestTracking]).
   Future<void> _gatherConsent() async {
     final updated = Completer<void>();
     ConsentInformation.instance.requestConsentInfoUpdate(
       ConsentRequestParameters(),
       updated.complete,
       (error) {
-        _log(
-          'MonetizationService: consent update failed ${error.message}',
-        );
+        _log('MonetizationService: consent update failed ${error.message}');
         updated.complete();
       },
     );
